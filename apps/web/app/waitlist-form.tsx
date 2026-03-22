@@ -36,6 +36,7 @@ export function WaitlistForm() {
   const [priceFeel, setPriceFeel] = useState("");
   const [topFeature, setTopFeature] = useState("");
   const [currentTool, setCurrentTool] = useState("");
+  const [suggestion, setSuggestion] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -76,6 +77,7 @@ export function WaitlistForm() {
           priceFeel: priceFeel || null,
           topFeature: topFeature || null,
           currentTool: currentTool || null,
+          suggestion: suggestion.trim() || null,
         }),
       });
     } catch {
@@ -165,6 +167,20 @@ export function WaitlistForm() {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Suggestion box */}
+        <div>
+          <p className="text-sm font-medium mb-2">Anything else you&apos;d like to tell us?</p>
+          <textarea
+            value={suggestion}
+            onChange={(e) => setSuggestion(e.target.value)}
+            placeholder="Feature ideas, pain points, what would make you pay instantly..."
+            rows={3}
+            maxLength={500}
+            className="w-full rounded-xl border border-border bg-bg px-4 py-3 text-sm text-text placeholder:text-text-dim outline-none focus:border-accent transition resize-none"
+          />
+          <p className="text-xs text-text-dim text-right mt-1">{suggestion.length}/500</p>
         </div>
 
         <div className="flex gap-3">
