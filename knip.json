@@ -4,20 +4,28 @@
       "entry": [
         "next.config.{js,ts,cjs,mjs}",
         "app/**/{page,layout,loading,error,not-found,global-error,template,default}.{ts,tsx}",
-        "app/**/route.{ts,tsx}"
+        "app/**/route.{ts,tsx}",
+        "components/**/*.{ts,tsx}",
+        "lib/utils.ts"
       ],
       "project": [
         "app/**/*.{ts,tsx}",
         "lib/**/*.{ts,tsx}",
+        "components/**/*.{ts,tsx}",
         "public/**/*.{png,jpg,jpeg,svg,webp}"
       ],
       "next": {
         "entry": ["next.config.{js,ts,cjs,mjs}"]
       },
-      "ignoreDependencies": ["tailwindcss"]
+      "ignoreDependencies": [
+        "tailwindcss",
+        "lucide-react",
+        "shadcn",
+        "tw-animate-css"
+      ]
     }
   },
-  "ignoreBinaries": ["tsc"],
+  "ignoreBinaries": ["apps/web.bin/prisma"],
   "ignore": ["apps/scripts/**"],
   "ignoreExportsUsedInFile": true
 }
