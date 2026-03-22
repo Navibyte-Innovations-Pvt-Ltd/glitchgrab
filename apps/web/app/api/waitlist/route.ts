@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 
 export async function POST(request: Request) {
   try {
-    const { email, priceFeel, topFeature, currentTool } = await request.json();
+    const { email, priceFeel, topFeature, currentTool, suggestion } = await request.json();
 
     if (!email || typeof email !== "string") {
       return NextResponse.json(
@@ -23,13 +23,14 @@ export async function POST(request: Request) {
     const normalizedEmail = email.toLowerCase().trim();
 
     // If survey data, update existing entry
-    if (priceFeel || topFeature || currentTool) {
+    if (priceFeel || topFeature || currentTool || suggestion) {
       await prisma.waitlist.update({
         where: { email: normalizedEmail },
         data: {
           priceFeel: priceFeel || undefined,
           topFeature: topFeature || undefined,
           currentTool: currentTool || undefined,
+          suggestion: suggestion || undefined,
         },
       });
       return NextResponse.json({ success: true });
