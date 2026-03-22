@@ -6,9 +6,8 @@
   "scripts": {
     "dev": "dotenvx run -- turbo dev",
     "build": "dotenvx run -- turbo build",
-    "lint": "turbo lint",
-    "validate": "bun run lint && tsc --noEmit && bun run check-unused",
-    "check-unused": "knip && pruny",
+    "lint": "turbo lint --",
+    "validate": "turbo validate -- && knip && pruny --all",
     "knip:fix": "knip --fix",
     "pruny:fix": "pruny --fix",
     "db:generate": "dotenvx run -- apps/web/node_modules/.bin/prisma generate --schema=apps/web/prisma/schema.prisma",
