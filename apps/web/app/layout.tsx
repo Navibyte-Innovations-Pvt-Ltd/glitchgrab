@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     description:
       "Turn messy bug reports into structured GitHub issues with AI. SDK auto-capture, handwritten notes, screenshots — all become clean issues.",
     siteName: "Glitchgrab",
-    images: [{ url: "/og-image.png", width: 1500, height: 844 }],
+    images: [{ url: "/og-image.png", width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
