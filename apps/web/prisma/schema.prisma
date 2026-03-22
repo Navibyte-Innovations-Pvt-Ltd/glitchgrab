@@ -7,9 +7,171 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ─── Pre-launch ──────────────────────────────────────────
+
 model Waitlist {
   id        String   @id @default(cuid())
   email     String   @unique
   source    String?  @default("landing")
   createdAt DateTime @default(now())
+}
+
+// ─── Auth ────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+  repos    Repo[]
+  aiConfig AiConfig?
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── Core ────────────────────────────────────────────────
+
+model Repo {
+  id        String   @id @default(cuid())
+  userId    String
+  githubId  Int      @unique
+  fullName  String
+  owner     String
+  name      String
+  isPrivate Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokens ApiToken[]
+  reports Report[]
+  issues  Issue[]
+}
+
+model ApiToken {
+  id        String   @id @default(cuid())
+  repoId    String
+  tokenHash String   @unique
+  name      String   @default("Default")
+  lastUsed  DateTime?
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+
+  repo    Repo     @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  reports Report[]
+}
+
+// ─── Reports & Issues ────────────────────────────────────
+
+enum ReportSource {
+  SDK_AUTO
+  SDK_USER_REPORT
+  DASHBOARD_UPLOAD
+  HANDWRITTEN_NOTE
+  MCP
+}
+
+enum ReportStatus {
+  PENDING
+  PROCESSING
+  CREATED
+  DUPLICATE
+  FAILED
+}
+
+model Report {
+  id          String       @id @default(cuid())
+  repoId      String
+  tokenId     String?
+  source      ReportSource
+  status      ReportStatus @default(PENDING)
+  rawInput    String?
+  screenshot  String?
+  errorStack  String?
+  userAgent   String?
+  pageUrl     String?
+  metadata    Json?
+  aiResponse  Json?
+  failReason  String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  repo  Repo      @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  token ApiToken? @relation(fields: [tokenId], references: [id], onDelete: SetNull)
+  issue Issue?
+}
+
+model Issue {
+  id           String   @id @default(cuid())
+  reportId     String   @unique
+  repoId       String
+  githubNumber Int
+  githubUrl    String
+  title        String
+  body         String
+  labels       String[]
+  severity     String?
+  isDuplicate  Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  repo   Repo   @relation(fields: [repoId], references: [id], onDelete: Cascade)
+}
+
+// ─── AI Config ───────────────────────────────────────────
+
+enum AiProvider {
+  PLATFORM
+  OPENAI
+  ANTHROPIC
+}
+
+model AiConfig {
+  id              String     @id @default(cuid())
+  userId          String     @unique
+  provider        AiProvider @default(PLATFORM)
+  encryptedApiKey String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
