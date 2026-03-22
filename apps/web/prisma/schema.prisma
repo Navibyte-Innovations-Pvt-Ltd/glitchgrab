@@ -10,10 +10,13 @@ datasource db {
 // ─── Pre-launch ──────────────────────────────────────────
 
 model Waitlist {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  source    String?  @default("landing")
-  createdAt DateTime @default(now())
+  id            String   @id @default(cuid())
+  email         String   @unique
+  source        String?  @default("landing")
+  priceFeel     String?
+  topFeature    String?
+  currentTool   String?
+  createdAt     DateTime @default(now())
 }
 
 // ─── Auth ────────────────────────────────────────────────
