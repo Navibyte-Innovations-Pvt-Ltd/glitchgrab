@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { WaitlistForm } from "./waitlist-form";
 
 const FLOWS = [
@@ -60,9 +61,7 @@ export default function LandingPage() {
       <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-bg/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-accent/20 flex items-center justify-center text-accent font-bold text-sm font-mono">
-              G
-            </div>
+            <Image src="/og-image.png" alt="Glitchgrab" width={32} height={32} className="rounded-full" />
             <span className="font-semibold text-lg tracking-tight">glitchgrab</span>
           </div>
           <a
@@ -368,9 +367,7 @@ export default function Layout({ children }) {
       <footer className="border-t border-border py-12">
         <div className="mx-auto max-w-6xl px-6 flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
           <div className="flex items-center gap-2">
-            <div className="h-6 w-6 rounded bg-accent/20 flex items-center justify-center text-accent font-bold text-xs font-mono">
-              G
-            </div>
+            <Image src="/og-image.png" alt="Glitchgrab" width={24} height={24} className="rounded-full" />
             <span className="text-sm font-medium">glitchgrab</span>
           </div>
           <p className="text-sm text-text-dim">
