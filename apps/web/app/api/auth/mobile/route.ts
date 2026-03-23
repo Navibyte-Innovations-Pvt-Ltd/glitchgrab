@@ -25,8 +25,8 @@ export async function POST(req: NextRequest) {
 
     // Step 1: Exchange code for GitHub access token (server-side with secret)
     const tokenBody: Record<string, string> = {
-      client_id: process.env.GITHUB_MOBILE_CLIENT_ID!,
-      client_secret: process.env.GITHUB_MOBILE_CLIENT_SECRET!,
+      client_id: process.env.GITHUB_MOBILE_CLIENT_ID ?? "",
+      client_secret: process.env.GITHUB_MOBILE_CLIENT_SECRET ?? "",
       code,
     };
     if (code_verifier) {
@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
     const githubId = String(profile.id);
 
     // Step 3: Find or create user + account
-    let account = await prisma.account.findUnique({
+    const account = await prisma.account.findUnique({
       where: {
         provider_providerAccountId: {
           provider: "github",
