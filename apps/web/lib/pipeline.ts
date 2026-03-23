@@ -51,16 +51,24 @@ export async function processReport(reportId: string): Promise<PipelineResult> {
       data: { aiResponse: JSON.parse(JSON.stringify(aiResult)) },
     });
 
-    // 5. Create the GitHub issue
+    // 5. Append screenshot note if one was provided
+    let issueBody = aiResult.body;
+    if (report.screenshot) {
+      issueBody += "\n\n---\n*Screenshot was attached and analyzed by AI to generate this issue.*\n*Reported via [Glitchgrab](https://glitchgrab.dev)*";
+    } else {
+      issueBody += "\n\n---\n*Reported via [Glitchgrab](https://glitchgrab.dev)*";
+    }
+
+    // 6. Create the GitHub issue
     const createdIssue = await createGitHubIssue(account.access_token, {
       owner: report.repo.owner,
       repo: report.repo.name,
       title: aiResult.title,
-      body: aiResult.body,
+      body: issueBody,
       labels: aiResult.labels,
     });
 
-    // 6. Save Issue record in DB
+    // 7. Save Issue record in DB
     await prisma.issue.create({
       data: {
         reportId: report.id,
@@ -74,7 +82,7 @@ export async function processReport(reportId: string): Promise<PipelineResult> {
       },
     });
 
-    // 7. Mark report as CREATED
+    // 8. Mark report as CREATED
     await prisma.report.update({
       where: { id: reportId },
       data: { status: "CREATED" },
