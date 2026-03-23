@@ -21,7 +21,11 @@
     "db:generate": "cd apps/web && dotenvx run -- ./node_modules/.bin/prisma generate",
     "db:push": "cd apps/web && dotenvx run -- ./node_modules/.bin/prisma db push",
     "db:migrate": "cd apps/web && dotenvx run -- ./node_modules/.bin/prisma migrate dev",
-    "db:studio": "cd apps/web && dotenvx run -- ./node_modules/.bin/prisma studio"
+    "db:studio": "cd apps/web && dotenvx run -- ./node_modules/.bin/prisma studio",
+    "db:reset": "cd apps/web && dotenvx run -- ./node_modules/.bin/prisma migrate reset --force"
   },
-  "workspaces": ["apps/*", "packages/*"]
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
 }
