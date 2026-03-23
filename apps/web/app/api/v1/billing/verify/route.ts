@@ -30,7 +30,7 @@ export async function POST(request: Request) {
         payment_id: body.razorpay_payment_id,
       },
       body.razorpay_signature,
-      process.env.RAZORPAY_KEY_SECRET!
+      process.env.RAZORPAY_KEY_SECRET ?? ""
     );
 
     if (!isValid) {
