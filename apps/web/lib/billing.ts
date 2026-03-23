@@ -1,24 +1,30 @@
 import { prisma } from "@/lib/db";
 
 export interface UserPlan {
-  plan: "FREE" | "PRO_BYOK" | "PRO_PLATFORM";
+  plan: "NONE" | "PRO_BYOK" | "PRO_PLATFORM";
   isActive: boolean;
   maxRepos: number;
   maxIssuesPerMonth: number;
-  hasAiAccess: boolean;
+  requiresOwnKey: boolean;
   expiresAt: Date | null;
 }
 
-const FREE_LIMITS = {
-  maxRepos: 1,
-  maxIssuesPerMonth: 30,
-  hasAiAccess: false,
+const NO_PLAN = {
+  maxRepos: 0,
+  maxIssuesPerMonth: 0,
+  requiresOwnKey: true,
 };
 
-const PRO_LIMITS = {
+const PRO_BYOK = {
   maxRepos: Infinity,
   maxIssuesPerMonth: Infinity,
-  hasAiAccess: true,
+  requiresOwnKey: true,
+};
+
+const PRO_PLATFORM = {
+  maxRepos: Infinity,
+  maxIssuesPerMonth: 100,
+  requiresOwnKey: false,
 };
 
 export async function getUserPlan(userId: string): Promise<UserPlan> {
@@ -26,52 +32,57 @@ export async function getUserPlan(userId: string): Promise<UserPlan> {
     where: { userId },
   });
 
+  // No subscription — no access
   if (!subscription || subscription.plan === "FREE") {
     return {
-      plan: "FREE",
-      isActive: true,
-      ...FREE_LIMITS,
+      plan: "NONE",
+      isActive: false,
+      ...NO_PLAN,
       expiresAt: null,
     };
   }
 
-  // Check if subscription is expired
+  // Check if expired
   const isExpired =
     subscription.currentPeriodEnd &&
     subscription.currentPeriodEnd < new Date();
 
   if (isExpired || subscription.status !== "ACTIVE") {
     return {
-      plan: "FREE",
+      plan: "NONE",
       isActive: false,
-      ...FREE_LIMITS,
+      ...NO_PLAN,
+      expiresAt: subscription.currentPeriodEnd,
+    };
+  }
+
+  if (subscription.plan === "PRO_PLATFORM") {
+    return {
+      plan: "PRO_PLATFORM",
+      isActive: true,
+      ...PRO_PLATFORM,
       expiresAt: subscription.currentPeriodEnd,
     };
   }
 
   return {
-    plan: subscription.plan as UserPlan["plan"],
+    plan: "PRO_BYOK",
     isActive: true,
-    ...PRO_LIMITS,
+    ...PRO_BYOK,
     expiresAt: subscription.currentPeriodEnd,
   };
 }
 
-export async function checkRepoLimit(userId: string): Promise<boolean> {
-  const plan = await getUserPlan(userId);
-  if (plan.maxRepos === Infinity) return true;
-  const repoCount = await prisma.repo.count({ where: { userId } });
-  return repoCount < plan.maxRepos;
-}
-
 export async function checkIssueLimit(userId: string): Promise<boolean> {
   const plan = await getUserPlan(userId);
+  if (!plan.isActive) return false;
   if (plan.maxIssuesPerMonth === Infinity) return true;
 
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
 
+  // Only count created issues, not updates/closes
   const issueCount = await prisma.issue.count({
     where: {
       repo: { userId },

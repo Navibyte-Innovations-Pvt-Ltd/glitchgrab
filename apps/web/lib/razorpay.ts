@@ -14,6 +14,19 @@ export function getRazorpay() {
   });
 }
 
-// Pro BYOK plan: $5/mo
-export const PRO_BYOK_AMOUNT = 500; // in cents (USD)
-export const PRO_BYOK_CURRENCY = "USD";
+export const PLANS = {
+  PRO_BYOK: {
+    name: "Pro (BYOK)",
+    amount: 500, // $5 in cents
+    currency: "USD",
+    description: "Unlimited repos & issues — bring your own AI key",
+  },
+  PRO_PLATFORM: {
+    name: "Pro (Platform AI)",
+    amount: 1000, // $10 in cents
+    currency: "USD",
+    description: "Unlimited repos, 100 issues/mo — we provide AI",
+  },
+} as const;
+
+export type PlanKey = keyof typeof PLANS;
