@@ -2,37 +2,61 @@ import OpenAI from "openai";
 
 // ─── Types ──────────────────────────────────────────────
 
-export interface AiIssueInput {
+export interface AiInput {
   description: string;
   screenshotUrl?: string | null;
   errorStack?: string | null;
   pageUrl?: string | null;
   userAgent?: string | null;
+  openIssues?: { number: number; title: string }[];
 }
 
-export interface AiIssueOutput {
-  title: string;
-  body: string;
-  labels: string[];
-  severity: "critical" | "high" | "medium" | "low";
-}
+export type AiAction =
+  | { intent: "create"; title: string; body: string; labels: string[]; severity: string }
+  | { intent: "update"; issueNumber: number; comment: string }
+  | { intent: "close"; issueNumbers: number[]; comment: string }
+  | { intent: "chat"; message: string };
 
 // ─── System prompt ──────────────────────────────────────
 
-const SYSTEM_PROMPT = `You are a senior software engineer who writes clear, actionable GitHub issues.
+const SYSTEM_PROMPT = `You are a smart GitHub issue assistant. You help developers manage bugs and issues.
 
-Given a bug report (description, optional screenshot, optional error stack), generate a structured GitHub issue.
+Given user input (text, optional screenshot, optional error stack) and a list of OPEN issues in the repo, decide what to do:
 
-IMPORTANT: You MUST respond ONLY with valid JSON. No explanations, no apologies, no markdown fences. Just pure JSON.
+1. **CREATE** a new issue — if the bug is new and doesn't match any open issue
+2. **UPDATE** an existing issue — if the bug is similar/related to an open issue (add a comment instead of creating a duplicate)
+3. **CLOSE** issues — if the user asks to close specific issues or all issues
+4. **CHAT** — if the user is asking a question or the input isn't actionable
 
-If the user provides a screenshot that isn't a bug (e.g. a product image, marketing material), still create an issue based on their text description. Describe what you see in the screenshot under Additional Context.
+IMPORTANT: Respond ONLY with valid JSON. Pick ONE action:
 
-JSON schema:
+For CREATE:
 {
-  "title": "string (concise, under 80 chars, imperative mood e.g. 'Fix crash when...')",
-  "body": "string (GitHub-flavored markdown with sections: ## Description, ## Steps to Reproduce, ## Expected Behavior, ## Actual Behavior, ## Additional Context)",
-  "labels": ["array of relevant labels like 'bug', 'high-priority', 'ui', 'crash', 'performance', 'regression', 'accessibility'"],
-  "severity": "one of: critical | high | medium | low"
+  "intent": "create",
+  "title": "string (concise, under 80 chars)",
+  "body": "string (GitHub markdown with ## Description, ## Steps to Reproduce, ## Expected Behavior, ## Actual Behavior, ## Additional Context)",
+  "labels": ["bug", "ui", etc],
+  "severity": "critical | high | medium | low"
+}
+
+For UPDATE (similar bug to existing issue):
+{
+  "intent": "update",
+  "issueNumber": 42,
+  "comment": "string (additional context to add as a comment on the existing issue)"
+}
+
+For CLOSE:
+{
+  "intent": "close",
+  "issueNumbers": [1, 2, 3],
+  "comment": "string (reason for closing)"
+}
+
+For CHAT (non-actionable input):
+{
+  "intent": "chat",
+  "message": "string (helpful response to the user)"
 }
 
 Severity guidelines:
@@ -41,27 +65,27 @@ Severity guidelines:
 - medium: feature partially broken, workaround exists
 - low: cosmetic issue, minor inconvenience
 
-Write the body in professional, third-person technical style. Include reproduction steps even if you have to infer them from context. If an error stack is provided, include it in a code block under Additional Context.
+When deciding CREATE vs UPDATE:
+- If an open issue has a very similar title/topic, choose UPDATE
+- If it's clearly a different bug, choose CREATE
+- When in doubt, CREATE a new issue
 
-ALWAYS respond with valid JSON. Never refuse. Never apologize. Just generate the issue.`;
+ALWAYS respond with valid JSON. Never refuse.`;
 
 // ─── AI Service ─────────────────────────────────────────
 
-export async function generateIssueFromBug(
-  input: AiIssueInput
-): Promise<AiIssueOutput> {
+function getOpenAI(): OpenAI {
   const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is not configured");
-  }
+  if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
+  return new OpenAI({ apiKey });
+}
 
-  const openai = new OpenAI({ apiKey });
+export async function classifyAndGenerate(input: AiInput): Promise<AiAction> {
+  const openai = getOpenAI();
 
-  // Build the user message content
   const userParts: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [];
 
-  // Text content
-  let textContent = `Bug Report:\n${input.description}`;
+  let textContent = `User input:\n${input.description}`;
   if (input.errorStack) {
     textContent += `\n\nError Stack:\n${input.errorStack}`;
   }
@@ -71,9 +95,18 @@ export async function generateIssueFromBug(
   if (input.userAgent) {
     textContent += `\n\nUser Agent: ${input.userAgent}`;
   }
+
+  if (input.openIssues && input.openIssues.length > 0) {
+    textContent += "\n\nCurrently OPEN issues in this repo:";
+    for (const issue of input.openIssues) {
+      textContent += `\n- #${issue.number}: ${issue.title}`;
+    }
+  } else {
+    textContent += "\n\nNo open issues in this repo.";
+  }
+
   userParts.push({ type: "text", text: textContent });
 
-  // Screenshot (if provided, send as image URL for GPT-4o vision)
   if (input.screenshotUrl) {
     userParts.push({
       type: "image_url",
@@ -93,56 +126,50 @@ export async function generateIssueFromBug(
   });
 
   const rawContent = response.choices[0]?.message?.content;
-  if (!rawContent) {
-    throw new Error("AI returned empty response");
+  if (!rawContent) throw new Error("AI returned empty response");
+
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(rawContent) as Record<string, unknown>;
+  } catch {
+    return { intent: "chat", message: rawContent };
   }
 
-  // Parse — strip markdown code fences if the model wraps them anyway
-  const cleaned = rawContent
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```$/i, "")
-    .trim();
+  const intent = parsed.intent as string;
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(cleaned);
-  } catch {
-    // AI returned plain text instead of JSON — use it as the issue body
+  if (intent === "create") {
     return {
-      title: input.description?.slice(0, 80) || "Bug report",
-      body: rawContent,
-      labels: ["bug"],
-      severity: "medium" as const,
+      intent: "create",
+      title: String(parsed.title ?? "Bug report").slice(0, 80),
+      body: String(parsed.body ?? ""),
+      labels: Array.isArray(parsed.labels)
+        ? parsed.labels.map((l) => String(l))
+        : ["bug"],
+      severity: String(parsed.severity ?? "medium"),
     };
   }
 
-  // Validate shape
-  if (
-    !parsed ||
-    typeof parsed !== "object" ||
-    !("title" in parsed) ||
-    !("body" in parsed) ||
-    !("labels" in parsed) ||
-    !("severity" in parsed)
-  ) {
-    throw new Error("AI response missing required fields");
+  if (intent === "update") {
+    return {
+      intent: "update",
+      issueNumber: Number(parsed.issueNumber),
+      comment: String(parsed.comment ?? ""),
+    };
   }
 
-  const result = parsed as Record<string, unknown>;
-
-  const validSeverities = ["critical", "high", "medium", "low"] as const;
-  const severity = validSeverities.includes(
-    result.severity as (typeof validSeverities)[number]
-  )
-    ? (result.severity as AiIssueOutput["severity"])
-    : "medium";
+  if (intent === "close") {
+    const nums = Array.isArray(parsed.issueNumbers)
+      ? parsed.issueNumbers.map(Number)
+      : [];
+    return {
+      intent: "close",
+      issueNumbers: nums,
+      comment: String(parsed.comment ?? "Closed via Glitchgrab"),
+    };
+  }
 
   return {
-    title: String(result.title).slice(0, 80),
-    body: String(result.body),
-    labels: Array.isArray(result.labels)
-      ? result.labels.map((l) => String(l))
-      : ["bug"],
-    severity,
+    intent: "chat",
+    message: String(parsed.message ?? "I'm not sure what to do with that."),
   };
 }
