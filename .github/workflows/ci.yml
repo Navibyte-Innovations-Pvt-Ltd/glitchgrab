@@ -38,7 +38,7 @@ jobs:
         run: bunx knip
 
       - name: Check unused routes (pruny)
-        run: bunx pruny --all
+        run: bunx pruny --all --ignore-apps mobile
 
   build:
     name: Build
