@@ -74,6 +74,69 @@ export async function createGitHubIssue(
   };
 }
 
+// ─── Comment on Issue ──────────────────────────────────
+
+export async function commentOnIssue(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+  body: string
+): Promise<void> {
+  const url = `${GITHUB_API}/repos/${owner}/${repo}/issues/${issueNumber}/comments`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: headers(accessToken),
+    body: JSON.stringify({ body }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to comment on issue #${issueNumber}: ${response.status}`);
+  }
+}
+
+// ─── Close Issue ───────────────────────────────────────
+
+export async function closeIssue(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+  comment?: string
+): Promise<void> {
+  if (comment) {
+    await commentOnIssue(accessToken, owner, repo, issueNumber, comment);
+  }
+  const url = `${GITHUB_API}/repos/${owner}/${repo}/issues/${issueNumber}`;
+  const response = await fetch(url, {
+    method: "PATCH",
+    headers: headers(accessToken),
+    body: JSON.stringify({ state: "closed" }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to close issue #${issueNumber}: ${response.status}`);
+  }
+}
+
+// ─── Fetch Open Issues ─────────────────────────────────
+
+export async function fetchOpenIssues(
+  accessToken: string,
+  owner: string,
+  repo: string
+): Promise<{ number: number; title: string }[]> {
+  const url = `${GITHUB_API}/repos/${owner}/${repo}/issues?state=open&per_page=50&sort=updated`;
+  const response = await fetch(url, {
+    method: "GET",
+    headers: headers(accessToken),
+  });
+  if (!response.ok) return [];
+  const data = (await response.json()) as { number: number; title: string; pull_request?: unknown }[];
+  // Filter out PRs (GitHub API returns PRs in issues endpoint)
+  return data
+    .filter((i) => !i.pull_request)
+    .map((i) => ({ number: i.number, title: i.title }));
+}
+
 // ─── Upload Screenshot ─────────────────────────────────
 
 export async function uploadScreenshotToRepo(
