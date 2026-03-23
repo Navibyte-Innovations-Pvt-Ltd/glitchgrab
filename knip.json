@@ -19,13 +19,12 @@
       },
       "ignoreDependencies": [
         "tailwindcss",
-        "lucide-react",
         "shadcn",
         "tw-animate-css"
       ]
     }
   },
-  "ignoreBinaries": ["apps/web.bin/prisma"],
+  "ignoreBinaries": ["prisma"],
   "ignore": ["apps/scripts/**"],
   "ignoreExportsUsedInFile": true
 }
