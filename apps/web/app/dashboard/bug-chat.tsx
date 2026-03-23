@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ImagePlus, Send, X, Loader2, GitFork, RotateCcw, ChevronDown, Check } from "lucide-react";
 import { toast } from "sonner";
 
@@ -295,19 +296,14 @@ export function BugChat({
       {/* Input */}
       <div className="shrink-0 rounded-xl border border-border bg-card p-2 sm:p-3">
           {/* Repo selector row */}
-          <div className="relative mb-1.5 pb-1.5 border-b border-border">
-            <button
-              type="button"
-              onClick={() => setRepoPickerOpen(!repoPickerOpen)}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition px-1 py-0.5 rounded"
-            >
-              <GitFork className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate max-w-[200px]">{selectedRepoName || "Select repo"}</span>
-              <ChevronDown className="h-3 w-3 shrink-0" />
-            </button>
-
-            {repoPickerOpen && (
-              <div className="absolute bottom-full left-0 mb-1 w-72 rounded-lg border border-border bg-card shadow-lg z-50">
+          <div className="mb-1.5 pb-1.5 border-b border-border">
+            <Popover open={repoPickerOpen} onOpenChange={(open) => { setRepoPickerOpen(open); if (!open) setRepoSearch(""); }}>
+              <PopoverTrigger className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition px-1 py-0.5 rounded">
+                <GitFork className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate max-w-[200px]">{selectedRepoName || "Select repo"}</span>
+                <ChevronDown className="h-3 w-3 shrink-0" />
+              </PopoverTrigger>
+              <PopoverContent align="start" side="top" className="w-72 p-0">
                 <div className="p-2 border-b border-border">
                   <input
                     type="text"
@@ -342,8 +338,8 @@ export function BugChat({
                     <p className="text-xs text-muted-foreground text-center py-3">No repos found</p>
                   )}
                 </div>
-              </div>
-            )}
+              </PopoverContent>
+            </Popover>
           </div>
           {/* Input row */}
           <div className="flex items-end gap-2">
