@@ -1,0 +1,122 @@
+import type { ReactNode } from "react";
+
+// ─── Config ──────────────────────────────────────────────
+
+export interface GlitchgrabConfig {
+  token: string;
+  baseUrl?: string;
+  onError?: (error: Error) => void;
+  /** Called after a report is sent — use to sync with your own ticket system */
+  onReportSent?: (result: ReportResult) => void;
+  /** Enable breadcrumb tracking (default: true) */
+  breadcrumbs?: boolean;
+  /** Max breadcrumbs to keep (default: 50) */
+  maxBreadcrumbs?: number;
+}
+
+// ─── Report Types ────────────────────────────────────────
+
+export type ReportType = "BUG" | "FEATURE_REQUEST" | "QUESTION" | "OTHER";
+
+export interface ReportPayload {
+  token: string;
+  source: "SDK_AUTO" | "SDK_USER_REPORT";
+  type?: ReportType;
+  description?: string;
+  errorMessage?: string;
+  errorStack?: string;
+  componentStack?: string;
+  pageUrl?: string;
+  userAgent?: string;
+  breadcrumbs?: Breadcrumb[];
+  deviceInfo?: DeviceInfo;
+  metadata?: Record<string, string>;
+}
+
+export interface ReportResult {
+  success: boolean;
+  reportId?: string;
+  issueUrl?: string;
+  issueNumber?: number;
+  title?: string;
+  intent?: string;
+  message?: string;
+}
+
+// ─── Breadcrumbs ─────────────────────────────────────────
+
+export type BreadcrumbType =
+  | "console"
+  | "navigation"
+  | "api"
+  | "click"
+  | "error"
+  | "custom";
+
+export interface Breadcrumb {
+  type: BreadcrumbType;
+  message: string;
+  timestamp: string;
+  data?: Record<string, string>;
+}
+
+// ─── Device Info ─────────────────────────────────────────
+
+export interface DeviceInfo {
+  screenWidth: number;
+  screenHeight: number;
+  viewportWidth: number;
+  viewportHeight: number;
+  platform: string;
+  language: string;
+  online: boolean;
+  colorScheme: string;
+  devicePixelRatio: number;
+}
+
+// ─── Context ─────────────────────────────────────────────
+
+export interface CapturedContext {
+  url: string;
+  userAgent: string;
+  timestamp: string;
+  visitedPages: string[];
+  breadcrumbs: Breadcrumb[];
+  deviceInfo: DeviceInfo | null;
+}
+
+// ─── Component Props ─────────────────────────────────────
+
+export interface GlitchgrabProviderProps {
+  token: string;
+  baseUrl?: string;
+  onError?: (error: Error) => void;
+  onReportSent?: (result: ReportResult) => void;
+  breadcrumbs?: boolean;
+  maxBreadcrumbs?: number;
+  children: ReactNode;
+  fallback?: ReactNode;
+}
+
+export interface ReportButtonProps {
+  position?: "bottom-right" | "bottom-left";
+  label?: string;
+  className?: string;
+  /** Allow reporting feature requests, questions, not just bugs */
+  types?: ReportType[];
+}
+
+// ─── Hook Return ─────────────────────────────────────────
+
+export interface UseGlitchgrabReturn {
+  /** Report a bug programmatically */
+  reportBug: (description: string, metadata?: Record<string, string>) => Promise<ReportResult | null>;
+  /** Report with a specific type */
+  report: (type: ReportType, description: string, metadata?: Record<string, string>) => Promise<ReportResult | null>;
+  /** Add a custom breadcrumb */
+  addBreadcrumb: (message: string, data?: Record<string, string>) => void;
+  /** The token being used */
+  token: string;
+  /** The base URL of the Glitchgrab API */
+  baseUrl: string;
+}

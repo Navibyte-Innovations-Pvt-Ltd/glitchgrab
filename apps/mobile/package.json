@@ -1,0 +1,29 @@
+{
+  "name": "@glitchgrab/mobile",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "dev": "expo prebuild --clean && expo run:ios"
+  },
+  "dependencies": {
+    "expo": "~55.0.8",
+    "expo-auth-session": "^55.0.9",
+    "expo-constants": "^55.0.9",
+    "expo-secure-store": "^55.0.9",
+    "expo-status-bar": "~55.0.4",
+    "expo-web-browser": "^55.0.10",
+    "react": "19.2.0",
+    "react-native": "0.83.2",
+    "react-native-webview": "^13.16.1"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "eas-cli": "^18.4.0",
+    "typescript": "~5.9.2"
+  },
+  "private": true
+}

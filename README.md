@@ -29,11 +29,11 @@ There are existing tools in this space (see [Competitive Landscape](#competitive
 
 ## Three Components
 
-### 1. SDK (`@glitchgrab/nextjs`)
+### 1. SDK (`glitchgrab`)
 
 ```tsx
 // app/layout.tsx
-import { GlitchgrabProvider } from "@glitchgrab/nextjs";
+import { GlitchgrabProvider } from "glitchgrab";
 
 export default function RootLayout({ children }) {
   return (
@@ -98,7 +98,7 @@ glitchgrab/
 ├── apps/
 │   └── web/                    # Next.js dashboard + API
 ├── packages/
-│   ├── sdk-nextjs/             # @glitchgrab/nextjs
+│   ├── sdk-nextjs/             # glitchgrab
 │   ├── mcp-server/             # MCP server for Claude
 │   └── shared/                 # Shared types
 ├── CLAUDE.md                   # Instructions for Claude Code

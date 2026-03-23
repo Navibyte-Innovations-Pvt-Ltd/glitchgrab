@@ -1,0 +1,52 @@
+name: Build Android APK
+
+on:
+  push:
+    tags:
+      - "app-v*" # Trigger on tags like app-v1.0.0
+
+  workflow_dispatch: # Manual trigger
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Expo
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: bun install
+        working-directory: apps/mobile
+
+      - name: Build APK
+        run: eas build --platform android --profile preview --non-interactive --local
+        working-directory: apps/mobile
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: glitchgrab-android
+          path: apps/mobile/build-*.apk
+          retention-days: 30

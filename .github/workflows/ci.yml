@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Lint, Typecheck & Unused Code
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Generate Prisma Client
+        run: cd apps/web && bunx prisma generate --schema=prisma/schema.prisma
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Typecheck
+        run: cd apps/web && bun run validate
+
+      - name: Check unused code (knip)
+        run: bunx knip
+
+      - name: Check unused routes (pruny)
+        run: bunx pruny --all --ignore-apps mobile
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: validate
+
+    env:
+      DATABASE_URL: "postgresql://fake:fake@localhost:5432/fake"
+      NEXTAUTH_SECRET: "ci-secret-not-real"
+      AUTH_SECRET: "ci-secret-not-real"
+      GITHUB_CLIENT_ID: "fake"
+      GITHUB_CLIENT_SECRET: "fake"
+      OPENAI_API_KEY: "fake"
+      RAZORPAY_KEY_ID: "fake"
+      RAZORPAY_KEY_SECRET: "fake"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Generate Prisma Client
+        run: cd apps/web && bunx prisma generate --schema=prisma/schema.prisma
+
+      - name: Build web app
+        run: bun run build
+
+      - name: Build SDK
+        run: cd packages/sdk-nextjs && bun run build

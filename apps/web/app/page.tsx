@@ -1,4 +1,9 @@
 import Image from "next/image";
+import Link from "next/link";
+import { auth } from "@/lib/auth";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { WaitlistForm } from "./waitlist-form";
 
 const FLOWS = [
@@ -54,204 +59,220 @@ function CellValue({ val }: { val: boolean | string }) {
   return <span className="text-yellow text-xs">{val}</span>;
 }
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const session = await auth();
   return (
     <main className="min-h-screen">
       {/* Nav */}
-      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-bg/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
           <div className="flex items-center gap-2">
-            <Image src="/logo.png" alt="Glitchgrab" width={32} height={32} className="rounded-full" />
-            <span className="font-semibold text-lg tracking-tight">glitchgrab</span>
+            <Image src="/logo.png" alt="Glitchgrab" width={28} height={28} className="rounded-full sm:w-8 sm:h-8" />
+            <span className="font-semibold text-base sm:text-lg tracking-tight">glitchgrab</span>
           </div>
-          <a
-            href="#waitlist"
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-bg transition hover:bg-accent-hover"
-          >
-            Join Waitlist
-          </a>
+          <div className="flex items-center gap-2 sm:gap-3">
+            {session?.user ? (
+              <Link href="/dashboard">
+                <Button size="sm">Dashboard</Button>
+              </Link>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button variant="ghost" size="sm">Sign In</Button>
+                </Link>
+                <a href="#waitlist">
+                  <Button size="sm">Join Waitlist</Button>
+                </a>
+              </>
+            )}
+          </div>
         </div>
       </nav>
 
       {/* Hero */}
-      <section className="relative flex min-h-screen flex-col items-center justify-center px-6 pt-20 text-center overflow-hidden">
+      <section className="relative flex min-h-dvh flex-col items-center justify-center px-4 pt-16 pb-8 text-center overflow-hidden sm:px-6 sm:pt-20">
         {/* Background grid */}
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.03]"
           style={{
-            backgroundImage: `linear-gradient(var(--color-accent) 1px, transparent 1px), linear-gradient(90deg, var(--color-accent) 1px, transparent 1px)`,
-            backgroundSize: "60px 60px",
+            backgroundImage: `linear-gradient(var(--color-primary) 1px, transparent 1px), linear-gradient(90deg, var(--color-primary) 1px, transparent 1px)`,
+            backgroundSize: "40px 40px",
           }}
         />
         {/* Glow blob */}
-        <div className="pointer-events-none absolute top-1/4 left-1/2 h-125 w-125 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/5 blur-[120px]" />
+        <div className="pointer-events-none absolute top-1/4 left-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/5 blur-[100px] sm:h-125 sm:w-125 sm:blur-[120px]" />
 
-        <div className="relative z-10 max-w-3xl">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border px-4 py-1.5 text-sm text-text-muted">
-            <span className="h-2 w-2 rounded-full bg-accent animate-pulse-glow" />
+        <div className="relative z-10 w-full max-w-3xl">
+          <Badge variant="outline" className="mb-4 gap-2 sm:mb-6">
+            <span className="h-2 w-2 rounded-full bg-primary animate-pulse-glow" />
             Open source — shipping soon
-          </div>
+          </Badge>
 
-          <h1 className="text-5xl font-bold leading-tight tracking-tight sm:text-7xl">
+          <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-7xl">
             Grab the glitch.
             <br />
-            <span className="text-accent">Ship the fix.</span>
+            <span className="text-primary">Ship the fix.</span>
           </h1>
 
-          <p className="mx-auto mt-6 max-w-xl text-lg text-text-muted leading-relaxed">
+          <p className="mx-auto mt-4 max-w-xl text-sm text-muted-foreground leading-relaxed sm:mt-6 sm:text-lg">
             Turn messy bug reports — handwritten notes, screenshots, production errors — into
             well-structured GitHub issues. Powered by AI.
           </p>
 
-          <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-            <a
-              href="#waitlist"
-              className="rounded-xl bg-accent px-8 py-3.5 text-base font-semibold text-bg transition hover:bg-accent-hover hover:scale-105"
-            >
-              Join the Waitlist
+          <div className="mt-6 flex flex-col items-center gap-3 sm:mt-10 sm:flex-row sm:justify-center sm:gap-4">
+            <a href="#waitlist">
+              <Button size="lg" className="w-full sm:w-auto">Join the Waitlist</Button>
             </a>
-            <a
-              href="#how-it-works"
-              className="rounded-xl border border-border px-8 py-3.5 text-base font-medium text-text-muted transition hover:border-border-bright hover:text-text"
-            >
-              See how it works
+            <a href="#how-it-works">
+              <Button variant="outline" size="lg" className="w-full sm:w-auto">See how it works</Button>
             </a>
           </div>
 
           {/* Code preview */}
-          <div className="mx-auto mt-16 max-w-lg rounded-xl border border-border bg-bg-card p-6 text-left font-mono text-sm">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="h-3 w-3 rounded-full bg-red/60" />
-              <div className="h-3 w-3 rounded-full bg-yellow/60" />
-              <div className="h-3 w-3 rounded-full bg-green/60" />
-              <span className="ml-2 text-text-dim text-xs">app/layout.tsx</span>
-            </div>
-            <pre className="text-text-muted leading-relaxed">
-              <code>
-{`import { `}<span className="text-accent">GlitchgrabProvider</span>{` } from "@glitchgrab/nextjs"
+          <Card className="mx-auto mt-10 max-w-lg text-left sm:mt-16">
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                <div className="h-2.5 w-2.5 rounded-full bg-red/60 sm:h-3 sm:w-3" />
+                <div className="h-2.5 w-2.5 rounded-full bg-yellow/60 sm:h-3 sm:w-3" />
+                <div className="h-2.5 w-2.5 rounded-full bg-green/60 sm:h-3 sm:w-3" />
+                <span className="ml-2 text-muted-foreground text-xs">app/layout.tsx</span>
+              </div>
+              <pre className="text-muted-foreground leading-relaxed text-xs sm:text-sm overflow-x-auto font-mono">
+                <code>
+{`import { `}<span className="text-primary">GlitchgrabProvider</span>{` }
+  from "glitchgrab"
 
-export default function Layout({ children }) {
+export default function Layout({
+  children
+}) {
   return (
-    <`}<span className="text-accent">GlitchgrabProvider</span>{` token="`}<span className="text-green">gg_your_token</span>{`">
+    <`}<span className="text-primary">GlitchgrabProvider</span>{`
+      token="`}<span className="text-green">gg_your_token</span>{`"
+    >
       {children}
-    </`}<span className="text-accent">GlitchgrabProvider</span>{`>
+    </`}<span className="text-primary">GlitchgrabProvider</span>{`>
   )
 }`}
-              </code>
-            </pre>
-            <div className="mt-4 glow-line" />
-            <p className="mt-3 text-xs text-text-dim text-center">
-              That&apos;s it. Errors become GitHub issues automatically.
-            </p>
-          </div>
+                </code>
+              </pre>
+              <div className="mt-3 glow-line sm:mt-4" />
+              <p className="mt-2 text-xs text-muted-foreground text-center sm:mt-3">
+                That&apos;s it. Errors become GitHub issues automatically.
+              </p>
+            </CardContent>
+          </Card>
         </div>
       </section>
 
       {/* 4 Input Flows */}
-      <section className="mx-auto max-w-6xl px-6 py-24">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold sm:text-4xl">
+      <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
+        <div className="text-center mb-10 sm:mb-16">
+          <h2 className="text-2xl font-bold sm:text-3xl lg:text-4xl">
             Four ways in. One clean issue out.
           </h2>
-          <p className="mt-4 text-text-muted max-w-lg mx-auto">
+          <p className="mt-3 text-sm text-muted-foreground max-w-lg mx-auto sm:mt-4 sm:text-base">
             No matter how the bug reaches you — a photo, a crash, a user complaint — Glitchgrab
             turns it into a structured GitHub issue.
           </p>
         </div>
 
-        <div className="grid gap-6 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 sm:gap-6">
           {FLOWS.map((flow) => (
-            <div
+            <Card
               key={flow.title}
-              className="group rounded-2xl border border-border bg-bg-card p-8 transition hover:border-border-bright hover:bg-bg-card-hover"
+              className="transition hover:border-muted-foreground/30"
             >
-              <div className="text-4xl mb-4">{flow.icon}</div>
-              <div className="inline-block rounded-full bg-accent-dim px-3 py-1 text-xs text-accent font-medium mb-3">
-                {flow.tag}
-              </div>
-              <h3 className="text-xl font-semibold mb-2">{flow.title}</h3>
-              <p className="text-text-muted leading-relaxed">{flow.desc}</p>
-            </div>
+              <CardContent className="p-5 sm:p-8">
+                <div className="text-3xl mb-3 sm:text-4xl sm:mb-4">{flow.icon}</div>
+                <Badge variant="secondary" className="mb-2 sm:mb-3 text-primary bg-primary/10">
+                  {flow.tag}
+                </Badge>
+                <h3 className="text-lg font-semibold mb-1.5 sm:text-xl sm:mb-2">{flow.title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{flow.desc}</p>
+              </CardContent>
+            </Card>
           ))}
         </div>
       </section>
 
       {/* How it Works */}
-      <section id="how-it-works" className="mx-auto max-w-6xl px-6 py-24">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold sm:text-4xl">Stupid simple setup</h2>
-          <p className="mt-4 text-text-muted">Three steps. Under five minutes.</p>
+      <section id="how-it-works" className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
+        <div className="text-center mb-10 sm:mb-16">
+          <h2 className="text-2xl font-bold sm:text-3xl lg:text-4xl">Stupid simple setup</h2>
+          <p className="mt-3 text-sm text-muted-foreground sm:mt-4 sm:text-base">Three steps. Under five minutes.</p>
         </div>
 
-        <div className="grid gap-8 sm:grid-cols-3">
+        <div className="grid gap-6 sm:grid-cols-3 sm:gap-8">
           {STEPS.map((step) => (
             <div key={step.num} className="relative">
-              <span className="text-6xl font-bold text-accent/10 font-mono">{step.num}</span>
-              <h3 className="mt-2 text-xl font-semibold">{step.title}</h3>
-              <p className="mt-2 text-text-muted">{step.desc}</p>
+              <span className="text-4xl font-bold text-primary/10 font-mono sm:text-6xl">{step.num}</span>
+              <h3 className="mt-1 text-lg font-semibold sm:mt-2 sm:text-xl">{step.title}</h3>
+              <p className="mt-1 text-sm text-muted-foreground sm:mt-2">{step.desc}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* AI Pipeline */}
-      <section className="mx-auto max-w-4xl px-6 py-24">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold sm:text-4xl">AI does the heavy lifting</h2>
-          <p className="mt-4 text-text-muted max-w-lg mx-auto">
+      <section className="mx-auto max-w-4xl px-4 py-16 sm:px-6 sm:py-24">
+        <div className="text-center mb-10 sm:mb-16">
+          <h2 className="text-2xl font-bold sm:text-3xl lg:text-4xl">AI does the heavy lifting</h2>
+          <p className="mt-3 text-sm text-muted-foreground max-w-lg mx-auto sm:mt-4 sm:text-base">
             Not AI-assisted. AI-generated. The full issue — title, description, labels, severity —
             written from raw input.
           </p>
         </div>
 
-        <div className="rounded-2xl border border-border bg-bg-card p-8 sm:p-12">
-          <div className="flex flex-col gap-6">
-            {[
-              { label: "Normalize", desc: "Image, text, or error → standard format" },
-              { label: "Enrich", desc: "Pull repo context — existing issues, labels" },
-              { label: "Dedup", desc: "Check if this bug already exists" },
-              { label: "Generate", desc: "AI writes the complete issue" },
-              { label: "Push", desc: "Create GitHub issue + attach screenshots" },
-            ].map((step, i) => (
-              <div key={step.label} className="flex items-start gap-4">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent font-mono text-sm font-bold">
-                  {i + 1}
+        <Card>
+          <CardContent className="p-5 sm:p-12">
+            <div className="flex flex-col gap-4 sm:gap-6">
+              {[
+                { label: "Normalize", desc: "Image, text, or error → standard format" },
+                { label: "Enrich", desc: "Pull repo context — existing issues, labels" },
+                { label: "Dedup", desc: "Check if this bug already exists" },
+                { label: "Generate", desc: "AI writes the complete issue" },
+                { label: "Push", desc: "Create GitHub issue + attach screenshots" },
+              ].map((step, i) => (
+                <div key={step.label} className="flex items-start gap-3 sm:gap-4">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary font-mono text-xs font-bold sm:h-10 sm:w-10 sm:text-sm">
+                    {i + 1}
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm sm:text-base">{step.label}</h4>
+                    <p className="text-xs text-muted-foreground sm:text-sm">{step.desc}</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-semibold">{step.label}</h4>
-                  <p className="text-sm text-text-muted">{step.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-8 rounded-xl border border-border bg-bg p-4 text-center">
-            <p className="text-sm text-text-muted">
-              Bring your own key (Claude or OpenAI) or use our platform-provided AI.
-              <br />
-              <span className="text-accent">Your data, your choice.</span>
-            </p>
-          </div>
-        </div>
+              ))}
+            </div>
+            <div className="mt-6 rounded-xl border border-border bg-background p-3 text-center sm:mt-8 sm:p-4">
+              <p className="text-xs text-muted-foreground sm:text-sm">
+                Bring your own key (Claude or OpenAI) or use our platform-provided AI.
+                <br />
+                <span className="text-primary">Your data, your choice.</span>
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </section>
 
       {/* Comparison */}
-      <section className="mx-auto max-w-4xl px-6 py-24">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold sm:text-4xl">How we compare</h2>
-          <p className="mt-4 text-text-muted">Not trying to replace Sentry. Just filling the gap between &quot;I found a bug&quot; and &quot;here&apos;s a well-written issue.&quot;</p>
+      <section className="mx-auto max-w-4xl px-4 py-16 sm:px-6 sm:py-24">
+        <div className="text-center mb-10 sm:mb-16">
+          <h2 className="text-2xl font-bold sm:text-3xl lg:text-4xl">How we compare</h2>
+          <p className="mt-3 text-sm text-muted-foreground sm:mt-4 sm:text-base">Not trying to replace Sentry. Just filling the gap between &quot;I found a bug&quot; and &quot;here&apos;s a well-written issue.&quot;</p>
         </div>
 
         <div className="overflow-x-auto rounded-2xl border border-border">
-          <table className="w-full text-sm">
+          <table className="w-full text-xs sm:text-sm">
             <thead>
-              <tr className="border-b border-border bg-bg-card text-left">
-                <th className="px-6 py-4 font-medium text-text-muted">Tool</th>
-                <th className="px-4 py-4 font-medium text-text-muted text-center">Handwritten</th>
-                <th className="px-4 py-4 font-medium text-text-muted text-center">SDK</th>
-                <th className="px-4 py-4 font-medium text-text-muted text-center">AI Issues</th>
-                <th className="px-4 py-4 font-medium text-text-muted text-center">Dedup</th>
-                <th className="px-4 py-4 font-medium text-text-muted text-center">MCP</th>
-                <th className="px-4 py-4 font-medium text-text-muted text-center">OSS</th>
+              <tr className="border-b border-border bg-card text-left">
+                <th className="px-3 py-3 font-medium text-muted-foreground sm:px-6 sm:py-4">Tool</th>
+                <th className="px-2 py-3 font-medium text-muted-foreground text-center sm:px-4 sm:py-4">Handwritten</th>
+                <th className="px-2 py-3 font-medium text-muted-foreground text-center sm:px-4 sm:py-4">SDK</th>
+                <th className="px-2 py-3 font-medium text-muted-foreground text-center sm:px-4 sm:py-4">AI</th>
+                <th className="px-2 py-3 font-medium text-muted-foreground text-center sm:px-4 sm:py-4">Dedup</th>
+                <th className="px-2 py-3 font-medium text-muted-foreground text-center sm:px-4 sm:py-4">MCP</th>
+                <th className="px-2 py-3 font-medium text-muted-foreground text-center sm:px-4 sm:py-4">OSS</th>
               </tr>
             </thead>
             <tbody>
@@ -259,18 +280,18 @@ export default function Layout({ children }) {
                 <tr
                   key={row.name}
                   className={`border-b border-border last:border-0 ${
-                    row.name === "Glitchgrab" ? "bg-accent/5" : ""
+                    row.name === "Glitchgrab" ? "bg-primary/5" : ""
                   }`}
                 >
-                  <td className={`px-6 py-4 font-medium ${row.name === "Glitchgrab" ? "text-accent" : ""}`}>
+                  <td className={`px-3 py-3 font-medium sm:px-6 sm:py-4 ${row.name === "Glitchgrab" ? "text-primary" : ""}`}>
                     {row.name}
                   </td>
-                  <td className="px-4 py-4 text-center"><CellValue val={row.handwritten} /></td>
-                  <td className="px-4 py-4 text-center"><CellValue val={row.sdk} /></td>
-                  <td className="px-4 py-4 text-center"><CellValue val={row.ai} /></td>
-                  <td className="px-4 py-4 text-center"><CellValue val={row.dedup} /></td>
-                  <td className="px-4 py-4 text-center"><CellValue val={row.mcp} /></td>
-                  <td className="px-4 py-4 text-center"><CellValue val={row.oss} /></td>
+                  <td className="px-2 py-3 text-center sm:px-4 sm:py-4"><CellValue val={row.handwritten} /></td>
+                  <td className="px-2 py-3 text-center sm:px-4 sm:py-4"><CellValue val={row.sdk} /></td>
+                  <td className="px-2 py-3 text-center sm:px-4 sm:py-4"><CellValue val={row.ai} /></td>
+                  <td className="px-2 py-3 text-center sm:px-4 sm:py-4"><CellValue val={row.dedup} /></td>
+                  <td className="px-2 py-3 text-center sm:px-4 sm:py-4"><CellValue val={row.mcp} /></td>
+                  <td className="px-2 py-3 text-center sm:px-4 sm:py-4"><CellValue val={row.oss} /></td>
                 </tr>
               ))}
             </tbody>
@@ -279,102 +300,107 @@ export default function Layout({ children }) {
       </section>
 
       {/* Pricing */}
-      <section className="mx-auto max-w-6xl px-6 py-24">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold sm:text-4xl">Simple pricing</h2>
-          <p className="mt-4 text-text-muted">No per-seat nonsense. One plan that covers everything.</p>
+      <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
+        <div className="text-center mb-10 sm:mb-16">
+          <h2 className="text-2xl font-bold sm:text-3xl lg:text-4xl">Simple pricing</h2>
+          <p className="mt-3 text-sm text-muted-foreground sm:mt-4 sm:text-base">Two plans. No surprises. Cancel anytime.</p>
         </div>
 
-        <div className="mx-auto grid max-w-4xl gap-6 sm:grid-cols-2">
-          {/* Free */}
-          <div className="rounded-2xl border border-border bg-bg-card p-8">
-            <h3 className="text-lg font-semibold">Free</h3>
-            <div className="mt-4 flex items-baseline gap-1">
-              <span className="text-4xl font-bold">$0</span>
-              <span className="text-text-muted">/month</span>
-            </div>
-            <p className="mt-2 text-sm text-text-muted">For indie devs trying it out</p>
-            <ul className="mt-8 space-y-3 text-sm">
-              {[
-                "1 repo",
-                "30 issues/month",
-                "SDK auto-capture",
-                "Report button",
-                "BYOK only (bring your AI key)",
-              ].map((f) => (
-                <li key={f} className="flex items-center gap-2">
-                  <span className="text-green">✓</span>
-                  <span className="text-text-muted">{f}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+        <div className="mx-auto grid max-w-4xl gap-4 sm:grid-cols-2 sm:gap-6">
+          {/* BYOK */}
+          <Card>
+            <CardContent className="p-5 sm:p-8">
+              <h3 className="text-lg font-semibold">Pro (BYOK)</h3>
+              <div className="mt-3 flex items-baseline gap-1 sm:mt-4">
+                <span className="text-3xl font-bold sm:text-4xl">$5</span>
+                <span className="text-muted-foreground">/month</span>
+              </div>
+              <p className="mt-1.5 text-xs text-muted-foreground sm:mt-2 sm:text-sm">Bring your own OpenAI or Claude key</p>
+              <ul className="mt-6 space-y-2.5 text-xs sm:mt-8 sm:space-y-3 sm:text-sm">
+                {[
+                  "Unlimited repos",
+                  "Unlimited issues",
+                  "SDK auto-capture",
+                  "Smart dedup & updates",
+                  "Screenshot analysis",
+                  "You provide your AI key",
+                ].map((f) => (
+                  <li key={f} className="flex items-center gap-2">
+                    <span className="text-green">✓</span>
+                    <span className="text-muted-foreground">{f}</span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
 
-          {/* Pro */}
-          <div className="rounded-2xl border-2 border-accent bg-bg-card p-8 relative">
-            <div className="absolute -top-3 right-6 rounded-full bg-accent px-3 py-1 text-xs font-semibold text-bg">
-              Popular
-            </div>
-            <h3 className="text-lg font-semibold">Pro</h3>
-            <div className="mt-4 flex items-baseline gap-1">
-              <span className="text-4xl font-bold text-accent">$20</span>
-              <span className="text-text-muted">/month</span>
-            </div>
-            <p className="mt-2 text-sm text-text-muted">For teams shipping fast</p>
-            <ul className="mt-8 space-y-3 text-sm">
-              {[
-                "Unlimited repos",
-                "Unlimited issues",
-                "Handwritten notes → issues",
-                "AI deduplication",
-                "MCP server access",
-                "Platform-provided AI (no key needed)",
-                "Priority support",
-              ].map((f) => (
-                <li key={f} className="flex items-center gap-2">
-                  <span className="text-accent">✓</span>
-                  <span>{f}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {/* Platform */}
+          <Card className="border-2 border-primary overflow-visible relative">
+            <CardContent className="p-5 pt-7 sm:p-8 sm:pt-8">
+              <Badge className="absolute -top-2.5 left-4 sm:left-auto sm:right-6 sm:-top-3 z-10">Recommended</Badge>
+              <h3 className="text-lg font-semibold">Pro (Platform AI)</h3>
+              <div className="mt-3 flex items-baseline gap-1 sm:mt-4">
+                <span className="text-3xl font-bold text-primary sm:text-4xl">$10</span>
+                <span className="text-muted-foreground">/month</span>
+              </div>
+              <p className="mt-1.5 text-xs text-muted-foreground sm:mt-2 sm:text-sm">We provide AI — zero setup</p>
+              <ul className="mt-6 space-y-2.5 text-xs sm:mt-8 sm:space-y-3 sm:text-sm">
+                {[
+                  "Unlimited repos",
+                  "100 issues created/mo",
+                  "Updates & closes are free",
+                  "SDK auto-capture",
+                  "Screenshot analysis",
+                  "No API key needed",
+                ].map((f) => (
+                  <li key={f} className="flex items-center gap-2">
+                    <span className="text-primary">✓</span>
+                    <span>{f}</span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
         </div>
-
-        <p className="mt-8 text-center text-sm text-text-dim">
-          Think $20/mo is fair? Too much? Too little?{" "}
-          <a href="#waitlist" className="text-accent underline underline-offset-4 hover:text-accent-hover">
-            Tell us when you join.
-          </a>
-        </p>
       </section>
 
       {/* Waitlist */}
-      <section id="waitlist" className="mx-auto max-w-2xl px-6 py-24">
-        <div className="rounded-2xl border border-accent/30 bg-accent/5 p-8 sm:p-12 text-center">
-          <h2 className="text-3xl font-bold sm:text-4xl">Get early access</h2>
-          <p className="mt-4 text-text-muted max-w-md mx-auto">
-            We&apos;re building Glitchgrab in public. Join the waitlist to get early access, shape
-            the product, and lock in launch pricing.
-          </p>
+      <section id="waitlist" className="mx-auto max-w-2xl px-4 py-16 sm:px-6 sm:py-24">
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-5 text-center sm:p-12">
+            <h2 className="text-2xl font-bold sm:text-3xl lg:text-4xl">Get early access</h2>
+            <p className="mt-3 text-sm text-muted-foreground max-w-md mx-auto sm:mt-4">
+              We&apos;re building Glitchgrab in public. Join the waitlist to get early access, shape
+              the product, and lock in launch pricing.
+            </p>
 
-          <WaitlistForm />
+            <WaitlistForm />
 
-          <p className="mt-4 text-xs text-text-dim">No spam. Just launch updates.</p>
-        </div>
+            <p className="mt-3 text-xs text-muted-foreground sm:mt-4">No spam. Just launch updates.</p>
+          </CardContent>
+        </Card>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border py-12">
-        <div className="mx-auto max-w-6xl px-6 flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
-          <div className="flex items-center gap-2">
-            <Image src="/logo.png" alt="Glitchgrab" width={24} height={24} className="rounded-full" />
-            <span className="text-sm font-medium">glitchgrab</span>
+      <footer className="border-t border-border py-8 sm:py-12">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
+            <div className="flex items-center gap-2">
+              <Image src="/logo.png" alt="Glitchgrab" width={20} height={20} className="rounded-full sm:w-6 sm:h-6" />
+              <span className="text-xs font-medium sm:text-sm">glitchgrab</span>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-muted-foreground sm:text-sm">
+              <Link href="/privacy" className="hover:text-primary transition">Privacy</Link>
+              <Link href="/terms" className="hover:text-primary transition">Terms</Link>
+              <Link href="/refund" className="hover:text-primary transition">Refunds</Link>
+              <Link href="/contact" className="hover:text-primary transition">Contact</Link>
+            </div>
           </div>
-          <p className="text-sm text-text-dim">
+          <p className="text-center text-xs text-muted-foreground mt-4 sm:text-sm">
             Built by{" "}
             <a
               href="https://github.com/webnaresh"
-              className="text-text-muted hover:text-accent transition"
+              className="hover:text-primary transition"
               target="_blank"
               rel="noopener"
             >

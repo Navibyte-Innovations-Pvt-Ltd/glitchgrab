@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AuthSessionProvider } from "@/components/providers/session-provider";
+import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://glitchgrab.dev"),
@@ -30,6 +32,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <link rel="icon" href="/favicon.ico" sizes="32x32" />
+        <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"
@@ -41,7 +46,12 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <AuthSessionProvider>
+          {children}
+          <Toaster />
+        </AuthSessionProvider>
+      </body>
     </html>
   );
 }

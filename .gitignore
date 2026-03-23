@@ -20,5 +20,8 @@ dist/
 # Prisma
 prisma/generated/
 
+# Glitchgrab screenshots (uploaded to repo via API)
+.glitchgrab/
+
 # Test
 coverage/

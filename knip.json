@@ -5,8 +5,9 @@
         "next.config.{js,ts,cjs,mjs}",
         "app/**/{page,layout,loading,error,not-found,global-error,template,default}.{ts,tsx}",
         "app/**/route.{ts,tsx}",
+        "app/**/actions.{ts,tsx}",
         "components/**/*.{ts,tsx}",
-        "lib/utils.ts"
+        "lib/*.ts"
       ],
       "project": [
         "app/**/*.{ts,tsx}",
@@ -19,13 +20,26 @@
       },
       "ignoreDependencies": [
         "tailwindcss",
-        "lucide-react",
         "shadcn",
         "tw-animate-css"
       ]
+    },
+    "apps/mobile": {
+      "entry": ["App.tsx", "src/**/*.{ts,tsx}"],
+      "project": ["src/**/*.{ts,tsx}"],
+      "ignoreDependencies": [
+        "expo-status-bar",
+        "expo-updates",
+        "expo-system-ui",
+        "eas-cli"
+      ]
+    },
+    "packages/sdk-nextjs": {
+      "project": ["src/**/*.{ts,tsx}"],
+      "ignoreDependencies": ["react-dom"]
     }
   },
-  "ignoreBinaries": ["apps/web.bin/prisma"],
-  "ignore": ["apps/scripts/**"],
+  "ignoreBinaries": ["prisma", "expo"],
+  "ignore": ["apps/scripts/**", ".glitchgrab/**"],
   "ignoreExportsUsedInFile": true
 }

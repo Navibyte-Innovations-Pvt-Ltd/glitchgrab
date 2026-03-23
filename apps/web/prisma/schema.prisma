@@ -34,7 +34,9 @@ model User {
   accounts Account[]
   sessions Session[]
   repos    Repo[]
-  aiConfig AiConfig?
+  aiConfig     AiConfig?
+  subscription Subscription?
+  webhooks     Webhook[]
 }
 
 model Account {
@@ -161,6 +163,37 @@ model Issue {
   repo   Repo   @relation(fields: [repoId], references: [id], onDelete: Cascade)
 }
 
+// ─── Billing ─────────────────────────────────────────────
+
+enum Plan {
+  FREE
+  PRO_BYOK
+  PRO_PLATFORM
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  PAST_DUE
+  EXPIRED
+}
+
+model Subscription {
+  id                    String             @id @default(cuid())
+  userId                String             @unique
+  plan                  Plan               @default(FREE)
+  status                SubscriptionStatus @default(ACTIVE)
+  razorpaySubscriptionId String?           @unique
+  razorpayCustomerId    String?
+  currentPeriodStart    DateTime?
+  currentPeriodEnd      DateTime?
+  cancelledAt           DateTime?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
 // ─── AI Config ───────────────────────────────────────────
 
 enum AiProvider {
@@ -176,6 +209,21 @@ model AiConfig {
   encryptedApiKey String?
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── Webhooks ──────────────────────────────────────────
+
+model Webhook {
+  id        String   @id @default(cuid())
+  userId    String
+  url       String
+  secret    String
+  events    String[]
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

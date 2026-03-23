@@ -1,6 +1,23 @@
 {
   "ignore": {
-    "routes": ["/api/auth/**", "/api/webhooks/**"],
-    "files": ["**/utils.ts", "**/button.tsx", "**/db-sync.ts"]
+    "routes": [
+      "/api/auth/**",
+      "/api/webhooks/**",
+      "/api/v1/sdk/**",
+      "/api/v1/billing/**",
+      "/api/v1/github/**",
+      "/api/waitlist"
+    ],
+    "folders": [".glitchgrab"],
+    "files": [
+      "**/utils.ts",
+      "**/db-sync.ts",
+      "**/components/**",
+      "**/proxy.ts",
+      "**/lib/**",
+      "**/*actions*",
+      "**/*form*",
+      "**/(legal)/**"
+    ]
   }
 }

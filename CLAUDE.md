@@ -7,7 +7,7 @@ Glitchgrab is an open-source SaaS tool that converts messy bug inputs (handwritt
 ## Monorepo structure
 
 - **apps/web** — Next.js 15 (App Router) dashboard + API routes. Deployed on Vercel.
-- **packages/sdk-nextjs** — `@glitchgrab/nextjs` npm package. Drop-in error capture + report button for Next.js apps.
+- **packages/sdk-nextjs** — `glitchgrab` npm package. Drop-in error capture + report button for Next.js apps.
 - **packages/mcp-server** — MCP server using `@modelcontextprotocol/sdk`. Connects to Claude Desktop.
 - **packages/shared** — Shared TypeScript types and constants used across all packages.
 

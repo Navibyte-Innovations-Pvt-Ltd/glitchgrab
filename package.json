@@ -1,25 +1,31 @@
 {
   "name": "glitchgrab",
-  "private": true,
-  "packageManager": "bun@1.3.7",
-  "workspaces": ["apps/*", "packages/*"],
-  "scripts": {
-    "dev": "dotenvx run -- turbo dev",
-    "build": "dotenvx run -- turbo build",
-    "lint": "turbo lint --",
-    "validate": "turbo validate -- && knip && pruny --all",
-    "knip:fix": "knip --fix",
-    "pruny:fix": "pruny --fix",
-    "db:generate": "dotenvx run -- apps/web/node_modules/.bin/prisma generate --schema=apps/web/prisma/schema.prisma",
-    "db:push": "dotenvx run -- apps/web/node_modules/.bin/prisma db push --schema=apps/web/prisma/schema.prisma",
-    "db:migrate": "dotenvx run -- apps/web/node_modules/.bin/prisma migrate dev --schema=apps/web/prisma/schema.prisma",
-    "db:studio": "dotenvx run -- apps/web/node_modules/.bin/prisma studio --schema=apps/web/prisma/schema.prisma"
-  },
   "devDependencies": {
     "@dotenvx/dotenvx": "^1.57.1",
     "@types/node": "^25.5.0",
     "knip": "^6.0.2",
     "pruny": "^1.42.0",
     "turbo": "^2"
-  }
+  },
+  "packageManager": "bun@1.3.7",
+  "private": true,
+  "scripts": {
+    "dev": "dotenvx run -- turbo dev",
+    "dev:web": "dotenvx run -- turbo dev --filter=@glitchgrab/web",
+    "dev:mobile": "cd apps/mobile && expo start",
+    "build": "dotenvx run -- turbo build --filter=@glitchgrab/web",
+    "lint": "turbo lint --",
+    "validate": "turbo validate -- && knip && pruny --all --ignore-apps mobile",
+    "knip:fix": "knip --fix",
+    "pruny:fix": "pruny --fix",
+    "db:generate": "cd apps/web && dotenvx run -- ./node_modules/.bin/prisma generate",
+    "db:push": "cd apps/web && dotenvx run -- ./node_modules/.bin/prisma db push",
+    "db:migrate": "cd apps/web && dotenvx run -- ./node_modules/.bin/prisma migrate dev",
+    "db:studio": "cd apps/web && dotenvx run -- ./node_modules/.bin/prisma studio",
+    "db:reset": "cd apps/web && dotenvx run -- ./node_modules/.bin/prisma migrate reset --force"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
 }
