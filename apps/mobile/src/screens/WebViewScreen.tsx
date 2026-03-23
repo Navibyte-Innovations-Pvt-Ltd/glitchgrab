@@ -107,10 +107,6 @@ export default function WebViewScreen({
 
       document.body.style.overscrollBehavior = 'none';
 
-      // Prevent iOS auto-zoom on inputs (font-size < 16px triggers zoom)
-      var style = document.createElement('style');
-      style.textContent = 'input, textarea, select { font-size: 16px !important; }';
-      document.head.appendChild(style);
     })();
     true;
   `;
