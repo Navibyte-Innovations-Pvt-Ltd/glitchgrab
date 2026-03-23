@@ -10,9 +10,9 @@
   "packageManager": "bun@1.3.7",
   "private": true,
   "scripts": {
-    "dev": "dotenvx run -- turbo dev --filter=@glitchgrab/web",
+    "dev": "dotenvx run -- turbo dev",
+    "dev:web": "dotenvx run -- turbo dev --filter=@glitchgrab/web",
     "dev:mobile": "cd apps/mobile && expo start",
-    "dev:all": "dotenvx run -- turbo dev",
     "build": "dotenvx run -- turbo build --filter=@glitchgrab/web",
     "lint": "turbo lint --",
     "validate": "turbo validate -- && knip && pruny --all",
