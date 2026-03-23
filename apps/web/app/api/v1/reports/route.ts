@@ -83,9 +83,11 @@ export async function POST(request: Request) {
       success: true,
       data: {
         reportId: report.id,
+        intent: result.intent,
         issueUrl: result.issueUrl,
         issueNumber: result.issueNumber,
         title: result.title,
+        message: result.message,
         status: "CREATED",
       },
     });
