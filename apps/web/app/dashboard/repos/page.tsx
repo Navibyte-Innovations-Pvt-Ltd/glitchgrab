@@ -3,9 +3,9 @@ export const dynamic = "force-dynamic";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { GitFork, Plus } from "lucide-react";
+import { GitFork } from "lucide-react";
+import { ConnectRepoDialog } from "./connect-repo-dialog";
 
 export default async function ReposPage() {
   const session = await auth();
@@ -17,6 +17,8 @@ export default async function ReposPage() {
     orderBy: { createdAt: "desc" },
   });
 
+  const connectedGithubIds = repos.map((repo) => repo.githubId);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -26,10 +28,7 @@ export default async function ReposPage() {
             Manage your connected GitHub repositories
           </p>
         </div>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" />
-          Connect Repo
-        </Button>
+        <ConnectRepoDialog connectedGithubIds={connectedGithubIds} />
       </div>
 
       {repos.length === 0 ? (
