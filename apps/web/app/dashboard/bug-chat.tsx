@@ -300,7 +300,7 @@ export function BugChat({
             <Popover open={repoPickerOpen} onOpenChange={(open) => { setRepoPickerOpen(open); if (!open) setRepoSearch(""); }}>
               <PopoverTrigger className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition px-1 py-0.5 rounded">
                 <GitFork className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate max-w-[200px]">{selectedRepoName || "Select repo"}</span>
+                <span className="truncate max-w-50">{selectedRepoName || "Select repo"}</span>
                 <ChevronDown className="h-3 w-3 shrink-0" />
               </PopoverTrigger>
               <PopoverContent align="start" side="top" className="w-72 p-0">
@@ -365,7 +365,7 @@ export function BugChat({
               onPaste={handlePaste}
               placeholder="Describe a bug..."
               rows={1}
-              className="flex-1 resize-none bg-transparent border-0 outline-none text-base placeholder:text-muted-foreground min-h-[36px] max-h-[120px] py-2"
+              className="flex-1 resize-none bg-transparent border-0 outline-none text-base placeholder:text-muted-foreground min-h-9 max-h-30 py-2"
               disabled={sending}
             />
             <Button

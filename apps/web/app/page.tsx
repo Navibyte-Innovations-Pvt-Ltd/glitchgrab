@@ -90,7 +90,7 @@ export default async function LandingPage() {
       </nav>
 
       {/* Hero */}
-      <section className="relative flex min-h-[100dvh] flex-col items-center justify-center px-4 pt-16 pb-8 text-center overflow-hidden sm:px-6 sm:pt-20">
+      <section className="relative flex min-h-dvh flex-col items-center justify-center px-4 pt-16 pb-8 text-center overflow-hidden sm:px-6 sm:pt-20">
         {/* Background grid */}
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.03]"
