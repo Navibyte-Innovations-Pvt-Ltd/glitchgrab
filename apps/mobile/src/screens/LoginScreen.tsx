@@ -73,9 +73,10 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       }
 
       const code = result.params.code;
+      const codeVerifier = request?.codeVerifier;
 
-      // Send code to our backend — it handles the full exchange securely
-      const { sessionToken } = await exchangeCodeForSession(code);
+      // Send code + verifier to our backend
+      const { sessionToken } = await exchangeCodeForSession(code, codeVerifier);
 
       // Store session token securely
       await SecureStore.setItemAsync("session_token", sessionToken);

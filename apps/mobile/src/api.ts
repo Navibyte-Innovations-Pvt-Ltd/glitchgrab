@@ -24,7 +24,8 @@ export { BASE_URL };
  * Sends the code to our backend which handles the full exchange securely.
  */
 export async function exchangeCodeForSession(
-  code: string
+  code: string,
+  codeVerifier?: string
 ): Promise<{
   sessionToken: string;
   user: { name: string; email: string; image: string };
@@ -32,7 +33,7 @@ export async function exchangeCodeForSession(
   const res = await fetch(`${BASE_URL}/api/auth/mobile`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code }),
+    body: JSON.stringify({ code, code_verifier: codeVerifier }),
   });
 
   if (!res.ok) {
