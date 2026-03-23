@@ -22,6 +22,7 @@
     "nodemailer": "^8.0.3",
     "openai": "^6.32.0",
     "prisma": "6",
+    "razorpay": "^2.9.6",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "shadcn": "^4.1.0",
