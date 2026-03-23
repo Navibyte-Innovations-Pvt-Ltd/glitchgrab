@@ -150,7 +150,12 @@ export default function WebViewScreen({
 
   return (
     <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={DARK_BG} />
+      <StatusBar barStyle="light-content" backgroundColor={DARK_BG} />
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={0}
+      >
 
         {loading && (
           <View style={styles.loadingOverlay}>
@@ -210,6 +215,7 @@ export default function WebViewScreen({
           automaticallyAdjustsScrollIndicatorInsets={false}
           keyboardDisplayRequiresUserAction={false}
         />
+        </KeyboardAvoidingView>
       </SafeAreaView>
   );
 }
