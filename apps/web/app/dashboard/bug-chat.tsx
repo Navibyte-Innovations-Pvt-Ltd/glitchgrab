@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+
 import {
   Select,
   SelectContent,
@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ImagePlus, Send, X, Loader2, Bug } from "lucide-react";
+import { ImagePlus, Send, X, Loader2, GitFork } from "lucide-react";
 import { toast } from "sonner";
 
 interface Repo {
@@ -37,7 +37,8 @@ export function BugChat({
   repos: Repo[];
   userName: string;
 }) {
-  const [selectedRepo, setSelectedRepo] = useState(repos[0]?.id ?? "");
+  const [selectedRepoName, setSelectedRepoName] = useState(repos[0]?.fullName ?? "");
+  const selectedRepo = repos.find((r) => r.fullName === selectedRepoName)?.id ?? "";
   const [input, setInput] = useState("");
   const [screenshot, setScreenshot] = useState<string | null>(null);
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
@@ -155,24 +156,6 @@ export function BugChat({
 
   return (
     <div className="flex flex-col h-full max-h-[calc(100dvh-60px)] md:max-h-[calc(100dvh-0px)]">
-      {/* Header with repo selector */}
-      <div className="flex items-center gap-3 pb-3 border-b border-border mb-3 flex-wrap">
-        <Bug className="h-5 w-5 text-primary shrink-0" />
-        <span className="text-sm font-medium shrink-0">Report bug to:</span>
-        <Select value={selectedRepo} onValueChange={(val) => { if (val) setSelectedRepo(val); }}>
-          <SelectTrigger className="w-full sm:w-64">
-            <SelectValue placeholder="Select a repo" />
-          </SelectTrigger>
-          <SelectContent>
-            {repos.map((repo) => (
-              <SelectItem key={repo.id} value={repo.id}>
-                {repo.fullName}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
       {/* Messages */}
       <div className="flex-1 overflow-y-auto space-y-4 pb-4">
         {messages.map((msg) => (
@@ -244,8 +227,24 @@ export function BugChat({
       )}
 
       {/* Input */}
-      <Card className="shrink-0">
-        <CardContent className="p-2 sm:p-3">
+      <div className="shrink-0 rounded-xl border border-border bg-card p-2 sm:p-3">
+          {/* Repo selector row */}
+          <div className="flex items-center gap-2 mb-1.5 pb-1.5 border-b border-border">
+            <GitFork className="h-4 w-4 text-muted-foreground shrink-0" />
+            <Select value={selectedRepoName} onValueChange={(val) => { if (val) setSelectedRepoName(val); }}>
+              <SelectTrigger className="h-7 border-0 bg-transparent shadow-none px-1 text-xs text-muted-foreground hover:text-foreground">
+                <SelectValue placeholder="Select repo" />
+              </SelectTrigger>
+              <SelectContent>
+                {repos.map((repo) => (
+                  <SelectItem key={repo.id} value={repo.fullName}>
+                    {repo.fullName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {/* Input row */}
           <div className="flex items-end gap-2">
             <input
               ref={fileInputRef}
@@ -285,8 +284,7 @@ export function BugChat({
               )}
             </Button>
           </div>
-        </CardContent>
-      </Card>
+      </div>
     </div>
   );
 }
