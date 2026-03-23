@@ -126,7 +126,16 @@ export async function classifyAndGenerate(input: AiInput): Promise<AiAction> {
   });
 
   const rawContent = response.choices[0]?.message?.content;
-  if (!rawContent) throw new Error("AI returned empty response");
+  if (!rawContent) {
+    // Fallback: create an issue from the description directly
+    return {
+      intent: "create",
+      title: (input.description || "Bug report").slice(0, 80),
+      body: `## Description\n\n${input.description || "No description provided."}\n\n## Additional Context\n\nAI analysis was unavailable. This issue was created directly from the user's input.`,
+      labels: ["bug"],
+      severity: "medium",
+    };
+  }
 
   let parsed: Record<string, unknown>;
   try {
