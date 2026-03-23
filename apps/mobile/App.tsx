@@ -10,6 +10,7 @@ import {
   Text,
   TouchableOpacity,
   Image,
+  Linking,
 } from "react-native";
 import { WebView } from "react-native-webview";
 import type { WebViewNavigation } from "react-native-webview";
@@ -18,6 +19,7 @@ import * as WebBrowser from "expo-web-browser";
 const BASE_URL = __DEV__
   ? "http://192.168.1.3:3000"
   : "https://glitchgrab.dev";
+
 const DARK_BG = "#09090b";
 const PRIMARY = "#22d3ee";
 
@@ -28,10 +30,9 @@ export default function App() {
   const [error, setError] = useState(false);
   const [currentUrl, setCurrentUrl] = useState(BASE_URL);
 
-  // Android back button — go back in WebView history
+  // Android back button
   useEffect(() => {
     if (Platform.OS !== "android") return;
-
     const handler = BackHandler.addEventListener("hardwareBackPress", () => {
       if (canGoBack && webViewRef.current) {
         webViewRef.current.goBack();
@@ -39,9 +40,25 @@ export default function App() {
       }
       return false;
     });
-
     return () => handler.remove();
   }, [canGoBack]);
+
+  // Handle deep links (callback from browser OAuth)
+  useEffect(() => {
+    const handleDeepLink = (event: { url: string }) => {
+      // When GitHub OAuth completes, browser redirects to our callback URL
+      // The WebView needs to load the callback URL to complete auth
+      if (event.url.includes("/api/auth/callback")) {
+        const callbackUrl = event.url.replace("glitchgrab://", BASE_URL + "/");
+        webViewRef.current?.injectJavaScript(
+          `window.location.href = "${callbackUrl}"; true;`
+        );
+      }
+    };
+
+    const sub = Linking.addEventListener("url", handleDeepLink);
+    return () => sub.remove();
+  }, []);
 
   const handleNavigationStateChange = useCallback(
     (navState: WebViewNavigation) => {
@@ -51,25 +68,51 @@ export default function App() {
     []
   );
 
-  // Handle external links (GitHub OAuth, etc.) — open in system browser
   const handleShouldStartLoad = useCallback(
     (event: { url: string }) => {
       const url = event.url;
 
-      // GitHub OAuth flow — open in system browser
+      // NextAuth sign-in redirect to GitHub — open in system browser
       if (
-        url.includes("github.com/login") ||
+        url.includes("github.com/login/oauth") ||
+        url.includes("github.com/login?") ||
         url.includes("github.com/sessions")
       ) {
-        WebBrowser.openBrowserAsync(url);
+        // Open GitHub OAuth in system browser
+        // After auth, GitHub redirects to our callback URL
+        // which the system browser handles, then we capture it
+        WebBrowser.openAuthSessionAsync(url, "glitchgrab://").then(
+          (result) => {
+            if (result.type === "success" && result.url) {
+              // Convert the deep link URL back to a web URL
+              const webUrl = result.url.replace(
+                "glitchgrab://",
+                BASE_URL + "/"
+              );
+              webViewRef.current?.injectJavaScript(
+                `window.location.href = "${webUrl}"; true;`
+              );
+            } else {
+              // User cancelled — reload login page
+              webViewRef.current?.injectJavaScript(
+                `window.location.href = "${BASE_URL}/login"; true;`
+              );
+            }
+          }
+        );
         return false;
+      }
+
+      // NextAuth API auth routes — let WebView handle them
+      if (url.includes("/api/auth/")) {
+        return true;
       }
 
       // External links — open in system browser
       if (
         !url.startsWith(BASE_URL) &&
         !url.startsWith("about:") &&
-        !url.includes("glitchgrab")
+        !url.includes("localhost")
       ) {
         WebBrowser.openBrowserAsync(url);
         return false;
@@ -80,10 +123,8 @@ export default function App() {
     []
   );
 
-  // Inject JS to fix viewport and theme for mobile
   const injectedJS = `
     (function() {
-      // Set viewport meta for proper mobile rendering
       var meta = document.querySelector('meta[name="viewport"]');
       if (!meta) {
         meta = document.createElement('meta');
@@ -92,7 +133,6 @@ export default function App() {
       }
       meta.content = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no';
 
-      // Set theme-color for status bar
       var theme = document.querySelector('meta[name="theme-color"]');
       if (!theme) {
         theme = document.createElement('meta');
@@ -101,7 +141,6 @@ export default function App() {
       }
       theme.content = '${DARK_BG}';
 
-      // Hide scrollbar
       document.body.style.overscrollBehavior = 'none';
     })();
     true;
@@ -144,7 +183,11 @@ export default function App() {
             source={require("./assets/icon.png")}
             style={styles.loadingIcon}
           />
-          <ActivityIndicator size="small" color={PRIMARY} style={{ marginTop: 16 }} />
+          <ActivityIndicator
+            size="small"
+            color={PRIMARY}
+            style={{ marginTop: 16 }}
+          />
         </View>
       )}
 
