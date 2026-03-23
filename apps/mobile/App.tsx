@@ -15,7 +15,9 @@ import { WebView } from "react-native-webview";
 import type { WebViewNavigation } from "react-native-webview";
 import * as WebBrowser from "expo-web-browser";
 
-const BASE_URL = "https://glitchgrab.dev";
+const BASE_URL = __DEV__
+  ? "http://192.168.1.3:3000"
+  : "https://glitchgrab.dev";
 const DARK_BG = "#09090b";
 const PRIMARY = "#22d3ee";
 
