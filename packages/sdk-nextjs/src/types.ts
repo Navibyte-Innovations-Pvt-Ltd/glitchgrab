@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 export interface GlitchgrabConfig {
   token: string;
   baseUrl?: string;
@@ -16,18 +18,21 @@ export interface ReportPayload {
   metadata?: Record<string, string>;
 }
 
-export interface ReportButtonProps {
-  position?: "bottom-right" | "bottom-left";
-  label?: string;
-  className?: string;
-}
-
 export interface GlitchgrabProviderProps {
   token: string;
   baseUrl?: string;
   onError?: (error: Error) => void;
-  children: React.ReactNode;
-  fallback?: React.ReactNode;
+  children: ReactNode;
+  fallback?: ReactNode;
+}
+
+export interface ReportButtonProps {
+  /** Button position on screen */
+  position?: "bottom-right" | "bottom-left";
+  /** Button label text */
+  label?: string;
+  /** Additional CSS class name */
+  className?: string;
 }
 
 export interface CapturedContext {
@@ -35,4 +40,13 @@ export interface CapturedContext {
   userAgent: string;
   timestamp: string;
   visitedPages: string[];
+}
+
+export interface UseGlitchgrabReturn {
+  /** Report a bug programmatically */
+  reportBug: (description: string, metadata?: Record<string, string>) => void;
+  /** The token being used */
+  token: string;
+  /** The base URL of the Glitchgrab API */
+  baseUrl: string;
 }

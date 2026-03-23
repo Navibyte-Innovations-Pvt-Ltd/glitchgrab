@@ -7,20 +7,26 @@ import React, {
   useEffect,
   useCallback,
 } from "react";
-import type { GlitchgrabProviderProps } from "./types";
+import type { GlitchgrabProviderProps, UseGlitchgrabReturn, ReportPayload } from "./types";
 import { GlitchgrabErrorBoundary } from "./error-boundary";
 import { sanitizeUrl, captureContext, sendReport } from "./utils";
-import type { ReportPayload } from "./types";
 
-interface GlitchgrabContextValue {
-  token: string;
-  baseUrl?: string;
-  reportBug: (description: string, metadata?: Record<string, string>) => void;
-}
+const DEFAULT_BASE_URL = "https://glitchgrab.dev";
 
-const GlitchgrabContext = createContext<GlitchgrabContextValue | null>(null);
+const GlitchgrabContext = createContext<UseGlitchgrabReturn | null>(null);
 
-export function useGlitchgrab(): GlitchgrabContextValue {
+/**
+ * Hook to access Glitchgrab in your components.
+ *
+ * @example
+ * ```tsx
+ * function MyComponent() {
+ *   const { reportBug } = useGlitchgrab();
+ *   return <button onClick={() => reportBug("Something broke")}>Report</button>;
+ * }
+ * ```
+ */
+export function useGlitchgrab(): UseGlitchgrabReturn {
   const ctx = useContext(GlitchgrabContext);
   if (!ctx) {
     throw new Error("useGlitchgrab must be used within a GlitchgrabProvider");
@@ -188,7 +194,7 @@ function GlitchgrabProviderInner({
   );
 
   return (
-    <GlitchgrabContext.Provider value={{ token, baseUrl, reportBug }}>
+    <GlitchgrabContext.Provider value={{ token, baseUrl: baseUrl ?? DEFAULT_BASE_URL, reportBug }}>
       <GlitchgrabErrorBoundary
         token={token}
         baseUrl={baseUrl}
