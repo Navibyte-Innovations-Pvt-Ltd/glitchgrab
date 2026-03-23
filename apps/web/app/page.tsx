@@ -303,26 +303,27 @@ export default function Layout({
       <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
         <div className="text-center mb-10 sm:mb-16">
           <h2 className="text-2xl font-bold sm:text-3xl lg:text-4xl">Simple pricing</h2>
-          <p className="mt-3 text-sm text-muted-foreground sm:mt-4 sm:text-base">No per-seat nonsense. One plan that covers everything.</p>
+          <p className="mt-3 text-sm text-muted-foreground sm:mt-4 sm:text-base">Two plans. No surprises. Cancel anytime.</p>
         </div>
 
         <div className="mx-auto grid max-w-4xl gap-4 sm:grid-cols-2 sm:gap-6">
-          {/* Free */}
+          {/* BYOK */}
           <Card>
             <CardContent className="p-5 sm:p-8">
-              <h3 className="text-lg font-semibold">Free</h3>
+              <h3 className="text-lg font-semibold">Pro (BYOK)</h3>
               <div className="mt-3 flex items-baseline gap-1 sm:mt-4">
-                <span className="text-3xl font-bold sm:text-4xl">$0</span>
+                <span className="text-3xl font-bold sm:text-4xl">$5</span>
                 <span className="text-muted-foreground">/month</span>
               </div>
-              <p className="mt-1.5 text-xs text-muted-foreground sm:mt-2 sm:text-sm">For indie devs trying it out</p>
+              <p className="mt-1.5 text-xs text-muted-foreground sm:mt-2 sm:text-sm">Bring your own OpenAI or Claude key</p>
               <ul className="mt-6 space-y-2.5 text-xs sm:mt-8 sm:space-y-3 sm:text-sm">
                 {[
-                  "1 repo",
-                  "30 issues/month",
+                  "Unlimited repos",
+                  "Unlimited issues",
                   "SDK auto-capture",
-                  "Report button",
-                  "BYOK only (bring your AI key)",
+                  "Smart dedup & updates",
+                  "Screenshot analysis",
+                  "You provide your AI key",
                 ].map((f) => (
                   <li key={f} className="flex items-center gap-2">
                     <span className="text-green">✓</span>
@@ -333,25 +334,24 @@ export default function Layout({
             </CardContent>
           </Card>
 
-          {/* Pro */}
+          {/* Platform */}
           <Card className="border-2 border-primary relative">
             <CardContent className="p-5 sm:p-8">
-              <Badge className="absolute -top-2.5 right-4 sm:-top-3 sm:right-6">Popular</Badge>
-              <h3 className="text-lg font-semibold">Pro</h3>
+              <Badge className="absolute -top-2.5 right-4 sm:-top-3 sm:right-6">Recommended</Badge>
+              <h3 className="text-lg font-semibold">Pro (Platform AI)</h3>
               <div className="mt-3 flex items-baseline gap-1 sm:mt-4">
-                <span className="text-3xl font-bold text-primary sm:text-4xl">$20</span>
+                <span className="text-3xl font-bold text-primary sm:text-4xl">$10</span>
                 <span className="text-muted-foreground">/month</span>
               </div>
-              <p className="mt-1.5 text-xs text-muted-foreground sm:mt-2 sm:text-sm">For teams shipping fast</p>
+              <p className="mt-1.5 text-xs text-muted-foreground sm:mt-2 sm:text-sm">We provide AI — zero setup</p>
               <ul className="mt-6 space-y-2.5 text-xs sm:mt-8 sm:space-y-3 sm:text-sm">
                 {[
                   "Unlimited repos",
-                  "Unlimited issues",
-                  "Handwritten notes → issues",
-                  "AI deduplication",
-                  "MCP server access",
-                  "Platform-provided AI (no key needed)",
-                  "Priority support",
+                  "100 issues created/mo",
+                  "Updates & closes are free",
+                  "SDK auto-capture",
+                  "Screenshot analysis",
+                  "No API key needed",
                 ].map((f) => (
                   <li key={f} className="flex items-center gap-2">
                     <span className="text-primary">✓</span>
@@ -362,13 +362,6 @@ export default function Layout({
             </CardContent>
           </Card>
         </div>
-
-        <p className="mt-6 text-center text-xs text-muted-foreground sm:mt-8 sm:text-sm">
-          Think $20/mo is fair? Too much? Too little?{" "}
-          <a href="#waitlist" className="text-primary underline underline-offset-4 hover:text-primary/80">
-            Tell us when you join.
-          </a>
-        </p>
       </section>
 
       {/* Waitlist */}
