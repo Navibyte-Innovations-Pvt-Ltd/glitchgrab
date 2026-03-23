@@ -303,7 +303,7 @@ export function BugChat({
                 <span className="truncate max-w-[200px]">{selectedRepoName || "Select repo"}</span>
                 <ChevronDown className="h-3 w-3 shrink-0" />
               </PopoverTrigger>
-              <PopoverContent align="start" side="top" className="w-72 p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
+              <PopoverContent align="start" side="top" className="w-72 p-0">
                 <div className="p-2 border-b border-border">
                   <input
                     type="text"
