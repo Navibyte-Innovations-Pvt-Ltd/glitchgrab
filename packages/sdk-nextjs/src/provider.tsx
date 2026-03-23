@@ -7,9 +7,20 @@ import React, {
   useEffect,
   useCallback,
 } from "react";
-import type { GlitchgrabProviderProps, UseGlitchgrabReturn, ReportPayload } from "./types";
+import type {
+  GlitchgrabProviderProps,
+  UseGlitchgrabReturn,
+  ReportPayload,
+  ReportResult,
+  ReportType,
+} from "./types";
 import { GlitchgrabErrorBoundary } from "./error-boundary";
-import { sanitizeUrl, captureContext, sendReport } from "./utils";
+import { sanitizeUrl, captureContext, sendReport, captureDeviceInfo } from "./utils";
+import {
+  initBreadcrumbs,
+  addBreadcrumb as addBreadcrumbInternal,
+  getBreadcrumbs,
+} from "./breadcrumbs";
 
 const DEFAULT_BASE_URL = "https://glitchgrab.dev";
 
@@ -20,10 +31,16 @@ const GlitchgrabContext = createContext<UseGlitchgrabReturn | null>(null);
  *
  * @example
  * ```tsx
- * function MyComponent() {
- *   const { reportBug } = useGlitchgrab();
- *   return <button onClick={() => reportBug("Something broke")}>Report</button>;
- * }
+ * const { reportBug, report, addBreadcrumb } = useGlitchgrab();
+ *
+ * // Report a bug
+ * reportBug("Login button crashes on mobile");
+ *
+ * // Report a feature request
+ * report("FEATURE_REQUEST", "Add dark mode");
+ *
+ * // Add a custom breadcrumb
+ * addBreadcrumb("User clicked checkout", { cartItems: "3" });
  * ```
  */
 export function useGlitchgrab(): UseGlitchgrabReturn {
@@ -38,10 +55,20 @@ function GlitchgrabProviderInner({
   token,
   baseUrl,
   onError,
+  onReportSent,
+  breadcrumbs: enableBreadcrumbs = true,
+  maxBreadcrumbs = 50,
   children,
   fallback,
 }: GlitchgrabProviderProps) {
   const visitedPagesRef = useRef<string[]>([]);
+
+  // Initialize breadcrumbs
+  useEffect(() => {
+    if (enableBreadcrumbs) {
+      initBreadcrumbs(maxBreadcrumbs);
+    }
+  }, [enableBreadcrumbs, maxBreadcrumbs]);
 
   // Track page visits
   useEffect(() => {
@@ -54,7 +81,6 @@ function GlitchgrabProviderInner({
           const pages = visitedPagesRef.current;
           if (pages[pages.length - 1] !== sanitized) {
             pages.push(sanitized);
-            // Keep only last 20 pages
             if (pages.length > 20) {
               pages.splice(0, pages.length - 20);
             }
@@ -64,14 +90,10 @@ function GlitchgrabProviderInner({
         }
       };
 
-      // Track initial page
       trackPage();
-
-      // Listen for route changes (works with Next.js client-side navigation)
       const handlePopState = () => trackPage();
       window.addEventListener("popstate", handlePopState);
 
-      // Intercept pushState/replaceState for SPA navigation
       const origPushState = history.pushState.bind(history);
       const origReplaceState = history.replaceState.bind(history);
 
@@ -79,7 +101,6 @@ function GlitchgrabProviderInner({
         origPushState(...args);
         trackPage();
       };
-
       history.replaceState = function (...args) {
         origReplaceState(...args);
         trackPage();
@@ -95,7 +116,7 @@ function GlitchgrabProviderInner({
     }
   }, []);
 
-  // Listen for unhandled errors and rejections
+  // Unhandled errors and rejections
   useEffect(() => {
     try {
       if (typeof window === "undefined") return;
@@ -106,10 +127,13 @@ function GlitchgrabProviderInner({
           const payload: ReportPayload = {
             token,
             source: "SDK_AUTO",
+            type: "BUG",
             errorMessage: event.message,
             errorStack: event.error?.stack,
             pageUrl: context.url,
             userAgent: context.userAgent,
+            breadcrumbs: context.breadcrumbs,
+            deviceInfo: context.deviceInfo ?? undefined,
             metadata: {
               timestamp: context.timestamp,
               visitedPages: JSON.stringify(context.visitedPages),
@@ -118,10 +142,10 @@ function GlitchgrabProviderInner({
               colno: String(event.colno ?? ""),
             },
           };
-          sendReport(payload, baseUrl);
-          if (onError && event.error) {
-            onError(event.error);
-          }
+          sendReport(payload, baseUrl).then((result) => {
+            if (result && onReportSent) onReportSent(result);
+          });
+          if (onError && event.error) onError(event.error);
         } catch {
           // Silently fail
         }
@@ -134,24 +158,23 @@ function GlitchgrabProviderInner({
           const payload: ReportPayload = {
             token,
             source: "SDK_AUTO",
-            errorMessage:
-              reason instanceof Error
-                ? reason.message
-                : String(reason),
-            errorStack:
-              reason instanceof Error ? reason.stack : undefined,
+            type: "BUG",
+            errorMessage: reason instanceof Error ? reason.message : String(reason),
+            errorStack: reason instanceof Error ? reason.stack : undefined,
             pageUrl: context.url,
             userAgent: context.userAgent,
+            breadcrumbs: context.breadcrumbs,
+            deviceInfo: context.deviceInfo ?? undefined,
             metadata: {
               timestamp: context.timestamp,
               visitedPages: JSON.stringify(context.visitedPages),
               type: "unhandledrejection",
             },
           };
-          sendReport(payload, baseUrl);
-          if (onError && reason instanceof Error) {
-            onError(reason);
-          }
+          sendReport(payload, baseUrl).then((result) => {
+            if (result && onReportSent) onReportSent(result);
+          });
+          if (onError && reason instanceof Error) onError(reason);
         } catch {
           // Silently fail
         }
@@ -167,34 +190,64 @@ function GlitchgrabProviderInner({
     } catch {
       // Never crash
     }
-  }, [token, baseUrl, onError]);
+  }, [token, baseUrl, onError, onReportSent]);
 
-  const reportBug = useCallback(
-    (description: string, metadata?: Record<string, string>) => {
+  const report = useCallback(
+    async (
+      type: ReportType,
+      description: string,
+      metadata?: Record<string, string>
+    ): Promise<ReportResult | null> => {
       try {
         const context = captureContext(visitedPagesRef.current);
         const payload: ReportPayload = {
           token,
           source: "SDK_USER_REPORT",
+          type,
           description,
           pageUrl: context.url,
           userAgent: context.userAgent,
+          breadcrumbs: context.breadcrumbs,
+          deviceInfo: context.deviceInfo ?? undefined,
           metadata: {
             timestamp: context.timestamp,
             visitedPages: JSON.stringify(context.visitedPages),
             ...metadata,
           },
         };
-        sendReport(payload, baseUrl);
+        const result = await sendReport(payload, baseUrl);
+        if (result && onReportSent) onReportSent(result);
+        return result;
       } catch {
-        // Silently fail
+        return null;
       }
     },
-    [token, baseUrl]
+    [token, baseUrl, onReportSent]
+  );
+
+  const reportBug = useCallback(
+    (description: string, metadata?: Record<string, string>) =>
+      report("BUG", description, metadata),
+    [report]
+  );
+
+  const addBreadcrumb = useCallback(
+    (message: string, data?: Record<string, string>) => {
+      addBreadcrumbInternal("custom", message, data);
+    },
+    []
   );
 
   return (
-    <GlitchgrabContext.Provider value={{ token, baseUrl: baseUrl ?? DEFAULT_BASE_URL, reportBug }}>
+    <GlitchgrabContext.Provider
+      value={{
+        token,
+        baseUrl: baseUrl ?? DEFAULT_BASE_URL,
+        reportBug,
+        report,
+        addBreadcrumb,
+      }}
+    >
       <GlitchgrabErrorBoundary
         token={token}
         baseUrl={baseUrl}
@@ -212,7 +265,6 @@ export function GlitchgrabProvider(props: GlitchgrabProviderProps) {
   try {
     return <GlitchgrabProviderInner {...props} />;
   } catch {
-    // If the provider itself fails, render children without error tracking
     return <>{props.children}</>;
   }
 }
