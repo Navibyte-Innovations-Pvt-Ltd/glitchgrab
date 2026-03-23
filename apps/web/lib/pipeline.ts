@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { generateIssueFromBug, type AiIssueOutput } from "@/lib/ai";
-import { createGitHubIssue } from "@/lib/github";
+import { createGitHubIssue, uploadScreenshotToRepo } from "@/lib/github";
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -51,13 +51,23 @@ export async function processReport(reportId: string): Promise<PipelineResult> {
       data: { aiResponse: JSON.parse(JSON.stringify(aiResult)) },
     });
 
-    // 5. Append screenshot note if one was provided
+    // 5. Upload screenshot if provided and embed in issue body
     let issueBody = aiResult.body;
-    if (report.screenshot) {
-      issueBody += "\n\n---\n*Screenshot was attached and analyzed by AI to generate this issue.*\n*Reported via [Glitchgrab](https://glitchgrab.dev)*";
-    } else {
-      issueBody += "\n\n---\n*Reported via [Glitchgrab](https://glitchgrab.dev)*";
+    if (report.screenshot && report.screenshot.startsWith("data:image/")) {
+      const screenshotUrl = await uploadScreenshotToRepo(
+        account.access_token,
+        report.repo.owner,
+        report.repo.name,
+        report.screenshot,
+        report.id
+      );
+      if (screenshotUrl) {
+        issueBody += `\n\n## Screenshot\n\n![Screenshot](${screenshotUrl})`;
+      } else {
+        issueBody += "\n\n*Screenshot was attached and analyzed by AI but could not be uploaded.*";
+      }
     }
+    issueBody += "\n\n---\n*Reported via [Glitchgrab](https://glitchgrab.dev)*";
 
     // 6. Create the GitHub issue
     const createdIssue = await createGitHubIssue(account.access_token, {
