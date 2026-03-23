@@ -1,14 +1,22 @@
 import { prisma } from "@/lib/db";
-import { generateIssueFromBug, type AiIssueOutput } from "@/lib/ai";
-import { createGitHubIssue, uploadScreenshotToRepo } from "@/lib/github";
+import { classifyAndGenerate } from "@/lib/ai";
+import {
+  createGitHubIssue,
+  uploadScreenshotToRepo,
+  commentOnIssue,
+  closeIssue,
+  fetchOpenIssues,
+} from "@/lib/github";
 
 // ─── Types ──────────────────────────────────────────────
 
-export interface PipelineResult {
+interface PipelineResult {
   success: boolean;
+  intent: string;
+  title?: string;
   issueUrl?: string;
   issueNumber?: number;
-  title?: string;
+  message?: string;
   error?: string;
 }
 
@@ -16,83 +24,167 @@ export interface PipelineResult {
 
 export async function processReport(reportId: string): Promise<PipelineResult> {
   try {
-    // 1. Mark as PROCESSING
-    const report = await prisma.report.update({
+    // 1. Fetch the report with repo data
+    const report = await prisma.report.findUniqueOrThrow({
       where: { id: reportId },
-      data: { status: "PROCESSING" },
-      include: {
-        repo: true,
-      },
+      include: { repo: true },
     });
 
-    // 2. Get the user's GitHub access token
+    // 2. Update status to PROCESSING
+    await prisma.report.update({
+      where: { id: reportId },
+      data: { status: "PROCESSING" },
+    });
+
+    // 3. Get the user's GitHub access token
     const account = await prisma.account.findFirst({
       where: { userId: report.repo.userId, provider: "github" },
     });
 
     if (!account?.access_token) {
-      throw new Error(
-        "GitHub account not connected or access token missing"
-      );
+      throw new Error("GitHub access token not found");
     }
 
-    // 3. Call AI to generate issue content
-    const aiResult: AiIssueOutput = await generateIssueFromBug({
-      description: report.rawInput ?? "Bug report (no description provided)",
+    // 4. Fetch open issues for dedup context
+    const openIssues = await fetchOpenIssues(
+      account.access_token,
+      report.repo.owner,
+      report.repo.name
+    );
+
+    // 5. AI classifies intent and generates content
+    const action = await classifyAndGenerate({
+      description: report.rawInput ?? "",
       screenshotUrl: report.screenshot,
       errorStack: report.errorStack,
       pageUrl: report.pageUrl,
       userAgent: report.userAgent,
+      openIssues,
     });
 
-    // 4. Store AI response on the report
+    // Store AI response
     await prisma.report.update({
       where: { id: reportId },
-      data: { aiResponse: JSON.parse(JSON.stringify(aiResult)) },
+      data: { aiResponse: JSON.parse(JSON.stringify(action)) },
     });
 
-    // 5. Upload screenshot if provided and embed in issue body
-    let issueBody = aiResult.body;
-    if (report.screenshot && report.screenshot.startsWith("data:image/")) {
-      const screenshotUrl = await uploadScreenshotToRepo(
+    // 6. Execute based on intent
+    if (action.intent === "create") {
+      // Upload screenshot if provided
+      let issueBody = action.body;
+      if (report.screenshot?.startsWith("data:image/")) {
+        const screenshotUrl = await uploadScreenshotToRepo(
+          account.access_token,
+          report.repo.owner,
+          report.repo.name,
+          report.screenshot,
+          report.id
+        );
+        if (screenshotUrl) {
+          issueBody += `\n\n## Screenshot\n\n![Screenshot](${screenshotUrl})`;
+        }
+      }
+      issueBody += "\n\n---\n*Reported via [Glitchgrab](https://glitchgrab.dev)*";
+
+      const createdIssue = await createGitHubIssue(account.access_token, {
+        owner: report.repo.owner,
+        repo: report.repo.name,
+        title: action.title,
+        body: issueBody,
+        labels: action.labels,
+      });
+
+      // Save Issue record
+      await prisma.issue.create({
+        data: {
+          reportId: report.id,
+          repoId: report.repo.id,
+          githubNumber: createdIssue.number,
+          githubUrl: createdIssue.url,
+          title: action.title,
+          body: issueBody,
+          labels: action.labels,
+          severity: action.severity,
+        },
+      });
+
+      await prisma.report.update({
+        where: { id: reportId },
+        data: { status: "CREATED" },
+      });
+
+      return {
+        success: true,
+        intent: "create",
+        title: action.title,
+        issueUrl: createdIssue.url,
+        issueNumber: createdIssue.number,
+      };
+    }
+
+    if (action.intent === "update") {
+      let comment = action.comment;
+      if (report.screenshot?.startsWith("data:image/")) {
+        const screenshotUrl = await uploadScreenshotToRepo(
+          account.access_token,
+          report.repo.owner,
+          report.repo.name,
+          report.screenshot,
+          report.id
+        );
+        if (screenshotUrl) {
+          comment += `\n\n![Screenshot](${screenshotUrl})`;
+        }
+      }
+      comment += "\n\n*Updated via [Glitchgrab](https://glitchgrab.dev)*";
+
+      await commentOnIssue(
         account.access_token,
         report.repo.owner,
         report.repo.name,
-        report.screenshot,
-        report.id
+        action.issueNumber,
+        comment
       );
-      if (screenshotUrl) {
-        issueBody += `\n\n## Screenshot\n\n![Screenshot](${screenshotUrl})`;
-      } else {
-        issueBody += "\n\n*Screenshot was attached and analyzed by AI but could not be uploaded.*";
-      }
+
+      await prisma.report.update({
+        where: { id: reportId },
+        data: { status: "CREATED" },
+      });
+
+      return {
+        success: true,
+        intent: "update",
+        message: `Updated issue #${action.issueNumber} with additional context`,
+        issueNumber: action.issueNumber,
+        issueUrl: `https://github.com/${report.repo.fullName}/issues/${action.issueNumber}`,
+      };
     }
-    issueBody += "\n\n---\n*Reported via [Glitchgrab](https://glitchgrab.dev)*";
 
-    // 6. Create the GitHub issue
-    const createdIssue = await createGitHubIssue(account.access_token, {
-      owner: report.repo.owner,
-      repo: report.repo.name,
-      title: aiResult.title,
-      body: issueBody,
-      labels: aiResult.labels,
-    });
+    if (action.intent === "close") {
+      for (const num of action.issueNumbers) {
+        await closeIssue(
+          account.access_token,
+          report.repo.owner,
+          report.repo.name,
+          num,
+          action.comment
+        );
+      }
 
-    // 7. Save Issue record in DB
-    await prisma.issue.create({
-      data: {
-        reportId: report.id,
-        repoId: report.repo.id,
-        githubNumber: createdIssue.number,
-        githubUrl: createdIssue.url,
-        title: aiResult.title,
-        body: aiResult.body,
-        labels: aiResult.labels,
-        severity: aiResult.severity,
-      },
-    });
+      await prisma.report.update({
+        where: { id: reportId },
+        data: { status: "CREATED" },
+      });
 
-    // 8. Mark report as CREATED
+      const closed = action.issueNumbers.map((n) => `#${n}`).join(", ");
+      return {
+        success: true,
+        intent: "close",
+        message: `Closed ${action.issueNumbers.length === 1 ? "issue" : "issues"} ${closed}`,
+      };
+    }
+
+    // Chat — no GitHub action needed
     await prisma.report.update({
       where: { id: reportId },
       data: { status: "CREATED" },
@@ -100,28 +192,19 @@ export async function processReport(reportId: string): Promise<PipelineResult> {
 
     return {
       success: true,
-      issueUrl: createdIssue.url,
-      issueNumber: createdIssue.number,
-      title: aiResult.title,
+      intent: "chat",
+      message: action.message,
     };
-  } catch (error) {
-    // Mark report as FAILED with reason
-    const failReason =
-      error instanceof Error ? error.message : "Unknown pipeline error";
-
-    await prisma.report
-      .update({
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    try {
+      await prisma.report.update({
         where: { id: reportId },
-        data: { status: "FAILED", failReason },
-      })
-      .catch((updateErr) => {
-        // If even the status update fails, log it but don't mask the original error
-        console.error("Failed to update report status:", updateErr);
+        data: { status: "FAILED", failReason: errorMessage },
       });
-
-    return {
-      success: false,
-      error: failReason,
-    };
+    } catch {
+      // DB update failed — log but don't mask original error
+    }
+    return { success: false, intent: "error", error: errorMessage };
   }
 }
