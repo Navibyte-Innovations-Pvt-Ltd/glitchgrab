@@ -297,49 +297,54 @@ export function BugChat({
       <div className="shrink-0 rounded-xl border border-border bg-card p-2 sm:p-3">
           {/* Repo selector row */}
           <div className="mb-1.5 pb-1.5 border-b border-border">
-            <Popover open={repoPickerOpen} onOpenChange={(open) => { setRepoPickerOpen(open); if (!open) setRepoSearch(""); }}>
-              <PopoverTrigger className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition px-1 py-0.5 rounded">
+            {repos.length <= 1 ? (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-1 py-0.5">
                 <GitFork className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate max-w-[200px]">{selectedRepoName || "Select repo"}</span>
-                <ChevronDown className="h-3 w-3 shrink-0" />
-              </PopoverTrigger>
-              <PopoverContent align="start" side="top" className="w-72 p-0">
-                <div className="p-2 border-b border-border">
-                  <input
-                    type="text"
-                    value={repoSearch}
-                    onChange={(e) => setRepoSearch(e.target.value)}
-                    placeholder="Search repos..."
-                    className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-                    autoFocus
-                  />
-                </div>
-                <div className="max-h-48 overflow-y-auto p-1">
-                  {repos
-                    .filter((r) => r.fullName.toLowerCase().includes(repoSearch.toLowerCase()))
-                    .map((repo) => (
-                      <button
-                        key={repo.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedRepoName(repo.fullName);
-                          setRepoPickerOpen(false);
-                          setRepoSearch("");
-                        }}
-                        className="flex items-center justify-between w-full rounded-md px-2 py-1.5 text-sm hover:bg-muted transition"
-                      >
-                        <span className="truncate">{repo.fullName}</span>
-                        {selectedRepoName === repo.fullName && (
-                          <Check className="h-3.5 w-3.5 text-primary shrink-0" />
-                        )}
-                      </button>
-                    ))}
-                  {repos.filter((r) => r.fullName.toLowerCase().includes(repoSearch.toLowerCase())).length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center py-3">No repos found</p>
+                <span className="truncate">{selectedRepoName}</span>
+              </div>
+            ) : (
+              <Popover open={repoPickerOpen} onOpenChange={(open) => { setRepoPickerOpen(open); if (!open) setRepoSearch(""); }}>
+                <PopoverTrigger className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition px-1 py-0.5 rounded">
+                  <GitFork className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate max-w-[200px]">{selectedRepoName || "Select repo"}</span>
+                  <ChevronDown className="h-3 w-3 shrink-0" />
+                </PopoverTrigger>
+                <PopoverContent align="start" side="top" className="w-72 p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
+                  {repos.length > 5 && (
+                    <div className="p-2 border-b border-border">
+                      <input
+                        type="text"
+                        value={repoSearch}
+                        onChange={(e) => setRepoSearch(e.target.value)}
+                        placeholder="Search repos..."
+                        className="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                      />
+                    </div>
                   )}
-                </div>
-              </PopoverContent>
-            </Popover>
+                  <div className="max-h-48 overflow-y-auto p-1">
+                    {repos
+                      .filter((r) => r.fullName.toLowerCase().includes(repoSearch.toLowerCase()))
+                      .map((repo) => (
+                        <button
+                          key={repo.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedRepoName(repo.fullName);
+                            setRepoPickerOpen(false);
+                            setRepoSearch("");
+                          }}
+                          className="flex items-center justify-between w-full rounded-md px-2 py-1.5 text-sm hover:bg-muted transition"
+                        >
+                          <span className="truncate">{repo.fullName}</span>
+                          {selectedRepoName === repo.fullName && (
+                            <Check className="h-3.5 w-3.5 text-primary shrink-0" />
+                          )}
+                        </button>
+                      ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
           </div>
           {/* Input row */}
           <div className="flex items-end gap-2">
