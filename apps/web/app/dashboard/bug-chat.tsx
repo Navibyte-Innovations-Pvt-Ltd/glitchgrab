@@ -102,7 +102,7 @@ export function BugChat({
     const thinkingMsg: Message = {
       id: "thinking",
       role: "assistant",
-      content: "Analyzing and creating GitHub issue...",
+      content: "Thinking...",
     };
     setMessages((prev) => [...prev, thinkingMsg]);
 
@@ -121,22 +121,39 @@ export function BugChat({
 
       const data = await res.json();
 
+      let content: string;
+      if (!data.success) {
+        content = `Failed: ${data.error ?? "Something went wrong."}`;
+      } else {
+        const intent = data.data?.intent;
+        if (intent === "create") {
+          content = `Issue created: **${data.data?.title ?? "Bug report"}**`;
+        } else if (intent === "update") {
+          content = data.data?.message ?? "Issue updated";
+        } else if (intent === "close") {
+          content = data.data?.message ?? "Issues closed";
+        } else {
+          content = data.data?.message ?? "Done";
+        }
+      }
+
       setMessages((prev) =>
         prev
           .filter((m) => m.id !== "thinking")
           .concat({
             id: Date.now().toString(),
             role: "assistant",
-            content: data.success
-              ? `Issue created: **${data.data?.title ?? "Bug report"}**`
-              : `Failed: ${data.error ?? "Something went wrong."}`,
+            content,
             issueUrl: data.data?.issueUrl,
             failed: !data.success,
           })
       );
 
       if (data.success) {
-        toast.success("Issue created!");
+        const intent = data.data?.intent;
+        if (intent === "create") toast.success("Issue created!");
+        else if (intent === "update") toast.success("Issue updated!");
+        else if (intent === "close") toast.success("Issue(s) closed!");
       }
     } catch {
       setMessages((prev) =>
