@@ -1,69 +1,58 @@
-import type { ReportPayload, CapturedContext } from "./types";
+import type { ReportPayload, ReportResult, CapturedContext, DeviceInfo } from "./types";
+import { getBreadcrumbs } from "./breadcrumbs";
 
 const SENSITIVE_PARAMS = [
-  "token",
-  "key",
-  "secret",
-  "password",
-  "passwd",
-  "auth",
-  "authorization",
-  "session",
-  "sessionid",
-  "session_id",
-  "api_key",
-  "apikey",
-  "access_token",
-  "refresh_token",
-  "client_secret",
-  "code",
-  "state",
-  "nonce",
-  "credential",
-  "private",
+  "token", "key", "secret", "password", "passwd", "auth", "authorization",
+  "session", "sessionid", "session_id", "api_key", "apikey", "access_token",
+  "refresh_token", "client_secret", "code", "state", "nonce", "credential", "private",
 ];
 
-/**
- * Strip sensitive query parameters from a URL.
- * Returns the URL with sensitive params replaced by [REDACTED].
- */
 export function sanitizeUrl(url: string): string {
   try {
     const parsed = new URL(url);
     const params = new URLSearchParams(parsed.search);
     let modified = false;
-
     for (const key of Array.from(params.keys())) {
-      const lower = key.toLowerCase();
-      if (SENSITIVE_PARAMS.some((s) => lower.includes(s))) {
+      if (SENSITIVE_PARAMS.some((s) => key.toLowerCase().includes(s))) {
         params.set(key, "[REDACTED]");
         modified = true;
       }
     }
-
-    if (modified) {
-      parsed.search = params.toString();
-    }
-
+    if (modified) parsed.search = params.toString();
     return parsed.toString();
   } catch {
-    // If URL parsing fails, return a safe fallback
     return url.split("?")[0] ?? url;
   }
 }
 
-/**
- * Capture current browser context for error reporting.
- */
+export function captureDeviceInfo(): DeviceInfo | null {
+  try {
+    if (typeof window === "undefined") return null;
+    return {
+      screenWidth: screen.width,
+      screenHeight: screen.height,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      platform: navigator.platform ?? "unknown",
+      language: navigator.language ?? "unknown",
+      online: navigator.onLine,
+      colorScheme: window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light",
+      devicePixelRatio: window.devicePixelRatio ?? 1,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function captureContext(visitedPages: string[]): CapturedContext {
   try {
     return {
-      url: sanitizeUrl(
-        typeof window !== "undefined" ? window.location.href : ""
-      ),
+      url: sanitizeUrl(typeof window !== "undefined" ? window.location.href : ""),
       userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "",
       timestamp: new Date().toISOString(),
       visitedPages: visitedPages.map(sanitizeUrl),
+      breadcrumbs: getBreadcrumbs(),
+      deviceInfo: captureDeviceInfo(),
     };
   } catch {
     return {
@@ -71,6 +60,8 @@ export function captureContext(visitedPages: string[]): CapturedContext {
       userAgent: "",
       timestamp: new Date().toISOString(),
       visitedPages: [],
+      breadcrumbs: [],
+      deviceInfo: null,
     };
   }
 }
@@ -80,14 +71,13 @@ const MAX_RETRIES = 3;
 const RETRY_BASE_MS = 500;
 
 /**
- * Send a report to the Glitchgrab API.
- * Uses fetch with keepalive, falls back to sendBeacon.
- * Never throws — all errors are silently caught.
+ * Send a report and return the result.
+ * Never throws — returns null on failure.
  */
 export async function sendReport(
   payload: ReportPayload,
   baseUrl?: string
-): Promise<void> {
+): Promise<ReportResult | null> {
   try {
     const url = `${baseUrl ?? DEFAULT_BASE_URL}/api/v1/sdk/report`;
     const body = JSON.stringify(payload);
@@ -105,17 +95,18 @@ export async function sendReport(
           keepalive: true,
         });
 
-        if (response.ok) return;
+        if (response.ok) {
+          const data = (await response.json()) as { success: boolean; data?: ReportResult };
+          return data.data ?? { success: data.success };
+        }
 
-        // Don't retry on client errors (4xx) except 429
         if (response.status >= 400 && response.status < 500 && response.status !== 429) {
-          return;
+          return null;
         }
       } catch {
-        // fetch failed — will retry or fall back to sendBeacon
+        // Will retry
       }
 
-      // Wait before retrying (exponential backoff)
       if (attempt < MAX_RETRIES - 1) {
         await new Promise((resolve) =>
           setTimeout(resolve, RETRY_BASE_MS * Math.pow(2, attempt))
@@ -123,7 +114,7 @@ export async function sendReport(
       }
     }
 
-    // Final fallback: sendBeacon (fire-and-forget, no auth header possible)
+    // Fallback: sendBeacon (fire-and-forget, no result)
     if (typeof navigator !== "undefined" && navigator.sendBeacon) {
       try {
         navigator.sendBeacon(url, new Blob([body], { type: "application/json" }));
@@ -131,7 +122,9 @@ export async function sendReport(
         // Silently fail
       }
     }
+
+    return null;
   } catch {
-    // Never throw from this function
+    return null;
   }
 }
