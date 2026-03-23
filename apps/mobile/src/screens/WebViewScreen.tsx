@@ -194,6 +194,7 @@ export default function WebViewScreen({
           domStorageEnabled
           startInLoadingState={false}
           allowsBackForwardNavigationGestures
+          hideKeyboardAccessoryView
           sharedCookiesEnabled
           thirdPartyCookiesEnabled
           mediaPlaybackRequiresUserAction={false}
