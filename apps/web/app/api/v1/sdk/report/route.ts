@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { hashToken } from "@/lib/tokens";
 import { processReport } from "@/lib/pipeline";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 interface SdkReportBody {
   source: "SDK_AUTO" | "SDK_USER_REPORT";
@@ -45,13 +46,41 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Update last used
+    // 2. Rate limit check
+    const rateLimit = checkRateLimit(tokenHash);
+    if (!rateLimit.allowed) {
+      const retryAfter = Math.ceil(
+        (rateLimit.resetAt.getTime() - Date.now()) / 1000
+      );
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Rate limit exceeded",
+          retryAfter,
+        },
+        {
+          status: 429,
+          headers: {
+            "X-RateLimit-Remaining": "0",
+            "X-RateLimit-Reset": rateLimit.resetAt.toISOString(),
+            "Retry-After": String(retryAfter),
+          },
+        }
+      );
+    }
+
+    // 3. Update last used
     await prisma.apiToken.update({
       where: { id: apiToken.id },
       data: { lastUsed: new Date() },
     });
 
-    // 3. Parse body
+    const rateLimitHeaders = {
+      "X-RateLimit-Remaining": String(rateLimit.remaining),
+      "X-RateLimit-Reset": rateLimit.resetAt.toISOString(),
+    };
+
+    // 4. Parse body
     const body = (await request.json()) as SdkReportBody;
 
     const description = [
@@ -74,7 +103,7 @@ export async function POST(request: Request) {
       ...(body.type ? { reportType: body.type } : {}),
     };
 
-    // 4. Create report
+    // 5. Create report
     const report = await prisma.report.create({
       data: {
         repoId: apiToken.repoId,
@@ -89,21 +118,24 @@ export async function POST(request: Request) {
       },
     });
 
-    // 5. Process with AI pipeline (non-blocking for auto-capture)
+    // 6. Process with AI pipeline (non-blocking for auto-capture)
     if (body.source === "SDK_USER_REPORT") {
       // User reports — wait for result
       const result = await processReport(report.id);
-      return NextResponse.json({
-        success: result.success,
-        data: {
-          reportId: report.id,
-          intent: result.intent,
-          issueUrl: result.issueUrl,
-          issueNumber: result.issueNumber,
-          title: result.title,
-          message: result.message,
+      return NextResponse.json(
+        {
+          success: result.success,
+          data: {
+            reportId: report.id,
+            intent: result.intent,
+            issueUrl: result.issueUrl,
+            issueNumber: result.issueNumber,
+            title: result.title,
+            message: result.message,
+          },
         },
-      });
+        { headers: rateLimitHeaders }
+      );
     }
 
     // Auto-capture — process async, respond immediately
@@ -111,10 +143,13 @@ export async function POST(request: Request) {
       console.error("SDK auto-capture pipeline error:", err)
     );
 
-    return NextResponse.json({
-      success: true,
-      data: { reportId: report.id, status: "PROCESSING" },
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        data: { reportId: report.id, status: "PROCESSING" },
+      },
+      { headers: rateLimitHeaders }
+    );
   } catch (error) {
     console.error("SDK report error:", error);
     return NextResponse.json(
