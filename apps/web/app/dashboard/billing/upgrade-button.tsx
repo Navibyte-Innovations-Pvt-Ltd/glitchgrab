@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, CreditCard } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 declare global {
@@ -35,9 +35,13 @@ interface RazorpayResponse {
 }
 
 export function UpgradeButton({
+  plan,
+  label,
   email,
   name,
 }: {
+  plan: string;
+  label: string;
   email: string;
   name: string;
 }) {
@@ -47,9 +51,10 @@ export function UpgradeButton({
     setLoading(true);
 
     try {
-      // 1. Create order
       const res = await fetch("/api/v1/billing/subscribe", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
       });
       const data = await res.json();
 
@@ -59,7 +64,6 @@ export function UpgradeButton({
         return;
       }
 
-      // 2. Load Razorpay script if not loaded
       if (!window.Razorpay) {
         await new Promise<void>((resolve, reject) => {
           const script = document.createElement("script");
@@ -70,16 +74,14 @@ export function UpgradeButton({
         });
       }
 
-      // 3. Open Razorpay checkout
       const razorpay = new window.Razorpay({
         key: data.data.keyId,
         amount: data.data.amount,
         currency: data.data.currency,
         name: "Glitchgrab",
-        description: "Pro Plan (BYOK) — $5/month",
+        description: data.data.planName,
         order_id: data.data.orderId,
         handler: async (response: RazorpayResponse) => {
-          // 4. Verify payment
           try {
             const verifyRes = await fetch("/api/v1/billing/verify", {
               method: "POST",
@@ -89,7 +91,7 @@ export function UpgradeButton({
             const verifyData = await verifyRes.json();
 
             if (verifyData.success) {
-              toast.success("Upgraded to Pro! Refreshing...");
+              toast.success("Payment successful! Refreshing...");
               window.location.reload();
             } else {
               toast.error("Payment verification failed");
@@ -114,13 +116,9 @@ export function UpgradeButton({
   }
 
   return (
-    <Button onClick={handleUpgrade} disabled={loading} className="gap-2">
-      {loading ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : (
-        <CreditCard className="h-4 w-4" />
-      )}
-      {loading ? "Processing..." : "Upgrade to Pro — $5/mo"}
+    <Button onClick={handleUpgrade} disabled={loading} className="w-full gap-2">
+      {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+      {loading ? "Processing..." : label}
     </Button>
   );
 }
