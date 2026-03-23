@@ -78,42 +78,37 @@ export default function WebViewScreen({
     return true;
   }, []);
 
-  // Inject session token as a cookie + viewport setup
-  const injectedJS = `
+  // Runs BEFORE page content loads — sets cookie and viewport
+  const injectedBeforeLoad = `
     (function() {
-      // Set the session cookie for NextAuth
       document.cookie = "authjs.session-token=${sessionToken}; path=/; max-age=2592000; SameSite=Lax";
       document.cookie = "__Secure-authjs.session-token=${sessionToken}; path=/; max-age=2592000; SameSite=Lax; Secure";
 
-      var meta = document.querySelector('meta[name="viewport"]');
-      if (!meta) {
-        meta = document.createElement('meta');
-        meta.name = 'viewport';
-        document.head.appendChild(meta);
-      }
+      // Set viewport immediately
+      var meta = document.createElement('meta');
+      meta.name = 'viewport';
       meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
+      document.head.appendChild(meta);
+    })();
+    true;
+  `;
 
-      // Remove any other viewport metas
-      document.querySelectorAll('meta[name="viewport"]').forEach(function(m, i) {
-        if (i > 0) m.remove();
-      });
+  // Runs AFTER page loads — styles and event handlers
+  const injectedAfterLoad = `
+    (function() {
+      // Remove duplicate viewport metas, keep ours
+      var metas = document.querySelectorAll('meta[name="viewport"]');
+      for (var i = 1; i < metas.length; i++) metas[i].remove();
 
-      var theme = document.querySelector('meta[name="theme-color"]');
-      if (!theme) {
-        theme = document.createElement('meta');
-        theme.name = 'theme-color';
-        document.head.appendChild(theme);
-      }
-      theme.content = '${DARK_BG}';
+      // Force first viewport to our settings
+      if (metas[0]) metas[0].content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
 
-      document.body.style.overscrollBehavior = 'none';
-
-      // Force 16px on inputs to prevent iOS auto-zoom
+      // Force 16px on inputs to prevent iOS zoom
       var s = document.createElement('style');
       s.textContent = 'input,textarea,select{font-size:16px!important}';
       document.head.appendChild(s);
 
-      // Block pinch-to-zoom
+      document.body.style.overscrollBehavior = 'none';
       document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
     })();
     true;
@@ -190,7 +185,8 @@ export default function WebViewScreen({
               setError(true);
             }
           }}
-          injectedJavaScript={injectedJS}
+          injectedJavaScriptBeforeContentLoaded={injectedBeforeLoad}
+          injectedJavaScript={injectedAfterLoad}
           javaScriptEnabled
           domStorageEnabled
           startInLoadingState={false}
