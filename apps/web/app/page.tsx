@@ -383,16 +383,24 @@ export default function Layout({
 
       {/* Footer */}
       <footer className="border-t border-border py-8 sm:py-12">
-        <div className="mx-auto max-w-6xl px-4 flex flex-col items-center gap-3 sm:px-6 sm:gap-4 sm:flex-row sm:justify-between">
-          <div className="flex items-center gap-2">
-            <Image src="/logo.png" alt="Glitchgrab" width={20} height={20} className="rounded-full sm:w-6 sm:h-6" />
-            <span className="text-xs font-medium sm:text-sm">glitchgrab</span>
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
+            <div className="flex items-center gap-2">
+              <Image src="/logo.png" alt="Glitchgrab" width={20} height={20} className="rounded-full sm:w-6 sm:h-6" />
+              <span className="text-xs font-medium sm:text-sm">glitchgrab</span>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-muted-foreground sm:text-sm">
+              <Link href="/privacy" className="hover:text-primary transition">Privacy</Link>
+              <Link href="/terms" className="hover:text-primary transition">Terms</Link>
+              <Link href="/refund" className="hover:text-primary transition">Refunds</Link>
+              <Link href="/contact" className="hover:text-primary transition">Contact</Link>
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground sm:text-sm">
+          <p className="text-center text-xs text-muted-foreground mt-4 sm:text-sm">
             Built by{" "}
             <a
               href="https://github.com/webnaresh"
-              className="text-muted-foreground hover:text-primary transition"
+              className="hover:text-primary transition"
               target="_blank"
               rel="noopener"
             >
