@@ -3,9 +3,9 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { getRazorpay, PRO_BYOK_AMOUNT, PRO_BYOK_CURRENCY } from "@/lib/razorpay";
+import { getRazorpay, PLANS, type PlanKey } from "@/lib/razorpay";
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -15,28 +15,38 @@ export async function POST() {
       );
     }
 
+    const body = (await request.json()) as { plan: string };
+    const planKey = body.plan as PlanKey;
+
+    if (!PLANS[planKey]) {
+      return NextResponse.json(
+        { success: false, error: "Invalid plan" },
+        { status: 400 }
+      );
+    }
+
     // Check if already subscribed
     const existing = await prisma.subscription.findUnique({
       where: { userId: session.user.id },
     });
 
-    if (existing?.plan !== "FREE" && existing?.status === "ACTIVE") {
+    if (existing?.status === "ACTIVE" && existing.plan !== "FREE") {
       return NextResponse.json(
-        { success: false, error: "Already on Pro plan" },
+        { success: false, error: "Already on a paid plan" },
         { status: 400 }
       );
     }
 
+    const plan = PLANS[planKey];
     const razorpay = getRazorpay();
 
-    // Create a Razorpay order for subscription
     const order = await razorpay.orders.create({
-      amount: PRO_BYOK_AMOUNT,
-      currency: PRO_BYOK_CURRENCY,
+      amount: plan.amount,
+      currency: plan.currency,
       receipt: `sub_${session.user.id}_${Date.now()}`,
       notes: {
         userId: session.user.id,
-        plan: "PRO_BYOK",
+        plan: planKey,
         email: session.user.email ?? "",
       },
     });
@@ -48,6 +58,7 @@ export async function POST() {
         amount: order.amount,
         currency: order.currency,
         keyId: process.env.RAZORPAY_KEY_ID,
+        planName: plan.name,
       },
     });
   } catch (error) {

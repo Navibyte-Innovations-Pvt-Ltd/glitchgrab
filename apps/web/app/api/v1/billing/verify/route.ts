@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getRazorpay } from "@/lib/razorpay";
 import { validatePaymentVerification } from "razorpay/dist/utils/razorpay-utils";
 
 interface VerifyBody {
@@ -23,7 +24,6 @@ export async function POST(request: Request) {
 
     const body = (await request.json()) as VerifyBody;
 
-    // Verify payment signature
     const isValid = validatePaymentVerification(
       {
         order_id: body.razorpay_order_id,
@@ -40,7 +40,13 @@ export async function POST(request: Request) {
       );
     }
 
-    // Activate subscription
+    // Fetch the order to get the plan from notes
+    const razorpay = getRazorpay();
+    const order = await razorpay.orders.fetch(body.razorpay_order_id);
+    const plan = (order.notes?.plan as string) === "PRO_PLATFORM"
+      ? "PRO_PLATFORM"
+      : "PRO_BYOK";
+
     const now = new Date();
     const periodEnd = new Date(now);
     periodEnd.setMonth(periodEnd.getMonth() + 1);
@@ -48,7 +54,7 @@ export async function POST(request: Request) {
     await prisma.subscription.upsert({
       where: { userId: session.user.id },
       update: {
-        plan: "PRO_BYOK",
+        plan,
         status: "ACTIVE",
         razorpaySubscriptionId: body.razorpay_payment_id,
         currentPeriodStart: now,
@@ -56,7 +62,7 @@ export async function POST(request: Request) {
       },
       create: {
         userId: session.user.id,
-        plan: "PRO_BYOK",
+        plan,
         status: "ACTIVE",
         razorpaySubscriptionId: body.razorpay_payment_id,
         currentPeriodStart: now,
@@ -64,7 +70,7 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, data: { plan } });
   } catch (error) {
     console.error("Verify error:", error);
     return NextResponse.json(
