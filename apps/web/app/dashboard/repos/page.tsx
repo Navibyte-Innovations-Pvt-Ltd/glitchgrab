@@ -17,7 +17,7 @@ export default async function ReposPage() {
     orderBy: { createdAt: "desc" },
   });
 
-  const connectedGithubIds = repos.map((repo) => repo.githubId);
+  const connectedGithubIds = repos.map((repo: typeof repos[number]) => repo.githubId);
 
   return (
     <div className="space-y-6">
