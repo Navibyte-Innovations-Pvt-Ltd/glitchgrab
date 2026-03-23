@@ -364,7 +364,7 @@ export function BugChat({
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
-              placeholder="Describe the bug or paste a screenshot..."
+              placeholder="Describe a bug..."
               rows={1}
               className="flex-1 resize-none bg-transparent border-0 outline-none text-sm placeholder:text-muted-foreground min-h-[36px] max-h-[120px] py-2"
               disabled={sending}
