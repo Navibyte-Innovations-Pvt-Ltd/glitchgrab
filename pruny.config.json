@@ -17,7 +17,8 @@
       "**/lib/**",
       "**/*actions*",
       "**/*form*",
-      "**/(legal)/**"
+      "**/(legal)/**",
+      "**/original.png"
     ]
   }
 }

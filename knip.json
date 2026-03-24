@@ -36,7 +36,14 @@
     },
     "packages/sdk-nextjs": {
       "project": ["src/**/*.{ts,tsx}"],
-      "ignoreDependencies": ["react-dom"]
+      "ignoreDependencies": [
+        "react-dom",
+        "@semantic-release/commit-analyzer",
+        "@semantic-release/github",
+        "@semantic-release/npm",
+        "@semantic-release/release-notes-generator",
+        "conventional-changelog-conventionalcommits"
+      ]
     }
   },
   "ignoreBinaries": ["prisma", "expo"],

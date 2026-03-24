@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build & Release Android APK
 
 on:
   push:
@@ -6,6 +6,9 @@ on:
       - "app-v*" # Trigger on tags like app-v1.0.0
 
   workflow_dispatch: # Manual trigger
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -44,9 +47,23 @@ jobs:
         run: eas build --platform android --profile preview --non-interactive --local
         working-directory: apps/mobile
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: glitchgrab-android
           path: apps/mobile/build-*.apk
           retention-days: 30
+
+      - name: Get version from tag
+        if: startsWith(github.ref, 'refs/tags/app-v')
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/app-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Glitchgrab ${{ env.VERSION }}"
+          generate_release_notes: true
+          files: apps/mobile/build-*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
