@@ -65,7 +65,7 @@ Use CLARIFY when the user's input lacks enough detail to create a high-quality i
 
 ### CLARIFY RULES:
 - Ask 2-4 focused questions max, not a wall of questions
-- Frame questions as multiple choice when possible (easier to answer)
+- EVERY question MUST be an object with "question" (string) and "options" (array of exactly 4 short strings). NEVER return questions as plain strings.
 - Reference specific parts of the repo (pages, components, APIs) you know about from the README
 - If you already asked questions and the user answered, DO NOT ask more — create the issue
 
