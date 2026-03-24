@@ -114,6 +114,8 @@ export async function classifyAndGenerate(input: AiInput): Promise<AiAction> {
     });
   }
 
+  console.info("[AI] Calling gpt-4o-mini with", userParts.length, "parts");
+
   const response = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     response_format: { type: "json_object" },
@@ -125,9 +127,11 @@ export async function classifyAndGenerate(input: AiInput): Promise<AiAction> {
     max_tokens: 2000,
   });
 
+  console.info("[AI] Response received, finish_reason:", response.choices[0]?.finish_reason);
+
   const rawContent = response.choices[0]?.message?.content;
   if (!rawContent) {
-    // Fallback: create an issue from the description directly
+    console.error("[AI] Empty response from OpenAI");
     return {
       intent: "create",
       title: (input.description || "Bug report").slice(0, 80),
