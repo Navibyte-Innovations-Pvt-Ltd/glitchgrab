@@ -51,6 +51,7 @@ export async function GET(request: Request) {
     sameSite: "lax",
     secure: isProduction,
     maxAge: 30 * 24 * 60 * 60,
+    domain: isProduction ? ".glitchgrab.dev" : undefined,
   });
 
   return response;
