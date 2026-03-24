@@ -28,9 +28,16 @@
         "backgroundColor": "#09090b",
         "foregroundImage": "./assets/icon.png"
       },
-      "permissions": ["INTERNET"],
+      "permissions": [
+        "INTERNET"
+      ],
       "usesClearTextTraffic": true
     },
-    "scheme": "glitchgrab"
+    "scheme": "glitchgrab",
+    "extra": {
+      "eas": {
+        "projectId": "6166832f-68fa-4680-a312-99030a7e9d5c"
+      }
+    }
   }
 }
