@@ -174,10 +174,7 @@ export default function WebViewScreen({
         <WebView
           ref={webViewRef}
           source={{
-            uri: `${BASE_URL}/dashboard`,
-            headers: {
-              Cookie: `authjs.session-token=${sessionToken}`,
-            },
+            uri: `${BASE_URL}/api/auth/mobile/session?token=${encodeURIComponent(sessionToken)}`,
           }}
           style={styles.webview}
           onNavigationStateChange={handleNavigationStateChange}
@@ -207,7 +204,7 @@ export default function WebViewScreen({
           cacheEnabled
           pullToRefreshEnabled={false}
           overScrollMode="never"
-          decelerationRate="normal"
+          decelerationRate={0.998}
           contentMode="mobile"
           setSupportMultipleWindows={false}
           scalesPageToFit={false}
