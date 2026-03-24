@@ -267,8 +267,49 @@ export function BugChat({
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
   }
 
+  // Test mode: detect "ask me questions" and show sample interactive questions locally
+  const TEST_QUESTIONS_PATTERN = /^ask\s+me\s+(some\s+)?questions?$/i;
+
+  function handleTestQuestions() {
+    const userMsg: Message = {
+      id: Date.now().toString(),
+      role: "user",
+      content: input.trim(),
+    };
+    setMessages((prev) => [...prev, userMsg]);
+    setInput("");
+
+    const testMsg: Message = {
+      id: (Date.now() + 1).toString(),
+      role: "assistant",
+      content: "",
+      clarifyQuestions: [
+        {
+          question: "What type of bug are you reporting?",
+          options: ["UI/Visual issue", "Crash/Error", "Performance", "Feature not working"],
+        },
+        {
+          question: "Which part of the app is affected?",
+          options: ["Dashboard", "Bug chat", "Repos page", "Mobile app"],
+        },
+        {
+          question: "How severe is this issue?",
+          options: ["Blocks my work", "Annoying but usable", "Minor cosmetic", "Just a suggestion"],
+        },
+      ],
+    };
+    setMessages((prev) => [...prev, testMsg]);
+  }
+
   async function handleSend() {
     if (!input.trim() && screenshots.length === 0) return;
+
+    // Intercept test command — show sample interactive questions without API call
+    if (TEST_QUESTIONS_PATTERN.test(input.trim())) {
+      handleTestQuestions();
+      return;
+    }
+
     if (!selectedRepo) {
       toast.error("Select a repo first");
       return;
