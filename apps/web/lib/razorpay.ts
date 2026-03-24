@@ -20,12 +20,14 @@ export const PLANS = {
     amount: 500, // $5 in cents
     currency: "USD",
     description: "Unlimited repos & issues — bring your own AI key",
+    razorpayPlanId: process.env.RAZORPAY_PLAN_BYOK ?? "",
   },
   PRO_PLATFORM: {
     name: "Pro (Platform AI)",
     amount: 1000, // $10 in cents
     currency: "USD",
     description: "Unlimited repos, 100 issues/mo — we provide AI",
+    razorpayPlanId: process.env.RAZORPAY_PLAN_PLATFORM ?? "",
   },
 } as const;
 
