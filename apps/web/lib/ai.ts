@@ -90,6 +90,11 @@ For CHAT (LAST RESORT — only for truly incomprehensible input):
 - medium: feature partially broken, workaround exists
 - low: cosmetic issue, minor inconvenience
 
+## ONE REPORT = ONE ISSUE (CRITICAL)
+- Each user submission (text + screenshot) must produce exactly ONE action (CREATE or UPDATE).
+- If the screenshot or text mentions MULTIPLE bugs, combine them into a SINGLE issue with numbered sections.
+- NEVER create multiple issues from one report. Bundle everything together.
+
 ## CREATE vs UPDATE decision
 - If an open issue covers the same AREA (e.g., UI, mobile, icons, layout, responsiveness), choose UPDATE
 - Small related UI issues (icons broken + layout not responsive + styling off) should be ONE issue
