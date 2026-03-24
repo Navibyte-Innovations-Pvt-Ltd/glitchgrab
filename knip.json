@@ -40,6 +40,6 @@
     }
   },
   "ignoreBinaries": ["prisma", "expo"],
-  "ignore": ["apps/scripts/**", ".glitchgrab/**"],
+  "ignore": ["apps/scripts/**"],
   "ignoreExportsUsedInFile": true
 }
