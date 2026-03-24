@@ -22,6 +22,7 @@ export default function App() {
   const [state, setState] = useState<AppState>("loading");
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [sharedImageBase64, setSharedImageBase64] = useState<string | null>(null);
+  const [processingShare, setProcessingShare] = useState(false);
 
   // Listen for shared content
   const { shareIntent, resetShareIntent } = useShareIntent();
@@ -50,6 +51,7 @@ export default function App() {
     const file = shareIntent.files[0];
     if (!file?.path) return;
 
+    setProcessingShare(true);
     (async () => {
       try {
         const base64 = await FileSystem.readAsStringAsync(file.path, {
@@ -61,6 +63,8 @@ export default function App() {
       } catch (err) {
         console.error("Failed to read shared image:", err);
         resetShareIntent();
+      } finally {
+        setProcessingShare(false);
       }
     })();
   }, [shareIntent, resetShareIntent]);
@@ -109,6 +113,7 @@ export default function App() {
       onLogout={handleLogout}
       sharedImageUri={sharedImageBase64}
       onSharedImageHandled={() => setSharedImageBase64(null)}
+      processingShare={processingShare}
     />
   );
 }

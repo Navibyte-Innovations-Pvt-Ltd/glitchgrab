@@ -25,6 +25,7 @@ interface WebViewScreenProps {
   onLogout: () => void;
   sharedImageUri?: string | null;
   onSharedImageHandled?: () => void;
+  processingShare?: boolean;
 }
 
 export default function WebViewScreen({
@@ -32,6 +33,7 @@ export default function WebViewScreen({
   onLogout,
   sharedImageUri,
   onSharedImageHandled,
+  processingShare,
 }: WebViewScreenProps) {
   const webViewRef = useRef<WebView>(null);
   const [canGoBack, setCanGoBack] = useState(false);
@@ -226,7 +228,7 @@ export default function WebViewScreen({
         keyboardVerticalOffset={0}
       >
 
-        {loading && (
+        {(loading || processingShare || sharedImageUri) && (
           <View style={styles.loadingOverlay}>
             <Image
               source={require("../../assets/icon.png")}
@@ -237,6 +239,11 @@ export default function WebViewScreen({
               color={PRIMARY}
               style={{ marginTop: 16 }}
             />
+            {(processingShare || sharedImageUri) && (
+              <Text style={{ color: "#a1a1aa", fontSize: 14, marginTop: 12 }}>
+                Attaching screenshot...
+              </Text>
+            )}
           </View>
         )}
 
