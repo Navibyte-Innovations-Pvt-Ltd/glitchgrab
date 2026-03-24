@@ -47,7 +47,7 @@ setTimeout(function() {
     path: "/",
     httpOnly: true,
     sameSite: "lax",
-    secure: false,
+    secure: true,
     maxAge: 30 * 24 * 60 * 60,
   });
 
