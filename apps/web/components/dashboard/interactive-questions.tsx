@@ -68,6 +68,18 @@ export function InteractiveQuestions({
 
     if (currentIndex < questions.length - 1) {
       setCurrentIndex((i) => i + 1);
+    } else {
+      // Last question skipped — auto-submit if there are any answers
+      const hasAny = next.some((a) => a !== null);
+      if (hasAny) {
+        const compiled: { question: string; answer: string }[] = [];
+        for (let i = 0; i < questions.length; i++) {
+          if (next[i]) {
+            compiled.push({ question: questions[i].question, answer: next[i] ?? "" });
+          }
+        }
+        onComplete(compiled);
+      }
     }
   }
 
@@ -93,7 +105,7 @@ export function InteractiveQuestions({
     <div className="rounded-xl border border-border bg-card overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <p className="text-sm font-medium flex-1 min-w-0 truncate">
+        <p className="text-sm font-medium flex-1 min-w-0">
           {current.question}
         </p>
         <div className="flex items-center gap-2 shrink-0 ml-3">
