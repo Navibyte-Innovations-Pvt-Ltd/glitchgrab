@@ -39,6 +39,8 @@ export default function WebViewScreen({
   const [canGoBack, setCanGoBack] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const hasLoadedOnce = useRef(false);
+  const loginRedirectCount = useRef(0);
 
   // Store pending shared image ref
   const pendingImageRef = useRef<string | null>(null);
@@ -120,13 +122,31 @@ export default function WebViewScreen({
   const handleNavigationStateChange = useCallback(
     (navState: WebViewNavigation) => {
       setCanGoBack(navState.canGoBack);
+      console.info("[WebView] nav:", navState.url, "loading:", navState.loading);
 
       // Detect if the WebView navigated to the login page (session expired)
+      // Skip during initial load to avoid false logout from redirect chains
       if (
         navState.url.includes("/login") &&
         !navState.url.includes("/api/auth")
       ) {
-        onLogout();
+        loginRedirectCount.current += 1;
+        console.info("[WebView] /login detected, count:", loginRedirectCount.current);
+
+        // Only logout after dashboard has loaded at least once (real session expiry)
+        // or if we've been stuck in a redirect loop
+        if (hasLoadedOnce.current) {
+          onLogout();
+        } else if (loginRedirectCount.current > 3) {
+          console.error("[WebView] redirect loop detected, logging out");
+          onLogout();
+        }
+      }
+
+      // Mark dashboard as loaded once
+      if (navState.url.includes("/dashboard") && !navState.loading) {
+        hasLoadedOnce.current = true;
+        loginRedirectCount.current = 0;
       }
     },
     [onLogout]
@@ -149,13 +169,14 @@ export default function WebViewScreen({
     return false;
   }, []);
 
-  // Runs BEFORE page content loads — sets cookie and viewport
+  // Load the session endpoint which sets the cookie via Set-Cookie header
+  // and returns HTML that JS-redirects to /dashboard
+  const webViewUrl = `${BASE_URL}/api/auth/mobile/session?token=${encodeURIComponent(sessionToken)}`;
+  console.info("[WebView] loading URL:", BASE_URL + "/api/auth/mobile/session?token=<redacted>");
+
+  // Runs BEFORE page content loads — sets viewport
   const injectedBeforeLoad = `
     (function() {
-      document.cookie = "authjs.session-token=${sessionToken}; path=/; max-age=2592000; SameSite=Lax; domain=.glitchgrab.dev";
-      document.cookie = "__Secure-authjs.session-token=${sessionToken}; path=/; max-age=2592000; SameSite=Lax; Secure; domain=.glitchgrab.dev";
-
-      // Set viewport immediately
       var meta = document.createElement('meta');
       meta.name = 'viewport';
       meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
@@ -250,18 +271,21 @@ export default function WebViewScreen({
         <WebView
           ref={webViewRef}
           source={{
-            uri: `${BASE_URL}/api/auth/mobile/session?token=${encodeURIComponent(sessionToken)}`,
+            uri: webViewUrl,
           }}
           style={styles.webview}
           onNavigationStateChange={handleNavigationStateChange}
           onShouldStartLoadWithRequest={handleShouldStartLoad}
           onLoadEnd={handleLoadEnd}
-          onError={() => {
+          onError={(syntheticEvent) => {
+            const { nativeEvent } = syntheticEvent;
+            console.error("[WebView] onError:", nativeEvent.description, nativeEvent.url);
             setLoading(false);
             setError(true);
           }}
           onHttpError={(syntheticEvent) => {
             const { nativeEvent } = syntheticEvent;
+            console.error("[WebView] onHttpError:", nativeEvent.statusCode, nativeEvent.url);
             if (nativeEvent.statusCode >= 500) {
               setError(true);
             }

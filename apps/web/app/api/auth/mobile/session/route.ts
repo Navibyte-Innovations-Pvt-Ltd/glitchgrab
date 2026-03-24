@@ -25,6 +25,8 @@ export async function GET(request: Request) {
 
   const dashboardUrl = new URL("/dashboard", request.url).toString();
 
+  console.info("[mobile-session] Setting cookie:", cookieName, "token length:", token.length, "redirecting to:", dashboardUrl);
+
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/></head><body><script>window.location.replace("${dashboardUrl}");</script></body></html>`;
 
   const response = new NextResponse(html, {
