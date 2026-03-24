@@ -23,7 +23,7 @@ if (!keyId || !keySecret) {
 }
 
 const isTest = keyId.startsWith("rzp_test_");
-console.log(`\nUsing ${isTest ? "TEST" : "LIVE"} Razorpay keys\n`);
+console.info(`\nUsing ${isTest ? "TEST" : "LIVE"} Razorpay keys\n`);
 
 const razorpay = new Razorpay({ key_id: keyId, key_secret: keySecret });
 
@@ -32,7 +32,7 @@ const currency = isTest ? "INR" : "USD";
 const byokAmount = isTest ? 41500 : 500;      // ₹415 ≈ $5, or $5.00 (500 cents)
 const platformAmount = isTest ? 83000 : 1000;  // ₹830 ≈ $10, or $10.00 (1000 cents)
 
-console.log(`Currency: ${currency}${isTest ? " (test mode — using INR equivalent)" : ""}\n`);
+console.info(`Currency: ${currency}${isTest ? " (test mode — using INR equivalent)" : ""}\n`);
 
 const PLANS = [
   {
@@ -71,10 +71,10 @@ async function createPlans() {
       });
 
       const symbol = currency === "INR" ? "₹" : "$";
-      console.log(`Created: ${plan.item.name}`);
-      console.log(`  Plan ID: ${created.id}`);
-      console.log(`  Amount:  ${symbol}${plan.item.amount / 100}/month`);
-      console.log();
+      console.info(`Created: ${plan.item.name}`);
+      console.info(`  Plan ID: ${created.id}`);
+      console.info(`  Amount:  ${symbol}${plan.item.amount / 100}/month`);
+      console.info();
 
       results.push({ envKey: plan.envKey, planId: created.id });
     } catch (err: unknown) {
@@ -88,12 +88,12 @@ async function createPlans() {
     }
   }
 
-  console.log("-------------------------------------------");
-  console.log("Add these to your .env:\n");
+  console.info("-------------------------------------------");
+  console.info("Add these to your .env:\n");
   for (const r of results) {
-    console.log(`${r.envKey}="${r.planId}"`);
+    console.info(`${r.envKey}="${r.planId}"`);
   }
-  console.log("\n-------------------------------------------");
+  console.info("\n-------------------------------------------");
 }
 
 createPlans();
