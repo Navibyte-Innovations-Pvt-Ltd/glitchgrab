@@ -231,6 +231,55 @@ export async function fetchIssueBody(
   return data.body ?? "";
 }
 
+// ─── Fetch Repo README ────────────────────────────────
+
+export async function fetchRepoReadme(
+  accessToken: string,
+  owner: string,
+  repo: string
+): Promise<string | null> {
+  try {
+    const url = `${GITHUB_API}/repos/${owner}/${repo}/readme`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        ...headers(accessToken),
+        Accept: "application/vnd.github.raw+json",
+      },
+    });
+    if (!response.ok) return null;
+    const text = await response.text();
+    // Truncate to ~2000 chars to keep token usage reasonable
+    return text.slice(0, 2000);
+  } catch {
+    return null;
+  }
+}
+
+// ─── Fetch Repo Description ──────────────────────────
+
+export async function fetchRepoDescription(
+  accessToken: string,
+  owner: string,
+  repo: string
+): Promise<string | null> {
+  try {
+    const url = `${GITHUB_API}/repos/${owner}/${repo}`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: headers(accessToken),
+    });
+    if (!response.ok) return null;
+    const data = (await response.json()) as { description: string | null; topics: string[] };
+    const parts: string[] = [];
+    if (data.description) parts.push(data.description);
+    if (data.topics?.length > 0) parts.push(`Topics: ${data.topics.join(", ")}`);
+    return parts.length > 0 ? parts.join("\n") : null;
+  } catch {
+    return null;
+  }
+}
+
 // ─── Fetch Repo Labels ─────────────────────────────────
 
 export async function fetchRepoLabels(
