@@ -16,15 +16,19 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
+  const isProduction = process.env.NODE_ENV === "production";
+  const cookieName = isProduction
+    ? "__Secure-authjs.session-token"
+    : "authjs.session-token";
+
   const response = NextResponse.redirect(new URL("/dashboard", request.url));
 
-  // Set the session cookie (same format NextAuth uses)
-  response.cookies.set("authjs.session-token", token, {
+  response.cookies.set(cookieName, token, {
     path: "/",
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    secure: isProduction,
+    maxAge: 30 * 24 * 60 * 60,
   });
 
   return response;

@@ -174,6 +174,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Use __Secure- prefix for production (HTTPS), plain for dev (HTTP)
+    const isProduction = process.env.NODE_ENV === "production";
+    const cookieName = isProduction
+      ? "__Secure-authjs.session-token"
+      : "authjs.session-token";
+
     const sessionToken = await encode({
       token: {
         name: user.name,
@@ -183,7 +189,7 @@ export async function POST(req: NextRequest) {
         id: user.id,
       },
       secret,
-      salt: "authjs.session-token",
+      salt: cookieName,
       maxAge: 30 * 24 * 60 * 60,
     });
 

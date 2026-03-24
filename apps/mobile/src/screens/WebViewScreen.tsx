@@ -82,8 +82,8 @@ export default function WebViewScreen({
   // Runs BEFORE page content loads — sets cookie and viewport
   const injectedBeforeLoad = `
     (function() {
-      document.cookie = "authjs.session-token=${sessionToken}; path=/; max-age=2592000; SameSite=Lax";
-      document.cookie = "__Secure-authjs.session-token=${sessionToken}; path=/; max-age=2592000; SameSite=Lax; Secure";
+      document.cookie = "authjs.session-token=${sessionToken}; path=/; max-age=2592000; SameSite=Lax; domain=.glitchgrab.dev";
+      document.cookie = "__Secure-authjs.session-token=${sessionToken}; path=/; max-age=2592000; SameSite=Lax; Secure; domain=.glitchgrab.dev";
 
       // Set viewport immediately
       var meta = document.createElement('meta');
