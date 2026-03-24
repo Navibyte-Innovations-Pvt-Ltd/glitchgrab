@@ -203,10 +203,22 @@ export function BugChat({
       }
 
       // Extract clarify questions if present
-      const clarifyQuestions: ClarifyQuestion[] | undefined =
-        data.data?.intent === "clarify" && Array.isArray(data.data?.clarifyQuestions)
-          ? data.data.clarifyQuestions
-          : undefined;
+      let clarifyQuestions: ClarifyQuestion[] | undefined;
+      if (data.data?.intent === "clarify") {
+        if (Array.isArray(data.data?.clarifyQuestions) && data.data.clarifyQuestions.length > 0) {
+          // Structured format from API
+          clarifyQuestions = data.data.clarifyQuestions;
+        } else if (content) {
+          // Fallback: parse numbered questions from the text message
+          const lines = content.split("\n").filter((l: string) => /^\d+\.\s/.test(l.trim()));
+          if (lines.length > 0) {
+            clarifyQuestions = lines.map((line: string) => ({
+              question: line.replace(/^\d+\.\s*/, "").trim(),
+              options: [], // No AI-generated options — user will use "Something else" input
+            }));
+          }
+        }
+      }
 
       setMessages((prev) =>
         prev
@@ -316,23 +328,13 @@ export function BugChat({
     await sendReport(answerText);
   }
 
-  async function handleClarifyDismiss(msgId: string) {
-    // Remove the interactive questions
+  function handleClarifyDismiss(msgId: string) {
+    // Just remove the interactive card — no API call, no issue creation
     setMessages((prev) =>
       prev.map((m) =>
         m.id === msgId ? { ...m, clarifyQuestions: undefined } : m
       )
     );
-
-    // Send a message telling the AI the user declined
-    const userMsg: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      content: "I don't want to answer these questions. Just create the issue with what you have.",
-    };
-    setMessages((prev) => [...prev, userMsg]);
-
-    await sendReport(userMsg.content);
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
