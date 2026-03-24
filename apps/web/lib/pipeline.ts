@@ -22,6 +22,7 @@ interface PipelineResult {
   issueNumber?: number;
   message?: string;
   error?: string;
+  clarifyQuestions?: { question: string; options: string[] }[];
 }
 
 // ─── Helpers ────────────────────────────────────────────
@@ -404,13 +405,14 @@ export async function processReport(
       });
 
       const questionsText = action.questions
-        .map((q, i) => `${i + 1}. ${q}`)
+        .map((q, i) => `${i + 1}. ${q.question}`)
         .join("\n");
 
       return {
         success: true,
         intent: "clarify",
         message: `I want to make sure I create a useful issue. A few questions:\n\n${questionsText}`,
+        clarifyQuestions: action.questions,
       };
     }
 
