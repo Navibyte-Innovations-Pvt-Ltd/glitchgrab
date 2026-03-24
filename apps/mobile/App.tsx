@@ -8,7 +8,7 @@ import {
   Image,
 } from "react-native";
 import * as SecureStore from "expo-secure-store";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { useShareIntent } from "expo-share-intent";
 import LoginScreen from "./src/screens/LoginScreen";
 import WebViewScreen from "./src/screens/WebViewScreen";

@@ -271,8 +271,8 @@ export default function WebViewScreen({
           mediaPlaybackRequiresUserAction={false}
           allowsInlineMediaPlayback
           cacheEnabled
-          pullToRefreshEnabled={false}
-          overScrollMode="never"
+          pullToRefreshEnabled={true}
+          overScrollMode="content"
           decelerationRate={0.998}
           contentMode="mobile"
           setSupportMultipleWindows={false}
