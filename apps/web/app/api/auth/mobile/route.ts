@@ -174,11 +174,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Use __Secure- prefix for production (HTTPS), plain for dev (HTTP)
-    const isProduction = process.env.NODE_ENV === "production";
-    const cookieName = isProduction
-      ? "__Secure-authjs.session-token"
-      : "authjs.session-token";
+    // Use non-prefixed cookie name for mobile — Android WebView silently
+    // rejects __Secure- prefix cookies. NextAuth reads both names.
+    const cookieName = "authjs.session-token";
 
     const sessionToken = await encode({
       token: {

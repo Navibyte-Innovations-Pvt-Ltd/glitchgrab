@@ -19,27 +19,15 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  const isProduction = process.env.NODE_ENV === "production";
-  const cookieName = isProduction
-    ? "__Secure-authjs.session-token"
-    : "authjs.session-token";
-
-  // Verify the JWT is decodable before setting it
-  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
-  try {
-    const decoded = await decode({ token, secret: secret!, salt: cookieName });
-    console.info("[mobile-session] JWT decode OK:", JSON.stringify(decoded));
-  } catch (err) {
-    console.error("[mobile-session] JWT decode FAILED:", err);
-    console.error("[mobile-session] salt:", cookieName, "secret set:", !!secret);
-  }
+  // Use non-prefixed cookie name — Android WebView silently rejects
+  // __Secure- prefix cookies. NextAuth reads both cookie names.
+  const cookieName = "authjs.session-token";
 
   const dashboardUrl = new URL("/dashboard", request.url).toString();
 
   console.info("[mobile-session] Setting cookie:", cookieName, "token length:", token.length, "redirecting to:", dashboardUrl);
 
-  // Use a delayed redirect to ensure the cookie is persisted by the WebView
-  // before navigating. The script checks document.cookie to verify persistence.
+  // Delayed redirect to ensure cookie is persisted before navigation
   const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"/>
 <meta http-equiv="refresh" content="2;url=${dashboardUrl}"/>
@@ -60,9 +48,8 @@ setTimeout(function() {
     path: "/",
     httpOnly: true,
     sameSite: "lax",
-    secure: isProduction,
+    secure: false,
     maxAge: 30 * 24 * 60 * 60,
-    domain: isProduction ? ".glitchgrab.dev" : undefined,
   });
 
   return response;
