@@ -7,6 +7,8 @@ import {
   closeIssue,
   fetchRecentIssues,
   fetchIssueBody,
+  fetchRepoReadme,
+  fetchRepoDescription,
 } from "@/lib/github";
 import { dispatchWebhook } from "@/lib/webhooks";
 
@@ -50,12 +52,24 @@ export async function processReport(
       throw new Error("GitHub access token not found");
     }
 
-    // 4. Fetch open issues for dedup context
-    const openIssues = await fetchRecentIssues(
-      account.access_token,
-      report.repo.owner,
-      report.repo.name
-    );
+    // 4. Fetch open issues + repo context in parallel
+    const [openIssues, repoReadme, repoDescription] = await Promise.all([
+      fetchRecentIssues(
+        account.access_token,
+        report.repo.owner,
+        report.repo.name
+      ),
+      fetchRepoReadme(
+        account.access_token,
+        report.repo.owner,
+        report.repo.name
+      ),
+      fetchRepoDescription(
+        account.access_token,
+        report.repo.owner,
+        report.repo.name
+      ),
+    ]);
 
     // 5. AI classifies intent and generates content
     const action = await classifyAndGenerate({
@@ -66,6 +80,8 @@ export async function processReport(
       userAgent: report.userAgent,
       openIssues,
       chatHistory,
+      repoReadme,
+      repoDescription,
     });
 
     // Store AI response
@@ -345,6 +361,24 @@ export async function processReport(
         message: `Merged ${closed} into #${action.keepIssue}`,
         issueNumber: action.keepIssue,
         issueUrl: `https://github.com/${report.repo.fullName}/issues/${action.keepIssue}`,
+      };
+    }
+
+    // Clarify — AI needs more info, return questions to user
+    if (action.intent === "clarify") {
+      await prisma.report.update({
+        where: { id: reportId },
+        data: { status: "CREATED" },
+      });
+
+      const questionsText = action.questions
+        .map((q, i) => `${i + 1}. ${q}`)
+        .join("\n");
+
+      return {
+        success: true,
+        intent: "clarify",
+        message: `I want to make sure I create a useful issue. A few questions:\n\n${questionsText}`,
       };
     }
 

@@ -10,6 +10,8 @@ export interface AiInput {
   userAgent?: string | null;
   openIssues?: { number: number; title: string; state: string; body: string }[];
   chatHistory?: { role: "user" | "assistant"; content: string }[];
+  repoReadme?: string | null;
+  repoDescription?: string | null;
 }
 
 export type AiAction =
@@ -17,48 +19,77 @@ export type AiAction =
   | { intent: "update"; issueNumber: number; comment: string }
   | { intent: "close"; issueNumbers: number[]; comment: string }
   | { intent: "merge"; keepIssue: number; closeIssues: number[]; mergedTitle: string; mergedBody: string }
-  | { intent: "chat"; message: string };
+  | { intent: "chat"; message: string }
+  | { intent: "clarify"; questions: string[] };
 
 // ─── System prompt ──────────────────────────────────────
 
 const SYSTEM_PROMPT = `You are a smart GitHub issue assistant. You help developers manage bugs and issues through conversation.
 
+You are deeply aware of the repository you're working with. You have been given the repo's README and description to understand what this project does, its tech stack, architecture, and conventions. USE THIS CONTEXT to ask intelligent, project-specific questions when the user's input is vague.
+
 Given user input (text, optional screenshot, optional error stack) and a list of recent issues in the repo, decide what to do:
 
-1. **CREATE** a new issue — if the bug is new and doesn't relate to any existing issue
-2. **UPDATE** an existing issue — if the bug is similar, related, or in the same area as an existing open issue
-3. **CLOSE** issues — if the user EXPLICITLY asks to close specific issues (e.g., "close #5", "close all issues")
-4. **MERGE** — ONLY if the user EXPLICITLY asks to merge/combine issues (e.g., "merge #5 and #6", "combine these issues"). NEVER merge on your own initiative.
-5. **CHAT** — for questions, greetings, status queries, or anything that isn't a bug report or explicit issue management command
+1. **CLARIFY** — if the input is vague, ambiguous, or missing critical details needed to create a good issue. Ask smart questions based on the repo context.
+2. **CREATE** a new issue — if you have enough info and the bug/feature is new
+3. **UPDATE** an existing issue — if it relates to an existing open issue
+4. **CLOSE** issues — if the user EXPLICITLY asks to close specific issues
+5. **MERGE** — ONLY if the user EXPLICITLY asks to merge/combine issues
+6. **CHAT** — for questions, greetings, status queries
+
+## WHEN TO CLARIFY (THIS IS CRITICAL)
+
+Use CLARIFY when the user's input lacks enough detail to create a high-quality issue. Use your knowledge of the repo to ask SPECIFIC, SMART questions — not generic ones.
+
+### Examples of GOOD clarifying questions (repo-aware):
+- If the repo is a Next.js app and user says "page is slow": "Which page is slow — the dashboard, the settings page, or a specific route? Is it slow on initial load (SSR) or after interaction (client-side)?"
+- If the repo has multiple services and user says "API is broken": "Which API endpoint is failing? Are you seeing this in the SDK reports, the dashboard, or the MCP server?"
+- If user says "add dark mode": "Should dark mode apply to the dashboard only, or also to the public-facing proposal/onboarding pages? Should it follow system preference or be a manual toggle?"
+
+### Examples of BAD clarifying questions (generic, never do these):
+- "Can you provide more details?"
+- "What exactly do you mean?"
+- "Could you elaborate?"
+
+### WHEN NOT TO CLARIFY:
+- If a screenshot clearly shows the bug — act on what you see
+- If an error stack is provided — the bug is clear enough
+- If the user has already answered clarifying questions in the chat history — don't ask again, act now
+- If the input is a clear, specific bug report or command
+- If the user is frustrated or says "just create it" — create the issue with what you have
+
+### CLARIFY RULES:
+- Ask 2-4 focused questions max, not a wall of questions
+- Frame questions as multiple choice when possible (easier to answer)
+- Reference specific parts of the repo (pages, components, APIs) you know about from the README
+- If you already asked questions and the user answered, DO NOT ask more — create the issue
 
 ## CRITICAL RULES — WHEN TO ACT vs WHEN TO CHAT
 
-**For bug reports (screenshot, error description, problem statement) → ALWAYS take action (CREATE or UPDATE). Never ask for clarification.**
-**For questions about issues → ALWAYS use CHAT to answer. Never modify issues.**
-**For explicit commands (close, merge, combine) → Only then use CLOSE or MERGE.**
+**For clear bug reports (screenshot, error stack, specific problem) → CREATE or UPDATE.**
+**For vague/ambiguous input (bugs or features) → CLARIFY first.**
+**For questions about issues → CHAT.**
+**For explicit commands (close, merge) → CLOSE or MERGE.**
 
 ### USE CHAT FOR:
 - Questions: "how many bugs?", "what issues do we have?", "list bugs", "show me open issues", "status?"
 - Greetings: "hi", "hello"
 - Any input that asks about issues but does NOT report a new bug or request an action
-- When the user wants information, not action
-
-### USE CREATE/UPDATE FOR:
-- Bug reports with screenshots
-- Text describing a problem: "app crashes when...", "button doesn't work"
-- Error stacks or technical descriptions
 
 ### USE CLOSE/MERGE ONLY WHEN:
 - User EXPLICITLY says "close #X", "close all", "merge #X and #Y", "combine these issues"
 - NEVER close or merge based on your own judgment
-- NEVER interpret a question as a merge/close command
-
-**Wrong:** User asks "how many bugs do we have?" → AI merges all issues
-**Right:** User asks "how many bugs do we have?" → AI responds with CHAT listing the issues
-**Wrong:** User sends screenshot of broken UI → AI responds "Could you clarify what the bug is?"
-**Right:** User sends screenshot of broken UI → AI creates issue describing exactly what's broken
 
 ## Response formats
+
+For CLARIFY (need more info before creating issue):
+{
+  "intent": "clarify",
+  "questions": [
+    "Specific question 1 based on repo context?",
+    "Specific question 2 with options when possible?"
+  ]
+}
 
 For CREATE:
 {
@@ -135,7 +166,7 @@ When a screenshot is provided:
 - NEVER ask "what's the bug?" when you can see it yourself
 - Include screenshot description in the issue body
 
-ALWAYS respond with valid JSON. Never refuse. ALWAYS take action.`;
+ALWAYS respond with valid JSON. Never refuse.`;
 
 // ─── AI Service ─────────────────────────────────────────
 
@@ -159,6 +190,14 @@ export async function classifyAndGenerate(input: AiInput): Promise<AiAction> {
   }
   if (input.userAgent) {
     textContent += `\n\nUser Agent: ${input.userAgent}`;
+  }
+
+  // Add repo context (README + description) so AI understands the project
+  if (input.repoDescription) {
+    textContent += `\n\nRepo description:\n${input.repoDescription}`;
+  }
+  if (input.repoReadme) {
+    textContent += `\n\nRepo README (truncated):\n${input.repoReadme}`;
   }
 
   if (input.openIssues && input.openIssues.length > 0) {
@@ -230,6 +269,13 @@ export async function classifyAndGenerate(input: AiInput): Promise<AiAction> {
   }
 
   const intent = parsed.intent as string;
+
+  if (intent === "clarify") {
+    const questions = Array.isArray(parsed.questions)
+      ? parsed.questions.map((q) => String(q))
+      : ["Could you provide more details about what you'd like?"];
+    return { intent: "clarify", questions };
+  }
 
   if (intent === "create") {
     return {

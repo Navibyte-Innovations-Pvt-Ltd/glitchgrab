@@ -1,17 +1,20 @@
 import Constants from "expo-constants";
 
-// In dev: use the Expo dev server host (same network as the dev machine)
-// In production: use glitchgrab.dev
+// APP_ENV is set via extra in app.json at build time
+// "production" → glitchgrab.dev | "development" → local dev server
 function getBaseUrl(): string {
-  if (!__DEV__) return "https://glitchgrab.dev";
+  const appEnv = Constants.expoConfig?.extra?.APP_ENV;
 
-  // Expo provides the dev server host which is the machine's IP
-  const debuggerHost = Constants.expoConfig?.hostUri ?? Constants.manifest2?.extra?.expoGo?.debuggerHost;
+  if (appEnv === "production") return "https://www.glitchgrab.dev";
+
+  // Dev: use the Expo dev server host (same network as the dev machine)
+  const debuggerHost =
+    Constants.expoConfig?.hostUri ??
+    Constants.manifest2?.extra?.expoGo?.debuggerHost;
   const host = debuggerHost?.split(":")[0];
 
   if (host) return `http://${host}:3000`;
 
-  // Fallback
   return "http://localhost:3000";
 }
 

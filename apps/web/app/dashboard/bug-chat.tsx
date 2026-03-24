@@ -175,6 +175,8 @@ export function BugChat({
           content = data.data?.message ?? "Issues closed";
         } else if (intent === "merge") {
           content = data.data?.message ?? "Issues merged";
+        } else if (intent === "clarify") {
+          content = data.data?.message ?? "Could you provide more details?";
         } else {
           content = data.data?.message ?? "Done";
         }

@@ -35,21 +35,33 @@
       "intentFilters": [
         {
           "action": "SEND",
-          "category": ["DEFAULT"],
+          "category": [
+            "DEFAULT"
+          ],
           "data": [
-            { "mimeType": "image/*" }
+            {
+              "mimeType": "image/*"
+            }
           ]
         }
       ]
     },
     "scheme": "glitchgrab",
     "plugins": [
-      ["expo-share-intent", {
-        "androidIntentFilters": ["image/*"],
-        "androidMultiIntentFilters": ["image/*"]
-      }]
+      [
+        "expo-share-intent",
+        {
+          "androidIntentFilters": [
+            "image/*"
+          ],
+          "androidMultiIntentFilters": [
+            "image/*"
+          ]
+        }
+      ]
     ],
     "extra": {
+      "APP_ENV": "production",
       "eas": {
         "projectId": "6166832f-68fa-4680-a312-99030a7e9d5c"
       }

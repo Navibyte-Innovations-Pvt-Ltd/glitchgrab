@@ -46,7 +46,7 @@
       ]
     }
   },
-  "ignoreBinaries": ["prisma", "expo"],
+  "ignoreBinaries": ["prisma", "expo", "adb"],
   "ignore": ["apps/scripts/**"],
   "ignoreExportsUsedInFile": true
 }
