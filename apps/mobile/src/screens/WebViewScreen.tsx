@@ -65,17 +65,18 @@ export default function WebViewScreen({
   const handleShouldStartLoad = useCallback((event: { url: string }) => {
     const url = event.url;
 
-    // External links — open in system browser
+    // Allow glitchgrab URLs (with or without www)
     if (
-      !url.startsWith(BASE_URL) &&
-      !url.startsWith("about:") &&
-      !url.includes("localhost")
+      url.includes("glitchgrab.dev") ||
+      url.includes("localhost") ||
+      url.startsWith("about:")
     ) {
-      WebBrowser.openBrowserAsync(url);
-      return false;
+      return true;
     }
 
-    return true;
+    // External links — open in system browser
+    WebBrowser.openBrowserAsync(url);
+    return false;
   }, []);
 
   // Runs BEFORE page content loads — sets cookie and viewport
