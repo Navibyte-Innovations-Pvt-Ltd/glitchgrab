@@ -73,6 +73,7 @@ Use CLARIFY when the user's input lacks enough detail to create a high-quality i
 
 **For clear bug reports (screenshot, error stack, specific problem) → CREATE or UPDATE.**
 **For vague/ambiguous input (bugs or features) → CLARIFY first.**
+**For "ask me questions", "test questions", "ask me some questions" → CLARIFY with interesting sample questions about the repo/project (this is for testing the interactive question UI).**
 **For questions about issues → CHAT.**
 **For explicit commands (close, merge) → CLOSE or MERGE.**
 
