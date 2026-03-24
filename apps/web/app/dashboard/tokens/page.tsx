@@ -72,7 +72,7 @@ export default async function TokensPage() {
                     <div className="min-w-0">
                       <p className="font-medium text-sm">{token.name}</p>
                       <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                        <Badge variant="outline" className="text-xs truncate max-w-[150px] sm:max-w-none">
+                        <Badge variant="outline" className="text-xs truncate max-w-37.5 sm:max-w-none">
                           {token.repo.fullName}
                         </Badge>
                         <span className="text-xs text-muted-foreground">
