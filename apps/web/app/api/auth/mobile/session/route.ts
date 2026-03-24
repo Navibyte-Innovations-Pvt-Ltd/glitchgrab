@@ -5,8 +5,10 @@ import { NextResponse } from "next/server";
 /**
  * GET /api/auth/mobile/session?token=xxx
  *
- * Sets the session cookie and redirects to dashboard.
- * Used by the mobile app to inject the session into the WebView.
+ * Sets the session cookie and returns an HTML page that navigates to dashboard.
+ * Returns HTML instead of a 307 redirect so the browser has time to persist
+ * the Set-Cookie header before navigating (Android WebView can drop cookies
+ * on immediate redirects).
  */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -21,7 +23,14 @@ export async function GET(request: Request) {
     ? "__Secure-authjs.session-token"
     : "authjs.session-token";
 
-  const response = NextResponse.redirect(new URL("/dashboard", request.url));
+  const dashboardUrl = new URL("/dashboard", request.url).toString();
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/></head><body><script>window.location.replace("${dashboardUrl}");</script></body></html>`;
+
+  const response = new NextResponse(html, {
+    status: 200,
+    headers: { "Content-Type": "text/html; charset=utf-8" },
+  });
 
   response.cookies.set(cookieName, token, {
     path: "/",
