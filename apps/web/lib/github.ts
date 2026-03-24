@@ -216,6 +216,21 @@ export async function uploadScreenshotToRepo(
   }
 }
 
+// ─── Fetch Issue Body ──────────────────────────────────
+
+export async function fetchIssueBody(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  issueNumber: number
+): Promise<string> {
+  const url = `${GITHUB_API}/repos/${owner}/${repo}/issues/${issueNumber}`;
+  const response = await fetch(url, { method: "GET", headers: headers(accessToken) });
+  if (!response.ok) return "";
+  const data = (await response.json()) as { body: string | null };
+  return data.body ?? "";
+}
+
 // ─── Fetch Repo Labels ─────────────────────────────────
 
 export async function fetchRepoLabels(
