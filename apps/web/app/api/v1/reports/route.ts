@@ -112,6 +112,7 @@ export async function POST(request: Request) {
         issueNumber: result.issueNumber,
         title: result.title,
         message: result.message,
+        clarifyQuestions: result.clarifyQuestions,
         status: "CREATED",
       },
     });
