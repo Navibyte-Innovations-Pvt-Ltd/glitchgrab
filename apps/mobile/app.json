@@ -61,7 +61,7 @@
       ]
     ],
     "extra": {
-      "APP_ENV": "production",
+      "APP_ENV": "development",
       "eas": {
         "projectId": "6166832f-68fa-4680-a312-99030a7e9d5c"
       }
