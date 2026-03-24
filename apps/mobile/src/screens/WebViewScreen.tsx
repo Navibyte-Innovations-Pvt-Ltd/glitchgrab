@@ -38,18 +38,20 @@ export default function WebViewScreen({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  // Handle shared image from Android share intent
+  // Handle shared image — simulate a paste event in the chat
   useEffect(() => {
     if (!sharedImageUri || !webViewRef.current || loading) return;
 
-    // Convert base64 image to a Blob and submit via the reports API
+    // Inject the shared image as a simulated paste into the bug chat
     const js = `
       (function() {
         try {
           var base64 = "${sharedImageUri.replace(/"/g, '\\"')}";
-          // Convert base64 to blob
-          var byteString = atob(base64.split(',')[1]);
-          var mimeString = base64.split(',')[0].split(':')[1].split(';')[0];
+
+          // Convert base64 to blob and file
+          var parts = base64.split(',');
+          var byteString = atob(parts[1]);
+          var mimeString = parts[0].split(':')[1].split(';')[0];
           var ab = new ArrayBuffer(byteString.length);
           var ia = new Uint8Array(ab);
           for (var i = 0; i < byteString.length; i++) {
@@ -58,36 +60,21 @@ export default function WebViewScreen({
           var blob = new Blob([ab], { type: mimeString });
           var file = new File([blob], 'shared_screenshot.jpg', { type: mimeString });
 
-          // Find the first repo ID from the page
-          var repoEl = document.querySelector('[data-repo-id]');
-          var repoId = repoEl ? repoEl.getAttribute('data-repo-id') : null;
+          // Create a fake paste event with the image
+          var dt = new DataTransfer();
+          dt.items.add(file);
 
-          if (!repoId) {
-            // Try to get from the popover trigger text
-            var formData = new FormData();
-            // We'll submit via alert for now
-            window.ReactNativeWebView.postMessage(JSON.stringify({
-              type: 'shared_image',
-              image: base64.substring(0, 100) + '...',
-              status: 'ready'
-            }));
-            return;
-          }
-
-          var formData = new FormData();
-          formData.append('repoId', repoId);
-          formData.append('description', 'Bug reported via screenshot share');
-          formData.append('screenshot', file);
-
-          fetch('/api/v1/reports', { method: 'POST', body: formData })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-              window.ReactNativeWebView.postMessage(JSON.stringify({
-                type: 'shared_image_result',
-                success: data.success,
-                title: data.data?.title
-              }));
+          // Find the textarea and trigger paste
+          var textarea = document.querySelector('textarea');
+          if (textarea) {
+            var pasteEvent = new ClipboardEvent('paste', {
+              bubbles: true,
+              cancelable: true,
+              clipboardData: dt
             });
+            textarea.dispatchEvent(pasteEvent);
+            textarea.focus();
+          }
         } catch(e) {
           console.error('Share handler error:', e);
         }
@@ -95,8 +82,11 @@ export default function WebViewScreen({
       true;
     `;
 
-    webViewRef.current.injectJavaScript(js);
-    if (onSharedImageHandled) onSharedImageHandled();
+    // Small delay to ensure the page is fully loaded
+    setTimeout(() => {
+      webViewRef.current?.injectJavaScript(js);
+      if (onSharedImageHandled) onSharedImageHandled();
+    }, 1000);
   }, [sharedImageUri, loading, onSharedImageHandled]);
 
   // Android back button
