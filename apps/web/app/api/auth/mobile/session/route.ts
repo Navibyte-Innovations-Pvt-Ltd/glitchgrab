@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
+import { decode } from "next-auth/jwt";
 
 /**
  * GET /api/auth/mobile/session?token=xxx
@@ -22,6 +23,16 @@ export async function GET(request: Request) {
   const cookieName = isProduction
     ? "__Secure-authjs.session-token"
     : "authjs.session-token";
+
+  // Verify the JWT is decodable before setting it
+  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+  try {
+    const decoded = await decode({ token, secret: secret!, salt: cookieName });
+    console.info("[mobile-session] JWT decode OK:", JSON.stringify(decoded));
+  } catch (err) {
+    console.error("[mobile-session] JWT decode FAILED:", err);
+    console.error("[mobile-session] salt:", cookieName, "secret set:", !!secret);
+  }
 
   const dashboardUrl = new URL("/dashboard", request.url).toString();
 
