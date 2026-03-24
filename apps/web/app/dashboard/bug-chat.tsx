@@ -286,16 +286,19 @@ export function BugChat({
                   {msg.content && <p className="whitespace-pre-wrap">{msg.content}</p>}
                   {msg.screenshots && msg.screenshots.length > 0 && (
                     <div className={`mt-2 flex flex-wrap gap-2 ${msg.screenshots.length === 1 ? "" : "grid grid-cols-2"}`}>
-                      {msg.screenshots.map((src, i) => (
-                        <Image
-                          key={i}
-                          src={src}
-                          alt={`Screenshot ${i + 1}`}
-                          width={msg.screenshots!.length === 1 ? 300 : 150}
-                          height={msg.screenshots!.length === 1 ? 200 : 100}
-                          className="rounded-lg border border-border object-cover"
-                        />
-                      ))}
+                      {msg.screenshots.map((src, i) => {
+                        const isSingle = msg.screenshots?.length === 1;
+                        return (
+                          <Image
+                            key={i}
+                            src={src}
+                            alt={`Screenshot ${i + 1}`}
+                            width={isSingle ? 300 : 150}
+                            height={isSingle ? 200 : 100}
+                            className="rounded-lg border border-border object-cover"
+                          />
+                        );
+                      })}
                     </div>
                   )}
                   {msg.issueUrl && (
