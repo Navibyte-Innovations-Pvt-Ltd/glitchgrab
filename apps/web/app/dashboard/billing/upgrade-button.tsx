@@ -7,18 +7,16 @@ import { toast } from "sonner";
 
 declare global {
   interface Window {
-    Razorpay: new (options: RazorpayOptions) => RazorpayInstance;
+    Razorpay: new (options: RazorpaySubscriptionOptions) => RazorpayInstance;
   }
 }
 
-interface RazorpayOptions {
+interface RazorpaySubscriptionOptions {
   key: string;
-  amount: number;
-  currency: string;
+  subscription_id: string;
   name: string;
   description: string;
-  order_id: string;
-  handler: (response: RazorpayResponse) => void;
+  handler: (response: RazorpaySubscriptionResponse) => void;
   prefill: { name: string; email: string };
   theme: { color: string };
   modal?: { ondismiss?: () => void };
@@ -28,8 +26,8 @@ interface RazorpayInstance {
   open: () => void;
 }
 
-interface RazorpayResponse {
-  razorpay_order_id: string;
+interface RazorpaySubscriptionResponse {
+  razorpay_subscription_id: string;
   razorpay_payment_id: string;
   razorpay_signature: string;
 }
@@ -59,7 +57,7 @@ export function UpgradeButton({
       const data = await res.json();
 
       if (!data.success) {
-        toast.error(data.error ?? "Failed to create order");
+        toast.error(data.error ?? "Failed to create subscription");
         setLoading(false);
         return;
       }
@@ -76,12 +74,10 @@ export function UpgradeButton({
 
       const razorpay = new window.Razorpay({
         key: data.data.keyId,
-        amount: data.data.amount,
-        currency: data.data.currency,
+        subscription_id: data.data.subscriptionId,
         name: "Glitchgrab",
         description: data.data.planName,
-        order_id: data.data.orderId,
-        handler: async (response: RazorpayResponse) => {
+        handler: async (response: RazorpaySubscriptionResponse) => {
           try {
             const verifyRes = await fetch("/api/v1/billing/verify", {
               method: "POST",
@@ -91,7 +87,7 @@ export function UpgradeButton({
             const verifyData = await verifyRes.json();
 
             if (verifyData.success) {
-              toast.success("Payment successful! Refreshing...");
+              toast.success("Subscription activated! Refreshing...");
               window.location.reload();
             } else {
               toast.error("Payment verification failed");
