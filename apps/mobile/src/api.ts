@@ -5,7 +5,7 @@ import Constants from "expo-constants";
 function getBaseUrl(): string {
   const appEnv = Constants.expoConfig?.extra?.APP_ENV;
 
-  if (appEnv === "production") return "https://www.glitchgrab.dev";
+  if (appEnv === "production") return "https://glitchgrab.dev";
 
   // Dev: use the Expo dev server host (same network as the dev machine)
   const debuggerHost =
