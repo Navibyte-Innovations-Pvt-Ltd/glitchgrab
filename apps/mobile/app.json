@@ -31,7 +31,16 @@
       "permissions": [
         "INTERNET"
       ],
-      "usesClearTextTraffic": true
+      "usesClearTextTraffic": true,
+      "intentFilters": [
+        {
+          "action": "SEND",
+          "category": ["DEFAULT"],
+          "data": [
+            { "mimeType": "image/*" }
+          ]
+        }
+      ]
     },
     "scheme": "glitchgrab",
     "extra": {

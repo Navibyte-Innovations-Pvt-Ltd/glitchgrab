@@ -23,16 +23,81 @@ const PRIMARY = "#22d3ee";
 interface WebViewScreenProps {
   sessionToken: string;
   onLogout: () => void;
+  sharedImageUri?: string | null;
+  onSharedImageHandled?: () => void;
 }
 
 export default function WebViewScreen({
   sessionToken,
   onLogout,
+  sharedImageUri,
+  onSharedImageHandled,
 }: WebViewScreenProps) {
   const webViewRef = useRef<WebView>(null);
   const [canGoBack, setCanGoBack] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+
+  // Handle shared image from Android share intent
+  useEffect(() => {
+    if (!sharedImageUri || !webViewRef.current || loading) return;
+
+    // Convert base64 image to a Blob and submit via the reports API
+    const js = `
+      (function() {
+        try {
+          var base64 = "${sharedImageUri.replace(/"/g, '\\"')}";
+          // Convert base64 to blob
+          var byteString = atob(base64.split(',')[1]);
+          var mimeString = base64.split(',')[0].split(':')[1].split(';')[0];
+          var ab = new ArrayBuffer(byteString.length);
+          var ia = new Uint8Array(ab);
+          for (var i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
+          }
+          var blob = new Blob([ab], { type: mimeString });
+          var file = new File([blob], 'shared_screenshot.jpg', { type: mimeString });
+
+          // Find the first repo ID from the page
+          var repoEl = document.querySelector('[data-repo-id]');
+          var repoId = repoEl ? repoEl.getAttribute('data-repo-id') : null;
+
+          if (!repoId) {
+            // Try to get from the popover trigger text
+            var formData = new FormData();
+            // We'll submit via alert for now
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'shared_image',
+              image: base64.substring(0, 100) + '...',
+              status: 'ready'
+            }));
+            return;
+          }
+
+          var formData = new FormData();
+          formData.append('repoId', repoId);
+          formData.append('description', 'Bug reported via screenshot share');
+          formData.append('screenshot', file);
+
+          fetch('/api/v1/reports', { method: 'POST', body: formData })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+              window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'shared_image_result',
+                success: data.success,
+                title: data.data?.title
+              }));
+            });
+        } catch(e) {
+          console.error('Share handler error:', e);
+        }
+      })();
+      true;
+    `;
+
+    webViewRef.current.injectJavaScript(js);
+    if (onSharedImageHandled) onSharedImageHandled();
+  }, [sharedImageUri, loading, onSharedImageHandled]);
 
   // Android back button
   useEffect(() => {

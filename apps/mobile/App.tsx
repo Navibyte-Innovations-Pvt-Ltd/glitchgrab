@@ -6,8 +6,11 @@ import {
   View,
   StatusBar,
   Image,
+  Linking,
+  Platform,
 } from "react-native";
 import * as SecureStore from "expo-secure-store";
+import * as FileSystem from "expo-file-system";
 import LoginScreen from "./src/screens/LoginScreen";
 import WebViewScreen from "./src/screens/WebViewScreen";
 
@@ -19,6 +22,7 @@ type AppState = "loading" | "login" | "authenticated";
 export default function App() {
   const [state, setState] = useState<AppState>("loading");
   const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [sharedImageUri, setSharedImageUri] = useState<string | null>(null);
 
   // Check for existing session on mount
   useEffect(() => {
@@ -35,6 +39,45 @@ export default function App() {
         setState("login");
       }
     })();
+  }, []);
+
+  // Handle shared images (Android share intent)
+  useEffect(() => {
+    async function handleSharedContent(url: string) {
+      try {
+        if (!url) return;
+
+        // Android content:// URI — read the shared image
+        if (url.startsWith("content://") || url.startsWith("file://")) {
+          // Copy to app's cache directory for access
+          const fileName = `shared_${Date.now()}.jpg`;
+          const destUri = `${FileSystem.cacheDirectory}${fileName}`;
+          await FileSystem.copyAsync({ from: url, to: destUri });
+
+          // Read as base64
+          const base64 = await FileSystem.readAsStringAsync(destUri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+
+          setSharedImageUri(`data:image/jpeg;base64,${base64}`);
+        }
+      } catch (err) {
+        console.error("Failed to handle shared image:", err);
+      }
+    }
+
+    // Check if app was opened with a shared image
+    if (Platform.OS === "android") {
+      Linking.getInitialURL().then((url) => {
+        if (url) handleSharedContent(url);
+      });
+
+      const sub = Linking.addEventListener("url", (event) => {
+        handleSharedContent(event.url);
+      });
+
+      return () => sub.remove();
+    }
   }, []);
 
   const handleLoginSuccess = useCallback((token: string) => {
@@ -82,6 +125,8 @@ export default function App() {
     <WebViewScreen
       sessionToken={sessionToken!}
       onLogout={handleLogout}
+      sharedImageUri={sharedImageUri}
+      onSharedImageHandled={() => setSharedImageUri(null)}
     />
   );
 }
