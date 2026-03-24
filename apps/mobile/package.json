@@ -7,7 +7,11 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "dev": "expo prebuild --clean && expo run:ios"
+    "dev": "expo prebuild --clean && expo run:ios",
+    "build:android:prod": "bash scripts/set-env.sh production && npx expo prebuild --clean && cd android && ./gradlew assembleRelease && cd .. && echo '\nAPK ready at: android/app/build/outputs/apk/release/app-release.apk'",
+    "build:android:dev": "bash scripts/set-env.sh development && npx expo prebuild --clean && cd android && ./gradlew assembleDebug && cd .. && echo '\nAPK ready at: android/app/build/outputs/apk/debug/app-debug.apk'",
+    "install:android:prod": "bun run build:android:prod && adb install -r android/app/build/outputs/apk/release/app-release.apk",
+    "install:android:dev": "bun run build:android:dev && adb install -r android/app/build/outputs/apk/debug/app-debug.apk"
   },
   "dependencies": {
     "expo": "~55.0.8",
