@@ -25,16 +25,16 @@ export default async function BillingPage() {
       {/* Current Plan */}
       {plan.isActive && (
         <Card className="border-primary/30">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-semibold">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-start sm:items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-base sm:text-lg font-semibold">
                     {plan.plan === "PRO_BYOK" ? "Pro (BYOK)" : "Pro (Platform AI)"}
                   </h2>
                   <Badge>Active</Badge>
                 </div>
-                <p className="text-sm text-muted-foreground mt-1">
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                   {plan.plan === "PRO_BYOK"
                     ? "Unlimited repos & issues — using your own AI key"
                     : `Unlimited repos, ${plan.maxIssuesPerMonth} issues created/mo — we provide AI`}
@@ -45,7 +45,7 @@ export default async function BillingPage() {
                   </p>
                 )}
               </div>
-              <CheckCircle className="h-8 w-8 text-primary shrink-0" />
+              <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 text-primary shrink-0" />
             </div>
           </CardContent>
         </Card>
@@ -56,7 +56,7 @@ export default async function BillingPage() {
         <div className="grid gap-4 sm:grid-cols-2">
           {/* BYOK */}
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center gap-2 mb-3">
                 <Key className="h-5 w-5 text-primary" />
                 <h3 className="font-semibold">Pro (BYOK)</h3>
@@ -94,7 +94,7 @@ export default async function BillingPage() {
 
           {/* Platform */}
           <Card className="border-2 border-primary overflow-visible relative">
-            <CardContent className="p-6 pt-8">
+            <CardContent className="p-4 pt-8 sm:p-6 sm:pt-8">
               <Badge className="absolute -top-2.5 left-4 sm:left-auto sm:right-4 z-10">Recommended</Badge>
               <div className="flex items-center gap-2 mb-3">
                 <Cpu className="h-5 w-5 text-primary" />
