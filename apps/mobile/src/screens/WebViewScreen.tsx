@@ -222,6 +222,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: DARK_BG,
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
   },
   webview: {
     flex: 1,
