@@ -141,9 +141,22 @@ export function BugChat({
       const formData = new FormData();
       formData.append("repoId", selectedRepo);
       formData.append("description", description);
-      if (files && files.length > 0) {
-        // Send first screenshot as main (API currently supports one)
-        formData.append("screenshot", files[0]);
+
+      // Collect all screenshots: current files + any from earlier messages in this conversation
+      // (so clarification follow-ups keep screenshot context from the original report)
+      const allFiles: File[] = files ? [...files] : [];
+      if (allFiles.length === 0) {
+        for (let i = messages.length - 1; i >= 0; i--) {
+          const m = messages[i];
+          if (m.role === "user" && m.screenshotFiles && m.screenshotFiles.length > 0) {
+            allFiles.push(...m.screenshotFiles);
+            break;
+          }
+        }
+      }
+      // Append all screenshots (API processes first, but stores all for context)
+      for (const file of allFiles) {
+        formData.append("screenshot", file);
       }
 
       // Send last 5 chat messages for context (exclude thinking messages)
@@ -200,6 +213,16 @@ export function BugChat({
         else if (intent === "update") toast.success("Issue updated!");
         else if (intent === "close") toast.success("Issue(s) closed!");
         else if (intent === "merge") toast.success("Issues merged!");
+
+        // After a terminal action, clear screenshotFiles from all messages
+        // so they don't carry forward to the next issue in the same chat
+        if (["create", "update", "close", "merge"].includes(intent)) {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.screenshotFiles ? { ...m, screenshotFiles: undefined } : m
+            )
+          );
+        }
       }
     } catch {
       setMessages((prev) =>
