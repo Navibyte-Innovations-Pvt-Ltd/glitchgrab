@@ -53,7 +53,7 @@ export default function App() {
     (async () => {
       try {
         const base64 = await FileSystem.readAsStringAsync(file.path, {
-          encoding: FileSystem.EncodingType.Base64,
+          encoding: "base64",
         });
         const mimeType = file.mimeType || "image/jpeg";
         setSharedImageBase64(`data:${mimeType};base64,${base64}`);
