@@ -43,6 +43,12 @@
       ]
     },
     "scheme": "glitchgrab",
+    "plugins": [
+      ["expo-share-intent", {
+        "androidIntentFilters": ["image/*"],
+        "androidMultiIntentFilters": ["image/*"]
+      }]
+    ],
     "extra": {
       "eas": {
         "projectId": "6166832f-68fa-4680-a312-99030a7e9d5c"
