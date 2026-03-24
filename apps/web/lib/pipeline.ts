@@ -213,6 +213,55 @@ export async function processReport(reportId: string): Promise<PipelineResult> {
       };
     }
 
+    if (action.intent === "merge") {
+      // Update the kept issue with merged content
+      await updateIssueBody(
+        account.access_token,
+        report.repo.owner,
+        report.repo.name,
+        action.keepIssue,
+        action.mergedBody + "\n\n*Merged via [Glitchgrab](https://glitchgrab.dev)*"
+      );
+
+      // Update the title of the kept issue
+      await fetch(
+        `https://api.github.com/repos/${report.repo.owner}/${report.repo.name}/issues/${action.keepIssue}`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${account.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ title: action.mergedTitle }),
+        }
+      );
+
+      // Close the duplicate issues
+      for (const num of action.closeIssues) {
+        await closeIssue(
+          account.access_token,
+          report.repo.owner,
+          report.repo.name,
+          num,
+          `Merged into #${action.keepIssue} via Glitchgrab`
+        );
+      }
+
+      await prisma.report.update({
+        where: { id: reportId },
+        data: { status: "CREATED" },
+      });
+
+      const closed = action.closeIssues.map((n) => `#${n}`).join(", ");
+      return {
+        success: true,
+        intent: "merge",
+        message: `Merged ${closed} into #${action.keepIssue}`,
+        issueNumber: action.keepIssue,
+        issueUrl: `https://github.com/${report.repo.fullName}/issues/${action.keepIssue}`,
+      };
+    }
+
     // Chat — no GitHub action needed
     await prisma.report.update({
       where: { id: reportId },

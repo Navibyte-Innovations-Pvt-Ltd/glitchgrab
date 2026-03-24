@@ -15,6 +15,7 @@ export type AiAction =
   | { intent: "create"; title: string; body: string; labels: string[]; severity: string }
   | { intent: "update"; issueNumber: number; comment: string }
   | { intent: "close"; issueNumbers: number[]; comment: string }
+  | { intent: "merge"; keepIssue: number; closeIssues: number[]; mergedTitle: string; mergedBody: string }
   | { intent: "chat"; message: string };
 
 // ─── System prompt ──────────────────────────────────────
@@ -26,7 +27,8 @@ Given user input (text, optional screenshot, optional error stack) and a list of
 1. **CREATE** a new issue — ONLY if the bug is completely new and doesn't relate to any existing issue
 2. **UPDATE** an existing issue — if the bug is similar, related, or in the same area as an existing open issue. Group related problems together.
 3. **CLOSE** issues — if the user asks to close specific issues or all issues
-4. **CHAT** — if the input is vague, unclear, a question, or needs clarification before taking action
+4. **MERGE** — if there are multiple small related issues that should be one. Combine them into one comprehensive issue, close the rest.
+5. **CHAT** — if the input is vague, unclear, a question, or needs clarification before taking action
 
 IMPORTANT:
 - Respond ONLY with valid JSON. Pick ONE action.
@@ -34,6 +36,8 @@ IMPORTANT:
 - If a screenshot is provided, describe what you see and ask if that's the bug they mean.
 - Prefer UPDATE over CREATE — developers want fewer comprehensive issues, not many small ones.
 - Small related issues (UI, styling, icons, layout, responsiveness) should be ONE issue.
+- If user says "too many issues", "combine these", "merge", or similar — look at open issues and MERGE related ones.
+- Proactively suggest merging if you see 2+ open issues that could be one.
 
 For CREATE:
 {
@@ -56,6 +60,15 @@ For CLOSE:
   "intent": "close",
   "issueNumbers": [1, 2, 3],
   "comment": "string (reason for closing)"
+}
+
+For MERGE (combine related issues into one):
+{
+  "intent": "merge",
+  "keepIssue": 11,
+  "closeIssues": [12, 13],
+  "mergedTitle": "string (new combined title)",
+  "mergedBody": "string (combined body with all relevant info from merged issues)"
 }
 
 For CHAT (non-actionable input):
@@ -189,6 +202,19 @@ export async function classifyAndGenerate(input: AiInput): Promise<AiAction> {
       intent: "close",
       issueNumbers: nums,
       comment: String(parsed.comment ?? "Closed via Glitchgrab"),
+    };
+  }
+
+  if (intent === "merge") {
+    const closeNums = Array.isArray(parsed.closeIssues)
+      ? parsed.closeIssues.map(Number)
+      : [];
+    return {
+      intent: "merge",
+      keepIssue: Number(parsed.keepIssue),
+      closeIssues: closeNums,
+      mergedTitle: String(parsed.mergedTitle ?? ""),
+      mergedBody: String(parsed.mergedBody ?? ""),
     };
   }
 

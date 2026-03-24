@@ -127,6 +127,8 @@ export function BugChat({
           content = data.data?.message ?? "Issue updated";
         } else if (intent === "close") {
           content = data.data?.message ?? "Issues closed";
+        } else if (intent === "merge") {
+          content = data.data?.message ?? "Issues merged";
         } else {
           content = data.data?.message ?? "Done";
         }
@@ -149,6 +151,7 @@ export function BugChat({
         if (intent === "create") toast.success("Issue created!");
         else if (intent === "update") toast.success("Issue updated!");
         else if (intent === "close") toast.success("Issue(s) closed!");
+        else if (intent === "merge") toast.success("Issues merged!");
       }
     } catch {
       setMessages((prev) =>
