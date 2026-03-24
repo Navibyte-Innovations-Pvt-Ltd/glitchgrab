@@ -28,7 +28,7 @@ export default async function TokensPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">API Tokens</h1>
           <p className="text-sm text-muted-foreground">
@@ -65,33 +65,40 @@ export default async function TokensPage() {
         <div className="space-y-3">
           {tokens.map((token: typeof tokens[number]) => (
             <Card key={token.id}>
-              <CardContent className="flex items-center justify-between py-4 px-5">
-                <div className="flex items-center gap-3 min-w-0">
-                  <Key className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <div className="min-w-0">
-                    <p className="font-medium text-sm">{token.name}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <Badge variant="outline" className="text-xs">
-                        {token.repo.fullName}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        gg_••••••••
-                      </span>
+              <CardContent className="py-4 px-4 sm:px-5">
+                <div className="flex items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-start sm:items-center gap-3 min-w-0">
+                    <Key className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5 sm:mt-0" />
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm">{token.name}</p>
+                      <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                        <Badge variant="outline" className="text-xs truncate max-w-[150px] sm:max-w-none">
+                          {token.repo.fullName}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          gg_••••••••
+                        </span>
+                      </div>
+                      <div className="sm:hidden mt-1.5">
+                        <p className="text-xs text-muted-foreground">
+                          Created {token.createdAt.toLocaleDateString()}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <div className="text-right hidden sm:block">
-                    <p className="text-xs text-muted-foreground">
-                      Created {token.createdAt.toLocaleDateString()}
-                    </p>
-                    {token.lastUsed && (
+                  <div className="flex items-center gap-3 shrink-0">
+                    <div className="text-right hidden sm:block">
                       <p className="text-xs text-muted-foreground">
-                        Last used {token.lastUsed.toLocaleDateString()}
+                        Created {token.createdAt.toLocaleDateString()}
                       </p>
-                    )}
+                      {token.lastUsed && (
+                        <p className="text-xs text-muted-foreground">
+                          Last used {token.lastUsed.toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                    <DeleteTokenButton tokenId={token.id} />
                   </div>
-                  <DeleteTokenButton tokenId={token.id} />
                 </div>
               </CardContent>
             </Card>
