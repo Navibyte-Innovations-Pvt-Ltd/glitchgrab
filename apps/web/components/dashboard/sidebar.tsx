@@ -10,12 +10,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-  { href: "/dashboard/repos", label: "Repos", icon: GitFork },
-  { href: "/dashboard/tokens", label: "API Tokens", icon: Key },
-  { href: "/dashboard/collaborators", label: "Collaborators", icon: Users },
-  { href: "/dashboard/billing", label: "Billing", icon: CreditCard },
-  { href: "/dashboard/settings", label: "Settings", icon: Settings },
+  { href: "/dashboard", label: "Overview", icon: LayoutDashboard, ownerOnly: false },
+  { href: "/dashboard/repos", label: "Repos", icon: GitFork, ownerOnly: false },
+  { href: "/dashboard/tokens", label: "API Tokens", icon: Key, ownerOnly: true },
+  { href: "/dashboard/collaborators", label: "Collaborators", icon: Users, ownerOnly: true },
+  { href: "/dashboard/billing", label: "Billing", icon: CreditCard, ownerOnly: true },
+  { href: "/dashboard/settings", label: "Settings", icon: Settings, ownerOnly: true },
 ];
 
 interface SidebarProps {
@@ -24,9 +24,10 @@ interface SidebarProps {
     email?: string | null;
     image?: string | null;
   };
+  userType?: "owner" | "collaborator";
 }
 
-export function Sidebar({ user }: SidebarProps) {
+export function Sidebar({ user, userType = "owner" }: SidebarProps) {
   const pathname = usePathname();
 
   return (
@@ -37,7 +38,7 @@ export function Sidebar({ user }: SidebarProps) {
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {NAV_ITEMS.map((item) => {
+        {NAV_ITEMS.filter((item) => !item.ownerOnly || userType === "owner").map((item) => {
           const isActive =
             item.href === "/dashboard"
               ? pathname === "/dashboard"
