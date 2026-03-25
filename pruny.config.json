@@ -6,6 +6,7 @@
       "/api/v1/sdk/**",
       "/api/v1/billing/**",
       "/api/v1/github/**",
+      "/api/v1/collaborators/**",
       "/api/waitlist"
     ],
     "folders": [".glitchgrab"],
