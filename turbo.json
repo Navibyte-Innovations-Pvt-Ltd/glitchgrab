@@ -33,6 +33,7 @@
       "cache": false
     },
     "validate": {
+      "dependsOn": ["^build"],
       "cache": false
     }
   }
