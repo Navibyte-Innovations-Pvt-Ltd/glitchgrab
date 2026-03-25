@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { createWebhook, deleteWebhook, listWebhooks } from "./webhook-actions";
+import { copyToClipboard } from "@/lib/clipboard";
 
 const AVAILABLE_EVENTS = [
   { value: "issue.created", label: "Issue Created" },
@@ -106,7 +107,7 @@ export function WebhookForm() {
 
   async function handleCopySecret() {
     if (!newSecret) return;
-    await navigator.clipboard.writeText(newSecret);
+    await copyToClipboard(newSecret);
     setCopied(true);
     toast.success("Secret copied to clipboard");
     setTimeout(() => setCopied(false), 2000);

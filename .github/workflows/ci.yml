@@ -38,6 +38,9 @@ jobs:
       - name: Generate Prisma Client
         run: cd apps/web && bunx prisma generate --schema=prisma/schema.prisma
 
+      - name: Build SDK (needed for type declarations)
+        run: cd packages/sdk-nextjs && bun run build
+
       - name: Lint
         run: bun run lint
 

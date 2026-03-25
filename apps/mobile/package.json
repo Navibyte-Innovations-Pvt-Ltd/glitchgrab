@@ -8,14 +8,17 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "dev": "expo prebuild --clean && expo run:ios",
-    "build:android:prod": "bash scripts/set-env.sh production && npx expo prebuild --clean && cd android && ./gradlew assembleRelease && cd .. && echo '\nAPK ready at: android/app/build/outputs/apk/release/app-release.apk'",
+    "build:android:prod": "bash scripts/set-env.sh production && npx expo prebuild --clean && cd android && ./gradlew assembleRelease && cd .. && bash scripts/set-env.sh development && echo '\nAPK ready at: android/app/build/outputs/apk/release/app-release.apk'",
     "build:android:dev": "bash scripts/set-env.sh development && npx expo prebuild --clean && cd android && ./gradlew assembleDebug && cd .. && echo '\nAPK ready at: android/app/build/outputs/apk/debug/app-debug.apk'",
     "install:android:prod": "bun run build:android:prod && adb install -r android/app/build/outputs/apk/release/app-release.apk",
-    "install:android:dev": "bun run build:android:dev && adb install -r android/app/build/outputs/apk/debug/app-debug.apk"
+    "install:android:dev": "bun run build:android:dev && adb install -r android/app/build/outputs/apk/debug/app-debug.apk",
+    "lint": "eslint .",
+    "validate": "eslint . && tsc --noEmit"
   },
   "dependencies": {
     "expo": "~55.0.8",
     "expo-auth-session": "^55.0.9",
+    "expo-clipboard": "^55.0.9",
     "expo-constants": "^55.0.9",
     "expo-file-system": "^55.0.11",
     "expo-secure-store": "^55.0.9",
@@ -24,11 +27,19 @@
     "expo-web-browser": "^55.0.10",
     "react": "19.2.0",
     "react-native": "0.83.2",
+    "react-native-safe-area-context": "^5.7.0",
     "react-native-webview": "^13.16.1"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "@typescript-eslint/eslint-plugin": "^8.57.2",
+    "@typescript-eslint/parser": "^8.57.2",
     "eas-cli": "^18.4.0",
+    "eslint": "^9.39.0",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-native": "^5.0.0",
+    "eslint-plugin-react-native-a11y": "^3.5.1",
+    "eslint-plugin-unused-imports": "^4.4.1",
     "typescript": "~5.9.2"
   },
   "private": true

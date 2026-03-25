@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
 import {
-  SafeAreaView,
   StyleSheet,
   ActivityIndicator,
   View,
@@ -8,6 +7,7 @@ import {
   Image,
   Linking,
 } from "react-native";
+import { SafeAreaView, SafeAreaProvider } from "react-native-safe-area-context";
 import * as SecureStore from "expo-secure-store";
 import * as FileSystem from "expo-file-system/legacy";
 import { useShareIntent } from "expo-share-intent";
@@ -135,48 +135,58 @@ export default function App() {
 
   if (state === "loading") {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={DARK_BG} />
-        <View style={styles.splash}>
-          <Image
-            source={require("./assets/icon.png")}
-            style={styles.splashIcon}
-          />
-          <ActivityIndicator
-            size="small"
-            color={PRIMARY}
-            style={{ marginTop: 16 }}
-          />
-        </View>
-      </SafeAreaView>
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.container}>
+          <StatusBar barStyle="light-content" backgroundColor={DARK_BG} />
+          <View style={styles.splash}>
+            <Image
+              source={require("./assets/icon.png")}
+              style={styles.splashIcon}
+            />
+            <ActivityIndicator
+              size="small"
+              color={PRIMARY}
+              style={styles.loadingIndicator}
+            />
+          </View>
+        </SafeAreaView>
+      </SafeAreaProvider>
     );
   }
 
   if (state === "login") {
-    return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+    return (
+      <SafeAreaProvider>
+        <LoginScreen onLoginSuccess={handleLoginSuccess} />
+      </SafeAreaProvider>
+    );
   }
 
   if (state === "collaborator" && collabToken) {
     // Collaborator mode: WebView loads the accept URL which sets cookie + redirects to /collaborate
     const collabUrl = `${BASE_URL}/api/v1/collaborators/accept?token=${encodeURIComponent(collabToken)}`;
     return (
-      <WebViewScreen
-        sessionToken=""
-        overrideUrl={collabUrl}
-        onLogout={handleLogout}
-        sharedImageUri={null}
-      />
+      <SafeAreaProvider>
+        <WebViewScreen
+          sessionToken=""
+          overrideUrl={collabUrl}
+          onLogout={handleLogout}
+          sharedImageUri={null}
+        />
+      </SafeAreaProvider>
     );
   }
 
   return (
-    <WebViewScreen
-      sessionToken={sessionToken!}
-      onLogout={handleLogout}
-      sharedImageUri={sharedImageBase64}
-      onSharedImageHandled={() => setSharedImageBase64(null)}
-      processingShare={processingShare}
-    />
+    <SafeAreaProvider>
+      <WebViewScreen
+        sessionToken={sessionToken!}
+        onLogout={handleLogout}
+        sharedImageUri={sharedImageBase64}
+        onSharedImageHandled={() => setSharedImageBase64(null)}
+        processingShare={processingShare}
+      />
+    </SafeAreaProvider>
   );
 }
 
@@ -195,5 +205,8 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 24,
+  },
+  loadingIndicator: {
+    marginTop: 16,
   },
 });

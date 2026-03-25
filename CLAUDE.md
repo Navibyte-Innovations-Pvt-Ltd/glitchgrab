@@ -2,11 +2,12 @@
 
 ## What is this project?
 
-Glitchgrab is an open-source SaaS tool that converts messy bug inputs (handwritten notes, screenshots, production errors, user-reported bugs) into well-structured GitHub issues using AI (Claude or OpenAI). It has three components: an npm SDK for Next.js, a web dashboard, and an MCP server.
+Glitchgrab is an open-source SaaS tool that converts messy bug inputs (handwritten notes, screenshots, production errors, user-reported bugs) into well-structured GitHub issues using AI (Claude or OpenAI). It has four components: an npm SDK for Next.js, a web dashboard, a mobile app (Android/iOS), and an MCP server.
 
 ## Monorepo structure
 
 - **apps/web** — Next.js 15 (App Router) dashboard + API routes. Deployed on Vercel.
+- **apps/mobile** — React Native (Expo SDK 55) mobile app. WebView wrapper around the web dashboard with native features (share intent, deep links, secure token storage). Builds APK via `bun run build:android:prod`.
 - **packages/sdk-nextjs** — `glitchgrab` npm package. Drop-in error capture + report button for Next.js apps.
 - **packages/mcp-server** — MCP server using `@modelcontextprotocol/sdk`. Connects to Claude Desktop.
 - **packages/shared** — Shared TypeScript types and constants used across all packages.
@@ -79,6 +80,24 @@ bun run test             # Run all tests
 bun run db:generate      # Generate Prisma client
 bun run db:push          # Push schema to database
 ```
+
+### Mobile app commands (from `apps/mobile`)
+```bash
+bun run build:android:prod     # Release APK (production)
+bun run build:android:dev      # Debug APK (development)
+bun run install:android:prod   # Build + install release APK via adb
+bun run install:android:dev    # Build + install debug APK via adb
+```
+
+## Mobile app architecture
+
+- **WebView-based** — the mobile app wraps the web dashboard in a `react-native-webview`. All UI lives in `apps/web`; the native shell handles auth, deep links, and share intent.
+- **Auth flow**: GitHub OAuth via `expo-auth-session` → exchange code at `/api/auth/mobile` → session token stored in `expo-secure-store` → WebView loads `/api/auth/mobile/session?token=...` which sets a cookie and redirects to `/dashboard`.
+- **Share intent**: Users share screenshots from other apps → Expo reads image as base64 → injects into WebView as a paste event on the chat textarea.
+- **Deep links**: `glitchgrab://` scheme and `https://glitchgrab.dev/collaborate` for collaborator invitations.
+- **Collaborator mode**: Separate flow where the WebView loads a collab accept URL instead of the main dashboard.
+- **Key deps**: Expo 55, React Native 0.83, react-native-webview, expo-share-intent, expo-secure-store.
+- **Performance**: Avoid injecting JS that runs on every scroll/resize frame. Use `requestAnimationFrame` for layout recalculations. Remove `console.*` calls in production builds.
 
 ## Code conventions
 

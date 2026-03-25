@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
-  SafeAreaView,
   StyleSheet,
   ActivityIndicator,
   View,
@@ -12,13 +11,17 @@ import {
   Image,
   KeyboardAvoidingView,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import type { WebViewNavigation } from "react-native-webview";
 import * as WebBrowser from "expo-web-browser";
+import * as Clipboard from "expo-clipboard";
 import { BASE_URL } from "../api";
 
 const DARK_BG = "#09090b";
 const PRIMARY = "#22d3ee";
+const TEXT = "#fafafa";
+const MUTED = "#a1a1aa";
 
 interface WebViewScreenProps {
   sessionToken: string;
@@ -123,10 +126,17 @@ export default function WebViewScreen({
     return () => handler.remove();
   }, [canGoBack]);
 
+  // Track last nav key to skip duplicate callbacks (WebView fires them twice)
+  const lastNavKey = useRef("");
+
   const handleNavigationStateChange = useCallback(
     (navState: WebViewNavigation) => {
+      // Skip duplicate callbacks for the same URL + loading state
+      const navKey = `${navState.url}|${navState.loading}`;
+      if (lastNavKey.current === navKey) return;
+      lastNavKey.current = navKey;
+
       setCanGoBack(navState.canGoBack);
-      console.info("[WebView] nav:", navState.url, "loading:", navState.loading);
 
       // Detect if the WebView navigated to the login page (session expired)
       // Skip during initial load to avoid false logout from redirect chains
@@ -135,14 +145,13 @@ export default function WebViewScreen({
         !navState.url.includes("/api/auth")
       ) {
         loginRedirectCount.current += 1;
-        console.info("[WebView] /login detected, count:", loginRedirectCount.current);
 
         // Only logout after dashboard has loaded at least once (real session expiry)
         // or if we've been stuck in a redirect loop
         if (hasLoadedOnce.current) {
           onLogout();
         } else if (loginRedirectCount.current > 3) {
-          console.error("[WebView] redirect loop detected, logging out");
+          // redirect loop detected
           onLogout();
         }
       }
@@ -155,6 +164,17 @@ export default function WebViewScreen({
     },
     [onLogout]
   );
+
+  const handleMessage = useCallback((event: { nativeEvent: { data: string } }) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data.type === "clipboard-copy" && data.text) {
+        Clipboard.setStringAsync(data.text);
+      }
+    } catch {
+      // Not a JSON message, ignore
+    }
+  }, []);
 
   const handleShouldStartLoad = useCallback((event: { url: string }) => {
     const url = event.url;
@@ -177,7 +197,6 @@ export default function WebViewScreen({
   // and returns HTML that JS-redirects to /dashboard
   // Or use overrideUrl for collaborator mode
   const webViewUrl = overrideUrl || `${BASE_URL}/api/auth/mobile/session?token=${encodeURIComponent(sessionToken)}`;
-  console.info("[WebView] loading URL:", overrideUrl ? "<collaborate-url>" : BASE_URL + "/api/auth/mobile/session?token=<redacted>");
 
   // Runs BEFORE page content loads — sets viewport
   const injectedBeforeLoad = `
@@ -208,15 +227,20 @@ export default function WebViewScreen({
       document.body.style.overscrollBehavior = 'none';
       document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
 
-      // Resize layout when Android keyboard opens/closes
+      // Resize layout when Android keyboard opens/closes (debounced to avoid layout thrashing)
+      var _rafId = 0;
       function updateAppHeight() {
-        var h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-        document.documentElement.style.setProperty('--app-height', h + 'px');
+        if (_rafId) return;
+        _rafId = requestAnimationFrame(function() {
+          _rafId = 0;
+          var h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+          document.documentElement.style.setProperty('--app-height', h + 'px');
+        });
       }
       updateAppHeight();
       if (window.visualViewport) {
         window.visualViewport.addEventListener('resize', updateAppHeight);
-        window.visualViewport.addEventListener('scroll', updateAppHeight);
+        // NOTE: removed 'scroll' listener — it fires on every scroll frame and causes jank
       }
       window.addEventListener('resize', updateAppHeight);
 
@@ -262,7 +286,7 @@ export default function WebViewScreen({
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={DARK_BG} />
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={styles.flex1}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={0}
       >
@@ -276,10 +300,10 @@ export default function WebViewScreen({
             <ActivityIndicator
               size="small"
               color={PRIMARY}
-              style={{ marginTop: 16 }}
+              style={styles.loadingSpinner}
             />
             {(processingShare || sharedImageUri) && (
-              <Text style={{ color: "#a1a1aa", fontSize: 14, marginTop: 12 }}>
+              <Text style={styles.loadingText}>
                 Attaching screenshot...
               </Text>
             )}
@@ -295,19 +319,17 @@ export default function WebViewScreen({
           onNavigationStateChange={handleNavigationStateChange}
           onShouldStartLoadWithRequest={handleShouldStartLoad}
           onLoadEnd={handleLoadEnd}
-          onError={(syntheticEvent) => {
-            const { nativeEvent } = syntheticEvent;
-            console.error("[WebView] onError:", nativeEvent.description, nativeEvent.url);
+          onMessage={handleMessage}
+          onError={() => {
             setLoading(false);
             setError(true);
           }}
           onHttpError={(syntheticEvent) => {
-            const { nativeEvent } = syntheticEvent;
-            console.error("[WebView] onHttpError:", nativeEvent.statusCode, nativeEvent.url);
-            if (nativeEvent.statusCode >= 500) {
+            if (syntheticEvent.nativeEvent.statusCode >= 500) {
               setError(true);
             }
           }}
+          androidLayerType="hardware"
           injectedJavaScriptBeforeContentLoaded={injectedBeforeLoad}
           injectedJavaScript={injectedAfterLoad}
           javaScriptEnabled
@@ -339,7 +361,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: DARK_BG,
-    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) : 0,
   },
   webview: {
     flex: 1,
@@ -370,13 +392,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   errorTitle: {
-    color: "#fafafa",
+    color: TEXT,
     fontSize: 20,
     fontWeight: "700",
     marginBottom: 8,
   },
   errorText: {
-    color: "#a1a1aa",
+    color: MUTED,
     fontSize: 14,
     textAlign: "center",
     marginBottom: 24,
@@ -391,5 +413,16 @@ const styles = StyleSheet.create({
     color: DARK_BG,
     fontSize: 14,
     fontWeight: "600",
+  },
+  flex1: {
+    flex: 1,
+  },
+  loadingSpinner: {
+    marginTop: 16,
+  },
+  loadingText: {
+    color: MUTED,
+    fontSize: 14,
+    marginTop: 12,
   },
 });

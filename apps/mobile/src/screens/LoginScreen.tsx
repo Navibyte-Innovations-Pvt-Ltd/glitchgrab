@@ -1,6 +1,5 @@
 import { useState, useCallback } from "react";
 import {
-  SafeAreaView,
   StyleSheet,
   View,
   Text,
@@ -9,8 +8,8 @@ import {
   ActivityIndicator,
   StatusBar,
   Alert,
-  Platform,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import * as SecureStore from "expo-secure-store";
@@ -47,7 +46,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   // Log redirect URI so you can add it to GitHub OAuth settings
   console.info("Expo redirect URI:", redirectUri);
 
-  const [request, response, promptAsync] = AuthSession.useAuthRequest(
+  const [request, _response, promptAsync] = AuthSession.useAuthRequest(
     {
       clientId: GITHUB_CLIENT_ID,
       scopes: ["read:user", "user:email", "repo"],
@@ -86,17 +85,18 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
 
       // Navigate to WebView
       onLoginSuccess(sessionToken);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
       console.error("Login error:", err);
       Alert.alert(
         "Sign in failed",
-        err.message || "Something went wrong. Please try again.",
+        message,
         [{ text: "OK" }]
       );
     } finally {
       setLoading(false);
     }
-  }, [loading, promptAsync, onLoginSuccess]);
+  }, [loading, promptAsync, onLoginSuccess, request?.codeVerifier]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -148,7 +148,7 @@ function GitHubIcon() {
   return (
     <Image
       source={{ uri: "https://github.com/fluidicon.png" }}
-      style={{ width: 22, height: 22, borderRadius: 11 }}
+      style={styles.githubIcon}
       resizeMode="contain"
     />
   );
@@ -211,23 +211,15 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "700",
   },
-  githubIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: DARK_BG,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  githubIconText: {
-    color: TEXT,
-    fontSize: 14,
-    fontWeight: "700",
-  },
   footer: {
     color: MUTED,
     fontSize: 12,
     textAlign: "center",
     marginTop: 24,
+  },
+  githubIcon: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
   },
 });

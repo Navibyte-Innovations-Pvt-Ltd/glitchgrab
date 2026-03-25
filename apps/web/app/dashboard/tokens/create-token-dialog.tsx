@@ -20,6 +20,7 @@ import {
 import { Plus, Copy, Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { createToken } from "./actions";
+import { copyToClipboard } from "@/lib/clipboard";
 
 interface Repo {
   id: string;
@@ -55,7 +56,7 @@ export function CreateTokenDialog({ repos }: { repos: Repo[] }) {
 
   async function handleCopy() {
     if (!generatedToken) return;
-    await navigator.clipboard.writeText(generatedToken);
+    await copyToClipboard(generatedToken);
     setCopied(true);
     toast.success("Copied to clipboard");
     setTimeout(() => setCopied(false), 2000);

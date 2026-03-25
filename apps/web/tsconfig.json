@@ -32,6 +32,9 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "glitchgrab": [
+        "../../packages/sdk-nextjs/dist/index.d.ts"
       ]
     }
   },
