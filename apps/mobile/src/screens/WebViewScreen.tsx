@@ -20,6 +20,8 @@ import { BASE_URL } from "../api";
 
 const DARK_BG = "#09090b";
 const PRIMARY = "#22d3ee";
+const TEXT = "#fafafa";
+const MUTED = "#a1a1aa";
 
 interface WebViewScreenProps {
   sessionToken: string;
@@ -284,7 +286,7 @@ export default function WebViewScreen({
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={DARK_BG} />
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={styles.flex1}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={0}
       >
@@ -298,10 +300,10 @@ export default function WebViewScreen({
             <ActivityIndicator
               size="small"
               color={PRIMARY}
-              style={{ marginTop: 16 }}
+              style={styles.loadingSpinner}
             />
             {(processingShare || sharedImageUri) && (
-              <Text style={{ color: "#a1a1aa", fontSize: 14, marginTop: 12 }}>
+              <Text style={styles.loadingText}>
                 Attaching screenshot...
               </Text>
             )}
@@ -390,13 +392,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   errorTitle: {
-    color: "#fafafa",
+    color: TEXT,
     fontSize: 20,
     fontWeight: "700",
     marginBottom: 8,
   },
   errorText: {
-    color: "#a1a1aa",
+    color: MUTED,
     fontSize: 14,
     textAlign: "center",
     marginBottom: 24,
@@ -411,5 +413,16 @@ const styles = StyleSheet.create({
     color: DARK_BG,
     fontSize: 14,
     fontWeight: "600",
+  },
+  flex1: {
+    flex: 1,
+  },
+  loadingSpinner: {
+    marginTop: 16,
+  },
+  loadingText: {
+    color: MUTED,
+    fontSize: 14,
+    marginTop: 12,
   },
 });
