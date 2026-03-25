@@ -10,6 +10,8 @@ import {
   TouchableOpacity,
   Image,
   KeyboardAvoidingView,
+  RefreshControl,
+  ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
@@ -44,6 +46,7 @@ export default function WebViewScreen({
   const [canGoBack, setCanGoBack] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const hasLoadedOnce = useRef(false);
   const loginRedirectCount = useRef(0);
 
@@ -310,48 +313,91 @@ export default function WebViewScreen({
           </View>
         )}
 
-        <WebView
-          ref={webViewRef}
-          source={{
-            uri: webViewUrl,
-          }}
-          style={styles.webview}
-          onNavigationStateChange={handleNavigationStateChange}
-          onShouldStartLoadWithRequest={handleShouldStartLoad}
-          onLoadEnd={handleLoadEnd}
-          onMessage={handleMessage}
-          onError={() => {
-            setLoading(false);
-            setError(true);
-          }}
-          onHttpError={(syntheticEvent) => {
-            if (syntheticEvent.nativeEvent.statusCode >= 500) {
-              setError(true);
+        {Platform.OS === "android" ? (
+          <ScrollView
+            contentContainerStyle={styles.flex1}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => {
+                  setRefreshing(true);
+                  webViewRef.current?.reload();
+                  setTimeout(() => setRefreshing(false), 1500);
+                }}
+                colors={[PRIMARY]}
+                tintColor={PRIMARY}
+              />
             }
-          }}
-          androidLayerType="hardware"
-          injectedJavaScriptBeforeContentLoaded={injectedBeforeLoad}
-          injectedJavaScript={injectedAfterLoad}
-          javaScriptEnabled
-          domStorageEnabled
-          startInLoadingState={false}
-          allowsBackForwardNavigationGestures
-          hideKeyboardAccessoryView
-          sharedCookiesEnabled
-          thirdPartyCookiesEnabled
-          mediaPlaybackRequiresUserAction={false}
-          allowsInlineMediaPlayback
-          cacheEnabled
-          pullToRefreshEnabled={true}
-          overScrollMode="content"
-          decelerationRate={0.998}
-          contentMode="mobile"
-          setSupportMultipleWindows={false}
-          scalesPageToFit={false}
-          automaticallyAdjustContentInsets={false}
-          automaticallyAdjustsScrollIndicatorInsets={false}
-          keyboardDisplayRequiresUserAction={false}
-        />
+          >
+            <WebView
+              ref={webViewRef}
+              source={{ uri: webViewUrl }}
+              style={styles.webview}
+              onNavigationStateChange={handleNavigationStateChange}
+              onShouldStartLoadWithRequest={handleShouldStartLoad}
+              onLoadEnd={handleLoadEnd}
+              onMessage={handleMessage}
+              onError={() => { setLoading(false); setError(true); }}
+              onHttpError={(syntheticEvent) => {
+                if (syntheticEvent.nativeEvent.statusCode >= 500) setError(true);
+              }}
+              androidLayerType="hardware"
+              injectedJavaScriptBeforeContentLoaded={injectedBeforeLoad}
+              injectedJavaScript={injectedAfterLoad}
+              javaScriptEnabled
+              domStorageEnabled
+              startInLoadingState={false}
+              hideKeyboardAccessoryView
+              sharedCookiesEnabled
+              thirdPartyCookiesEnabled
+              mediaPlaybackRequiresUserAction={false}
+              cacheEnabled
+              overScrollMode="never"
+              decelerationRate={0.998}
+              contentMode="mobile"
+              setSupportMultipleWindows={false}
+              scalesPageToFit={false}
+              automaticallyAdjustContentInsets={false}
+              keyboardDisplayRequiresUserAction={false}
+              nestedScrollEnabled
+            />
+          </ScrollView>
+        ) : (
+          <WebView
+            ref={webViewRef}
+            source={{ uri: webViewUrl }}
+            style={styles.webview}
+            onNavigationStateChange={handleNavigationStateChange}
+            onShouldStartLoadWithRequest={handleShouldStartLoad}
+            onLoadEnd={handleLoadEnd}
+            onMessage={handleMessage}
+            onError={() => { setLoading(false); setError(true); }}
+            onHttpError={(syntheticEvent) => {
+              if (syntheticEvent.nativeEvent.statusCode >= 500) setError(true);
+            }}
+            injectedJavaScriptBeforeContentLoaded={injectedBeforeLoad}
+            injectedJavaScript={injectedAfterLoad}
+            javaScriptEnabled
+            domStorageEnabled
+            startInLoadingState={false}
+            allowsBackForwardNavigationGestures
+            hideKeyboardAccessoryView
+            sharedCookiesEnabled
+            thirdPartyCookiesEnabled
+            mediaPlaybackRequiresUserAction={false}
+            allowsInlineMediaPlayback
+            cacheEnabled
+            pullToRefreshEnabled
+            overScrollMode="content"
+            decelerationRate={0.998}
+            contentMode="mobile"
+            setSupportMultipleWindows={false}
+            scalesPageToFit={false}
+            automaticallyAdjustContentInsets={false}
+            automaticallyAdjustsScrollIndicatorInsets={false}
+            keyboardDisplayRequiresUserAction={false}
+          />
+        )}
         </KeyboardAvoidingView>
       </SafeAreaView>
   );
