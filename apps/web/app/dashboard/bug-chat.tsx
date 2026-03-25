@@ -8,6 +8,25 @@ import { ImagePlus, Send, X, Loader2, GitFork, RotateCcw, ChevronDown, Check, Me
 import { toast } from "sonner";
 import { InteractiveQuestions } from "@/components/dashboard/interactive-questions";
 
+/** Compress an image file client-side to stay under Vercel's 4.5MB payload limit */
+async function compressImage(file: File, maxWidth = 1024, quality = 0.7): Promise<File> {
+  if (file.size <= 500_000) return file; // skip if already small
+
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, maxWidth / Math.max(bitmap.width, bitmap.height));
+  const w = Math.round(bitmap.width * scale);
+  const h = Math.round(bitmap.height * scale);
+
+  const canvas = new OffscreenCanvas(w, h);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return file;
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  bitmap.close();
+
+  const blob = await canvas.convertToBlob({ type: "image/jpeg", quality });
+  return new File([blob], file.name.replace(/\.\w+$/, ".jpg"), { type: "image/jpeg" });
+}
+
 /* ── Memoized message bubble to prevent re-rendering all messages on state change ── */
 const MessageBubble = memo(function MessageBubble({
   msg,
@@ -239,9 +258,10 @@ export function BugChat({
           }
         }
       }
-      // Append all screenshots (API processes first, but stores all for context)
+      // Compress and append all screenshots (stay under Vercel's 4.5MB payload limit)
       for (const file of allFiles) {
-        formData.append("screenshot", file);
+        const compressed = await compressImage(file);
+        formData.append("screenshot", compressed);
       }
 
       // Send last 5 chat messages for context (exclude thinking messages)
