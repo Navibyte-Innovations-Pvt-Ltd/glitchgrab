@@ -36,7 +36,8 @@ model User {
   repos    Repo[]
   aiConfig     AiConfig?
   subscription Subscription?
-  webhooks     Webhook[]
+  webhooks      Webhook[]
+  collaborators Collaborator[]
 }
 
 model Account {
@@ -87,10 +88,11 @@ model Repo {
   isPrivate Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokens ApiToken[]
-  reports Report[]
-  issues  Issue[]
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokens            ApiToken[]
+  reports           Report[]
+  issues            Issue[]
+  collaboratorRepos CollaboratorRepo[]
 }
 
 model ApiToken {
@@ -114,6 +116,7 @@ enum ReportSource {
   DASHBOARD_UPLOAD
   HANDWRITTEN_NOTE
   MCP
+  COLLABORATOR
 }
 
 enum ReportStatus {
@@ -125,10 +128,11 @@ enum ReportStatus {
 }
 
 model Report {
-  id          String       @id @default(cuid())
-  repoId      String
-  tokenId     String?
-  source      ReportSource
+  id             String       @id @default(cuid())
+  repoId         String
+  tokenId        String?
+  collaboratorId String?
+  source         ReportSource
   status      ReportStatus @default(PENDING)
   rawInput    String?
   screenshot  String?
@@ -211,6 +215,42 @@ model AiConfig {
   updatedAt       DateTime   @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── Collaboration ──────────────────────────────────────
+
+enum CollaboratorStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+}
+
+model Collaborator {
+  id           String             @id @default(cuid())
+  email        String
+  invitedById  String
+  tokenHash    String             @unique
+  status       CollaboratorStatus @default(PENDING)
+  expiresAt    DateTime
+  lastActiveAt DateTime?
+  createdAt    DateTime           @default(now())
+
+  invitedBy User               @relation(fields: [invitedById], references: [id], onDelete: Cascade)
+  repos     CollaboratorRepo[]
+
+  @@unique([email, invitedById])
+}
+
+model CollaboratorRepo {
+  id             String   @id @default(cuid())
+  collaboratorId String
+  repoId         String
+  grantedAt      DateTime @default(now())
+
+  collaborator Collaborator @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
+  repo         Repo         @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  @@unique([collaboratorId, repoId])
 }
 
 // ─── Webhooks ──────────────────────────────────────────
