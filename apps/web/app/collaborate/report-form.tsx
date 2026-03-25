@@ -171,7 +171,7 @@ export function CollaborateReportForm({ repos }: CollaborateReportFormProps) {
                 className="relative flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm"
               >
                 <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                <span className="truncate max-w-[140px]">{file.name}</span>
+                <span className="truncate max-w-35">{file.name}</span>
                 <button
                   type="button"
                   onClick={() => removeFile(i)}
