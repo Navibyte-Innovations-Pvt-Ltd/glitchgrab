@@ -1,13 +1,87 @@
 "use client";
 
-import { useState, useRef } from "react";
-import Image from "next/image";
+import { useState, useRef, memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ImagePlus, Send, X, Loader2, GitFork, RotateCcw, ChevronDown, Check, MessageSquarePlus } from "lucide-react";
 import { toast } from "sonner";
 import { InteractiveQuestions } from "@/components/dashboard/interactive-questions";
+
+/* ── Memoized message bubble to prevent re-rendering all messages on state change ── */
+const MessageBubble = memo(function MessageBubble({
+  msg,
+  sending,
+  onRetry,
+  onClarifyComplete,
+  onClarifyDismiss,
+}: {
+  msg: Message;
+  sending: boolean;
+  onRetry: () => void;
+  onClarifyComplete: (msgId: string, answers: { question: string; answer: string }[]) => void;
+  onClarifyDismiss: (msgId: string) => void;
+}) {
+  return (
+    <div className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
+      <div
+        className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-3 text-sm ${
+          msg.role === "user"
+            ? "bg-primary text-primary-foreground rounded-br-md"
+            : "bg-card border border-border rounded-bl-md"
+        } ${msg.clarifyQuestions && msg.clarifyQuestions.length > 0 ? "hidden" : ""}`}
+      >
+        {msg.id === "thinking" ? (
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>{msg.content}</span>
+          </div>
+        ) : (
+          <>
+            {msg.content && <p className="whitespace-pre-wrap">{msg.content}</p>}
+            {msg.screenshots && msg.screenshots.length > 0 && (
+              <div className={`mt-2 flex flex-wrap gap-2 ${msg.screenshots.length === 1 ? "" : "grid grid-cols-2"}`}>
+                {msg.screenshots.map((src, i) => (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    key={`${msg.id}-ss-${i}`}
+                    src={src}
+                    alt={`Screenshot ${i + 1}`}
+                    width={msg.screenshots?.length === 1 ? 300 : 150}
+                    height={msg.screenshots?.length === 1 ? 200 : 100}
+                    className="rounded-lg border border-border object-cover"
+                  />
+                ))}
+              </div>
+            )}
+            {msg.issueUrl && (
+              <a href={msg.issueUrl} target="_blank" rel="noopener noreferrer" className="inline-block mt-2">
+                <Badge variant="outline" className="gap-1 hover:bg-primary/10">
+                  View on GitHub →
+                </Badge>
+              </a>
+            )}
+            {msg.failed && (
+              <Button variant="outline" size="sm" className="mt-2 gap-1.5 text-xs" onClick={onRetry} disabled={sending}>
+                <RotateCcw className="h-3 w-3" />
+                Retry
+              </Button>
+            )}
+          </>
+        )}
+      </div>
+      {msg.clarifyQuestions && msg.clarifyQuestions.length > 0 && (
+        <div className="w-full max-w-[95%] sm:max-w-[80%] mt-2">
+          <InteractiveQuestions
+            questions={msg.clarifyQuestions}
+            onComplete={(answers) => onClarifyComplete(msg.id, answers)}
+            onDismiss={() => onClarifyDismiss(msg.id)}
+          />
+        </div>
+      )}
+    </div>
+  );
+});
 
 interface Repo {
   id: string;
@@ -59,7 +133,6 @@ export function BugChat({
 
   function addFiles(files: FileList | File[]) {
     const newFiles: File[] = [];
-    const newPreviews: string[] = [];
 
     for (const file of Array.from(files)) {
       if (!file.type.startsWith("image/")) continue;
@@ -71,19 +144,24 @@ export function BugChat({
       return;
     }
 
-    let loaded = 0;
-    for (const file of newFiles) {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        newPreviews.push(ev.target?.result as string);
-        loaded++;
-        if (loaded === newFiles.length) {
-          setScreenshots((prev) => [...prev, ...newPreviews]);
-          setScreenshotFiles((prev) => [...prev, ...newFiles]);
-        }
-      };
-      reader.readAsDataURL(file);
-    }
+    Promise.all(
+      newFiles.map(
+        (file) =>
+          new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (ev) => resolve(ev.target?.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          })
+      )
+    )
+      .then((previews) => {
+        setScreenshots((prev) => [...prev, ...previews]);
+        setScreenshotFiles((prev) => [...prev, ...newFiles]);
+      })
+      .catch(() => {
+        toast.error("Failed to read some images");
+      });
   }
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -220,8 +298,11 @@ export function BugChat({
         }
       }
 
-      setMessages((prev) =>
-        prev
+      const isTerminalAction = data.success && ["create", "update", "close", "merge"].includes(data.data?.intent);
+
+      // Single state update instead of two — prevents double re-render
+      setMessages((prev) => {
+        let updated = prev
           .filter((m) => m.id !== "thinking")
           .concat({
             id: Date.now().toString(),
@@ -230,8 +311,17 @@ export function BugChat({
             issueUrl: data.data?.issueUrl,
             failed: !data.success,
             clarifyQuestions,
-          })
-      );
+          });
+
+        // Clear screenshotFiles from all messages after terminal actions
+        if (isTerminalAction) {
+          updated = updated.map((m) =>
+            m.screenshotFiles ? { ...m, screenshotFiles: undefined } : m
+          );
+        }
+
+        return updated;
+      });
 
       if (data.success) {
         const intent = data.data?.intent;
@@ -239,16 +329,6 @@ export function BugChat({
         else if (intent === "update") toast.success("Issue updated!");
         else if (intent === "close") toast.success("Issue(s) closed!");
         else if (intent === "merge") toast.success("Issues merged!");
-
-        // After a terminal action, clear screenshotFiles from all messages
-        // so they don't carry forward to the next issue in the same chat
-        if (["create", "update", "close", "merge"].includes(intent)) {
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.screenshotFiles ? { ...m, screenshotFiles: undefined } : m
-            )
-          );
-        }
       }
     } catch {
       setMessages((prev) =>
@@ -392,81 +472,14 @@ export function BugChat({
       {/* Messages */}
       <div className="flex-1 overflow-y-auto space-y-4 pb-4">
         {messages.map((msg) => (
-          <div
+          <MessageBubble
             key={msg.id}
-            className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}
-          >
-            {/* Hide text bubble when interactive questions are shown */}
-            <div
-              className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-3 text-sm ${
-                msg.role === "user"
-                  ? "bg-primary text-primary-foreground rounded-br-md"
-                  : "bg-card border border-border rounded-bl-md"
-              } ${msg.clarifyQuestions && msg.clarifyQuestions.length > 0 ? "hidden" : ""}`}
-            >
-              {msg.id === "thinking" ? (
-                <div className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>{msg.content}</span>
-                </div>
-              ) : (
-                <>
-                  {msg.content && <p className="whitespace-pre-wrap">{msg.content}</p>}
-                  {msg.screenshots && msg.screenshots.length > 0 && (
-                    <div className={`mt-2 flex flex-wrap gap-2 ${msg.screenshots.length === 1 ? "" : "grid grid-cols-2"}`}>
-                      {msg.screenshots.map((src, i) => {
-                        const isSingle = msg.screenshots?.length === 1;
-                        return (
-                          <Image
-                            key={i}
-                            src={src}
-                            alt={`Screenshot ${i + 1}`}
-                            width={isSingle ? 300 : 150}
-                            height={isSingle ? 200 : 100}
-                            className="rounded-lg border border-border object-cover"
-                          />
-                        );
-                      })}
-                    </div>
-                  )}
-                  {msg.issueUrl && (
-                    <a
-                      href={msg.issueUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-block mt-2"
-                    >
-                      <Badge variant="outline" className="gap-1 hover:bg-primary/10">
-                        View on GitHub →
-                      </Badge>
-                    </a>
-                  )}
-                  {msg.failed && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mt-2 gap-1.5 text-xs"
-                      onClick={handleRetry}
-                      disabled={sending}
-                    >
-                      <RotateCcw className="h-3 w-3" />
-                      Retry
-                    </Button>
-                  )}
-                </>
-              )}
-            </div>
-            {/* Interactive questions card — rendered outside bubble for full width */}
-            {msg.clarifyQuestions && msg.clarifyQuestions.length > 0 && (
-              <div className="w-full max-w-[95%] sm:max-w-[80%] mt-2">
-                <InteractiveQuestions
-                  questions={msg.clarifyQuestions}
-                  onComplete={(answers) => handleClarifyComplete(msg.id, answers)}
-                  onDismiss={() => handleClarifyDismiss(msg.id)}
-                />
-              </div>
-            )}
-          </div>
+            msg={msg}
+            sending={sending}
+            onRetry={handleRetry}
+            onClarifyComplete={handleClarifyComplete}
+            onClarifyDismiss={handleClarifyDismiss}
+          />
         ))}
         <div ref={messagesEndRef} />
       </div>
@@ -476,7 +489,8 @@ export function BugChat({
         <div className="flex gap-2 flex-wrap mb-2">
           {screenshots.map((src, i) => (
             <div key={i} className="relative inline-block">
-              <Image
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
                 src={src}
                 alt={`Attached screenshot ${i + 1}`}
                 width={80}
