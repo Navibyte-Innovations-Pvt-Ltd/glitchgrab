@@ -135,8 +135,8 @@ export function ConnectRepoDialog({
                   }`}
                 >
                   <div className="min-w-0 flex-1 mr-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium truncate">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-sm font-medium break-all">
                         {repo.fullName}
                       </span>
                       <Badge
