@@ -20,14 +20,13 @@ import { GlitchgrabProvider } from "glitchgrab";
 
 export default function RootLayout({ children }) {
   return (
-    <GlitchgrabProvider token="gg_your_token">
-      {children}
-    </GlitchgrabProvider>
+    <GlitchgrabProvider token="gg_your_token">{children}</GlitchgrabProvider>
   );
 }
 ```
 
 This gives you:
+
 - Auto-capture of unhandled errors and promise rejections
 - Error boundary around your entire app
 - Page visit tracking for reproduction context
@@ -45,6 +44,7 @@ This gives you:
 ### 1. Auto-Capture (zero config)
 
 Just add the provider. Production errors are captured automatically with:
+
 - Error message and stack trace
 - Current URL (sanitized)
 - User agent
@@ -89,15 +89,15 @@ import { GlitchgrabProvider, ReportButton } from "glitchgrab";
 <GlitchgrabProvider token="gg_your_token">
   {children}
   <ReportButton />
-</GlitchgrabProvider>
+</GlitchgrabProvider>;
 ```
 
 Options:
 
 ```tsx
 <ReportButton
-  position="bottom-left"  // "bottom-right" (default) | "bottom-left"
-  label="Report Issue"    // default: "Report Bug"
+  position="bottom-left" // "bottom-right" (default) | "bottom-left"
+  label="Report Issue" // default: "Report Bug"
 />
 ```
 
@@ -113,19 +113,19 @@ import { GlitchgrabErrorBoundary } from "glitchgrab";
   fallback={<div>Something went wrong in this section</div>}
 >
   <DangerousComponent />
-</GlitchgrabErrorBoundary>
+</GlitchgrabErrorBoundary>;
 ```
 
 ### 5. Provider Options
 
 ```tsx
 <GlitchgrabProvider
-  token="gg_your_token"         // Required — your API token
+  token="gg_your_token" // Required — your API token
   baseUrl="https://your-api.com" // Optional — custom API URL (default: glitchgrab.dev)
-  onError={(error) => {          // Optional — callback when errors are captured
-    console.log("Captured:", error.message);
+  onError={(error) => {
+    // Optional — callback when errors are captured
   }}
-  fallback={<ErrorPage />}       // Optional — what to show when the app crashes
+  fallback={<ErrorPage />} // Optional — what to show when the app crashes
 >
   {children}
 </GlitchgrabProvider>
@@ -135,25 +135,25 @@ import { GlitchgrabErrorBoundary } from "glitchgrab";
 
 ### Components
 
-| Component | Description |
-|-----------|-------------|
-| `GlitchgrabProvider` | Wraps your app. Captures errors, tracks pages. |
-| `ReportButton` | Optional floating bug report button with modal. |
+| Component                 | Description                                      |
+| ------------------------- | ------------------------------------------------ |
+| `GlitchgrabProvider`      | Wraps your app. Captures errors, tracks pages.   |
+| `ReportButton`            | Optional floating bug report button with modal.  |
 | `GlitchgrabErrorBoundary` | Standalone error boundary for specific sections. |
 
 ### Hooks
 
-| Hook | Returns | Description |
-|------|---------|-------------|
+| Hook              | Returns                         | Description                            |
+| ----------------- | ------------------------------- | -------------------------------------- |
 | `useGlitchgrab()` | `{ reportBug, token, baseUrl }` | Access bug reporting in any component. |
 
 ### Utilities
 
-| Function | Description |
-|----------|-------------|
-| `sanitizeUrl(url)` | Strips sensitive query params from URLs. |
-| `captureContext(pages)` | Returns current URL, user agent, timestamp. |
-| `sendReport(payload, baseUrl)` | Low-level function to send a report. |
+| Function                       | Description                                 |
+| ------------------------------ | ------------------------------------------- |
+| `sanitizeUrl(url)`             | Strips sensitive query params from URLs.    |
+| `captureContext(pages)`        | Returns current URL, user agent, timestamp. |
+| `sendReport(payload, baseUrl)` | Low-level function to send a report.        |
 
 ## Safety
 
