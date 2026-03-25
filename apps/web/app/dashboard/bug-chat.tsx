@@ -227,23 +227,29 @@ export function BugChat({
       return;
     }
 
+    // Compress files upfront so the user sees the real size that will be uploaded
     Promise.all(
-      newFiles.map(
-        (file) =>
-          new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = (ev) => resolve(ev.target?.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          }),
-      ),
+      newFiles.map(async (file) => {
+        const compressed = await compressImage(file);
+        const preview = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (ev) => resolve(ev.target?.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(compressed);
+        });
+        return { compressed, preview };
+      }),
     )
-      .then((previews) => {
-        setScreenshots((prev) => [...prev, ...previews]);
-        setScreenshotFiles((prev) => [...prev, ...newFiles]);
+      .then((results) => {
+        setScreenshots((prev) => [...prev, ...results.map((r) => r.preview)]);
+        setScreenshotFiles((prev) => [...prev, ...results.map((r) => r.compressed)]);
+        const totalSaved = newFiles.reduce((sum, f, i) => sum + f.size - results[i].compressed.size, 0);
+        if (totalSaved > 100_000) {
+          toast.success(`Compressed ${(totalSaved / 1_000_000).toFixed(1)} MB`);
+        }
       })
       .catch(() => {
-        toast.error("Failed to read some images");
+        toast.error("Failed to process images");
       });
   }
 
@@ -326,10 +332,9 @@ export function BugChat({
           }
         }
       }
-      // Compress and append all screenshots (stay under Vercel's 4.5MB payload limit)
+      // Files are already compressed at attach time
       for (const file of allFiles) {
-        const compressed = await compressImage(file);
-        formData.append("screenshot", compressed);
+        formData.append("screenshot", file);
       }
 
       // Send last 5 chat messages for context (exclude thinking messages)
