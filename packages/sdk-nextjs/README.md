@@ -124,6 +124,7 @@ import { GlitchgrabErrorBoundary } from "glitchgrab";
   baseUrl="https://your-api.com" // Optional — custom API URL (default: glitchgrab.dev)
   onError={(error) => {
     // Optional — callback when errors are captured
+    console.log("Captured:", error.message);
   }}
   fallback={<ErrorPage />} // Optional — what to show when the app crashes
 >
