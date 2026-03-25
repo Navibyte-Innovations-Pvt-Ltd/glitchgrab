@@ -31,8 +31,9 @@ export async function copyToClipboard(text: string): Promise<void> {
   }
 
   // 3. Native WebView bridge
-  if (typeof window !== "undefined" && (window as Record<string, unknown>).ReactNativeWebView) {
-    (window as Record<string, unknown> & { ReactNativeWebView: { postMessage: (msg: string) => void } }).ReactNativeWebView.postMessage(
+  const win = window as unknown as { ReactNativeWebView?: { postMessage: (msg: string) => void } };
+  if (typeof window !== "undefined" && win.ReactNativeWebView) {
+    win.ReactNativeWebView.postMessage(
       JSON.stringify({ type: "clipboard-copy", text })
     );
   }
