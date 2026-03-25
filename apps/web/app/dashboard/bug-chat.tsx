@@ -30,21 +30,42 @@ async function compressImage(
 ): Promise<File> {
   if (file.size <= 500_000) return file; // skip if already small
 
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, maxWidth / Math.max(bitmap.width, bitmap.height));
-  const w = Math.round(bitmap.width * scale);
-  const h = Math.round(bitmap.height * scale);
+  try {
+    const img = document.createElement("img");
+    const url = URL.createObjectURL(file);
 
-  const canvas = new OffscreenCanvas(w, h);
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return file;
-  ctx.drawImage(bitmap, 0, 0, w, h);
-  bitmap.close();
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = reject;
+      img.src = url;
+    });
 
-  const blob = await canvas.convertToBlob({ type: "image/jpeg", quality });
-  return new File([blob], file.name.replace(/\.\w+$/, ".jpg"), {
-    type: "image/jpeg",
-  });
+    const scale = Math.min(
+      1,
+      maxWidth / Math.max(img.naturalWidth, img.naturalHeight),
+    );
+    const w = Math.round(img.naturalWidth * scale);
+    const h = Math.round(img.naturalHeight * scale);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(img, 0, 0, w, h);
+    URL.revokeObjectURL(url);
+
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", quality),
+    );
+    if (!blob) return file;
+
+    return new File([blob], file.name.replace(/\.\w+$/, ".jpg"), {
+      type: "image/jpeg",
+    });
+  } catch {
+    return file; // fallback to original if compression fails
+  }
 }
 
 /* ── Memoized message bubble to prevent re-rendering all messages on state change ── */
@@ -575,24 +596,33 @@ export function BugChat({
       {/* Screenshot previews */}
       {screenshots.length > 0 && (
         <div className="flex gap-2 flex-wrap mb-2">
-          {screenshots.map((src, i) => (
-            <div key={i} className="relative inline-block">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={src}
-                alt={`Attached screenshot ${i + 1}`}
-                width={80}
-                height={56}
-                className="rounded-lg border border-border object-cover bg-transparent"
-              />
-              <button
-                onClick={() => removeScreenshot(i)}
-                className="absolute -top-1.5 -right-1.5 rounded-full bg-destructive text-destructive-foreground p-0.5"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          ))}
+          {screenshots.map((src, i) => {
+            const sizeBytes = screenshotFiles[i]?.size ?? 0;
+            const sizeLabel = sizeBytes >= 1_000_000
+              ? `${(sizeBytes / 1_000_000).toFixed(1)} MB`
+              : `${Math.round(sizeBytes / 1_000)} KB`;
+            return (
+              <div key={i} className="relative inline-block">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={src}
+                  alt={`Attached screenshot ${i + 1}`}
+                  width={80}
+                  height={56}
+                  className="rounded-lg border border-border object-cover bg-transparent"
+                />
+                <span className="absolute bottom-0.5 left-0.5 rounded bg-black/70 px-1 py-0.5 text-[9px] text-white leading-none">
+                  {sizeLabel}
+                </span>
+                <button
+                  onClick={() => removeScreenshot(i)}
+                  className="absolute -top-1.5 -right-1.5 rounded-full bg-destructive text-destructive-foreground p-0.5"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -691,7 +721,7 @@ export function BugChat({
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
-            placeholder="Describe a 3 bug..."
+            placeholder="Describe a bug..."
             rows={1}
             className="flex-1 resize-none bg-transparent border-0 outline-none text-base placeholder:text-muted-foreground min-h-9 max-h-30 py-2"
             disabled={sending}
