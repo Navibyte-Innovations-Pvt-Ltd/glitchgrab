@@ -39,17 +39,18 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verify repo access
+    // Verify repo access — check own repos first, then shared repos
     let repo;
     let collaboratorEmail: string | null = null;
 
     if (session?.user?.id) {
-      // Owner: repo must belong to them
       repo = await prisma.repo.findFirst({
         where: { id: repoId, userId: session.user.id },
       });
-    } else if (collabSession) {
-      // Collaborator: repo must be shared with them
+    }
+
+    // If not found as own repo, check shared repos via collab session
+    if (!repo && collabSession) {
       const collabRepo = await prisma.collaboratorRepo.findFirst({
         where: {
           repoId,
