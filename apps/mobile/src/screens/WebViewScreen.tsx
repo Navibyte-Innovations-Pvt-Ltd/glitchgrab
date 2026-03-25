@@ -197,18 +197,31 @@ export default function WebViewScreen({
 
       // Force 16px on inputs + fix layout for mobile WebView
       var s = document.createElement('style');
-      s.textContent = 'input,textarea,select{font-size:16px!important} html{height:100vh;height:100dvh}';
+      s.textContent = 'input,textarea,select{font-size:16px!important} html,body{height:calc(var(--app-height,100vh))!important;overflow:hidden}';
       document.head.appendChild(s);
 
       document.body.style.overscrollBehavior = 'none';
       document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
 
-      // Keep input visible when keyboard opens
-      if (window.visualViewport) {
-        window.visualViewport.addEventListener('resize', function() {
-          document.documentElement.style.setProperty('--vh', window.visualViewport.height + 'px');
-        });
+      // Resize layout when Android keyboard opens/closes
+      function updateAppHeight() {
+        var h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+        document.documentElement.style.setProperty('--app-height', h + 'px');
       }
+      updateAppHeight();
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', updateAppHeight);
+        window.visualViewport.addEventListener('scroll', updateAppHeight);
+      }
+      window.addEventListener('resize', updateAppHeight);
+
+      // Scroll focused input into view when keyboard opens
+      document.addEventListener('focusin', function(e) {
+        var el = e.target;
+        if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
+          setTimeout(function() { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 300);
+        }
+      });
     })();
     true;
   `;
@@ -245,7 +258,7 @@ export default function WebViewScreen({
       <StatusBar barStyle="light-content" backgroundColor={DARK_BG} />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={0}
       >
 

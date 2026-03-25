@@ -7,12 +7,18 @@ import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ImagePlus, Send, X, Loader2, GitFork, RotateCcw, ChevronDown, Check, MessageSquarePlus } from "lucide-react";
 import { toast } from "sonner";
+import { InteractiveQuestions } from "@/components/dashboard/interactive-questions";
 
 interface Repo {
   id: string;
   fullName: string;
   owner: string;
   name: string;
+}
+
+interface ClarifyQuestion {
+  question: string;
+  options: string[];
 }
 
 interface Message {
@@ -23,6 +29,7 @@ interface Message {
   screenshotFiles?: File[];
   issueUrl?: string;
   failed?: boolean;
+  clarifyQuestions?: ClarifyQuestion[];
 }
 
 export function BugChat({
@@ -141,9 +148,22 @@ export function BugChat({
       const formData = new FormData();
       formData.append("repoId", selectedRepo);
       formData.append("description", description);
-      if (files && files.length > 0) {
-        // Send first screenshot as main (API currently supports one)
-        formData.append("screenshot", files[0]);
+
+      // Collect all screenshots: current files + any from earlier messages in this conversation
+      // (so clarification follow-ups keep screenshot context from the original report)
+      const allFiles: File[] = files ? [...files] : [];
+      if (allFiles.length === 0) {
+        for (let i = messages.length - 1; i >= 0; i--) {
+          const m = messages[i];
+          if (m.role === "user" && m.screenshotFiles && m.screenshotFiles.length > 0) {
+            allFiles.push(...m.screenshotFiles);
+            break;
+          }
+        }
+      }
+      // Append all screenshots (API processes first, but stores all for context)
+      for (const file of allFiles) {
+        formData.append("screenshot", file);
       }
 
       // Send last 5 chat messages for context (exclude thinking messages)
@@ -182,6 +202,24 @@ export function BugChat({
         }
       }
 
+      // Extract clarify questions if present
+      let clarifyQuestions: ClarifyQuestion[] | undefined;
+      if (data.data?.intent === "clarify") {
+        if (Array.isArray(data.data?.clarifyQuestions) && data.data.clarifyQuestions.length > 0) {
+          // Structured format from API
+          clarifyQuestions = data.data.clarifyQuestions;
+        } else if (content) {
+          // Fallback: parse numbered questions from the text message
+          const lines = content.split("\n").filter((l: string) => /^\d+\.\s/.test(l.trim()));
+          if (lines.length > 0) {
+            clarifyQuestions = lines.map((line: string) => ({
+              question: line.replace(/^\d+\.\s*/, "").trim(),
+              options: [], // No AI-generated options — user will use "Something else" input
+            }));
+          }
+        }
+      }
+
       setMessages((prev) =>
         prev
           .filter((m) => m.id !== "thinking")
@@ -191,6 +229,7 @@ export function BugChat({
             content,
             issueUrl: data.data?.issueUrl,
             failed: !data.success,
+            clarifyQuestions,
           })
       );
 
@@ -200,6 +239,16 @@ export function BugChat({
         else if (intent === "update") toast.success("Issue updated!");
         else if (intent === "close") toast.success("Issue(s) closed!");
         else if (intent === "merge") toast.success("Issues merged!");
+
+        // After a terminal action, clear screenshotFiles from all messages
+        // so they don't carry forward to the next issue in the same chat
+        if (["create", "update", "close", "merge"].includes(intent)) {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.screenshotFiles ? { ...m, screenshotFiles: undefined } : m
+            )
+          );
+        }
       }
     } catch {
       setMessages((prev) =>
@@ -218,8 +267,49 @@ export function BugChat({
     setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
   }
 
+  // Test mode: detect "ask me questions" and show sample interactive questions locally
+  const TEST_QUESTIONS_PATTERN = /^ask\s+me\s+(some\s+)?questions?$/i;
+
+  function handleTestQuestions() {
+    const userMsg: Message = {
+      id: Date.now().toString(),
+      role: "user",
+      content: input.trim(),
+    };
+    setMessages((prev) => [...prev, userMsg]);
+    setInput("");
+
+    const testMsg: Message = {
+      id: (Date.now() + 1).toString(),
+      role: "assistant",
+      content: "",
+      clarifyQuestions: [
+        {
+          question: "What type of bug are you reporting?",
+          options: ["UI/Visual issue", "Crash/Error", "Performance", "Feature not working"],
+        },
+        {
+          question: "Which part of the app is affected?",
+          options: ["Dashboard", "Bug chat", "Repos page", "Mobile app"],
+        },
+        {
+          question: "How severe is this issue?",
+          options: ["Blocks my work", "Annoying but usable", "Minor cosmetic", "Just a suggestion"],
+        },
+      ],
+    };
+    setMessages((prev) => [...prev, testMsg]);
+  }
+
   async function handleSend() {
     if (!input.trim() && screenshots.length === 0) return;
+
+    // Intercept test command — show sample interactive questions without API call
+    if (TEST_QUESTIONS_PATTERN.test(input.trim())) {
+      handleTestQuestions();
+      return;
+    }
+
     if (!selectedRepo) {
       toast.error("Select a repo first");
       return;
@@ -253,6 +343,41 @@ export function BugChat({
     await sendReport(lastUserMsg.content, lastUserMsg.screenshotFiles);
   }
 
+  async function handleClarifyComplete(
+    msgId: string,
+    answers: { question: string; answer: string }[]
+  ) {
+    // Clear the interactive questions from the message
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === msgId ? { ...m, clarifyQuestions: undefined } : m
+      )
+    );
+
+    // Compile answers into a user message
+    const answerText = answers
+      .map((a) => `Q: ${a.question}\nA: ${a.answer}`)
+      .join("\n\n");
+
+    const userMsg: Message = {
+      id: Date.now().toString(),
+      role: "user",
+      content: answerText,
+    };
+    setMessages((prev) => [...prev, userMsg]);
+
+    await sendReport(answerText);
+  }
+
+  function handleClarifyDismiss(msgId: string) {
+    // Just remove the interactive card — no API call, no issue creation
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === msgId ? { ...m, clarifyQuestions: undefined } : m
+      )
+    );
+  }
+
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -263,20 +388,21 @@ export function BugChat({
   const hasConversation = messages.length > 1;
 
   return (
-    <div className="flex flex-col h-full max-h-[calc(100dvh-100px)] md:max-h-[calc(100dvh-0px)]">
+    <div className="flex flex-col h-full max-h-[calc(var(--app-height,100dvh)-100px)] md:max-h-[calc(var(--app-height,100dvh)-0px)]">
       {/* Messages */}
       <div className="flex-1 overflow-y-auto space-y-4 pb-4">
         {messages.map((msg) => (
           <div
             key={msg.id}
-            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+            className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}
           >
+            {/* Hide text bubble when interactive questions are shown */}
             <div
               className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-3 text-sm ${
                 msg.role === "user"
                   ? "bg-primary text-primary-foreground rounded-br-md"
                   : "bg-card border border-border rounded-bl-md"
-              }`}
+              } ${msg.clarifyQuestions && msg.clarifyQuestions.length > 0 ? "hidden" : ""}`}
             >
               {msg.id === "thinking" ? (
                 <div className="flex items-center gap-2">
@@ -330,6 +456,16 @@ export function BugChat({
                 </>
               )}
             </div>
+            {/* Interactive questions card — rendered outside bubble for full width */}
+            {msg.clarifyQuestions && msg.clarifyQuestions.length > 0 && (
+              <div className="w-full max-w-[95%] sm:max-w-[80%] mt-2">
+                <InteractiveQuestions
+                  questions={msg.clarifyQuestions}
+                  onComplete={(answers) => handleClarifyComplete(msg.id, answers)}
+                  onDismiss={() => handleClarifyDismiss(msg.id)}
+                />
+              </div>
+            )}
           </div>
         ))}
         <div ref={messagesEndRef} />

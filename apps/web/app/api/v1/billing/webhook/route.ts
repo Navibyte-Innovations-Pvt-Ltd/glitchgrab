@@ -37,41 +37,123 @@ export async function POST(request: Request) {
           entity: {
             id: string;
             status: string;
-            notes?: { userId?: string };
+            plan_id: string;
+            current_start: number | null;
+            current_end: number | null;
+            notes?: { userId?: string; plan?: string };
           };
         };
       };
     };
 
     const eventType = event.event;
+    console.info("[Webhook]", eventType);
 
-    if (eventType === "payment.captured") {
-      // Payment successful — already handled in verify route
-      // This is a backup confirmation
-      const payment = event.payload.payment?.entity;
-      const userId = payment?.notes?.userId;
+    // ─── Subscription Events (recurring billing) ─────────────
 
-      if (userId) {
-        const now = new Date();
-        const periodEnd = new Date(now);
-        periodEnd.setMonth(periodEnd.getMonth() + 1);
+    if (eventType === "subscription.activated") {
+      // First payment successful — subscription is now active
+      const sub = event.payload.subscription?.entity;
+      const userId = sub?.notes?.userId;
+      const plan = sub?.notes?.plan === "PRO_PLATFORM" ? "PRO_PLATFORM" : "PRO_BYOK";
 
+      if (userId && sub) {
         await prisma.subscription.upsert({
           where: { userId },
           update: {
-            plan: "PRO_BYOK",
+            plan,
             status: "ACTIVE",
-            currentPeriodStart: now,
-            currentPeriodEnd: periodEnd,
+            razorpaySubscriptionId: sub.id,
+            currentPeriodStart: sub.current_start ? new Date(sub.current_start * 1000) : new Date(),
+            currentPeriodEnd: sub.current_end ? new Date(sub.current_end * 1000) : null,
           },
           create: {
             userId,
-            plan: "PRO_BYOK",
+            plan,
             status: "ACTIVE",
-            currentPeriodStart: now,
-            currentPeriodEnd: periodEnd,
+            razorpaySubscriptionId: sub.id,
+            currentPeriodStart: sub.current_start ? new Date(sub.current_start * 1000) : new Date(),
+            currentPeriodEnd: sub.current_end ? new Date(sub.current_end * 1000) : null,
           },
         });
+      }
+    }
+
+    if (eventType === "subscription.charged") {
+      // Recurring payment successful — extend the billing period
+      const sub = event.payload.subscription?.entity;
+      if (sub?.id) {
+        await prisma.subscription.updateMany({
+          where: { razorpaySubscriptionId: sub.id },
+          data: {
+            status: "ACTIVE",
+            currentPeriodStart: sub.current_start ? new Date(sub.current_start * 1000) : new Date(),
+            currentPeriodEnd: sub.current_end ? new Date(sub.current_end * 1000) : null,
+          },
+        });
+      }
+    }
+
+    if (eventType === "subscription.pending") {
+      // Payment retry pending
+      const sub = event.payload.subscription?.entity;
+      if (sub?.id) {
+        await prisma.subscription.updateMany({
+          where: { razorpaySubscriptionId: sub.id },
+          data: { status: "PAST_DUE" },
+        });
+      }
+    }
+
+    if (eventType === "subscription.halted") {
+      // All payment retries failed — subscription halted
+      const sub = event.payload.subscription?.entity;
+      if (sub?.id) {
+        await prisma.subscription.updateMany({
+          where: { razorpaySubscriptionId: sub.id },
+          data: { status: "EXPIRED" },
+        });
+      }
+    }
+
+    if (eventType === "subscription.cancelled") {
+      // User or admin cancelled
+      const sub = event.payload.subscription?.entity;
+      if (sub?.id) {
+        await prisma.subscription.updateMany({
+          where: { razorpaySubscriptionId: sub.id },
+          data: {
+            status: "CANCELLED",
+            cancelledAt: new Date(),
+          },
+        });
+      }
+    }
+
+    // ─── Payment Events (backup) ─────────────────────────────
+
+    if (eventType === "payment.captured") {
+      // Backup confirmation — subscription.activated is primary
+      const payment = event.payload.payment?.entity;
+      const userId = payment?.notes?.userId;
+      const plan = payment?.notes?.plan === "PRO_PLATFORM" ? "PRO_PLATFORM" : "PRO_BYOK";
+
+      if (userId) {
+        const existing = await prisma.subscription.findUnique({
+          where: { userId },
+        });
+        // Only upsert if not already active (avoid overwriting subscription data)
+        if (!existing || existing.status !== "ACTIVE") {
+          const now = new Date();
+          const periodEnd = new Date(now);
+          periodEnd.setMonth(periodEnd.getMonth() + 1);
+
+          await prisma.subscription.upsert({
+            where: { userId },
+            update: { plan, status: "ACTIVE", currentPeriodStart: now, currentPeriodEnd: periodEnd },
+            create: { userId, plan, status: "ACTIVE", currentPeriodStart: now, currentPeriodEnd: periodEnd },
+          });
+        }
       }
     }
 
@@ -80,14 +162,9 @@ export async function POST(request: Request) {
       const userId = payment?.notes?.userId;
 
       if (userId) {
-        await prisma.subscription.upsert({
-          where: { userId },
-          update: { status: "PAST_DUE" },
-          create: {
-            userId,
-            plan: "FREE",
-            status: "PAST_DUE",
-          },
+        await prisma.subscription.updateMany({
+          where: { userId, status: "ACTIVE" },
+          data: { status: "PAST_DUE" },
         });
       }
     }

@@ -40,10 +40,18 @@ export async function POST(request: Request) {
     const plan = PLANS[planKey];
     const razorpay = getRazorpay();
 
-    const order = await razorpay.orders.create({
-      amount: plan.amount,
-      currency: plan.currency,
-      receipt: `sub_${session.user.id}_${Date.now()}`,
+    if (!plan.razorpayPlanId) {
+      return NextResponse.json(
+        { success: false, error: "Razorpay plan not configured. Run: bun run scripts/create-razorpay-plans.ts" },
+        { status: 500 }
+      );
+    }
+
+    // Create a Razorpay Subscription (recurring monthly)
+    const subscription = await razorpay.subscriptions.create({
+      plan_id: plan.razorpayPlanId,
+      total_count: 12, // Max 12 billing cycles (1 year), user can renew
+      quantity: 1,
       notes: {
         userId: session.user.id,
         plan: planKey,
@@ -54,9 +62,9 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       data: {
-        orderId: order.id,
-        amount: order.amount,
-        currency: order.currency,
+        subscriptionId: subscription.id,
+        amount: plan.amount,
+        currency: plan.currency,
         keyId: process.env.RAZORPAY_KEY_ID,
         planName: plan.name,
       },
@@ -64,7 +72,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Subscribe error:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to create order" },
+      { success: false, error: "Failed to create subscription" },
       { status: 500 }
     );
   }

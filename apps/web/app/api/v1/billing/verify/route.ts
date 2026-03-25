@@ -7,7 +7,7 @@ import { getRazorpay } from "@/lib/razorpay";
 import { validatePaymentVerification } from "razorpay/dist/utils/razorpay-utils";
 
 interface VerifyBody {
-  razorpay_order_id: string;
+  razorpay_subscription_id: string;
   razorpay_payment_id: string;
   razorpay_signature: string;
 }
@@ -24,9 +24,10 @@ export async function POST(request: Request) {
 
     const body = (await request.json()) as VerifyBody;
 
+    // Razorpay subscription verification uses subscription_id + payment_id
     const isValid = validatePaymentVerification(
       {
-        order_id: body.razorpay_order_id,
+        subscription_id: body.razorpay_subscription_id,
         payment_id: body.razorpay_payment_id,
       },
       body.razorpay_signature,
@@ -40,10 +41,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Fetch the order to get the plan from notes
+    // Fetch the subscription to get plan details
     const razorpay = getRazorpay();
-    const order = await razorpay.orders.fetch(body.razorpay_order_id);
-    const plan = (order.notes?.plan as string) === "PRO_PLATFORM"
+    const subscription = await razorpay.subscriptions.fetch(body.razorpay_subscription_id);
+    const plan = (subscription.notes?.plan as string) === "PRO_PLATFORM"
       ? "PRO_PLATFORM"
       : "PRO_BYOK";
 
@@ -56,7 +57,7 @@ export async function POST(request: Request) {
       update: {
         plan,
         status: "ACTIVE",
-        razorpaySubscriptionId: body.razorpay_payment_id,
+        razorpaySubscriptionId: body.razorpay_subscription_id,
         currentPeriodStart: now,
         currentPeriodEnd: periodEnd,
       },
@@ -64,7 +65,7 @@ export async function POST(request: Request) {
         userId: session.user.id,
         plan,
         status: "ACTIVE",
-        razorpaySubscriptionId: body.razorpay_payment_id,
+        razorpaySubscriptionId: body.razorpay_subscription_id,
         currentPeriodStart: now,
         currentPeriodEnd: periodEnd,
       },

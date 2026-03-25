@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const repoId = formData.get("repoId") as string;
     const description = formData.get("description") as string;
-    const screenshotFile = formData.get("screenshot") as File | null;
+    const screenshotFiles = formData.getAll("screenshot") as File[];
     const chatHistoryRaw = formData.get("chatHistory") as string | null;
 
     if (!repoId) {
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!description && !screenshotFile) {
+    if (!description && screenshotFiles.length === 0) {
       return NextResponse.json(
         { success: false, error: "Provide a description or screenshot" },
         { status: 400 }
@@ -48,17 +48,22 @@ export async function POST(request: Request) {
       );
     }
 
-    // Convert screenshot to base64 data URL — resize to max 1024px for AI + storage
-    let screenshotDataUrl: string | null = null;
-    if (screenshotFile) {
-      const buffer = Buffer.from(await screenshotFile.arrayBuffer());
+    // Convert all screenshots to base64 data URLs — resize to max 1024px for AI + storage
+    const screenshotDataUrls: string[] = [];
+    for (const file of screenshotFiles) {
+      if (!(file instanceof File) || file.size === 0) continue;
+      const buffer = Buffer.from(await file.arrayBuffer());
       const resized = await sharp(buffer)
         .resize(1024, 1024, { fit: "inside", withoutEnlargement: true })
         .jpeg({ quality: 80 })
         .toBuffer();
       const base64 = resized.toString("base64");
-      screenshotDataUrl = `data:image/jpeg;base64,${base64}`;
+      screenshotDataUrls.push(`data:image/jpeg;base64,${base64}`);
     }
+
+    // Store first screenshot in report.screenshot (primary — used by AI and pipeline)
+    // Store all as JSON array in report.metadata for multi-screenshot support
+    const primaryScreenshot = screenshotDataUrls[0] ?? null;
 
     // Create the report
     const report = await prisma.report.create({
@@ -67,7 +72,10 @@ export async function POST(request: Request) {
         source: "DASHBOARD_UPLOAD",
         status: "PENDING",
         rawInput: description || null,
-        screenshot: screenshotDataUrl,
+        screenshot: primaryScreenshot,
+        metadata: screenshotDataUrls.length > 1
+          ? { extraScreenshots: screenshotDataUrls.slice(1) }
+          : undefined,
       },
     });
 
@@ -104,6 +112,7 @@ export async function POST(request: Request) {
         issueNumber: result.issueNumber,
         title: result.title,
         message: result.message,
+        clarifyQuestions: result.clarifyQuestions,
         status: "CREATED",
       },
     });

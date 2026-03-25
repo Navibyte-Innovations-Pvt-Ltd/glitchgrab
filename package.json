@@ -22,7 +22,8 @@
     "db:push": "cd apps/web && dotenvx run -- ./node_modules/.bin/prisma db push",
     "db:migrate": "cd apps/web && dotenvx run -- ./node_modules/.bin/prisma migrate dev",
     "db:studio": "cd apps/web && dotenvx run -- ./node_modules/.bin/prisma studio",
-    "db:reset": "cd apps/web && dotenvx run -- ./node_modules/.bin/prisma migrate reset --force"
+    "db:reset": "cd apps/web && dotenvx run -- ./node_modules/.bin/prisma migrate reset --force",
+    "razorpay:create-plans": "cd apps/web && dotenvx run -- bun run scripts/create-razorpay-plans.ts"
   },
   "workspaces": [
     "apps/*",

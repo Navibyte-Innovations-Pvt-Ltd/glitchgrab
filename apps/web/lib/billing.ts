@@ -73,6 +73,47 @@ export async function getUserPlan(userId: string): Promise<UserPlan> {
   };
 }
 
+// ─── Trial ────────────────────────────────────────────
+
+const TRIAL_DAYS = 2;
+
+export interface TrialStatus {
+  inTrial: boolean;
+  trialEndsAt: Date;
+  daysLeft: number;
+  hoursLeft: number;
+  hasActiveSubscription: boolean;
+  needsPaywall: boolean;
+}
+
+export async function getTrialStatus(userId: string): Promise<TrialStatus> {
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { createdAt: true },
+  });
+
+  const trialEndsAt = new Date(user.createdAt);
+  trialEndsAt.setDate(trialEndsAt.getDate() + TRIAL_DAYS);
+
+  const now = new Date();
+  const msLeft = trialEndsAt.getTime() - now.getTime();
+  const daysLeft = Math.max(0, Math.ceil(msLeft / (1000 * 60 * 60 * 24)));
+  const hoursLeft = Math.max(0, Math.ceil(msLeft / (1000 * 60 * 60)));
+  const inTrial = msLeft > 0;
+
+  const plan = await getUserPlan(userId);
+  const hasActiveSubscription = plan.isActive;
+
+  return {
+    inTrial,
+    trialEndsAt,
+    daysLeft,
+    hoursLeft,
+    hasActiveSubscription,
+    needsPaywall: !inTrial && !hasActiveSubscription,
+  };
+}
+
 export async function checkIssueLimit(userId: string): Promise<boolean> {
   const plan = await getUserPlan(userId);
   if (!plan.isActive) return false;

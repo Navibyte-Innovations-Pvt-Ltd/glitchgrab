@@ -22,6 +22,49 @@ interface PipelineResult {
   issueNumber?: number;
   message?: string;
   error?: string;
+  clarifyQuestions?: { question: string; options: string[] }[];
+}
+
+// ─── Helpers ────────────────────────────────────────────
+
+/** Collect all screenshot data URLs from a report (primary + extras in metadata) */
+function getAllScreenshots(report: { screenshot: string | null; metadata: unknown }): string[] {
+  const urls: string[] = [];
+  if (report.screenshot?.startsWith("data:image/")) {
+    urls.push(report.screenshot);
+  }
+  if (report.metadata && typeof report.metadata === "object" && report.metadata !== null) {
+    const meta = report.metadata as Record<string, unknown>;
+    if (Array.isArray(meta.extraScreenshots)) {
+      for (const s of meta.extraScreenshots) {
+        if (typeof s === "string" && s.startsWith("data:image/")) {
+          urls.push(s);
+        }
+      }
+    }
+  }
+  return urls;
+}
+
+/** Upload all screenshots and return markdown image references */
+async function uploadAllScreenshots(
+  accessToken: string,
+  owner: string,
+  repoName: string,
+  screenshots: string[],
+  reportId: string
+): Promise<string[]> {
+  const refs: string[] = [];
+  for (let i = 0; i < screenshots.length; i++) {
+    const url = await uploadScreenshotToRepo(
+      accessToken, owner, repoName, screenshots[i],
+      `${reportId}${i > 0 ? `-${i + 1}` : ""}`
+    );
+    if (url) {
+      refs.push(`![Screenshot${screenshots.length > 1 ? ` ${i + 1}` : ""}](${url})`);
+    }
+  }
+  return refs;
 }
 
 // ─── Pipeline ───────────────────────────────────────────
@@ -92,18 +135,16 @@ export async function processReport(
 
     // 6. Execute based on intent
     if (action.intent === "create") {
-      // Upload screenshot if provided
+      // Upload all screenshots if provided
       let issueBody = action.body;
-      if (report.screenshot?.startsWith("data:image/")) {
-        const screenshotUrl = await uploadScreenshotToRepo(
-          account.access_token,
-          report.repo.owner,
-          report.repo.name,
-          report.screenshot,
-          report.id
+      const screenshots = getAllScreenshots(report);
+      if (screenshots.length > 0) {
+        const refs = await uploadAllScreenshots(
+          account.access_token, report.repo.owner, report.repo.name,
+          screenshots, report.id
         );
-        if (screenshotUrl) {
-          issueBody += `\n\n## Screenshot\n\n![Screenshot](${screenshotUrl})`;
+        if (refs.length > 0) {
+          issueBody += `\n\n## Screenshot${refs.length > 1 ? "s" : ""}\n\n${refs.join("\n\n")}`;
         }
       }
       issueBody += "\n\n---\n*Reported via [Glitchgrab](https://glitchgrab.dev)*";
@@ -156,16 +197,14 @@ export async function processReport(
 
     if (action.intent === "update") {
       let updateContent = action.comment;
-      if (report.screenshot?.startsWith("data:image/")) {
-        const screenshotUrl = await uploadScreenshotToRepo(
-          account.access_token,
-          report.repo.owner,
-          report.repo.name,
-          report.screenshot,
-          report.id
+      const updateScreenshots = getAllScreenshots(report);
+      if (updateScreenshots.length > 0) {
+        const refs = await uploadAllScreenshots(
+          account.access_token, report.repo.owner, report.repo.name,
+          updateScreenshots, report.id
         );
-        if (screenshotUrl) {
-          updateContent += `\n\n![Screenshot](${screenshotUrl})`;
+        if (refs.length > 0) {
+          updateContent += `\n\n${refs.join("\n\n")}`;
         }
       }
       updateContent += "\n\n*Updated via [Glitchgrab](https://glitchgrab.dev)*";
@@ -202,18 +241,15 @@ export async function processReport(
     }
 
     if (action.intent === "close") {
-      // Upload screenshot if provided
       let closeComment = action.comment;
-      if (report.screenshot?.startsWith("data:image/")) {
-        const screenshotUrl = await uploadScreenshotToRepo(
-          account.access_token,
-          report.repo.owner,
-          report.repo.name,
-          report.screenshot,
-          report.id
+      const closeScreenshots = getAllScreenshots(report);
+      if (closeScreenshots.length > 0) {
+        const refs = await uploadAllScreenshots(
+          account.access_token, report.repo.owner, report.repo.name,
+          closeScreenshots, report.id
         );
-        if (screenshotUrl) {
-          closeComment += `\n\n![Screenshot](${screenshotUrl})`;
+        if (refs.length > 0) {
+          closeComment += `\n\n${refs.join("\n\n")}`;
         }
       }
 
@@ -273,17 +309,14 @@ export async function processReport(
         }
       }
 
-      // Upload current report's screenshot if provided
-      if (report.screenshot?.startsWith("data:image/")) {
-        const screenshotUrl = await uploadScreenshotToRepo(
-          account.access_token,
-          report.repo.owner,
-          report.repo.name,
-          report.screenshot,
-          report.id
+      // Upload current report's screenshots if provided
+      const mergeScreenshots = getAllScreenshots(report);
+      if (mergeScreenshots.length > 0) {
+        const refs = await uploadAllScreenshots(
+          account.access_token, report.repo.owner, report.repo.name,
+          mergeScreenshots, report.id
         );
-        if (screenshotUrl) {
-          const ref = `![Screenshot](${screenshotUrl})`;
+        for (const ref of refs) {
           if (!screenshotRefs.includes(ref)) {
             screenshotRefs.push(ref);
           }
@@ -372,13 +405,14 @@ export async function processReport(
       });
 
       const questionsText = action.questions
-        .map((q, i) => `${i + 1}. ${q}`)
+        .map((q, i) => `${i + 1}. ${q.question}`)
         .join("\n");
 
       return {
         success: true,
         intent: "clarify",
         message: `I want to make sure I create a useful issue. A few questions:\n\n${questionsText}`,
+        clarifyQuestions: action.questions,
       };
     }
 

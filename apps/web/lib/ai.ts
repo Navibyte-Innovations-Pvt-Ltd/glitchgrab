@@ -20,7 +20,12 @@ export type AiAction =
   | { intent: "close"; issueNumbers: number[]; comment: string }
   | { intent: "merge"; keepIssue: number; closeIssues: number[]; mergedTitle: string; mergedBody: string }
   | { intent: "chat"; message: string }
-  | { intent: "clarify"; questions: string[] };
+  | { intent: "clarify"; questions: ClarifyQuestion[] };
+
+export interface ClarifyQuestion {
+  question: string;
+  options: string[]; // 4 AI-generated options
+}
 
 // ─── System prompt ──────────────────────────────────────
 
@@ -60,7 +65,7 @@ Use CLARIFY when the user's input lacks enough detail to create a high-quality i
 
 ### CLARIFY RULES:
 - Ask 2-4 focused questions max, not a wall of questions
-- Frame questions as multiple choice when possible (easier to answer)
+- EVERY question MUST be an object with "question" (string) and "options" (array of exactly 4 short strings). NEVER return questions as plain strings.
 - Reference specific parts of the repo (pages, components, APIs) you know about from the README
 - If you already asked questions and the user answered, DO NOT ask more — create the issue
 
@@ -71,10 +76,14 @@ Use CLARIFY when the user's input lacks enough detail to create a high-quality i
 **For questions about issues → CHAT.**
 **For explicit commands (close, merge) → CLOSE or MERGE.**
 
+### USE CLARIFY FOR (IMPORTANT — these are NOT chat):
+- "ask me questions", "ask me some questions", "test questions", "ask me anything" → respond with CLARIFY intent containing 2-4 interesting questions about the repo/project with 4 options each. This is for testing the interactive question UI.
+
 ### USE CHAT FOR:
 - Questions: "how many bugs?", "what issues do we have?", "list bugs", "show me open issues", "status?"
 - Greetings: "hi", "hello"
 - Any input that asks about issues but does NOT report a new bug or request an action
+- NEVER use chat for "ask me questions" — that MUST be CLARIFY
 
 ### USE CLOSE/MERGE ONLY WHEN:
 - User EXPLICITLY says "close #X", "close all", "merge #X and #Y", "combine these issues"
@@ -86,10 +95,17 @@ For CLARIFY (need more info before creating issue):
 {
   "intent": "clarify",
   "questions": [
-    "Specific question 1 based on repo context?",
-    "Specific question 2 with options when possible?"
+    {
+      "question": "Which page is slow?",
+      "options": ["Dashboard", "Settings page", "Landing page", "API routes"]
+    },
+    {
+      "question": "When does it happen?",
+      "options": ["On initial load", "After clicking something", "After login", "Randomly"]
+    }
   ]
 }
+IMPORTANT: Each question MUST have exactly 4 options. Options should be short, specific, and relevant to the repo context. The user can also type a custom answer or skip, so options should cover the most likely answers.
 
 For CREATE:
 {
@@ -271,9 +287,23 @@ export async function classifyAndGenerate(input: AiInput): Promise<AiAction> {
   const intent = parsed.intent as string;
 
   if (intent === "clarify") {
-    const questions = Array.isArray(parsed.questions)
-      ? parsed.questions.map((q) => String(q))
-      : ["Could you provide more details about what you'd like?"];
+    const rawQuestions = Array.isArray(parsed.questions) ? parsed.questions : [];
+    const questions: ClarifyQuestion[] = rawQuestions.map((q: unknown) => {
+      if (q && typeof q === "object" && "question" in q) {
+        const qObj = q as Record<string, unknown>;
+        return {
+          question: String(qObj.question ?? ""),
+          options: Array.isArray(qObj.options)
+            ? qObj.options.map(String).slice(0, 4)
+            : [],
+        };
+      }
+      // Fallback for plain string questions (backward compat)
+      return { question: String(q), options: [] };
+    });
+    if (questions.length === 0) {
+      questions.push({ question: "Could you provide more details?", options: [] });
+    }
     return { intent: "clarify", questions };
   }
 
