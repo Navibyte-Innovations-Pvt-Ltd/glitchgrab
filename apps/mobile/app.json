@@ -15,9 +15,6 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "dev.glitchgrab.app",
-      "associatedDomains": [
-        "applinks:glitchgrab.dev"
-      ],
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsLocalNetworking": true,
