@@ -52,6 +52,49 @@ export async function notifyNewSignup(email: string) {
   });
 }
 
+export async function sendCollaboratorInvite(
+  email: string,
+  ownerName: string,
+  magicLink: string,
+  repoNames: string[]
+) {
+  const repoList = repoNames
+    .map((name) => `<li style="color: #a1a1aa; font-size: 14px;">${name}</li>`)
+    .join("");
+
+  await transporter.sendMail({
+    from: `"Glitchgrab" <${process.env.MAIL_FROM}>`,
+    to: email,
+    subject: `${ownerName} invited you to report bugs on Glitchgrab`,
+    html: `
+      <div style="font-family: 'Inter', system-ui, sans-serif; max-width: 500px; margin: 0 auto; background: #09090b; color: #fafafa; padding: 40px; border-radius: 16px;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h1 style="font-size: 24px; margin: 0; color: #22d3ee;">Glitchgrab</h1>
+          <p style="color: #a1a1aa; font-size: 14px; margin-top: 4px;">Grab the glitch. Ship the fix.</p>
+        </div>
+        <p style="font-size: 16px; line-height: 1.6;">Hey there,</p>
+        <p style="font-size: 16px; line-height: 1.6;">
+          <strong>${ownerName}</strong> has invited you to report bugs on the following repositories:
+        </p>
+        <ul style="line-height: 2; padding-left: 20px;">
+          ${repoList}
+        </ul>
+        <p style="font-size: 16px; line-height: 1.6;">
+          Click the button below to accept the invitation and start reporting bugs. No GitHub account needed.
+        </p>
+        <div style="text-align: center; margin: 32px 0;">
+          <a href="${magicLink}" style="display: inline-block; background: #22d3ee; color: #09090b; font-weight: 600; font-size: 16px; padding: 12px 32px; border-radius: 8px; text-decoration: none;">
+            Accept Invitation
+          </a>
+        </div>
+        <p style="font-size: 12px; color: #71717a; text-align: center;">
+          This link expires in 7 days. If you didn't expect this email, you can safely ignore it.
+        </p>
+      </div>
+    `,
+  });
+}
+
 export async function notifySurveyResponse(
   email: string,
   survey: {
