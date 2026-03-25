@@ -64,6 +64,9 @@ export default function WebViewScreen({
     if (!pendingImageRef.current || !webViewRef.current) return;
     const imageUri = pendingImageRef.current;
 
+    // Clear immediately to prevent duplicate injection if handleLoadEnd fires again
+    pendingImageRef.current = null;
+
     // Wait for React to render the chat
     setTimeout(() => {
       const js = `
@@ -101,7 +104,6 @@ export default function WebViewScreen({
         true;
       `;
       webViewRef.current?.injectJavaScript(js);
-      pendingImageRef.current = null;
       if (onSharedImageHandled) onSharedImageHandled();
     }, 2000);
   }, [onSharedImageHandled]);
