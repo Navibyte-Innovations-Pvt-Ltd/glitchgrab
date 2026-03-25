@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
-  SafeAreaView,
   StyleSheet,
   ActivityIndicator,
   View,
@@ -12,6 +11,7 @@ import {
   Image,
   KeyboardAvoidingView,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import type { WebViewNavigation } from "react-native-webview";
 import * as WebBrowser from "expo-web-browser";
@@ -342,7 +342,7 @@ export default function WebViewScreen({
           cacheEnabled
           pullToRefreshEnabled={true}
           overScrollMode="content"
-          decelerationRate="normal"
+          decelerationRate={0.998}
           contentMode="mobile"
           setSupportMultipleWindows={false}
           scalesPageToFit={false}
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: DARK_BG,
-    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) : 0,
   },
   webview: {
     flex: 1,
