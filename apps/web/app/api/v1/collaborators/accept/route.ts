@@ -31,13 +31,6 @@ export async function GET(request: Request) {
       );
     }
 
-    if (collaborator.status === "REVOKED") {
-      return NextResponse.json(
-        { success: false, error: "This invitation has been revoked" },
-        { status: 403 }
-      );
-    }
-
     if (collaborator.expiresAt < new Date()) {
       return NextResponse.json(
         { success: false, error: "This invitation has expired" },
@@ -63,7 +56,7 @@ export async function GET(request: Request) {
 
     // Redirect to collaborate page with session cookie
     const baseUrl = process.env.NEXTAUTH_URL || "https://glitchgrab.dev";
-    const response = NextResponse.redirect(`${baseUrl}/collaborate`);
+    const response = NextResponse.redirect(`${baseUrl}/dashboard`);
 
     response.cookies.set(getCollabCookieName(), sessionToken, {
       httpOnly: true,
