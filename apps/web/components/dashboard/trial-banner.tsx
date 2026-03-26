@@ -1,32 +1,37 @@
 "use client";
 
 import { Clock } from "lucide-react";
-import Link from "next/link";
+import { UpgradeButton } from "@/app/dashboard/billing/upgrade-button";
 
 export function TrialBanner({
   daysLeft,
   hoursLeft,
+  email,
+  name,
 }: {
   daysLeft: number;
   hoursLeft: number;
+  email: string;
+  name: string;
 }) {
   const timeText =
     daysLeft > 0 ? `${daysLeft} day${daysLeft === 1 ? "" : "s"}` : `${hoursLeft}h`;
 
   return (
-    <div className="flex items-center justify-between gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 mb-4 text-sm">
-      <div className="flex items-center gap-2 min-w-0">
-        <Clock className="h-4 w-4 text-primary shrink-0" />
+    <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between gap-2 bg-primary/10 backdrop-blur-sm border-b border-primary/20 px-3 py-1.5 text-xs md:left-64">
+      <div className="flex items-center gap-1.5 min-w-0">
+        <Clock className="h-3 w-3 text-primary shrink-0" />
         <span className="truncate">
-          Free trial ends in <strong>{timeText}</strong>
+          Trial ends in <strong>{timeText}</strong>
         </span>
       </div>
-      <Link
-        href="/dashboard/billing"
-        className="shrink-0 text-xs font-medium text-primary hover:underline"
-      >
-        Upgrade now
-      </Link>
+      <UpgradeButton
+        plan="PRO_PLATFORM"
+        label="Upgrade"
+        email={email}
+        name={name}
+        variant="link"
+      />
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { LayoutDashboard, GitFork, Key, Settings, LogOut, CreditCard, Users } fr
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { PlanBadge, type PlanBadgeType } from "@/components/dashboard/plan-badge";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard, ownerOnly: false },
@@ -25,9 +26,11 @@ interface SidebarProps {
     image?: string | null;
   };
   userType?: "owner" | "collaborator";
+  planBadge?: PlanBadgeType;
+  trialDaysLeft?: number;
 }
 
-export function Sidebar({ user, userType = "owner" }: SidebarProps) {
+export function Sidebar({ user, userType = "owner", planBadge = "none", trialDaysLeft = 0 }: SidebarProps) {
   const pathname = usePathname();
 
   return (
@@ -68,7 +71,10 @@ export function Sidebar({ user, userType = "owner" }: SidebarProps) {
             <AvatarFallback>{user.name?.charAt(0) ?? "U"}</AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{user.name}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-sm font-medium truncate">{user.name}</p>
+              <PlanBadge type={planBadge} daysLeft={trialDaysLeft} />
+            </div>
             <p className="text-xs text-muted-foreground truncate">{user.email}</p>
           </div>
         </div>

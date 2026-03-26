@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 
 export interface UserPlan {
-  plan: "NONE" | "PRO_BYOK" | "PRO_PLATFORM";
+  plan: "NONE" | "PRO_PLATFORM";
   isActive: boolean;
   maxRepos: number;
   maxIssuesPerMonth: number;
@@ -12,12 +12,6 @@ export interface UserPlan {
 const NO_PLAN = {
   maxRepos: 0,
   maxIssuesPerMonth: 0,
-  requiresOwnKey: true,
-};
-
-const PRO_BYOK = {
-  maxRepos: Infinity,
-  maxIssuesPerMonth: Infinity,
   requiresOwnKey: true,
 };
 
@@ -56,26 +50,17 @@ export async function getUserPlan(userId: string): Promise<UserPlan> {
     };
   }
 
-  if (subscription.plan === "PRO_PLATFORM") {
-    return {
-      plan: "PRO_PLATFORM",
-      isActive: true,
-      ...PRO_PLATFORM,
-      expiresAt: subscription.currentPeriodEnd,
-    };
-  }
-
   return {
-    plan: "PRO_BYOK",
+    plan: "PRO_PLATFORM",
     isActive: true,
-    ...PRO_BYOK,
+    ...PRO_PLATFORM,
     expiresAt: subscription.currentPeriodEnd,
   };
 }
 
 // ─── Trial ────────────────────────────────────────────
 
-const TRIAL_DAYS = 2;
+const TRIAL_DAYS = 7;
 
 export interface TrialStatus {
   inTrial: boolean;

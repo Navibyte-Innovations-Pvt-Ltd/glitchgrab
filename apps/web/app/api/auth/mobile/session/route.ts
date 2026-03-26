@@ -43,11 +43,13 @@ setTimeout(function() {
     headers: { "Content-Type": "text/html; charset=utf-8" },
   });
 
+  const isSecure = new URL(request.url).protocol === "https:";
+
   response.cookies.set(cookieName, token, {
     path: "/",
     httpOnly: true,
     sameSite: "lax",
-    secure: true,
+    secure: isSecure,
     maxAge: 30 * 24 * 60 * 60,
   });
 

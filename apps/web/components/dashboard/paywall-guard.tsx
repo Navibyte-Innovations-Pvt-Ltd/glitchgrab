@@ -22,7 +22,12 @@ export async function PaywallGuard({ children }: { children: React.ReactNode }) 
   return (
     <>
       {trial.inTrial && !trial.hasActiveSubscription && (
-        <TrialBanner daysLeft={trial.daysLeft} hoursLeft={trial.hoursLeft} />
+        <TrialBanner
+          daysLeft={trial.daysLeft}
+          hoursLeft={trial.hoursLeft}
+          email={session.user?.email ?? ""}
+          name={session.user?.name ?? ""}
+        />
       )}
       {children}
     </>

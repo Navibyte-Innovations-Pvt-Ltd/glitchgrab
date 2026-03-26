@@ -4,12 +4,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { LayoutDashboard, GitFork, User, Menu, Key, CreditCard, Settings, LogOut, Users } from "lucide-react";
+import { LayoutDashboard, GitFork, Menu, Key, CreditCard, Settings, LogOut, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { useState } from "react";
+import { PlanBadge, type PlanBadgeType } from "@/components/dashboard/plan-badge";
 
 const SHEET_NAV_ITEMS = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard, ownerOnly: false },
@@ -27,9 +28,11 @@ interface BottomNavProps {
     image?: string | null;
   };
   userType?: "owner" | "collaborator";
+  planBadge?: PlanBadgeType;
+  trialDaysLeft?: number;
 }
 
-export function BottomNav({ user, userType = "owner" }: BottomNavProps) {
+export function BottomNav({ user, userType = "owner", planBadge = "none", trialDaysLeft = 0 }: BottomNavProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -37,12 +40,13 @@ export function BottomNav({ user, userType = "owner" }: BottomNavProps) {
     ? [
         { href: "/dashboard", label: "Home", icon: LayoutDashboard },
         { href: "/dashboard/repos", label: "Repos", icon: GitFork },
-        { href: "/dashboard/settings", label: "Profile", icon: User },
       ]
     : [
         { href: "/dashboard", label: "Home", icon: LayoutDashboard },
         { href: "/dashboard/repos", label: "Repos", icon: GitFork },
       ];
+
+  const profileActive = pathname.startsWith("/dashboard/settings");
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card md:hidden">
@@ -66,6 +70,32 @@ export function BottomNav({ user, userType = "owner" }: BottomNavProps) {
             </Link>
           );
         })}
+
+        {/* Profile tab with avatar + badge */}
+        {userType === "owner" && (
+          <Link
+            href="/dashboard/settings"
+            className={cn(
+              "flex flex-col items-center gap-0.5 px-3 py-1 text-xs transition",
+              profileActive ? "text-primary" : "text-muted-foreground"
+            )}
+          >
+            <div className="relative">
+              <Avatar className="h-6 w-6">
+                <AvatarImage src={user.image ?? undefined} alt={user.name ?? "User"} />
+                <AvatarFallback className="text-[8px]">{user.name?.charAt(0) ?? "U"}</AvatarFallback>
+              </Avatar>
+              {planBadge !== "none" && (
+                <span className={cn(
+                  "absolute -top-1.5 -right-1.5 h-3 w-3 rounded-full border-2 border-card",
+                  planBadge === "premium" && "bg-yellow-400",
+                  planBadge === "trial" && "bg-cyan-400",
+                )} />
+              )}
+            </div>
+            <span>Profile</span>
+          </Link>
+        )}
 
         {/* Menu button */}
         <Sheet open={open} onOpenChange={setOpen}>
@@ -112,7 +142,10 @@ export function BottomNav({ user, userType = "owner" }: BottomNavProps) {
                   <AvatarFallback>{user.name?.charAt(0) ?? "U"}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{user.name}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-medium truncate">{user.name}</p>
+                    <PlanBadge type={planBadge} daysLeft={trialDaysLeft} />
+                  </div>
                   <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                 </div>
               </div>

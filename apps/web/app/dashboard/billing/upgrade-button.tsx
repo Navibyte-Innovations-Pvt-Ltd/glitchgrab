@@ -37,11 +37,13 @@ export function UpgradeButton({
   label,
   email,
   name,
+  variant,
 }: {
   plan: string;
   label: string;
   email: string;
   name: string;
+  variant?: "default" | "link";
 }) {
   const [loading, setLoading] = useState(false);
 
@@ -109,6 +111,18 @@ export function UpgradeButton({
       toast.error("Something went wrong");
       setLoading(false);
     }
+  }
+
+  if (variant === "link") {
+    return (
+      <button
+        onClick={handleUpgrade}
+        disabled={loading}
+        className="shrink-0 text-xs font-medium text-primary hover:underline disabled:opacity-50"
+      >
+        {loading ? "Processing..." : label}
+      </button>
+    );
   }
 
   return (

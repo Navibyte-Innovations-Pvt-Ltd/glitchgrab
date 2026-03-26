@@ -55,7 +55,7 @@ export async function POST(request: Request) {
       // First payment successful — subscription is now active
       const sub = event.payload.subscription?.entity;
       const userId = sub?.notes?.userId;
-      const plan = sub?.notes?.plan === "PRO_PLATFORM" ? "PRO_PLATFORM" : "PRO_BYOK";
+      const plan = "PRO_PLATFORM" as const;
 
       if (userId && sub) {
         await prisma.subscription.upsert({

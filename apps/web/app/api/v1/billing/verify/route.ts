@@ -3,7 +3,6 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { getRazorpay } from "@/lib/razorpay";
 import { validatePaymentVerification } from "razorpay/dist/utils/razorpay-utils";
 
 interface VerifyBody {
@@ -41,12 +40,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Fetch the subscription to get plan details
-    const razorpay = getRazorpay();
-    const subscription = await razorpay.subscriptions.fetch(body.razorpay_subscription_id);
-    const plan = (subscription.notes?.plan as string) === "PRO_PLATFORM"
-      ? "PRO_PLATFORM"
-      : "PRO_BYOK";
+    const plan = "PRO_PLATFORM" as const;
 
     const now = new Date();
     const periodEnd = new Date(now);
