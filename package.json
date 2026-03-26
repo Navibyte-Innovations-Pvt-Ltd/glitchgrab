@@ -30,5 +30,8 @@
     "apps/*",
     "packages/*"
   ],
-  "dependencies": {}
+  "dependencies": {
+    "@tanstack/react-query": "^5.95.2",
+    "axios": "^1.13.6"
+  }
 }
