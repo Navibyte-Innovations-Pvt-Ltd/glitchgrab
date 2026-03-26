@@ -8,5 +8,5 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   external: ["react", "react-dom", "next"],
-  banner: { js: '"use client";' },
+  // "use client" is in src/index.ts — no banner needed
 });
