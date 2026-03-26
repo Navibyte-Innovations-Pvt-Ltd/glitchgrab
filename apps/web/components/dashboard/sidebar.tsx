@@ -5,7 +5,8 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { LayoutDashboard, GitFork, Key, Settings, LogOut, CreditCard, Users } from "lucide-react";
-import { ReportBugButton } from "@/components/dashboard/report-bug-button";
+import { ReportButton } from "glitchgrab";
+import { Bug, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -67,7 +68,18 @@ export function Sidebar({ user, userType = "owner", planBadge = "none", trialDay
       </nav>
 
       <div className="px-3 pb-2">
-        <ReportBugButton variant="sidebar" />
+        <ReportButton>
+          {({ onClick, capturing }) => (
+            <button
+              onClick={onClick}
+              disabled={capturing}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              {capturing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bug className="h-4 w-4" />}
+              {capturing ? "Capturing..." : "Report Bug"}
+            </button>
+          )}
+        </ReportButton>
       </div>
 
       <div className="border-t border-border px-4 py-4">
