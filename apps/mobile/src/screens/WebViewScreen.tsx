@@ -63,20 +63,21 @@ export default function WebViewScreen({
   }, [sharedImageUri, loading]);
 
   // Inject the image after dashboard loads
-  const handleLoadEnd = useCallback((e: { nativeEvent: { url: string } }) => {
-    // Keep loading overlay until the actual page loads (skip the session redirect page)
-    if (e.nativeEvent.url.includes("/api/auth/mobile/session")) return;
-    setLoading(false);
+  const handleLoadEnd = useCallback(
+    (e: { nativeEvent: { url: string } }) => {
+      // Keep loading overlay until the actual page loads (skip the session redirect page)
+      if (e.nativeEvent.url.includes("/api/auth/mobile/session")) return;
+      setLoading(false);
 
-    if (!pendingImageRef.current || !webViewRef.current) return;
-    const imageUri = pendingImageRef.current;
+      if (!pendingImageRef.current || !webViewRef.current) return;
+      const imageUri = pendingImageRef.current;
 
-    // Clear immediately to prevent duplicate injection if handleLoadEnd fires again
-    pendingImageRef.current = null;
+      // Clear immediately to prevent duplicate injection if handleLoadEnd fires again
+      pendingImageRef.current = null;
 
-    // Wait for React to render the chat
-    setTimeout(() => {
-      const js = `
+      // Wait for React to render the chat
+      setTimeout(() => {
+        const js = `
         (function() {
           try {
             var base64 = "${imageUri.replace(/"/g, '\\"')}";
@@ -110,10 +111,12 @@ export default function WebViewScreen({
         })();
         true;
       `;
-      webViewRef.current?.injectJavaScript(js);
-      if (onSharedImageHandled) onSharedImageHandled();
-    }, 2000);
-  }, [onSharedImageHandled]);
+        webViewRef.current?.injectJavaScript(js);
+        if (onSharedImageHandled) onSharedImageHandled();
+      }, 2000);
+    },
+    [onSharedImageHandled],
+  );
 
   // Android back button
   useEffect(() => {
@@ -139,7 +142,11 @@ export default function WebViewScreen({
       lastNavKey.current = navKey;
 
       setCanGoBack(navState.canGoBack);
-      console.log("[WebView] nav:", navState.url, navState.loading ? "(loading)" : "(done)");
+      console.info(
+        "[WebView] nav:",
+        navState.url,
+        navState.loading ? "(loading)" : "(done)",
+      );
 
       // Detect if the WebView navigated to the login page (session expired)
       // Skip during initial load to avoid false logout from redirect chains
@@ -160,24 +167,31 @@ export default function WebViewScreen({
       }
 
       // Mark dashboard or collaborate page as loaded once
-      if ((navState.url.includes("/dashboard") || navState.url.includes("/collaborate")) && !navState.loading) {
+      if (
+        (navState.url.includes("/dashboard") ||
+          navState.url.includes("/collaborate")) &&
+        !navState.loading
+      ) {
         hasLoadedOnce.current = true;
         loginRedirectCount.current = 0;
       }
     },
-    [onLogout]
+    [onLogout],
   );
 
-  const handleMessage = useCallback((event: { nativeEvent: { data: string } }) => {
-    try {
-      const data = JSON.parse(event.nativeEvent.data);
-      if (data.type === "clipboard-copy" && data.text) {
-        Clipboard.setStringAsync(data.text);
+  const handleMessage = useCallback(
+    (event: { nativeEvent: { data: string } }) => {
+      try {
+        const data = JSON.parse(event.nativeEvent.data);
+        if (data.type === "clipboard-copy" && data.text) {
+          Clipboard.setStringAsync(data.text);
+        }
+      } catch {
+        // Not a JSON message, ignore
       }
-    } catch {
-      // Not a JSON message, ignore
-    }
-  }, []);
+    },
+    [],
+  );
 
   const handleShouldStartLoad = useCallback((event: { url: string }) => {
     const url = event.url;
@@ -203,7 +217,9 @@ export default function WebViewScreen({
   // Load the session endpoint which sets the cookie via Set-Cookie header
   // and returns HTML that JS-redirects to /dashboard
   // Or use overrideUrl for collaborator mode
-  const webViewUrl = overrideUrl || `${BASE_URL}/api/auth/mobile/session?token=${encodeURIComponent(sessionToken)}`;
+  const webViewUrl =
+    overrideUrl ||
+    `${BASE_URL}/api/auth/mobile/session?token=${encodeURIComponent(sessionToken)}`;
 
   // Runs BEFORE page content loads — sets viewport
   const injectedBeforeLoad = `
@@ -302,7 +318,6 @@ export default function WebViewScreen({
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={0}
       >
-
         {(loading || processingShare || sharedImageUri) && (
           <View style={styles.loadingOverlay}>
             <Image
@@ -315,9 +330,7 @@ export default function WebViewScreen({
               style={styles.loadingSpinner}
             />
             {(processingShare || sharedImageUri) && (
-              <Text style={styles.loadingText}>
-                Attaching screenshot...
-              </Text>
+              <Text style={styles.loadingText}>Attaching screenshot...</Text>
             )}
           </View>
         )}
@@ -330,14 +343,34 @@ export default function WebViewScreen({
           onShouldStartLoadWithRequest={handleShouldStartLoad}
           onLoadEnd={handleLoadEnd}
           onMessage={handleMessage}
-          onLoadStart={(e) => console.log("[WebView] loadStart:", e.nativeEvent.url)}
-          onLoadProgress={(e) => console.log("[WebView] progress:", Math.round(e.nativeEvent.progress * 100) + "%")}
-          onError={(e) => { console.error("[WebView] error:", e.nativeEvent.description); setLoading(false); setError(true); }}
+          onLoadStart={(e) =>
+            console.info("[WebView] loadStart:", e.nativeEvent.url)
+          }
+          onLoadProgress={(e) =>
+            console.info(
+              "[WebView] progress:",
+              Math.round(e.nativeEvent.progress * 100) + "%",
+            )
+          }
+          onError={(e) => {
+            console.error("[WebView] error:", e.nativeEvent.description);
+            setLoading(false);
+            setError(true);
+          }}
           onHttpError={(syntheticEvent) => {
-            console.error("[WebView] httpError:", syntheticEvent.nativeEvent.statusCode, syntheticEvent.nativeEvent.url);
+            console.error(
+              "[WebView] httpError:",
+              syntheticEvent.nativeEvent.statusCode,
+              syntheticEvent.nativeEvent.url,
+            );
             if (syntheticEvent.nativeEvent.statusCode >= 500) setError(true);
           }}
-          onRenderProcessGone={(e) => console.error("[WebView] renderProcessGone:", e.nativeEvent.didCrash ? "CRASHED" : "killed")}
+          onRenderProcessGone={(e) =>
+            console.error(
+              "[WebView] renderProcessGone:",
+              e.nativeEvent.didCrash ? "CRASHED" : "killed",
+            )
+          }
           androidLayerType="none"
           injectedJavaScriptBeforeContentLoaded={injectedBeforeLoad}
           injectedJavaScript={injectedAfterLoad}
@@ -362,8 +395,8 @@ export default function WebViewScreen({
           automaticallyAdjustsScrollIndicatorInsets={false}
           keyboardDisplayRequiresUserAction={false}
         />
-        </KeyboardAvoidingView>
-      </SafeAreaView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
