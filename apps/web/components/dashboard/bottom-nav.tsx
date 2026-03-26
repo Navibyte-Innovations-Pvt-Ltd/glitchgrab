@@ -56,7 +56,7 @@ export function BottomNav({ user, userType = "owner", planBadge = "none", trialD
   return (
     <>
     {navigating && (
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-background/80">
+      <div className="fixed inset-0 z-9999 flex items-center justify-center bg-background/80">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )}
