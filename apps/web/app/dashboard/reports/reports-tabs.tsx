@@ -14,6 +14,9 @@ interface ReportItem {
   failReason: string | null;
   createdAt: string;
   repoFullName: string;
+  reporterPrimaryKey: string;
+  reporterName: string;
+  reporterEmail: string | null;
   issue: {
     githubNumber: number;
     githubUrl: string;
@@ -139,6 +142,14 @@ export function ReportsTabs({
                           minute: "2-digit",
                         })}
                       </span>
+                      {report.reporterName && report.reporterName !== "Unknown" && (
+                        <span className="text-xs text-muted-foreground">
+                          by {report.reporterName}
+                          {report.reporterPrimaryKey && report.reporterPrimaryKey !== "unknown" && (
+                            <span className="font-mono text-[10px] ml-1 opacity-60">({report.reporterPrimaryKey})</span>
+                          )}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
