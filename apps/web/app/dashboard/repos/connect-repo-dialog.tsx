@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +38,7 @@ export function ConnectRepoDialog({
   const [search, setSearch] = useState("");
   const [connectingId, setConnectingId] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
   useEffect(() => {
     if (!open) return;
@@ -79,6 +81,7 @@ export function ConnectRepoDialog({
         );
         toast.success(`Connected ${repo.fullName}`);
         setOpen(false);
+        router.refresh();
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Failed to connect repo";
