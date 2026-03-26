@@ -5,7 +5,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { LayoutDashboard, GitFork, Menu, Key, CreditCard, Settings, LogOut, Users } from "lucide-react";
-import { ReportButton } from "glitchgrab";
+import { ReportBugButton } from "@/components/dashboard/report-bug-button";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -101,8 +101,8 @@ export function BottomNav({ user, userType = "owner", planBadge = "none", trialD
           </Link>
         )}
 
-        {/* Report Bug — renders the SDK floating button */}
-        <ReportButton position="top-right" />
+        {/* Report Bug */}
+        <ReportBugButton variant="nav" />
 
         {/* Menu button */}
         <Sheet open={open} onOpenChange={setOpen}>
@@ -142,6 +142,9 @@ export function BottomNav({ user, userType = "owner", planBadge = "none", trialD
                   </button>
                 );
               })}
+              <div className="mt-2 px-0">
+                <ReportBugButton variant="sidebar" />
+              </div>
             </nav>
 
             <div className="border-t border-border px-4 py-4 mt-auto">
