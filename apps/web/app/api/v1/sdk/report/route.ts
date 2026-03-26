@@ -4,7 +4,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { hashToken } from "@/lib/tokens";
 import { processReport } from "@/lib/pipeline";
-import { createGitHubIssue, uploadScreenshotToRepo } from "@/lib/github";
+import { createGitHubIssue } from "@/lib/github";
+import { uploadScreenshotToS3 } from "@/lib/s3";
 import { dispatchWebhook } from "@/lib/webhooks";
 import { checkRateLimit } from "@/lib/rate-limit";
 
@@ -117,8 +118,8 @@ export async function POST(request: Request) {
         pageUrl: body.pageUrl || null,
         userAgent: body.userAgent || null,
         metadata: JSON.parse(JSON.stringify(enrichedMetadata)),
-        reporterPrimaryKey: body.metadata?.sessionUserId || null,
-        reporterName: body.metadata?.sessionUserName || null,
+        reporterPrimaryKey: body.metadata?.sessionUserId || "unknown",
+        reporterName: body.metadata?.sessionUserName || "Unknown",
         reporterEmail: body.metadata?.sessionUserEmail || null,
         reporterPhone: body.metadata?.sessionUserPhone || null,
       },
@@ -184,16 +185,10 @@ export async function POST(request: Request) {
         issueBody += `## Activity Log\n\n| Time | Type | Event |\n|------|------|-------|\n${crumbs.join("\n")}\n\n`;
       }
 
-      // Upload screenshot if present
+      // Upload screenshot to S3
       const screenshotData = body.metadata?.screenshot;
       if (screenshotData && typeof screenshotData === "string" && screenshotData.startsWith("data:image/")) {
-        const screenshotUrl = await uploadScreenshotToRepo(
-          account.access_token,
-          apiToken.repo.owner,
-          apiToken.repo.name,
-          screenshotData,
-          report.id
-        );
+        const screenshotUrl = await uploadScreenshotToS3(screenshotData, report.id);
         if (screenshotUrl) {
           issueBody += `\n\n## Screenshot\n\n![Screenshot](${screenshotUrl})`;
         }
