@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { getTrialStatus } from "@/lib/billing";
 import { PaywallBlock } from "./paywall-block";
 import { TrialBanner } from "./trial-banner";
+import { WelcomeTrialDialog } from "./welcome-trial-dialog";
 
 export async function PaywallGuard({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -19,14 +20,15 @@ export async function PaywallGuard({ children }: { children: React.ReactNode }) 
     );
   }
 
+  const showWelcome = trial.inTrial && !trial.hasActiveSubscription;
+
   return (
     <>
-      {trial.inTrial && !trial.hasActiveSubscription && (
-        <TrialBanner
-          daysLeft={trial.daysLeft}
-          hoursLeft={trial.hoursLeft}
+      {showWelcome && (
+        <WelcomeTrialDialog
           email={session.user?.email ?? ""}
           name={session.user?.name ?? ""}
+          daysLeft={trial.daysLeft}
         />
       )}
       {children}
