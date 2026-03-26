@@ -390,6 +390,7 @@ export default function WebViewScreen({
             allowsInlineMediaPlayback
             cacheEnabled
             pullToRefreshEnabled
+            bounces
             overScrollMode="content"
             decelerationRate={0.998}
             contentMode="mobile"
