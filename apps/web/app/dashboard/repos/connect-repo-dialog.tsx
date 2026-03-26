@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
 import {
   Dialog,
   DialogContent,
@@ -24,73 +26,58 @@ interface GitHubRepo {
   description: string | null;
 }
 
-interface ConnectRepoDialogProps {
-  connectedGithubIds: number[];
-}
-
-export function ConnectRepoDialog({
-  connectedGithubIds,
-}: ConnectRepoDialogProps) {
+export function ConnectRepoDialog() {
   const [open, setOpen] = useState(false);
-  const [repos, setRepos] = useState<GitHubRepo[]>([]);
-  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
-  const [connectingId, setConnectingId] = useState<number | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    if (!open) return;
+  const { data: repos = [], isLoading, isFetching } = useQuery<GitHubRepo[]>({
+    queryKey: ["github-repos"],
+    queryFn: async () => {
+      const { data } = await axios.get("/api/v1/repos/github");
+      return data.data;
+    },
+    enabled: open,
+  });
 
-    setLoading(true);
-    setSearch("");
+  const { data: connectedRepos } = useQuery<{ ownRepos: { githubId: number }[] }>({
+    queryKey: ["repos"],
+    queryFn: async () => {
+      const { data } = await axios.get("/api/v1/repos");
+      return data.data;
+    },
+  });
 
-    fetch("/api/v1/repos/github")
-      .then((res) => res.json())
-      .then((json: { success: boolean; data?: GitHubRepo[]; error?: string }) => {
-        if (json.success && json.data) {
-          setRepos(json.data);
-        } else {
-          toast.error(json.error ?? "Failed to fetch repos");
-        }
-      })
-      .catch(() => {
-        toast.error("Failed to fetch repos");
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [open]);
+  const connectedGithubIds = connectedRepos?.ownRepos.map((r) => r.githubId) ?? [];
+
+  const { mutate, isPending, variables } = useMutation({
+    mutationFn: async (repo: GitHubRepo) => {
+      await connectRepo(
+        repo.githubId,
+        repo.fullName,
+        repo.owner,
+        repo.name,
+        repo.isPrivate
+      );
+      return repo;
+    },
+    onSuccess: (repo) => {
+      toast.success(`Connected ${repo.fullName}`);
+      queryClient.invalidateQueries({ queryKey: ["repos"] });
+      queryClient.invalidateQueries({ queryKey: ["github-repos"] });
+      setOpen(false);
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to connect repo");
+    },
+  });
 
   const filtered = repos.filter((repo) =>
     repo.fullName.toLowerCase().includes(search.toLowerCase())
   );
 
-  function handleConnect(repo: GitHubRepo) {
-    setConnectingId(repo.githubId);
-
-    startTransition(async () => {
-      try {
-        await connectRepo(
-          repo.githubId,
-          repo.fullName,
-          repo.owner,
-          repo.name,
-          repo.isPrivate
-        );
-        toast.success(`Connected ${repo.fullName}`);
-        setOpen(false);
-      } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "Failed to connect repo";
-        toast.error(message);
-      } finally {
-        setConnectingId(null);
-      }
-    });
-  }
-
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v) setSearch(""); }}>
       <DialogTrigger render={<Button size="icon" className="shrink-0" />}>
         <Plus className="h-4 w-4" />
         <span className="sr-only">Connect Repo</span>
@@ -108,10 +95,13 @@ export function ConnectRepoDialog({
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
           />
+          {isFetching && !isLoading && (
+            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pr-1">
-          {loading ? (
+          {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
@@ -124,8 +114,7 @@ export function ConnectRepoDialog({
           ) : (
             filtered.map((repo) => {
               const isConnected = connectedGithubIds.includes(repo.githubId);
-              const isConnecting =
-                connectingId === repo.githubId && isPending;
+              const isConnecting = isPending && variables?.githubId === repo.githubId;
 
               return (
                 <div
@@ -163,7 +152,7 @@ export function ConnectRepoDialog({
                       variant="outline"
                       size="sm"
                       disabled={isConnecting}
-                      onClick={() => handleConnect(repo)}
+                      onClick={() => mutate(repo)}
                     >
                       {isConnecting ? (
                         <Loader2 className="h-3 w-3 animate-spin" />

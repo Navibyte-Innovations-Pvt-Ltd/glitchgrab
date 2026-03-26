@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AuthSessionProvider } from "@/components/providers/session-provider";
 import { GlitchgrabSDKProvider } from "@/components/providers/glitchgrab-provider";
+import { QueryProvider } from "@/components/providers/query-provider";
 import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
@@ -49,9 +50,11 @@ export default function RootLayout({
       </head>
       <body>
         <AuthSessionProvider>
-          <GlitchgrabSDKProvider>
-            {children}
-          </GlitchgrabSDKProvider>
+          <QueryProvider>
+            <GlitchgrabSDKProvider>
+              {children}
+            </GlitchgrabSDKProvider>
+          </QueryProvider>
           <Toaster />
         </AuthSessionProvider>
       </body>

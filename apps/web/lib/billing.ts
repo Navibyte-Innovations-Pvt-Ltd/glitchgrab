@@ -72,10 +72,21 @@ export interface TrialStatus {
 }
 
 export async function getTrialStatus(userId: string): Promise<TrialStatus> {
-  const user = await prisma.user.findUniqueOrThrow({
+  const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { createdAt: true },
   });
+
+  if (!user) {
+    return {
+      inTrial: false,
+      trialEndsAt: new Date(),
+      daysLeft: 0,
+      hoursLeft: 0,
+      hasActiveSubscription: false,
+      needsPaywall: true,
+    };
+  }
 
   const trialEndsAt = new Date(user.createdAt);
   trialEndsAt.setDate(trialEndsAt.getDate() + TRIAL_DAYS);

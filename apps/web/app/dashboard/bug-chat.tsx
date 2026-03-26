@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, memo } from "react";
+import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -346,12 +347,7 @@ export function BugChat({
         formData.append("chatHistory", JSON.stringify(history));
       }
 
-      const res = await fetch("/api/v1/reports", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await res.json();
+      const { data } = await axios.post("/api/v1/reports", formData);
 
       let content: string;
       if (!data.success) {

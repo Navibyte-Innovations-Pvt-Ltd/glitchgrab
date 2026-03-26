@@ -1,5 +1,7 @@
 "use client";
 
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,7 +17,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Loader2, UserX } from "lucide-react";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
 
 interface RevokeButtonProps {
   collaboratorId: string;
@@ -23,31 +24,24 @@ interface RevokeButtonProps {
 }
 
 export function RevokeButton({ collaboratorId, email }: RevokeButtonProps) {
-  const [removing, setRemoving] = useState(false);
   const [open, setOpen] = useState(false);
-  const router = useRouter();
+  const queryClient = useQueryClient();
 
-  async function handleRemove() {
-    setRemoving(true);
-    try {
-      const res = await fetch(`/api/v1/collaborators/${collaboratorId}/revoke`, {
-        method: "PATCH",
-      });
-
-      const json = await res.json();
-      if (json.success) {
-        toast.success(`Removed ${email}`);
-        setOpen(false);
-        router.refresh();
-      } else {
-        toast.error(json.error ?? "Failed to remove");
-      }
-    } catch {
-      toast.error("Failed to remove");
-    } finally {
-      setRemoving(false);
-    }
-  }
+  const { mutate, isPending } = useMutation({
+    mutationFn: async () => {
+      const { data } = await axios.patch(`/api/v1/collaborators/${collaboratorId}/revoke`);
+      if (!data.success) throw new Error(data.error ?? "Failed to remove");
+      return data;
+    },
+    onSuccess: () => {
+      toast.success(`Removed ${email}`);
+      queryClient.invalidateQueries({ queryKey: ["collaborators"] });
+      setOpen(false);
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to remove");
+    },
+  });
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
@@ -73,13 +67,13 @@ export function RevokeButton({ collaboratorId, email }: RevokeButtonProps) {
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={removing}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
           <AlertDialogAction
             variant="destructive"
-            disabled={removing}
-            onClick={handleRemove}
+            disabled={isPending}
+            onClick={() => mutate()}
           >
-            {removing ? (
+            {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
                 Removing...
