@@ -1,6 +1,6 @@
 # glitchgrab
 
-Drop-in error capture and bug reporting for Next.js apps. Production errors automatically become GitHub issues.
+Turn messy bugs into structured GitHub issues with AI. Drop-in SDK for Next.js apps.
 
 ## Install
 
@@ -12,7 +12,7 @@ bun add glitchgrab
 
 ## Quick Start
 
-Wrap your app with `GlitchgrabProvider` — that's it:
+Wrap your app with `GlitchgrabProvider`:
 
 ```tsx
 // app/layout.tsx
@@ -20,148 +20,199 @@ import { GlitchgrabProvider } from "glitchgrab";
 
 export default function RootLayout({ children }) {
   return (
-    <GlitchgrabProvider token="gg_your_token">{children}</GlitchgrabProvider>
+    <GlitchgrabProvider token={process.env.NEXT_PUBLIC_GLITCHGRAB_TOKEN!}>
+      {children}
+    </GlitchgrabProvider>
   );
 }
 ```
 
-This gives you:
+## Session (User Tracking)
 
-- Auto-capture of unhandled errors and promise rejections
-- Error boundary around your entire app
-- Page visit tracking for reproduction context
-- URL sanitization (strips tokens, keys, passwords)
-
-## Get a Token
-
-1. Go to [glitchgrab.dev](https://glitchgrab.dev)
-2. Sign in with GitHub
-3. Connect a repo
-4. Generate an API token
-
-## Usage
-
-### 1. Auto-Capture (zero config)
-
-Just add the provider. Production errors are captured automatically with:
-
-- Error message and stack trace
-- Current URL (sanitized)
-- User agent
-- Visited pages history
-
-### 2. Manual Bug Reporting (`useGlitchgrab` hook)
-
-Build your own report button or trigger:
+Pass a `session` prop so bug reports include the reporter's identity. This lets you trace which user reported each bug.
 
 ```tsx
-"use client";
-import { useGlitchgrab } from "glitchgrab";
+import { GlitchgrabProvider, type GlitchgrabSession } from "glitchgrab";
+import { useSession } from "next-auth/react"; // or your auth library
 
-function MyReportButton() {
-  const { reportBug } = useGlitchgrab();
+function Providers({ children }) {
+  const { data: authSession } = useSession();
+
+  // Map your auth session to GlitchgrabSession
+  const session: GlitchgrabSession | null = authSession?.user
+    ? {
+        userId: authSession.user.id,     // required - your DB primary key
+        name: authSession.user.name,     // required - display name
+        email: authSession.user.email,   // optional
+        phone: authSession.user.phone,   // optional
+      }
+    : null;
 
   return (
-    <button onClick={() => reportBug("The checkout flow is broken")}>
-      Report Bug
-    </button>
+    <GlitchgrabProvider
+      token={process.env.NEXT_PUBLIC_GLITCHGRAB_TOKEN!}
+      session={session}
+    >
+      {children}
+    </GlitchgrabProvider>
   );
 }
 ```
 
-With metadata:
+### GlitchgrabSession type
 
-```tsx
-reportBug("Payment failed", {
-  userId: "123",
-  plan: "pro",
-  browser: "Chrome 120",
-});
+```ts
+interface GlitchgrabSession {
+  userId: string;          // required - primary key from your database
+  name: string;            // required - reporter's display name
+  email?: string | null;   // optional
+  phone?: string | null;   // optional
+  [key: string]: unknown;  // any extra fields
+}
 ```
 
-### 3. Pre-built Report Button (optional)
+The `userId` is stored with every report. Use it to look up which user reported a bug in your own database.
 
-If you want a ready-made floating button:
+## Report Button
 
-```tsx
-import { GlitchgrabProvider, ReportButton } from "glitchgrab";
-
-<GlitchgrabProvider token="gg_your_token">
-  {children}
-  <ReportButton />
-</GlitchgrabProvider>;
-```
-
-Options:
+### Default floating button
 
 ```tsx
-<ReportButton
-  position="bottom-left" // "bottom-right" (default) | "bottom-left"
-  label="Report Issue" // default: "Report Bug"
-/>
+import { ReportButton } from "glitchgrab";
+
+// Floating button at bottom-right (default)
+<ReportButton position="bottom-right" label="Report Bug" />
 ```
 
-### 4. Custom Error Boundary
+### Custom trigger (headless)
 
-Wrap specific sections with a custom fallback:
+Use the render prop to bring your own button UI:
+
+```tsx
+import { ReportButton } from "glitchgrab";
+
+<ReportButton>
+  {({ onClick, capturing }) => (
+    <button onClick={onClick} disabled={capturing}>
+      {capturing ? "Capturing..." : "Report a Bug"}
+    </button>
+  )}
+</ReportButton>
+```
+
+The modal handles screenshot capture, preview, upload, retake, and submission. Your custom button just triggers it.
+
+## Programmatic Reporting
+
+Use the `useGlitchgrab` hook to report bugs from code:
+
+```tsx
+import { useGlitchgrab } from "glitchgrab";
+
+function MyComponent() {
+  const { reportBug, report, addBreadcrumb } = useGlitchgrab();
+
+  // Report a bug
+  await reportBug("Button not working on mobile");
+
+  // Report with a specific type
+  await report("FEATURE_REQUEST", "Add dark mode support");
+
+  // Add custom breadcrumbs for debugging context
+  addBreadcrumb("User clicked checkout", { cartSize: "3" });
+}
+```
+
+## Fetching Reports by User
+
+Use the REST API to fetch reports for a specific user by their primary key:
+
+```bash
+# Fetch all reports
+curl -H "Authorization: Bearer gg_your_token" \
+  https://glitchgrab.dev/api/v1/sdk/reports
+
+# Fetch reports by a specific user
+curl -H "Authorization: Bearer gg_your_token" \
+  "https://glitchgrab.dev/api/v1/sdk/reports?reporterPrimaryKey=user_123"
+
+# Filter by status
+curl -H "Authorization: Bearer gg_your_token" \
+  "https://glitchgrab.dev/api/v1/sdk/reports?status=CREATED&limit=20"
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "cmn7abc123",
+      "source": "SDK_USER_REPORT",
+      "status": "CREATED",
+      "rawInput": "Button not working",
+      "reporterPrimaryKey": "user_123",
+      "reporterName": "John Doe",
+      "reporterEmail": "john@example.com",
+      "reporterPhone": null,
+      "pageUrl": "/dashboard/settings",
+      "createdAt": "2026-03-26T12:00:00.000Z",
+      "issue": {
+        "githubNumber": 42,
+        "githubUrl": "https://github.com/your/repo/issues/42",
+        "title": "Button not working"
+      }
+    }
+  ]
+}
+```
+
+## Error Boundary
+
+Wrap components to auto-capture React errors:
 
 ```tsx
 import { GlitchgrabErrorBoundary } from "glitchgrab";
 
-<GlitchgrabErrorBoundary
-  token="gg_your_token"
-  fallback={<div>Something went wrong in this section</div>}
->
-  <DangerousComponent />
-</GlitchgrabErrorBoundary>;
+<GlitchgrabErrorBoundary fallback={<p>Something went wrong</p>}>
+  <MyComponent />
+</GlitchgrabErrorBoundary>
 ```
 
-### 5. Provider Options
+## Configuration
 
-```tsx
-<GlitchgrabProvider
-  token="gg_your_token" // Required — your API token
-  baseUrl="https://your-api.com" // Optional — custom API URL (default: glitchgrab.dev)
-  onError={(error) => {
-    // Optional — callback when errors are captured
-    console.log("Captured:", error.message);
-  }}
-  fallback={<ErrorPage />} // Optional — what to show when the app crashes
->
-  {children}
-</GlitchgrabProvider>
-```
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `token` | `string` | required | Your Glitchgrab API token (`gg_...`) |
+| `session` | `GlitchgrabSession \| null` | `null` | Logged-in user info for report attribution |
+| `baseUrl` | `string` | `https://glitchgrab.dev` | API base URL |
+| `breadcrumbs` | `boolean` | `true` | Enable automatic breadcrumb tracking |
+| `maxBreadcrumbs` | `number` | `50` | Max breadcrumbs to keep |
+| `onError` | `(error: Error) => void` | - | Called on unhandled errors |
+| `onReportSent` | `(result: ReportResult) => void` | - | Called after a report is sent |
+| `fallback` | `ReactNode` | - | Error boundary fallback UI |
 
-## API Reference
+## Auto-Capture
 
-### Components
+In production (`NODE_ENV=production`), the SDK automatically captures:
+- Unhandled JavaScript errors
+- Unhandled promise rejections
+- Console errors (as breadcrumbs)
+- Navigation events (as breadcrumbs)
+- API calls (as breadcrumbs)
 
-| Component                 | Description                                      |
-| ------------------------- | ------------------------------------------------ |
-| `GlitchgrabProvider`      | Wraps your app. Captures errors, tracks pages.   |
-| `ReportButton`            | Optional floating bug report button with modal.  |
-| `GlitchgrabErrorBoundary` | Standalone error boundary for specific sections. |
+Auto-capture is **disabled in development** to avoid noisy issues.
 
-### Hooks
+## What gets included in each report
 
-| Hook              | Returns                         | Description                            |
-| ----------------- | ------------------------------- | -------------------------------------- |
-| `useGlitchgrab()` | `{ reportBug, token, baseUrl }` | Access bug reporting in any component. |
-
-### Utilities
-
-| Function                       | Description                                 |
-| ------------------------------ | ------------------------------------------- |
-| `sanitizeUrl(url)`             | Strips sensitive query params from URLs.    |
-| `captureContext(pages)`        | Returns current URL, user agent, timestamp. |
-| `sendReport(payload, baseUrl)` | Low-level function to send a report.        |
-
-## Safety
-
-- **Never crashes your app.** Every function is wrapped in try/catch.
-- **Non-blocking.** Uses `fetch` with `keepalive` and `sendBeacon` fallback.
-- **No sensitive data leaked.** URLs are sanitized before sending.
-- **Zero external dependencies.** Only peer deps on React and Next.js.
+- Description from the user
+- Screenshot (auto-captured or uploaded)
+- Page URL and user agent
+- Device info (screen size, viewport, platform, language, color scheme)
+- Page navigation history
+- Activity log (last 15 breadcrumbs)
+- Session info (userId, name, email, phone)
 
 ## License
 
