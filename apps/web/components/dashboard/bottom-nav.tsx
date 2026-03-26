@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { LayoutDashboard, GitFork, User, Menu, Key, CreditCard, Settings, LogOut, Users } from "lucide-react";
+import { LayoutDashboard, GitFork, Menu, Key, CreditCard, Settings, LogOut, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -40,12 +40,13 @@ export function BottomNav({ user, userType = "owner", planBadge = "none", trialD
     ? [
         { href: "/dashboard", label: "Home", icon: LayoutDashboard },
         { href: "/dashboard/repos", label: "Repos", icon: GitFork },
-        { href: "/dashboard/settings", label: "Profile", icon: User },
       ]
     : [
         { href: "/dashboard", label: "Home", icon: LayoutDashboard },
         { href: "/dashboard/repos", label: "Repos", icon: GitFork },
       ];
+
+  const profileActive = pathname.startsWith("/dashboard/settings");
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card md:hidden">
@@ -69,6 +70,33 @@ export function BottomNav({ user, userType = "owner", planBadge = "none", trialD
             </Link>
           );
         })}
+
+        {/* Profile tab with avatar + badge */}
+        {userType === "owner" && (
+          <Link
+            href="/dashboard/settings"
+            className={cn(
+              "flex flex-col items-center gap-0.5 px-3 py-1 text-xs transition",
+              profileActive ? "text-primary" : "text-muted-foreground"
+            )}
+          >
+            <div className="relative">
+              <Avatar className="h-5 w-5">
+                <AvatarImage src={user.image ?? undefined} alt={user.name ?? "User"} />
+                <AvatarFallback className="text-[8px]">{user.name?.charAt(0) ?? "U"}</AvatarFallback>
+              </Avatar>
+              {planBadge !== "none" && (
+                <span className={cn(
+                  "absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full border border-card",
+                  planBadge === "premium" && "bg-amber-500",
+                  planBadge === "byok" && "bg-emerald-500",
+                  planBadge === "trial" && "bg-blue-500",
+                )} />
+              )}
+            </div>
+            <span>Profile</span>
+          </Link>
+        )}
 
         {/* Menu button */}
         <Sheet open={open} onOpenChange={setOpen}>
