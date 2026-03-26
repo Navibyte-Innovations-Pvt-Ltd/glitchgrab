@@ -89,8 +89,9 @@ export default async function ReportsPage() {
       for (const r of reports) {
         if (r.issue) {
           const key = r.repo.fullName;
-          if (!issuesByRepo.has(key)) issuesByRepo.set(key, []);
-          issuesByRepo.get(key)!.push(r.issue.githubNumber);
+          const existing = issuesByRepo.get(key) ?? [];
+          existing.push(r.issue.githubNumber);
+          issuesByRepo.set(key, existing);
         }
       }
       // Fetch states per repo
