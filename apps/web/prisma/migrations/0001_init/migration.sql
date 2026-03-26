@@ -1,4 +1,3 @@
-[38;5;136m[dotenvx@1.57.1] injecting env (23) from .env[39m
 -- CreateSchema
 CREATE SCHEMA IF NOT EXISTS "public";
 
