@@ -45,6 +45,12 @@ jobs:
           test -f dist/index.d.ts
         working-directory: packages/sdk-nextjs
 
+      - name: Prepare for npm publish
+        run: |
+          rm -f ../../bun.lock
+          rm -f ../../package.json
+        working-directory: packages/sdk-nextjs
+
       - name: Release
         run: npx semantic-release
         working-directory: packages/sdk-nextjs
