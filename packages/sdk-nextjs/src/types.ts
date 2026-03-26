@@ -85,10 +85,27 @@ export interface CapturedContext {
   deviceInfo: DeviceInfo | null;
 }
 
+// ─── Session ────────────────────────────────────────────
+
+export interface GlitchgrabSession {
+  /** Primary key of the user in your database (required) */
+  userId: string;
+  /** Display name (required) */
+  name: string;
+  /** Email address */
+  email?: string | null;
+  /** Phone number */
+  phone?: string | null;
+  /** Any extra fields you want attached to reports */
+  [key: string]: unknown;
+}
+
 // ─── Component Props ─────────────────────────────────────
 
 export interface GlitchgrabProviderProps {
   token: string;
+  /** Logged-in user session — include userId (your DB primary key) so reports are traceable */
+  session?: GlitchgrabSession | null;
   baseUrl?: string;
   onError?: (error: Error) => void;
   onReportSent?: (result: ReportResult) => void;
