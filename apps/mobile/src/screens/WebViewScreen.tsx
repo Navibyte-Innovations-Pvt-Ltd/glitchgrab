@@ -228,7 +228,7 @@ export default function WebViewScreen({
       // Force 16px on inputs + fix layout for mobile WebView (all via <style> to avoid hydration mismatch)
       var s = document.createElement('style');
       s.id = 'glitchgrab-webview';
-      s.textContent = 'input,textarea,select{font-size:16px!important} body{height:calc(var(--app-height,100vh))!important;overflow:hidden;overscroll-behavior:none}';
+      s.textContent = 'input,textarea,select{font-size:16px!important} *{touch-action:manipulation} body{height:calc(var(--app-height,100vh))!important;overflow:hidden;overscroll-behavior:none}';
       document.head.appendChild(s);
 
       document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
@@ -241,7 +241,7 @@ export default function WebViewScreen({
         _rafId = requestAnimationFrame(function() {
           _rafId = 0;
           var h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-          _styleTag.textContent = 'input,textarea,select{font-size:16px!important} body{height:' + h + 'px!important;overflow:hidden;overscroll-behavior:none} :root{--app-height:' + h + 'px}';
+          _styleTag.textContent = 'input,textarea,select{font-size:16px!important} *{touch-action:manipulation} body{height:' + h + 'px!important;overflow:hidden;overscroll-behavior:none} :root{--app-height:' + h + 'px}';
         });
       }
       updateAppHeight();
@@ -329,7 +329,7 @@ export default function WebViewScreen({
           onHttpError={(syntheticEvent) => {
             if (syntheticEvent.nativeEvent.statusCode >= 500) setError(true);
           }}
-          androidLayerType="hardware"
+          androidLayerType="none"
           injectedJavaScriptBeforeContentLoaded={injectedBeforeLoad}
           injectedJavaScript={injectedAfterLoad}
           javaScriptEnabled
