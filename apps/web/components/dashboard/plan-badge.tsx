@@ -13,17 +13,17 @@ const config = {
   premium: {
     label: "Premium",
     icon: Crown,
-    className: "bg-amber-500/15 text-amber-500 border-amber-500/30",
+    className: "bg-yellow-400/20 text-yellow-300 border-yellow-400/40",
   },
   trial: {
     label: "Trial",
     icon: Clock,
-    className: "bg-blue-500/15 text-blue-500 border-blue-500/30",
+    className: "bg-cyan-400/20 text-cyan-300 border-cyan-400/40",
   },
   byok: {
     label: "BYOK",
     icon: Key,
-    className: "bg-emerald-500/15 text-emerald-500 border-emerald-500/30",
+    className: "bg-green-400/20 text-green-300 border-green-400/40",
   },
 } as const;
 
