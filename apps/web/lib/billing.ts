@@ -75,7 +75,7 @@ export async function getUserPlan(userId: string): Promise<UserPlan> {
 
 // ─── Trial ────────────────────────────────────────────
 
-const TRIAL_DAYS = 2;
+const TRIAL_DAYS = 7;
 
 export interface TrialStatus {
   inTrial: boolean;
