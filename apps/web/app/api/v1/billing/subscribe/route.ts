@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getRazorpay, PLANS, type PlanKey } from "@/lib/razorpay";
+import { getTrialStatus } from "@/lib/billing";
 
 export async function POST(request: Request) {
   try {
@@ -47,11 +48,18 @@ export async function POST(request: Request) {
       );
     }
 
+    // Delay first charge until trial ends (Razorpay start_at is Unix timestamp)
+    const trial = await getTrialStatus(session.user.id);
+    const startAt = trial.inTrial
+      ? Math.ceil(trial.trialEndsAt.getTime() / 1000) // charge after trial
+      : undefined; // charge immediately if trial expired
+
     // Create a Razorpay Subscription (recurring monthly)
     const subscription = await razorpay.subscriptions.create({
       plan_id: plan.razorpayPlanId,
       total_count: 12, // Max 12 billing cycles (1 year), user can renew
       quantity: 1,
+      ...(startAt ? { start_at: startAt } : {}),
       notes: {
         userId: session.user.id,
         plan: planKey,
