@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -51,12 +52,7 @@ export function UpgradeButton({
     setLoading(true);
 
     try {
-      const res = await fetch("/api/v1/billing/subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan }),
-      });
-      const data = await res.json();
+      const { data } = await axios.post("/api/v1/billing/subscribe", { plan });
 
       if (!data.success) {
         toast.error(data.error ?? "Failed to create subscription");
@@ -81,12 +77,7 @@ export function UpgradeButton({
         description: data.data.planName,
         handler: async (response: RazorpaySubscriptionResponse) => {
           try {
-            const verifyRes = await fetch("/api/v1/billing/verify", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(response),
-            });
-            const verifyData = await verifyRes.json();
+            const { data: verifyData } = await axios.post("/api/v1/billing/verify", response);
 
             if (verifyData.success) {
               toast.success("Subscription activated! Refreshing...");
