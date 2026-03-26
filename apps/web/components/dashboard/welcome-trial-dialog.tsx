@@ -21,7 +21,7 @@ export function WelcomeTrialDialog({
   daysLeft: number;
 }) {
   return (
-    <Dialog open modal dismissible={false}>
+    <Dialog open modal>
       <DialogContent showCloseButton={false} className="sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-2">
