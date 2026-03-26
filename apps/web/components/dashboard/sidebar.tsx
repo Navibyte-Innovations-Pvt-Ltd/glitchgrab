@@ -82,7 +82,7 @@ export function Sidebar({ user, userType = "owner", planBadge = "none", trialDay
           variant="ghost"
           size="sm"
           className="w-full justify-start gap-2 text-muted-foreground"
-          onClick={() => signOut({ callbackUrl: "/" })}
+          onClick={() => signOut({ callbackUrl: "/login" })}
         >
           <LogOut className="h-4 w-4" />
           Sign out
