@@ -13,7 +13,7 @@ export function GlitchgrabSDKProvider({
   const session = authSession?.user
     ? {
         userId: authSession.user.id ?? "",
-        name: authSession.user.name,
+        name: authSession.user.name ?? "Unknown",
         email: authSession.user.email,
       }
     : null;
