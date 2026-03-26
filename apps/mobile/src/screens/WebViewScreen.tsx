@@ -184,12 +184,15 @@ export default function WebViewScreen({
   const handleShouldStartLoad = useCallback((event: { url: string }) => {
     const url = event.url;
 
-    // Allow glitchgrab URLs, Razorpay checkout, and local dev
+    // Allow glitchgrab, Razorpay + its payment partners, and local dev
     if (
       url.includes("glitchgrab.dev") ||
       url.includes("localhost") ||
       url.includes("razorpay.com") ||
-      url.startsWith("about:")
+      url.includes("sardine.ai") ||
+      url.includes("razorpay.in") ||
+      url.startsWith("about:") ||
+      url.startsWith("upi://")
     ) {
       return true;
     }
