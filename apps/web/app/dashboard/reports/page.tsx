@@ -3,25 +3,10 @@ export const dynamic = "force-dynamic";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getCollabSession } from "@/lib/collab-auth";
+import { hashToken } from "@/lib/tokens";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ClipboardList, ExternalLink } from "lucide-react";
-
-const STATUS_COLORS: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
-  PENDING: "outline",
-  PROCESSING: "secondary",
-  CREATED: "default",
-  DUPLICATE: "secondary",
-  FAILED: "destructive",
-};
-
-const SOURCE_LABELS: Record<string, string> = {
-  SDK_AUTO: "Auto Capture",
-  SDK_USER_REPORT: "User Report",
-  DASHBOARD_UPLOAD: "Dashboard",
-  HANDWRITTEN_NOTE: "Handwritten",
-  MCP: "MCP",
-};
+import { ClipboardList } from "lucide-react";
+import { ReportsTabs } from "./reports-tabs";
 
 export default async function ReportsPage() {
   const session = await auth();
@@ -69,86 +54,117 @@ export default async function ReportsPage() {
     );
   }
 
+  // Find which repo the platform token points to (bugs reported about Glitchgrab)
+  const platformToken = process.env.NEXT_PUBLIC_GLITCHGRAB_TOKEN;
+  let platformRepoId: string | null = null;
+  if (platformToken) {
+    const tokenHash = hashToken(platformToken);
+    const token = await prisma.apiToken.findUnique({
+      where: { tokenHash },
+      select: { repoId: true },
+    });
+    platformRepoId = token?.repoId ?? null;
+  }
+
   const reports = await prisma.report.findMany({
     where: { repoId: { in: repoIds } },
     include: {
-      repo: { select: { fullName: true } },
+      repo: { select: { id: true, fullName: true } },
       issue: { select: { githubNumber: true, githubUrl: true, title: true } },
     },
     orderBy: { createdAt: "desc" },
-    take: 50,
+    take: 100,
   });
+
+  // Fetch GitHub issue states for reports that have issues
+  const issueStates: Record<string, string> = {};
+  if (userId) {
+    const account = await prisma.account.findFirst({
+      where: { userId, provider: "github" },
+      select: { access_token: true },
+    });
+    if (account?.access_token) {
+      // Group issues by repo for batch fetching
+      const issuesByRepo = new Map<string, number[]>();
+      for (const r of reports) {
+        if (r.issue) {
+          const key = r.repo.fullName;
+          if (!issuesByRepo.has(key)) issuesByRepo.set(key, []);
+          issuesByRepo.get(key)!.push(r.issue.githubNumber);
+        }
+      }
+      // Fetch states per repo
+      await Promise.all(
+        Array.from(issuesByRepo.entries()).map(async ([fullName, numbers]) => {
+          try {
+            const res = await fetch(
+              `https://api.github.com/repos/${fullName}/issues?state=all&per_page=100`,
+              { headers: { Authorization: `Bearer ${account.access_token}` }, next: { revalidate: 60 } }
+            );
+            if (res.ok) {
+              const issues = (await res.json()) as { number: number; state: string }[];
+              for (const issue of issues) {
+                if (numbers.includes(issue.number)) {
+                  issueStates[`${fullName}#${issue.number}`] = issue.state;
+                }
+              }
+            }
+          } catch {
+            // skip — we'll show DB status as fallback
+          }
+        })
+      );
+    }
+  }
+
+  // Split into two lists
+  const myReports = platformRepoId
+    ? reports.filter((r) => r.repoId === platformRepoId)
+    : [];
+  const productIssues = platformRepoId
+    ? reports.filter((r) => r.repoId !== platformRepoId)
+    : reports;
+
+  function serializeReport(r: (typeof reports)[number]) {
+    const ghState = r.issue
+      ? issueStates[`${r.repo.fullName}#${r.issue.githubNumber}`] ?? null
+      : null;
+    return {
+      id: r.id,
+      source: r.source,
+      status: r.status,
+      rawInput: r.rawInput,
+      failReason: r.failReason,
+      createdAt: r.createdAt.toISOString(),
+      repoFullName: r.repo.fullName,
+      issue: r.issue
+        ? {
+            githubNumber: r.issue.githubNumber,
+            githubUrl: r.issue.githubUrl,
+            title: r.issue.title,
+            githubState: ghState,
+          }
+        : null,
+    };
+  }
+
+  const serialized = {
+    myReports: myReports.map(serializeReport),
+    productIssues: productIssues.map(serializeReport),
+  };
 
   return (
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold">Reports</h1>
         <p className="text-sm text-muted-foreground">
-          {reports.length} report{reports.length === 1 ? "" : "s"} — bug reports and issues created
+          Bug reports and issues created
         </p>
       </div>
-
-      {reports.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <ClipboardList className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No reports yet</h3>
-            <p className="text-sm text-muted-foreground max-w-sm">
-              Reports will appear here when bugs are captured via the SDK or dashboard.
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-2">
-          {reports.map((report) => (
-            <Card key={report.id}>
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    {report.issue ? (
-                      <a
-                        href={report.issue.githubUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm font-medium hover:underline flex items-center gap-1.5 min-w-0"
-                      >
-                        <span className="truncate">{report.issue.title}</span>
-                        <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
-                      </a>
-                    ) : (
-                      <p className="text-sm font-medium truncate">
-                        {report.rawInput?.slice(0, 100) || report.failReason || "No description"}
-                      </p>
-                    )}
-                    <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                      <span className="text-xs text-muted-foreground">{report.repo.fullName}</span>
-                      {report.issue && (
-                        <span className="text-xs text-muted-foreground">#{report.issue.githubNumber}</span>
-                      )}
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(report.createdAt).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Badge variant="outline" className="text-[10px]">
-                      {SOURCE_LABELS[report.source] ?? report.source}
-                    </Badge>
-                    <Badge variant={STATUS_COLORS[report.status] ?? "outline"} className="text-[10px]">
-                      {report.status}
-                    </Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+      <ReportsTabs
+        myReports={serialized.myReports}
+        productIssues={serialized.productIssues}
+      />
     </div>
   );
 }
