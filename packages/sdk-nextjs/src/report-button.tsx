@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, type CSSProperties } from "react";
 import type { ReportButtonProps } from "./types";
 import { useGlitchgrab } from "./provider";
 
@@ -57,12 +57,12 @@ export function ReportButton({
     }
   };
 
-  const positionStyles: React.CSSProperties =
+  const positionStyles: CSSProperties =
     position === "bottom-left"
       ? { left: "16px", bottom: "16px" }
       : { right: "16px", bottom: "16px" };
 
-  const modalPositionStyles: React.CSSProperties =
+  const modalPositionStyles: CSSProperties =
     position === "bottom-left"
       ? { left: "16px", bottom: "64px" }
       : { right: "16px", bottom: "64px" };

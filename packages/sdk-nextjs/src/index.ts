@@ -1,3 +1,5 @@
+"use client";
+
 // ─── Core (required) ─────────────────────────────────────
 export { GlitchgrabProvider, useGlitchgrab } from "./provider";
 

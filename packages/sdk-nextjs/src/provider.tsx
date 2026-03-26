@@ -1,11 +1,12 @@
 "use client";
 
-import React, {
+import {
   createContext,
   useContext,
   useRef,
   useEffect,
   useCallback,
+  useState,
 } from "react";
 import type {
   GlitchgrabProviderProps,
