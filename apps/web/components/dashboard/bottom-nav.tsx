@@ -60,6 +60,7 @@ export function BottomNav({ user, userType = "owner", planBadge = "none", trialD
             <Link
               key={item.href}
               href={item.href}
+              prefetch
               className={cn(
                 "flex flex-col items-center gap-0.5 px-3 py-1 text-xs transition",
                 isActive ? "text-primary" : "text-muted-foreground"
@@ -75,6 +76,7 @@ export function BottomNav({ user, userType = "owner", planBadge = "none", trialD
         {userType === "owner" && (
           <Link
             href="/dashboard/settings"
+            prefetch
             className={cn(
               "flex flex-col items-center gap-0.5 px-3 py-1 text-xs transition",
               profileActive ? "text-primary" : "text-muted-foreground"
@@ -120,6 +122,7 @@ export function BottomNav({ user, userType = "owner", planBadge = "none", trialD
                   <Link
                     key={item.href}
                     href={item.href}
+                    prefetch
                     onClick={() => setOpen(false)}
                     className={cn(
                       "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition",
