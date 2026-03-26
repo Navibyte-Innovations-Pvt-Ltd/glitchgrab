@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
 import {
   Dialog,
   DialogContent,
@@ -13,7 +15,6 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Plus, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
 
 interface Repo {
   id: string;
@@ -28,62 +29,41 @@ export function InviteCollaboratorDialog({ repos }: InviteCollaboratorDialogProp
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [selectedRepoIds, setSelectedRepoIds] = useState<Set<string>>(new Set());
-  const [sending, setSending] = useState(false);
-  const router = useRouter();
+  const queryClient = useQueryClient();
 
   const allSelected = selectedRepoIds.size === repos.length && repos.length > 0;
 
   function toggleAll() {
-    if (allSelected) {
-      setSelectedRepoIds(new Set());
-    } else {
-      setSelectedRepoIds(new Set(repos.map((r) => r.id)));
-    }
+    setSelectedRepoIds(allSelected ? new Set() : new Set(repos.map((r) => r.id)));
   }
 
   function toggleRepo(id: string) {
     const next = new Set(selectedRepoIds);
-    if (next.has(id)) {
-      next.delete(id);
-    } else {
-      next.add(id);
-    }
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
     setSelectedRepoIds(next);
   }
 
-  async function handleInvite() {
-    if (!email || selectedRepoIds.size === 0) {
-      toast.error("Enter an email and select at least one repo");
-      return;
-    }
-
-    setSending(true);
-    try {
-      const res = await fetch("/api/v1/collaborators/invite", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          repoIds: Array.from(selectedRepoIds),
-        }),
+  const { mutate, isPending } = useMutation({
+    mutationFn: async () => {
+      const { data } = await axios.post("/api/v1/collaborators/invite", {
+        email,
+        repoIds: Array.from(selectedRepoIds),
       });
-
-      const json = await res.json();
-      if (json.success) {
-        toast.success(`Invitation sent to ${email}`);
-        setOpen(false);
-        setEmail("");
-        setSelectedRepoIds(new Set());
-        router.refresh();
-      } else {
-        toast.error(json.error ?? "Failed to send invitation");
-      }
-    } catch {
-      toast.error("Failed to send invitation");
-    } finally {
-      setSending(false);
-    }
-  }
+      if (!data.success) throw new Error(data.error ?? "Failed to send invitation");
+      return data;
+    },
+    onSuccess: () => {
+      toast.success(`Invitation sent to ${email}`);
+      queryClient.invalidateQueries({ queryKey: ["collaborators"] });
+      setOpen(false);
+      setEmail("");
+      setSelectedRepoIds(new Set());
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to send invitation");
+    },
+  });
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -112,12 +92,7 @@ export function InviteCollaboratorDialog({ repos }: InviteCollaboratorDialogProp
             <div className="flex items-center justify-between">
               <Label>Select repositories</Label>
               {repos.length > 1 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs h-7"
-                  onClick={toggleAll}
-                >
+                <Button variant="ghost" size="sm" className="text-xs h-7" onClick={toggleAll}>
                   {allSelected ? "Deselect all" : "Select all"}
                 </Button>
               )}
@@ -152,10 +127,10 @@ export function InviteCollaboratorDialog({ repos }: InviteCollaboratorDialogProp
 
           <Button
             className="w-full"
-            disabled={sending || !email || selectedRepoIds.size === 0}
-            onClick={handleInvite}
+            disabled={isPending || !email || selectedRepoIds.size === 0}
+            onClick={() => mutate()}
           >
-            {sending ? (
+            {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 Sending invitation...
