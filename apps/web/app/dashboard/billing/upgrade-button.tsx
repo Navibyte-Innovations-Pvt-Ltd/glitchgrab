@@ -108,13 +108,14 @@ export function UpgradeButton({
 
   if (variant === "link") {
     return (
-      <button
+      <Button
+        variant="link"
         onClick={handleUpgrade}
         disabled={loading}
-        className="shrink-0 text-xs font-medium text-primary hover:underline disabled:opacity-50"
+        className="shrink-0 text-xs font-medium h-auto p-0"
       >
         {loading ? "Processing..." : label}
-      </button>
+      </Button>
     );
   }
 
