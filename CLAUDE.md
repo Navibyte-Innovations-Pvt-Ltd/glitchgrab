@@ -19,8 +19,10 @@ Glitchgrab is an open-source SaaS tool that converts messy bug inputs (handwritt
 - **Next.js 15 App Router** — server components by default, `"use client"` only when needed. Use route handlers (`route.ts`), not old API routes.
 - **Neon** (serverless PostgreSQL) via **Prisma** ORM.
 - **NextAuth.js** with GitHub OAuth for auth.
-- **Vercel Blob** for screenshot storage.
+- **AWS S3** for screenshot storage (not Vercel Blob).
 - **Tailwind CSS v4** for styling.
+- **TanStack Query + Axios** for client-side data fetching. `useQuery` for GET, `useMutation` for POST/PATCH/DELETE. Server-side code uses raw `fetch`.
+- **Razorpay** for subscription billing (INR ₹199/mo).
 
 ## Core concepts
 
@@ -40,27 +42,36 @@ All 4 input flows converge into one pipeline:
 
 AI provider is abstracted — both Claude and OpenAI implement the same interface. Users can BYOK (bring own key) or use platform-provided keys.
 
-### 4 input flows
-1. **Handwritten notes** — photo upload on dashboard → AI reads handwriting → issue
-2. **SDK auto-capture** — unhandled errors in production → context + screenshot → issue
-3. **Report button** — end-user clicks "Report Error" → context captured → issue
-4. **Dashboard upload** — developer uploads screenshot with note → issue
+### Input flows (implemented)
+1. **SDK auto-capture** — unhandled errors in production → context + screenshot → AI pipeline → issue
+2. **SDK report button** — end-user clicks report → screenshot + description → issue created directly (no AI)
+3. **Dashboard chat** — developer describes bug or uploads screenshot → AI pipeline → issue
+
+### Input flows (planned, not yet built)
+4. **Handwritten notes** — photo upload → OCR → issue (issue #60)
+5. **MCP server** — Claude Desktop integration
 
 ### SDK rules
 - Must NEVER crash the host app. Everything in try/catch, fail silently.
 - Non-blocking — screenshot capture and API calls use `keepalive: true`.
-- Zero deps beyond React/Next.js peer deps + html2canvas.
+- Zero deps beyond React/Next.js peer deps + html2canvas-pro.
 - Works with Next.js 13, 14, and 15.
 - Sanitize URLs — strip sensitive query params (tokens, keys, etc).
+- Auto-error capture is **disabled in development** (`NODE_ENV=development`).
+- `ReportButton` is a headless wrapper — supports render prop for custom trigger UI.
+- `session` prop on `GlitchgrabProvider` accepts `GlitchgrabSession` with `userId` (required), `name` (required), `email`, `phone`.
+- SDK user reports (`SDK_USER_REPORT`) bypass AI and create GitHub issues directly.
 
 ## Database models (Prisma)
 
-Key models: `User`, `Repo`, `ApiToken`, `Report`, `Issue`, `AiConfig`
+Key models: `User`, `Repo`, `ApiToken`, `Report`, `Issue`, `AiConfig`, `Subscription`, `Webhook`
 
-- `Report` has enum `source`: SDK_AUTO, SDK_USER_REPORT, DASHBOARD_UPLOAD, HANDWRITTEN_NOTE, MCP
+- `Report` has enum `source`: SDK_AUTO, SDK_USER_REPORT, DASHBOARD_UPLOAD, HANDWRITTEN_NOTE, MCP, COLLABORATOR
 - `Report` has enum `status`: PENDING, PROCESSING, CREATED, DUPLICATE, FAILED
+- `Report` stores reporter info: `reporterPrimaryKey` (required), `reporterName` (required), `reporterEmail`, `reporterPhone`
 - `AiConfig` stores per-user AI provider choice + encrypted API key (if BYOK)
 - User AI keys encrypted with AES-256-GCM using `ENCRYPTION_KEY` env var
+- `Subscription` tracks Razorpay billing: plan, status, period dates
 
 ## API design
 
@@ -68,7 +79,25 @@ Key models: `User`, `Repo`, `ApiToken`, `Report`, `Issue`, `AiConfig`
 - Response shape: `{ success: boolean, data?: T, error?: string }`
 - Auth: Bearer token in Authorization header (for SDK calls) or session (for dashboard)
 - Rate limit: 60 reports per token per hour (configurable)
-- Validate all inputs with Zod
+
+### SDK API endpoints (token auth)
+- `POST /api/v1/sdk/report` — submit a bug report (SDK_USER_REPORT bypasses AI, SDK_AUTO goes through AI pipeline)
+- `GET /api/v1/sdk/reports` — fetch reports for a repo. Supports `?reporterPrimaryKey=xxx`, `?status=CREATED`, `?limit=20`
+- `GET /api/v1/repos/github` — list user's GitHub repos for connect dialog
+
+### Dashboard API endpoints (session auth)
+- `POST /api/v1/reports` — submit report from dashboard chat (goes through AI pipeline)
+- `GET /api/v1/repos` — list connected repos with token/report counts
+- `POST /api/v1/billing/subscribe` — create Razorpay subscription
+- `POST /api/v1/billing/verify` — verify Razorpay payment
+- `POST /api/v1/billing/webhook` — Razorpay webhook handler
+- `POST /api/v1/collaborators/invite` — invite collaborator
+- `PATCH /api/v1/collaborators/:id/revoke` — revoke collaborator access
+
+### Screenshots
+- Screenshots uploaded to **AWS S3** (not committed to GitHub repos)
+- S3 env vars: `NEXT_AWS_ACCESS_KEY_ID`, `NEXT_AWS_SECRET_ACCESS_KEY`, `NEXT_AWS_BUCKET_NAME`, `NEXT_AWS_S3_REGION`
+- Optional CDN: `AWS_S3_CDN_DOMAIN`
 
 ## Commands
 
@@ -98,6 +127,8 @@ bun run install:android:dev    # Build + install debug APK via adb
 - **Collaborator mode**: Separate flow where the WebView loads a collab accept URL instead of the main dashboard.
 - **Key deps**: Expo 55, React Native 0.83, react-native-webview, expo-share-intent, expo-secure-store.
 - **Performance**: Avoid injecting JS that runs on every scroll/resize frame. Use `requestAnimationFrame` for layout recalculations. Remove `console.*` calls in production builds.
+- **WebView GPU fix**: Mobile app injects `webview` class on `<html>`. Global CSS disables `backdrop-filter`, `animation-duration`, and `transition-duration` for `.webview *` to prevent MediaTek GPU crashes.
+- **Navigation in WebView**: Sheet menu uses `window.location.href` (full page nav) instead of `router.push` (client nav) in WebView to prevent GPU freeze during portal teardown. Detected via `document.documentElement.classList.contains("webview")`.
 
 ## Code conventions
 

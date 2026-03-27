@@ -1,8 +1,17 @@
 "use client";
 
 import { useState, useRef, useEffect, type CSSProperties, type ReactNode } from "react";
-import type { ReportButtonProps } from "./types";
+import type { ReportButtonProps, UseGlitchgrabReturn } from "./types";
 import { useGlitchgrab } from "./provider";
+
+/** Safe version of useGlitchgrab that returns null when outside provider */
+function useGlitchgrabSafe(): UseGlitchgrabReturn | null {
+  try {
+    return useGlitchgrab();
+  } catch {
+    return null;
+  }
+}
 
 export function ReportButton({
   position = "bottom-right",
@@ -22,7 +31,12 @@ export function ReportButton({
   const [previewOpen, setPreviewOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
-  const { reportBug } = useGlitchgrab();
+  const glitchgrab = useGlitchgrabSafe();
+
+  // If no provider context, render nothing
+  if (!glitchgrab) return null;
+
+  const { reportBug } = glitchgrab;
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
