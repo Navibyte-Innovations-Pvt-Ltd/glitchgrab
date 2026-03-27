@@ -148,7 +148,7 @@ export function BottomNav({ user, userType = "owner", planBadge = "none", trialD
                     key={item.href}
                     onClick={() => {
                       setOpen(false);
-                      const isWebView = document.documentElement.classList.contains("webview");
+                      const isWebView = document.documentElement.dataset.webview === "1";
                       if (isWebView) {
                         setNavigating(true);
                         window.location.href = item.href;
