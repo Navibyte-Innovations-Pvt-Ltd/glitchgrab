@@ -1,3 +1,9 @@
+## [1.2.3](https://github.com/WebNaresh/glitchgrab/compare/v1.2.2...v1.2.3) (2026-03-27)
+
+### Bug Fixes
+
+* **s3:** hardcode cdn.glitchgrab.dev for screenshot URLs ([7d4db8e](https://github.com/WebNaresh/glitchgrab/commit/7d4db8e8093762721f83413dbbab042bec31ad15))
+
 ## [1.2.2](https://github.com/WebNaresh/glitchgrab/compare/v1.2.1...v1.2.2) (2026-03-27)
 
 ### Bug Fixes
