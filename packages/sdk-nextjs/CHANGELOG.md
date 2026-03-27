@@ -1,3 +1,9 @@
+## [1.7.1](https://github.com/WebNaresh/glitchgrab/compare/sdk-v1.7.0...sdk-v1.7.1) (2026-03-27)
+
+### Bug Fixes
+
+* **sdk:** use www.glitchgrab.dev to avoid naked domain redirect breaking CORS preflight ([bccbbd4](https://github.com/WebNaresh/glitchgrab/commit/bccbbd41d3c762420b468d0aac4ea5f15d591034))
+
 ## [1.7.0](https://github.com/WebNaresh/glitchgrab/compare/sdk-v1.6.4...sdk-v1.7.0) (2026-03-27)
 
 ### Features
