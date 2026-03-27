@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { WaitlistForm } from "./waitlist-form";
+import { ContactForm } from "./contact-form";
 import {
   DashboardChatAnim,
   AutoCaptureAnim,
@@ -59,65 +60,6 @@ const STEPS = [
   },
 ];
 
-const COMPARISONS = [
-  {
-    name: "Jam.dev",
-    screenshot: true,
-    sdk: false,
-    ai: false,
-    dedup: false,
-    mcp: false,
-    oss: false,
-  },
-  {
-    name: "Marker.io",
-    screenshot: true,
-    sdk: false,
-    ai: false,
-    dedup: false,
-    mcp: false,
-    oss: false,
-  },
-  {
-    name: "BetterBugs",
-    screenshot: true,
-    sdk: true,
-    ai: "Partial",
-    dedup: false,
-    mcp: false,
-    oss: false,
-  },
-  {
-    name: "Sentry",
-    screenshot: false,
-    sdk: true,
-    ai: false,
-    dedup: true,
-    mcp: false,
-    oss: true,
-  },
-  {
-    name: "Glitchgrab",
-    screenshot: true,
-    sdk: true,
-    ai: true,
-    dedup: true,
-    mcp: true,
-    oss: true,
-  },
-];
-
-function Check() {
-  return <span className="text-green">✓</span>;
-}
-function Cross() {
-  return <span className="text-red/50">✗</span>;
-}
-function CellValue({ val }: { val: boolean | string }) {
-  if (val === true) return <Check />;
-  if (val === false) return <Cross />;
-  return <span className="text-yellow text-xs">{val}</span>;
-}
 
 export default function LandingPage() {
   return (
@@ -374,81 +316,22 @@ export default function LandingPage() {
         </Card>
       </section>
 
-      {/* Comparison */}
-      <section className="mx-auto max-w-4xl px-4 py-16 sm:px-6 sm:py-24">
-        <div className="text-center mb-10 sm:mb-16">
+      {/* Contact */}
+      <section className="mx-auto max-w-2xl px-4 py-16 sm:px-6 sm:py-24">
+        <div className="text-center mb-10 sm:mb-12">
           <h2 className="text-2xl font-bold sm:text-3xl lg:text-4xl">
-            How we compare
+            Got questions? <span className="text-primary">Talk to us.</span>
           </h2>
           <p className="mt-3 text-sm text-muted-foreground sm:mt-4 sm:text-base">
-            Not trying to replace Sentry. Just filling the gap between &quot;I
-            found a bug&quot; and &quot;here&apos;s a well-written issue.&quot;
+            Feature request, feedback, partnership — we read every message.
           </p>
         </div>
 
-        <div className="overflow-x-auto rounded-2xl border border-border">
-          <table className="w-full text-xs sm:text-sm">
-            <thead>
-              <tr className="border-b border-border bg-card text-left">
-                <th className="px-3 py-3 font-medium text-muted-foreground sm:px-6 sm:py-4">
-                  Tool
-                </th>
-                <th className="px-2 py-3 font-medium text-muted-foreground text-center sm:px-4 sm:py-4">
-                  Screenshot
-                </th>
-                <th className="px-2 py-3 font-medium text-muted-foreground text-center sm:px-4 sm:py-4">
-                  SDK
-                </th>
-                <th className="px-2 py-3 font-medium text-muted-foreground text-center sm:px-4 sm:py-4">
-                  AI
-                </th>
-                <th className="px-2 py-3 font-medium text-muted-foreground text-center sm:px-4 sm:py-4">
-                  Dedup
-                </th>
-                <th className="px-2 py-3 font-medium text-muted-foreground text-center sm:px-4 sm:py-4">
-                  MCP
-                </th>
-                <th className="px-2 py-3 font-medium text-muted-foreground text-center sm:px-4 sm:py-4">
-                  OSS
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {COMPARISONS.map((row) => (
-                <tr
-                  key={row.name}
-                  className={`border-b border-border last:border-0 ${
-                    row.name === "Glitchgrab" ? "bg-primary/5" : ""
-                  }`}
-                >
-                  <td
-                    className={`px-3 py-3 font-medium sm:px-6 sm:py-4 ${row.name === "Glitchgrab" ? "text-primary" : ""}`}
-                  >
-                    {row.name}
-                  </td>
-                  <td className="px-2 py-3 text-center sm:px-4 sm:py-4">
-                    <CellValue val={row.screenshot} />
-                  </td>
-                  <td className="px-2 py-3 text-center sm:px-4 sm:py-4">
-                    <CellValue val={row.sdk} />
-                  </td>
-                  <td className="px-2 py-3 text-center sm:px-4 sm:py-4">
-                    <CellValue val={row.ai} />
-                  </td>
-                  <td className="px-2 py-3 text-center sm:px-4 sm:py-4">
-                    <CellValue val={row.dedup} />
-                  </td>
-                  <td className="px-2 py-3 text-center sm:px-4 sm:py-4">
-                    <CellValue val={row.mcp} />
-                  </td>
-                  <td className="px-2 py-3 text-center sm:px-4 sm:py-4">
-                    <CellValue val={row.oss} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Card>
+          <CardContent className="p-5 sm:p-8">
+            <ContactForm />
+          </CardContent>
+        </Card>
       </section>
 
       {/* Pricing */}
