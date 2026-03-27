@@ -48,8 +48,7 @@ AI provider is abstracted — both Claude and OpenAI implement the same interfac
 3. **Dashboard chat** — developer describes bug or uploads screenshot → AI pipeline → issue
 
 ### Input flows (planned, not yet built)
-4. **Handwritten notes** — photo upload → OCR → issue (issue #60)
-5. **MCP server** — Claude Desktop integration
+4. **MCP server** — Claude Desktop integration
 
 ### SDK rules
 - Must NEVER crash the host app. Everything in try/catch, fail silently.
