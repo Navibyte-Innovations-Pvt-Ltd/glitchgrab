@@ -421,7 +421,7 @@ export default function LandingPage() {
                 />
                 <span className="text-sm font-semibold">glitchgrab</span>
               </div>
-              <p className="text-xs text-muted-foreground leading-relaxed max-w-[200px]">
+              <p className="text-xs text-muted-foreground leading-relaxed max-w-50">
                 Turn messy bugs into clean GitHub issues. Powered by AI.
               </p>
             </div>
