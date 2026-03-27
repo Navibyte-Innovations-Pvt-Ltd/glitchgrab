@@ -28,15 +28,15 @@ export function HeroVideo({ src }: { src: string }) {
   }
 
   return (
-    <div className="relative mx-auto w-[260px] shrink-0 sm:w-[280px] lg:w-[300px]">
+    <div className="relative mx-auto w-65 shrink-0 sm:w-70 lg:w-75">
       {/* Phone bezel */}
-      <div className="rounded-[2.5rem] border-[1.5px] border-border/40 bg-[#1a1a1a] p-[6px] shadow-2xl shadow-primary/5">
+      <div className="rounded-[2.5rem] border-[1.5px] border-border/40 bg-[#1a1a1a] p-1.5 shadow-2xl shadow-primary/5">
         {/* Side button (right) */}
-        <div className="absolute -right-[2px] top-[90px] h-[40px] w-[3px] rounded-r-sm bg-border/30" />
+        <div className="absolute -right-0.5 top-22.5 h-10 w-0.75 rounded-r-sm bg-border/30" />
         {/* Volume buttons (left) */}
-        <div className="absolute -left-[2px] top-[70px] h-[18px] w-[3px] rounded-l-sm bg-border/30" />
-        <div className="absolute -left-[2px] top-[96px] h-[30px] w-[3px] rounded-l-sm bg-border/30" />
-        <div className="absolute -left-[2px] top-[132px] h-[30px] w-[3px] rounded-l-sm bg-border/30" />
+        <div className="absolute -left-0.5 top-17.5 h-4.5 w-0.75 rounded-l-sm bg-border/30" />
+        <div className="absolute -left-0.5 top-24 h-7.5 w-0.75 rounded-l-sm bg-border/30" />
+        <div className="absolute -left-0.5 top-33 h-7.5 w-0.75 rounded-l-sm bg-border/30" />
 
         {/* Screen */}
         <div className="relative overflow-hidden rounded-[2.2rem] bg-black">
@@ -46,7 +46,7 @@ export function HeroVideo({ src }: { src: string }) {
             <span className="text-[10px] font-semibold text-white/90">9:41</span>
             {/* Dynamic Island */}
             <div className="absolute top-2 left-1/2 -translate-x-1/2">
-              <div className="h-[22px] w-[80px] rounded-full bg-black ring-1 ring-black" />
+              <div className="h-5.5 w-20 rounded-full bg-black ring-1 ring-black" />
             </div>
             {/* Signal + WiFi + Battery */}
             <div className="flex items-center gap-1">
@@ -79,13 +79,13 @@ export function HeroVideo({ src }: { src: string }) {
             muted={muted}
             playsInline
             preload="metadata"
-            className="aspect-[9/19.5] w-full bg-black object-cover"
+            className="aspect-9/19.5 w-full bg-black object-cover"
           >
             <source src={src} type="video/mp4" />
           </video>
 
           {/* Home indicator */}
-          <div className="absolute bottom-1.5 left-1/2 z-20 h-[4px] w-[100px] -translate-x-1/2 rounded-full bg-white/30" />
+          <div className="absolute bottom-1.5 left-1/2 z-20 h-1 w-25 -translate-x-1/2 rounded-full bg-white/30" />
 
           {/* Play overlay — shown when paused */}
           {!playing && (
