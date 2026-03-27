@@ -14,12 +14,6 @@ export interface CreatedIssue {
   title: string;
 }
 
-interface GitHubLabel {
-  name: string;
-  color: string;
-  description: string | null;
-}
-
 // ─── Constants ──────────────────────────────────────────
 
 const GITHUB_API = "https://api.github.com";
@@ -171,52 +165,6 @@ export async function fetchRecentIssues(
     }));
 }
 
-// ─── Upload Screenshot ─────────────────────────────────
-
-export async function uploadScreenshotToRepo(
-  accessToken: string,
-  owner: string,
-  repo: string,
-  base64DataUrl: string,
-  reportId: string
-): Promise<string | null> {
-  try {
-    // Extract base64 content from data URL
-    const base64Match = base64DataUrl.match(/^data:image\/(\w+);base64,(.+)$/);
-    if (!base64Match) return null;
-
-    const ext = base64Match[1] === "jpeg" ? "jpg" : base64Match[1];
-    const base64Content = base64Match[2];
-    const path = `.glitchgrab/screenshots/${reportId}.${ext}`;
-
-    const url = `${GITHUB_API}/repos/${owner}/${repo}/contents/${path}`;
-
-    const response = await fetch(url, {
-      method: "PUT",
-      headers: headers(accessToken),
-      body: JSON.stringify({
-        message: `[Glitchgrab] Add screenshot for report ${reportId}`,
-        content: base64Content,
-      }),
-    });
-
-    if (!response.ok) {
-      console.error(`Failed to upload screenshot (${response.status})`);
-      return null;
-    }
-
-    const data = (await response.json()) as {
-      content: { sha: string; path: string };
-    };
-
-    // Use the permanent blob URL — download_url has a temp token that expires
-    return `https://github.com/${owner}/${repo}/blob/main/${data.content.path}?raw=true`;
-  } catch (error) {
-    console.error("Screenshot upload failed:", error);
-    return null;
-  }
-}
-
 // ─── Fetch Issue Body ──────────────────────────────────
 
 export async function fetchIssueBody(
@@ -281,29 +229,3 @@ export async function fetchRepoDescription(
   }
 }
 
-// ─── Fetch Repo Labels ─────────────────────────────────
-
-export async function fetchRepoLabels(
-  accessToken: string,
-  owner: string,
-  repo: string
-): Promise<string[]> {
-  const url = `${GITHUB_API}/repos/${owner}/${repo}/labels?per_page=100`;
-
-  const response = await fetch(url, {
-    method: "GET",
-    headers: headers(accessToken),
-  });
-
-  if (!response.ok) {
-    // Non-fatal — return empty if we can't fetch labels
-    console.error(
-      `Failed to fetch labels (${response.status}):`,
-      await response.text()
-    );
-    return [];
-  }
-
-  const data = (await response.json()) as GitHubLabel[];
-  return data.map((label) => label.name);
-}
