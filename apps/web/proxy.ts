@@ -3,8 +3,9 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
 export async function proxy(request: NextRequest) {
-  // CORS for SDK API routes — called from external domains
-  if (request.nextUrl.pathname.startsWith("/api/v1/sdk")) {
+  // CORS for API routes called from external domains (SDK users)
+  const path = request.nextUrl.pathname;
+  if (path.startsWith("/api/v1/sdk") || path.startsWith("/api/v1/reports")) {
     if (request.method === "OPTIONS") {
       return new NextResponse(null, {
         status: 204,
@@ -40,5 +41,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/api/v1/sdk/:path*", "/dashboard/:path*"],
+  matcher: ["/api/v1/sdk/:path*", "/api/v1/reports/:path*", "/dashboard/:path*"],
 };
