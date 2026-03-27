@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { CheckCircle, Cpu, ShieldAlert } from "lucide-react";
+import { CheckCircle, ShieldAlert } from "lucide-react";
 import { UpgradeButton } from "@/app/dashboard/billing/upgrade-button";
 
 const FEATURES = [
