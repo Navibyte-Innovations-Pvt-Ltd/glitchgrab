@@ -24,5 +24,9 @@ prisma/generated/
 # Glitchgrab screenshots (uploaded to repo via API)
 .glitchgrab/
 
+# Sitemap (generated at build time)
+apps/web/public/sitemap*.xml
+apps/web/public/robots.txt
+
 # Test
 coverage/
