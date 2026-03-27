@@ -615,12 +615,14 @@ export function BugChat({
                 <span className="absolute bottom-0.5 left-0.5 rounded bg-black/70 px-1 py-0.5 text-[9px] text-white leading-none">
                   {sizeLabel}
                 </span>
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => removeScreenshot(i)}
-                  className="absolute -top-1.5 -right-1.5 rounded-full bg-destructive text-destructive-foreground p-0.5"
+                  className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 p-0"
                 >
                   <X className="h-3 w-3" />
-                </button>
+                </Button>
               </div>
             );
           })}
@@ -688,14 +690,16 @@ export function BugChat({
             </PopoverContent>
           </Popover>
           {hasConversation && (
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={handleNewChat}
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition px-1.5 py-0.5 rounded hover:bg-muted"
+              className="flex items-center gap-1 text-xs text-muted-foreground h-auto px-1.5 py-0.5"
               title="New chat"
             >
               <MessageSquarePlus className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">New chat</span>
-            </button>
+            </Button>
           )}
         </div>
         {/* Input row */}
