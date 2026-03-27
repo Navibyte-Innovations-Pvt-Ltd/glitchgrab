@@ -168,6 +168,53 @@ curl -H "Authorization: Bearer gg_your_token" \
 }
 ```
 
+## Managing Issues (Approve / Reject / Close)
+
+Once a report creates a GitHub issue, repo owners can manage it from the Glitchgrab dashboard.
+
+### Dashboard actions
+
+Each open report card shows three buttons:
+
+| Button | What it does |
+|--------|-------------|
+| **Approve** | Adds `approved` label to the GitHub issue |
+| **Reject** | Adds `rejected` label to the GitHub issue |
+| **Close** | Closes the GitHub issue |
+
+### REST API
+
+You can also manage issues programmatically:
+
+```bash
+# Close an issue
+POST /api/v1/reports/{reportId}/actions
+Body: {"action": "close"}
+
+# Reopen an issue
+POST /api/v1/reports/{reportId}/actions
+Body: {"action": "reopen"}
+
+# Add a label (approved, rejected, or any custom label)
+POST /api/v1/reports/{reportId}/actions
+Body: {"action": "label", "label": "approved"}
+
+# Remove a label
+POST /api/v1/reports/{reportId}/actions
+Body: {"action": "unlabel", "label": "rejected"}
+```
+
+Requires session authentication (logged-in dashboard user who owns the repo).
+
+### Workflow
+
+1. End-user reports a bug via SDK -> GitHub issue created automatically
+2. Repo owner reviews on Glitchgrab dashboard (Reports > Product Issues)
+3. Owner clicks **Approve** -> `approved` label added to GitHub issue
+4. Or clicks **Reject** -> `rejected` label added
+5. Or clicks **Close** -> GitHub issue closed
+6. All state lives on GitHub — no extra database status. GitHub is the source of truth.
+
 ## Error Boundary
 
 Wrap components to auto-capture React errors:
