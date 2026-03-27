@@ -180,7 +180,7 @@ export function ReportButton({
           style={{
             position: "fixed",
             inset: 0,
-            zIndex: 99999,
+            zIndex: 2147483647,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -194,7 +194,7 @@ export function ReportButton({
             style={{
               position: children ? "relative" : "fixed",
               ...modalPositionStyles,
-              zIndex: 100000,
+              zIndex: 2147483647,
               width: "340px",
               maxWidth: "calc(100% - 32px)",
               backgroundColor: t.bg,
@@ -335,13 +335,14 @@ export function ReportButton({
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
                             style={{
-                              background: "rgba(0,0,0,0.6)",
-                              color: t.accent,
+                              background: t.accent,
+                              color: t.accentText,
                               fontSize: "10px",
-                              padding: "2px 6px",
+                              padding: "3px 8px",
                               borderRadius: "4px",
                               border: "none",
                               cursor: "pointer",
+                              fontWeight: 600,
                             }}
                           >
                             Upload
@@ -350,13 +351,14 @@ export function ReportButton({
                             type="button"
                             onClick={retakeScreenshot}
                             style={{
-                              background: "rgba(0,0,0,0.6)",
-                              color: t.accent,
+                              background: t.accent,
+                              color: t.accentText,
                               fontSize: "10px",
-                              padding: "2px 6px",
+                              padding: "3px 8px",
                               borderRadius: "4px",
                               border: "none",
                               cursor: "pointer",
+                              fontWeight: 600,
                             }}
                           >
                             Retake
@@ -476,7 +478,7 @@ export function ReportButton({
           style={{
             position: "fixed",
             inset: 0,
-            zIndex: 200000,
+            zIndex: 2147483647,
             backgroundColor: "rgba(0,0,0,0.85)",
             display: "flex",
             flexDirection: "column",
