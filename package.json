@@ -2,6 +2,8 @@
   "name": "glitchgrab",
   "devDependencies": {
     "@dotenvx/dotenvx": "^1.57.1",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
     "@types/node": "^25.5.0",
     "knip": "^6.0.2",
     "pruny": "^1.42.0",
