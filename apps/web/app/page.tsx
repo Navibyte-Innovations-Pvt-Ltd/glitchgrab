@@ -14,6 +14,7 @@ import {
 } from "./flow-animations";
 import { HeroVideo } from "./hero-video";
 import { HeroTerminal } from "./hero-terminal";
+import { HeroWaitlist } from "./hero-waitlist";
 
 const FLOWS = [
   {
@@ -88,7 +89,7 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero */}
-      <section className="relative flex min-h-dvh flex-col items-center justify-center px-4 pt-16 pb-8 text-center overflow-hidden sm:px-6 sm:pt-20">
+      <section className="relative flex min-h-screen flex-col items-center justify-center px-4 pt-20 pb-12 text-center overflow-hidden sm:px-6 sm:pt-24 sm:pb-16">
         {/* Background grid */}
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.03]"
@@ -109,7 +110,7 @@ export default function LandingPage() {
                 Open source — shipping soon
               </Badge>
 
-              <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+              <h1 className="text-4xl leading-none tracking-wide uppercase sm:text-6xl lg:text-7xl" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
                 Grab the glitch.
                 <br />
                 <span className="text-primary">Ship the fix.</span>
@@ -135,22 +136,7 @@ export default function LandingPage() {
                 </span>
               </div>
 
-              <div className="mt-6 flex flex-col items-center gap-3 sm:mt-8 sm:flex-row sm:justify-center lg:justify-start sm:gap-4">
-                <a href="#waitlist">
-                  <Button size="lg" className="w-full sm:w-auto">
-                    Join the Waitlist
-                  </Button>
-                </a>
-                <a href="#how-it-works">
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    className="w-full sm:w-auto"
-                  >
-                    See how it works
-                  </Button>
-                </a>
-              </div>
+              <HeroWaitlist />
             </div>
 
             {/* Right — live terminal demo */}
