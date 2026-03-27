@@ -109,23 +109,3 @@ export async function getTrialStatus(userId: string): Promise<TrialStatus> {
     needsPaywall: !inTrial && !hasActiveSubscription,
   };
 }
-
-export async function checkIssueLimit(userId: string): Promise<boolean> {
-  const plan = await getUserPlan(userId);
-  if (!plan.isActive) return false;
-  if (plan.maxIssuesPerMonth === Infinity) return true;
-
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
-  startOfMonth.setHours(0, 0, 0, 0);
-
-  // Only count created issues, not updates/closes
-  const issueCount = await prisma.issue.count({
-    where: {
-      repo: { userId },
-      createdAt: { gte: startOfMonth },
-    },
-  });
-
-  return issueCount < plan.maxIssuesPerMonth;
-}
