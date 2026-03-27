@@ -247,7 +247,7 @@ export default function WebViewScreen({
       document.documentElement.dataset.webview = '1';
       var s = document.createElement('style');
       s.id = 'glitchgrab-webview';
-      s.textContent = 'input,textarea,select{font-size:16px!important} body{height:calc(var(--app-height,100vh))!important} [data-webview] *{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;animation-duration:0s!important;transition-duration:0s!important}';
+      s.textContent = 'input,textarea,select{font-size:16px!important} [data-webview] *{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;animation-duration:0s!important;transition-duration:0s!important} [data-webview] body{overflow:auto!important;height:auto!important;-webkit-overflow-scrolling:touch}';
       document.head.appendChild(s);
 
       document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
@@ -260,7 +260,7 @@ export default function WebViewScreen({
         _rafId = requestAnimationFrame(function() {
           _rafId = 0;
           var h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-          _styleTag.textContent = 'input,textarea,select{font-size:16px!important} *{touch-action:manipulation} body{height:' + h + 'px!important;overflow:hidden;overscroll-behavior:none} :root{--app-height:' + h + 'px}';
+          _styleTag.textContent = 'input,textarea,select{font-size:16px!important} :root{--app-height:' + h + 'px} [data-webview] *{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;animation-duration:0s!important;transition-duration:0s!important} [data-webview] body{overflow:auto!important;height:auto!important;-webkit-overflow-scrolling:touch}';
         });
       }
       updateAppHeight();

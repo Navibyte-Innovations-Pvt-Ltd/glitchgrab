@@ -156,3 +156,10 @@ html {
   animation-duration: 0s !important;
   transition-duration: 0s !important;
 }
+
+/* Enable pull-to-refresh in WebView by allowing body to scroll */
+[data-webview] body {
+  overflow: auto !important;
+  height: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
