@@ -75,7 +75,7 @@ export default function PrivacyPolicyPage() {
           </li>
           <li>
             To provide AI-powered analysis of bug reports, screenshots, and
-            handwritten notes.
+            screenshots.
           </li>
           <li>To manage your account and subscription.</li>
           <li>To send transactional emails (account confirmations, billing).</li>
@@ -96,9 +96,8 @@ export default function PrivacyPolicyPage() {
           </li>
           <li>
             <strong className="text-foreground">OpenAI / Anthropic</strong> — to
-            analyze error reports and generate issue content. If you use BYOK
-            (Bring Your Own Key), your API key is encrypted with AES-256-GCM and
-            stored securely.
+            analyze error reports and generate issue content. All AI processing
+            uses platform-provided keys.
           </li>
           <li>
             <strong className="text-foreground">Razorpay</strong> — to process

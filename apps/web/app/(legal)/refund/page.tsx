@@ -28,8 +28,7 @@ export default function RefundPolicyPage() {
         <p className="text-muted-foreground leading-relaxed">
           If you are not satisfied with Glitchgrab, you can request a full refund
           within <strong className="text-foreground">7 days</strong> of your
-          first payment. This applies to both the Pro (BYOK) plan at $5/month
-          and the Pro (Platform AI) plan at $10/month.
+          first payment. This applies to the Pro plan at ₹199/month.
         </p>
       </section>
 
