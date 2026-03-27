@@ -3,8 +3,7 @@
     "routes": [
       "/api/auth/**",
       "/api/webhooks/**",
-      "/api/v1/billing/webhook",
-      "/api/v1/sdk/reports"
+      "/api/v1/billing/webhook"
     ],
     "files": ["**/db-sync.ts", "**/components/ui/**"]
   }
