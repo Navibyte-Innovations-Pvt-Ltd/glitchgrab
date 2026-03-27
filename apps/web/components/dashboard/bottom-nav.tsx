@@ -148,7 +148,7 @@ export function BottomNav({ user, userType = "owner", planBadge = "none", trialD
                     key={item.href}
                     onClick={() => {
                       setOpen(false);
-                      const isWebView = document.documentElement.dataset.webview === "1";
+                      const isWebView = !!document.getElementById("glitchgrab-webview");
                       if (isWebView) {
                         setNavigating(true);
                         window.location.href = item.href;

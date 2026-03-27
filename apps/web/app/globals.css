@@ -149,21 +149,4 @@ html {
   height: 1px;
 }
 
-/* Disable GPU-heavy CSS in Android WebView to prevent MediaTek GPU crashes */
-[data-webview] * {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  animation-duration: 0s !important;
-  transition-duration: 0s !important;
-}
-
-/* Enable pull-to-refresh in WebView by removing inner scroll containers */
-[data-webview] body,
-[data-webview] body > *,
-[data-webview] body > * > *,
-[data-webview] body > * > * > *,
-[data-webview] main {
-  overflow: visible !important;
-  height: auto !important;
-  min-height: 0 !important;
-}
+/* WebView GPU fixes and pull-to-refresh are handled by injected style tag (#glitchgrab-webview) from the mobile app */

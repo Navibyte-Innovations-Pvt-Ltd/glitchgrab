@@ -242,12 +242,11 @@ export default function WebViewScreen({
       // Force first viewport to our settings
       if (metas[0]) metas[0].content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
 
-      // Force 16px on inputs + fix layout + disable GPU-heavy CSS for Android WebView
-      // Use [data-webview] instead of .webview class on <html> to avoid hydration mismatch
-      document.documentElement.dataset.webview = '1';
+      // Force 16px on inputs + disable GPU-heavy CSS + enable pull-to-refresh
+      // Style tag with high-specificity selectors — no attribute on <html> to avoid hydration mismatch
       var s = document.createElement('style');
       s.id = 'glitchgrab-webview';
-      s.textContent = 'input,textarea,select{font-size:16px!important} [data-webview] *{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;animation-duration:0s!important;transition-duration:0s!important} [data-webview] body{overflow:auto!important;height:auto!important;-webkit-overflow-scrolling:touch}';
+      s.textContent = 'input,textarea,select{font-size:16px!important} #glitchgrab-webview~*,#glitchgrab-webview~* *{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;animation-duration:0s!important;transition-duration:0s!important} body,body>*,body>*>*,body>*>*>*,main{overflow:visible!important;height:auto!important;min-height:0!important;-webkit-overflow-scrolling:touch}';
       document.head.appendChild(s);
 
       document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
@@ -260,7 +259,7 @@ export default function WebViewScreen({
         _rafId = requestAnimationFrame(function() {
           _rafId = 0;
           var h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-          _styleTag.textContent = 'input,textarea,select{font-size:16px!important} :root{--app-height:' + h + 'px} [data-webview] *{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;animation-duration:0s!important;transition-duration:0s!important} [data-webview] body{overflow:auto!important;height:auto!important;-webkit-overflow-scrolling:touch}';
+          _styleTag.textContent = 'input,textarea,select{font-size:16px!important} :root{--app-height:' + h + 'px} #glitchgrab-webview~*,#glitchgrab-webview~* *{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;animation-duration:0s!important;transition-duration:0s!important} body,body>*,body>*>*,body>*>*>*,main{overflow:visible!important;height:auto!important;min-height:0!important;-webkit-overflow-scrolling:touch}';
         });
       }
       updateAppHeight();
