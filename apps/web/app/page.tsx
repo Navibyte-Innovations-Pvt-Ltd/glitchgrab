@@ -17,26 +17,26 @@ import { HeroTerminal } from "./hero-terminal";
 const FLOWS = [
   {
     anim: "dashboard",
-    title: "Create Issues from Anywhere",
-    desc: "Describe a bug or paste a screenshot in the dashboard. AI writes the title, body, labels, and severity — pushed to GitHub in seconds.",
+    title: "Describe it. AI writes the issue.",
+    desc: "Type what's broken, paste a screenshot, or both. AI generates the title, body, labels, and severity — your GitHub issue is ready before you finish your coffee.",
     tag: "AI-powered",
   },
   {
     anim: "autocapture",
-    title: "Catch Crashes While You Sleep",
-    desc: "Wrap your app once. Every unhandled error gets captured with stack trace, breadcrumbs, network logs, and a screenshot — automatically.",
+    title: "Your app crashes? We catch it.",
+    desc: "Add one line to your app. When something breaks in production, Glitchgrab captures everything — stack trace, what the user did, a screenshot — and files the issue for you. While you sleep.",
     tag: "Zero config",
   },
   {
     anim: "report",
-    title: "Let Users Report Bugs for You",
-    desc: "Drop a report button in your app. Users click it, a screenshot is captured instantly, and a GitHub issue appears in your repo — no forms, no emails.",
+    title: "Your users become QA testers.",
+    desc: "A 'Report Bug' button in your app. Users tap it, we grab a screenshot + context, and a clean GitHub issue appears in your repo. No Slack messages. No vague emails. No 'it doesn't work'.",
     tag: "Built into SDK",
   },
   {
     anim: "dedup",
-    title: "Zero Duplicate Issues",
-    desc: "AI compares every new report against your open issues. Similar bugs get added as comments, not new issues. Open source — built by developers, for developers. Found a bug? Raise an issue, fix it yourself.",
+    title: "Same bug? Same issue.",
+    desc: "10 users hit the same crash? You get 1 issue with 10 reports, not 10 issues cluttering your board. AI spots duplicates and merges them. Open source — see a bug in Glitchgrab? Fix it yourself.",
     tag: "Smart dedup",
   },
 ] as const;
@@ -152,10 +152,10 @@ export default function LandingPage() {
       <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
         <div className="text-center mb-10 sm:mb-16">
           <h2 className="text-2xl font-bold sm:text-3xl lg:text-4xl">
-            Bugs come in. Clean issues go out.
+            Stop writing issues. Start shipping fixes.
           </h2>
           <p className="mt-3 text-sm text-muted-foreground max-w-lg mx-auto sm:mt-4 sm:text-base">
-            Every bug — whether it&apos;s a crash, a screenshot, or a user complaint — becomes a structured GitHub issue. Automatically.
+            Crashes, screenshots, user complaints — doesn&apos;t matter how the bug reaches you. Glitchgrab turns it into a clean GitHub issue with one click. Or zero clicks.
           </p>
         </div>
 
