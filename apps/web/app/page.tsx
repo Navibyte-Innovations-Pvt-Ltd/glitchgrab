@@ -365,26 +365,61 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border py-8 sm:py-12">
+      <footer className="border-t border-border pt-12 pb-8 sm:pt-16 sm:pb-10">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
-            <div className="flex items-center gap-2">
-              <Image src="/logo.png" alt="Glitchgrab" width={20} height={20} className="rounded-full sm:w-6 sm:h-6" />
-              <span className="text-xs font-medium sm:text-sm">glitchgrab</span>
+          <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
+            {/* Brand */}
+            <div className="col-span-2 sm:col-span-1">
+              <div className="flex items-center gap-2 mb-3">
+                <Image src="/logo.png" alt="Glitchgrab" width={24} height={24} className="rounded-full" />
+                <span className="text-sm font-semibold">glitchgrab</span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed max-w-[200px]">
+                Turn messy bugs into clean GitHub issues. Powered by AI.
+              </p>
             </div>
-            <div className="flex flex-wrap items-center justify-center gap-1">
-              <Link href="/privacy"><Button variant="link" size="sm">Privacy</Button></Link>
-              <Link href="/terms"><Button variant="link" size="sm">Terms</Button></Link>
-              <Link href="/refund"><Button variant="link" size="sm">Refunds</Button></Link>
-              <Link href="/contact"><Button variant="link" size="sm">Contact</Button></Link>
+
+            {/* Product */}
+            <div>
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Product</h4>
+              <ul className="space-y-2 text-sm">
+                <li><a href="#how-it-works" className="text-muted-foreground hover:text-primary transition">How it works</a></li>
+                <li><Link href="/changelog" className="text-muted-foreground hover:text-primary transition">Changelog</Link></li>
+                <li><a href="#waitlist" className="text-muted-foreground hover:text-primary transition">Join Waitlist</a></li>
+              </ul>
+            </div>
+
+            {/* Resources */}
+            <div>
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Resources</h4>
+              <ul className="space-y-2 text-sm">
+                <li><a href="https://github.com/webnaresh/glitchgrab" target="_blank" rel="noopener" className="text-muted-foreground hover:text-primary transition">GitHub</a></li>
+                <li><a href="https://www.npmjs.com/package/glitchgrab" target="_blank" rel="noopener" className="text-muted-foreground hover:text-primary transition">npm Package</a></li>
+                <li><Link href="/contact" className="text-muted-foreground hover:text-primary transition">Contact</Link></li>
+              </ul>
+            </div>
+
+            {/* Legal */}
+            <div>
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Legal</h4>
+              <ul className="space-y-2 text-sm">
+                <li><Link href="/privacy" className="text-muted-foreground hover:text-primary transition">Privacy Policy</Link></li>
+                <li><Link href="/terms" className="text-muted-foreground hover:text-primary transition">Terms of Service</Link></li>
+                <li><Link href="/refund" className="text-muted-foreground hover:text-primary transition">Refund Policy</Link></li>
+              </ul>
             </div>
           </div>
-          <p className="text-center text-xs text-muted-foreground mt-4 sm:text-sm">
-            Built by{" "}
-            <a href="https://github.com/webnaresh" target="_blank" rel="noopener">
-              <Button variant="link" size="sm" className="p-0 h-auto text-xs sm:text-sm">Naresh</Button>
-            </a>
-          </p>
+
+          {/* Bottom bar */}
+          <div className="mt-10 flex flex-col items-center gap-2 border-t border-border pt-6 sm:flex-row sm:justify-between">
+            <p className="text-xs text-muted-foreground">
+              &copy; {new Date().getFullYear()} Navibyte Innovation Pvt. Ltd. All rights reserved.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Open source under{" "}
+              <a href="https://github.com/webnaresh/glitchgrab/blob/main/LICENSE" target="_blank" rel="noopener" className="text-primary hover:underline">MIT License</a>
+            </p>
+          </div>
         </div>
       </footer>
     </main>
