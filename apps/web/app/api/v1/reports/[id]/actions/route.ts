@@ -3,16 +3,15 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { hashToken } from "@/lib/tokens";
 
 /**
  * POST /api/v1/reports/[id]/actions
  *
- * Perform actions on a report's GitHub issue:
- * - close: Close the GitHub issue
- * - reopen: Reopen the GitHub issue
- * - label: Add a label (approved/rejected/etc)
- * - unlabel: Remove a label
+ * Perform actions on a report's GitHub issue.
+ * Auth: session (dashboard) OR Bearer gg_ token (SDK)
  *
+ * Actions: close, reopen, label, unlabel
  * Body: { action: "close" | "reopen" | "label" | "unlabel", label?: string }
  */
 export async function POST(
@@ -20,12 +19,32 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized" },
-        { status: 401 }
-      );
+    // Auth: session OR token
+    let repoOwnerId: string | null = null;
+
+    const authHeader = request.headers.get("authorization");
+    if (authHeader?.startsWith("Bearer gg_")) {
+      const tokenHash = hashToken(authHeader.replace("Bearer ", ""));
+      const apiToken = await prisma.apiToken.findUnique({
+        where: { tokenHash },
+        include: { repo: true },
+      });
+      if (!apiToken) {
+        return NextResponse.json(
+          { success: false, error: "Invalid API token" },
+          { status: 401 }
+        );
+      }
+      repoOwnerId = apiToken.repo.userId;
+    } else {
+      const session = await auth();
+      if (!session?.user?.id) {
+        return NextResponse.json(
+          { success: false, error: "Unauthorized" },
+          { status: 401 }
+        );
+      }
+      repoOwnerId = session.user.id;
     }
 
     const { id } = await params;
@@ -49,7 +68,7 @@ export async function POST(
     }
 
     // Verify ownership
-    if (report.repo.userId !== session.user.id) {
+    if (report.repo.userId !== repoOwnerId) {
       return NextResponse.json(
         { success: false, error: "Not authorized" },
         { status: 403 }
@@ -65,7 +84,7 @@ export async function POST(
 
     // Get GitHub access token
     const account = await prisma.account.findFirst({
-      where: { userId: session.user.id, provider: "github" },
+      where: { userId: repoOwnerId!, provider: "github" },
     });
 
     if (!account?.access_token) {
