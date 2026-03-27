@@ -12,6 +12,7 @@ import {
   DedupAnim,
 } from "./flow-animations";
 import { HeroVideo } from "./hero-video";
+import { HeroTerminal } from "./hero-terminal";
 
 const FLOWS = [
   {
@@ -35,7 +36,7 @@ const FLOWS = [
   {
     anim: "dedup",
     title: "Zero Duplicate Issues",
-    desc: "AI compares every new report against your open issues. Similar bugs get added as comments, not new issues. Merge related issues with one command.",
+    desc: "AI compares every new report against your open issues. Similar bugs get added as comments, not new issues. Open source — built by developers, for developers. Found a bug? Raise an issue, fix it yourself.",
     tag: "Smart dedup",
   },
 ] as const;
@@ -139,13 +140,15 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Right — vertical video in iPhone frame */}
-            <HeroVideo src="https://cdn.glitchgrab.dev/meta/Timeline.mp4" />
+            {/* Right — live terminal demo */}
+            <div className="flex-1 w-full max-w-lg">
+              <HeroTerminal />
+            </div>
           </div>
         </div>
       </section>
 
-      {/* 4 Input Flows */}
+      {/* Features + Video */}
       <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
         <div className="text-center mb-10 sm:mb-16">
           <h2 className="text-2xl font-bold sm:text-3xl lg:text-4xl">
@@ -156,27 +159,35 @@ export default function LandingPage() {
           </p>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 sm:gap-6">
-          {FLOWS.map((flow) => (
-            <Card
-              key={flow.title}
-              className="transition hover:border-muted-foreground/30"
-            >
-              <CardContent className="p-5 sm:p-8">
-                <div className="mb-3 sm:mb-4">
-                  {flow.anim === "dashboard" && <DashboardChatAnim />}
-                  {flow.anim === "autocapture" && <AutoCaptureAnim />}
-                  {flow.anim === "report" && <ReportButtonAnim />}
-                  {flow.anim === "dedup" && <DedupAnim />}
-                </div>
-                <Badge variant="secondary" className="mb-2 sm:mb-3 text-primary bg-primary/10">
-                  {flow.tag}
-                </Badge>
-                <h3 className="text-lg font-semibold mb-1.5 sm:text-xl sm:mb-2">{flow.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{flow.desc}</p>
-              </CardContent>
-            </Card>
-          ))}
+        <div className="flex flex-col items-center gap-10 lg:flex-row lg:items-start lg:gap-12">
+          {/* Left — feature cards */}
+          <div className="flex-1 grid gap-4 sm:grid-cols-2 sm:gap-5">
+            {FLOWS.map((flow) => (
+              <Card
+                key={flow.title}
+                className="transition hover:border-muted-foreground/30"
+              >
+                <CardContent className="p-5 sm:p-6">
+                  <div className="mb-3 sm:mb-4">
+                    {flow.anim === "dashboard" && <DashboardChatAnim />}
+                    {flow.anim === "autocapture" && <AutoCaptureAnim />}
+                    {flow.anim === "report" && <ReportButtonAnim />}
+                    {flow.anim === "dedup" && <DedupAnim />}
+                  </div>
+                  <Badge variant="secondary" className="mb-2 sm:mb-3 text-primary bg-primary/10">
+                    {flow.tag}
+                  </Badge>
+                  <h3 className="text-base font-semibold mb-1.5 sm:text-lg sm:mb-2">{flow.title}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{flow.desc}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Right — video in phone frame */}
+          <div className="lg:sticky lg:top-24 shrink-0">
+            <HeroVideo src="https://cdn.glitchgrab.dev/meta/Timeline.mp4" />
+          </div>
         </div>
       </section>
 
