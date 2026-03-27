@@ -71,7 +71,7 @@ export function HeroTerminal() {
       {/* Content */}
       <div
         ref={containerRef}
-        className="p-4 h-55 sm:h-65 overflow-hidden font-mono text-[11px] sm:text-xs leading-[1.7] space-y-0.5 text-left"
+        className="p-4 h-96 sm:h-120 overflow-hidden font-mono text-[11px] sm:text-xs leading-[1.7] space-y-0.5 text-left"
       >
         {TERMINAL_LINES.slice(0, visibleLines).map((line, i) => (
           <div key={`${cycle}-${i}`} className={`${COLOR_MAP[line.color]} animate-slide-up`}>
