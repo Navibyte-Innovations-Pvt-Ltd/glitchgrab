@@ -1,3 +1,9 @@
+## [1.6.4](https://github.com/WebNaresh/glitchgrab/compare/sdk-v1.6.3...sdk-v1.6.4) (2026-03-27)
+
+### Bug Fixes
+
+* **sdk:** default baseUrl to glitchgrab.dev instead of window.location.origin ([976ab41](https://github.com/WebNaresh/glitchgrab/commit/976ab4122f2bade71d632efec21baab4a464d548))
+
 ## [1.6.3](https://github.com/WebNaresh/glitchgrab/compare/sdk-v1.6.2...sdk-v1.6.3) (2026-03-27)
 
 ### Bug Fixes
