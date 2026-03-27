@@ -157,9 +157,13 @@ html {
   transition-duration: 0s !important;
 }
 
-/* Enable pull-to-refresh in WebView by allowing body to scroll */
-[data-webview] body {
-  overflow: auto !important;
+/* Enable pull-to-refresh in WebView by removing inner scroll containers */
+[data-webview] body,
+[data-webview] body > *,
+[data-webview] body > * > *,
+[data-webview] body > * > * > *,
+[data-webview] main {
+  overflow: visible !important;
   height: auto !important;
-  -webkit-overflow-scrolling: touch;
+  min-height: 0 !important;
 }
