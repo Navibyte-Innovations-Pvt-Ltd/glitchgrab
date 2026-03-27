@@ -102,65 +102,57 @@ export default async function LandingPage() {
         {/* Glow blob */}
         <div className="pointer-events-none absolute top-1/4 left-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/5 blur-[100px] sm:h-125 sm:w-125 sm:blur-[120px]" />
 
-        <div className="relative z-10 w-full max-w-3xl">
-          <Badge variant="outline" className="mb-4 gap-2 sm:mb-6">
-            <span className="h-2 w-2 rounded-full bg-primary animate-pulse-glow" />
-            Open source — shipping soon
-          </Badge>
+        <div className="relative z-10 w-full max-w-5xl">
+          <div className="flex flex-col items-center gap-10 lg:flex-row lg:items-center lg:gap-16">
+            {/* Left — text content */}
+            <div className="flex-1 text-center lg:text-left">
+              <Badge variant="outline" className="mb-4 gap-2 sm:mb-6">
+                <span className="h-2 w-2 rounded-full bg-primary animate-pulse-glow" />
+                Open source — shipping soon
+              </Badge>
 
-          <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-7xl">
-            Grab the glitch.
-            <br />
-            <span className="text-primary">Ship the fix.</span>
-          </h1>
+              <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+                Grab the glitch.
+                <br />
+                <span className="text-primary">Ship the fix.</span>
+              </h1>
 
-          <p className="mx-auto mt-4 max-w-xl text-sm text-muted-foreground leading-relaxed sm:mt-6 sm:text-lg">
-            Turn messy bug reports — handwritten notes, screenshots, production errors — into
-            well-structured GitHub issues. Powered by AI.
-          </p>
-
-          <div className="mt-6 flex flex-col items-center gap-3 sm:mt-10 sm:flex-row sm:justify-center sm:gap-4">
-            <a href="#waitlist">
-              <Button size="lg" className="w-full sm:w-auto">Join the Waitlist</Button>
-            </a>
-            <a href="#how-it-works">
-              <Button variant="outline" size="lg" className="w-full sm:w-auto">See how it works</Button>
-            </a>
-          </div>
-
-          {/* Code preview */}
-          <Card className="mx-auto mt-10 max-w-lg text-left sm:mt-16">
-            <CardContent className="p-4 sm:p-6">
-              <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                <div className="h-2.5 w-2.5 rounded-full bg-red/60 sm:h-3 sm:w-3" />
-                <div className="h-2.5 w-2.5 rounded-full bg-yellow/60 sm:h-3 sm:w-3" />
-                <div className="h-2.5 w-2.5 rounded-full bg-green/60 sm:h-3 sm:w-3" />
-                <span className="ml-2 text-muted-foreground text-xs">app/layout.tsx</span>
-              </div>
-              <pre className="text-muted-foreground leading-relaxed text-xs sm:text-sm overflow-x-auto font-mono">
-                <code>
-{`import { `}<span className="text-primary">GlitchgrabProvider</span>{` }
-  from "glitchgrab"
-
-export default function Layout({
-  children
-}) {
-  return (
-    <`}<span className="text-primary">GlitchgrabProvider</span>{`
-      token="`}<span className="text-green">gg_your_token</span>{`"
-    >
-      {children}
-    </`}<span className="text-primary">GlitchgrabProvider</span>{`>
-  )
-}`}
-                </code>
-              </pre>
-              <div className="mt-3 glow-line sm:mt-4" />
-              <p className="mt-2 text-xs text-muted-foreground text-center sm:mt-3">
-                That&apos;s it. Errors become GitHub issues automatically.
+              <p className="mx-auto mt-4 max-w-xl text-sm text-muted-foreground leading-relaxed sm:mt-6 sm:text-lg lg:mx-0">
+                Turn messy bug reports — handwritten notes, screenshots, production errors — into
+                well-structured GitHub issues. Powered by AI.
               </p>
-            </CardContent>
-          </Card>
+
+              <div className="mt-6 flex flex-col items-center gap-3 sm:mt-10 sm:flex-row sm:justify-center lg:justify-start sm:gap-4">
+                <a href="#waitlist">
+                  <Button size="lg" className="w-full sm:w-auto">Join the Waitlist</Button>
+                </a>
+                <a href="#how-it-works">
+                  <Button variant="outline" size="lg" className="w-full sm:w-auto">See how it works</Button>
+                </a>
+              </div>
+            </div>
+
+            {/* Right — vertical video in phone frame */}
+            <div className="relative mx-auto w-[240px] shrink-0 sm:w-[270px] lg:w-[300px]">
+              {/* Phone bezel */}
+              <div className="rounded-[2.5rem] border-2 border-border/50 bg-background/50 p-2 shadow-2xl shadow-primary/5 backdrop-blur-sm">
+                {/* Notch */}
+                <div className="absolute top-0 left-1/2 z-10 h-6 w-24 -translate-x-1/2 rounded-b-2xl bg-background" />
+                {/* Video */}
+                <video
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="aspect-[9/16] w-full rounded-[2rem] bg-black object-cover"
+                >
+                  <source src="https://cdn.glitchgrab.dev/meta/Timeline.mp4" type="video/mp4" />
+                </video>
+              </div>
+              {/* Glow behind phone */}
+              <div className="pointer-events-none absolute -inset-8 -z-10 rounded-full bg-primary/10 blur-3xl" />
+            </div>
+          </div>
         </div>
       </section>
 
