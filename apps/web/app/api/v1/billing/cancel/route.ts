@@ -38,7 +38,7 @@ export async function POST() {
     // Cancel at end of current billing period (not immediately)
     await razorpay.subscriptions.cancel(
       subscription.razorpaySubscriptionId,
-      { cancel_at_cycle_end: 1 }
+      true
     );
 
     // Mark as cancelled in our DB — access continues until period ends
