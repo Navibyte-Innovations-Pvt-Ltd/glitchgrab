@@ -165,35 +165,33 @@ export default function LandingPage() {
           </p>
         </div>
 
-        <div className="flex flex-col items-center gap-12 lg:flex-row lg:items-start lg:gap-16">
-          {/* Left — stacked feature cards */}
-          <div className="flex-1 space-y-4 sm:space-y-5">
+        <div className="flex flex-col items-center gap-10 lg:flex-row lg:items-start lg:gap-12">
+          {/* Left — compact 2x2 grid */}
+          <div className="flex-1 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 max-w-2xl">
             {FLOWS.map((flow, i) => (
               <Card
                 key={flow.title}
-                className="group transition hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5"
+                className="group transition hover:border-primary/30 hover:shadow-md hover:shadow-primary/5"
               >
-                <CardContent className="p-5 sm:p-6">
-                  <div className="flex gap-4 sm:gap-5">
-                    <div className="shrink-0 rounded-xl bg-primary/5 p-2 ring-1 ring-primary/10 group-hover:ring-primary/20 transition">
+                <CardContent className="p-4 sm:p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary font-mono">
+                      {i + 1}
+                    </span>
+                    <Badge variant="secondary" className="text-primary bg-primary/10 text-[10px]">
+                      {flow.tag}
+                    </Badge>
+                  </div>
+                  <div className="mb-3">
+                    <div className="inline-block rounded-lg bg-primary/5 p-1.5 ring-1 ring-primary/10 group-hover:ring-primary/20 transition">
                       {flow.anim === "dashboard" && <DashboardChatAnim />}
                       {flow.anim === "autocapture" && <AutoCaptureAnim />}
                       {flow.anim === "report" && <ReportButtonAnim />}
                       {flow.anim === "dedup" && <DedupAnim />}
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary font-mono">
-                          {i + 1}
-                        </span>
-                        <Badge variant="secondary" className="text-primary bg-primary/10 text-[10px]">
-                          {flow.tag}
-                        </Badge>
-                      </div>
-                      <h3 className="text-base font-semibold mb-1 sm:text-lg">{flow.title}</h3>
-                      <p className="text-sm text-muted-foreground leading-relaxed">{flow.desc}</p>
-                    </div>
                   </div>
+                  <h3 className="text-sm font-semibold mb-1 sm:text-base">{flow.title}</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed sm:text-sm">{flow.desc}</p>
                 </CardContent>
               </Card>
             ))}
