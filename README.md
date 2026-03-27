@@ -69,7 +69,7 @@ export default function RootLayout({ children }) {
 
 ### Where Glitchgrab fits
 
-Glitchgrab is **not** trying to be Sentry (full observability) or Marker.io (agency feedback workflows). It's a focused tool that solves one problem: **the gap between noticing a bug and having a well-written GitHub issue what you think**.
+Glitchgrab is **not** trying to be Sentry (full observability) or Marker.io (agency feedback workflows). It's a focused tool that solves one problem: **the gap between noticing a bug and having a well-written GitHub issue**.
 
 ## Tech Stack
 
