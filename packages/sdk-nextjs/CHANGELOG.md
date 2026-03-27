@@ -1,3 +1,9 @@
+## [1.5.1](https://github.com/WebNaresh/glitchgrab/compare/sdk-v1.5.0...sdk-v1.5.1) (2026-03-27)
+
+### Bug Fixes
+
+* **ci:** enable GitHub Release creation in SDK publish workflow ([7ec3b04](https://github.com/WebNaresh/glitchgrab/commit/7ec3b04f8142336901c34a1e1d13de0f3ae4d96b))
+
 ## [1.5.0](https://github.com/WebNaresh/glitchgrab/compare/sdk-v1.4.0...sdk-v1.5.0) (2026-03-27)
 
 ### Features
