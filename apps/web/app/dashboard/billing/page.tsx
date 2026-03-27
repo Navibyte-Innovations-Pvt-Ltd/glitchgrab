@@ -77,7 +77,7 @@ export default async function BillingPage() {
                   "Smart dedup & updates (free)",
                   "Screenshot analysis",
                   "SDK auto-capture",
-                  "No API key needed",
+                  "AI built in — zero setup",
                 ].map((f) => (
                   <li key={f} className="flex items-center gap-2">
                     <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0" />
