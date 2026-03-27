@@ -1,3 +1,9 @@
+## [1.6.0](https://github.com/WebNaresh/glitchgrab/compare/sdk-v1.5.1...sdk-v1.6.0) (2026-03-27)
+
+### Features
+
+* **sdk:** auto-detect light/dark theme and adapt modal colors ([16227a5](https://github.com/WebNaresh/glitchgrab/commit/16227a5051625d547f74ce7611b8262badae0046))
+
 ## [1.5.1](https://github.com/WebNaresh/glitchgrab/compare/sdk-v1.5.0...sdk-v1.5.1) (2026-03-27)
 
 ### Bug Fixes
