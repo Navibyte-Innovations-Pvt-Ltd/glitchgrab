@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect, type CSSProperties, type ReactNode } from "react";
+// @ts-expect-error react-dom types handled by host app
+import { createPortal } from "react-dom";
 import type { ReportButtonProps, UseGlitchgrabReturn } from "./types";
 import { useGlitchgrab } from "./provider";
 
@@ -174,8 +176,8 @@ export function ReportButton({
         />
       )}
 
-      {/* Report modal */}
-      {isOpen && (
+      {/* Report modal — rendered in portal to escape host stacking contexts */}
+      {isOpen && typeof document !== "undefined" && createPortal(
         <div
           style={{
             position: "fixed",
@@ -185,6 +187,7 @@ export function ReportButton({
             alignItems: "center",
             justifyContent: "center",
             backgroundColor: "rgba(0,0,0,0.5)",
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
           }}
           onClick={() => { if (!previewOpen) setIsOpen(false); }}
         >
@@ -460,7 +463,8 @@ export function ReportButton({
               </span>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Hidden file input for screenshot upload */}
@@ -473,7 +477,7 @@ export function ReportButton({
       />
 
       {/* Full-screen screenshot preview */}
-      {previewOpen && screenshot && (
+      {previewOpen && screenshot && typeof document !== "undefined" && createPortal(
         <div
           style={{
             position: "fixed",
@@ -511,7 +515,8 @@ export function ReportButton({
           >
             Click outside to close
           </span>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
