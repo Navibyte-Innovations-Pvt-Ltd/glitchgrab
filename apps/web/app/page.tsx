@@ -48,11 +48,11 @@ const STEPS = [
 ];
 
 const COMPARISONS = [
-  { name: "Jam.dev", handwritten: false, sdk: false, ai: false, dedup: false, mcp: false, oss: false },
-  { name: "Marker.io", handwritten: false, sdk: false, ai: false, dedup: false, mcp: false, oss: false },
-  { name: "BetterBugs", handwritten: false, sdk: true, ai: "Partial", dedup: false, mcp: false, oss: false },
-  { name: "Sentry", handwritten: false, sdk: true, ai: false, dedup: true, mcp: false, oss: true },
-  { name: "Glitchgrab", handwritten: true, sdk: true, ai: true, dedup: true, mcp: true, oss: true },
+  { name: "Jam.dev", screenshot: true, sdk: false, ai: false, dedup: false, mcp: false, oss: false },
+  { name: "Marker.io", screenshot: true, sdk: false, ai: false, dedup: false, mcp: false, oss: false },
+  { name: "BetterBugs", screenshot: true, sdk: true, ai: "Partial", dedup: false, mcp: false, oss: false },
+  { name: "Sentry", screenshot: false, sdk: true, ai: false, dedup: true, mcp: false, oss: true },
+  { name: "Glitchgrab", screenshot: true, sdk: true, ai: true, dedup: true, mcp: true, oss: true },
 ];
 
 function Check() {
@@ -114,7 +114,7 @@ export default function LandingPage() {
               </h1>
 
               <p className="mx-auto mt-4 max-w-xl text-sm text-muted-foreground leading-relaxed sm:mt-6 sm:text-lg lg:mx-0">
-                Turn messy bug reports — handwritten notes, screenshots, production errors — into
+                Turn messy bug reports — screenshots, production errors, user complaints — into
                 well-structured GitHub issues. Powered by AI.
               </p>
 
@@ -150,41 +150,56 @@ export default function LandingPage() {
 
       {/* Features + Video */}
       <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
-        <div className="text-center mb-10 sm:mb-16">
+        <div className="text-center mb-12 sm:mb-20">
+          <Badge variant="outline" className="mb-4 gap-2">
+            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+            How it works
+          </Badge>
           <h2 className="text-2xl font-bold sm:text-3xl lg:text-4xl">
-            Stop writing issues. Start shipping fixes.
+            Stop writing issues.{" "}
+            <span className="text-primary">Start shipping fixes.</span>
           </h2>
-          <p className="mt-3 text-sm text-muted-foreground max-w-lg mx-auto sm:mt-4 sm:text-base">
-            Crashes, screenshots, user complaints — doesn&apos;t matter how the bug reaches you. Glitchgrab turns it into a clean GitHub issue with one click. Or zero clicks.
+          <p className="mt-3 text-sm text-muted-foreground max-w-xl mx-auto sm:mt-4 sm:text-base leading-relaxed">
+            Crashes, screenshots, user complaints — doesn&apos;t matter how the bug reaches you.
+            Glitchgrab turns it into a clean GitHub issue. One click. Or zero.
           </p>
         </div>
 
-        <div className="flex flex-col items-center gap-10 lg:flex-row lg:items-start lg:gap-12">
-          {/* Left — feature cards */}
-          <div className="flex-1 grid gap-4 sm:grid-cols-2 sm:gap-5">
-            {FLOWS.map((flow) => (
+        <div className="flex flex-col items-center gap-12 lg:flex-row lg:items-start lg:gap-16">
+          {/* Left — stacked feature cards */}
+          <div className="flex-1 space-y-4 sm:space-y-5">
+            {FLOWS.map((flow, i) => (
               <Card
                 key={flow.title}
-                className="transition hover:border-muted-foreground/30"
+                className="group transition hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5"
               >
                 <CardContent className="p-5 sm:p-6">
-                  <div className="mb-3 sm:mb-4">
-                    {flow.anim === "dashboard" && <DashboardChatAnim />}
-                    {flow.anim === "autocapture" && <AutoCaptureAnim />}
-                    {flow.anim === "report" && <ReportButtonAnim />}
-                    {flow.anim === "dedup" && <DedupAnim />}
+                  <div className="flex gap-4 sm:gap-5">
+                    <div className="shrink-0 rounded-xl bg-primary/5 p-2 ring-1 ring-primary/10 group-hover:ring-primary/20 transition">
+                      {flow.anim === "dashboard" && <DashboardChatAnim />}
+                      {flow.anim === "autocapture" && <AutoCaptureAnim />}
+                      {flow.anim === "report" && <ReportButtonAnim />}
+                      {flow.anim === "dedup" && <DedupAnim />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary font-mono">
+                          {i + 1}
+                        </span>
+                        <Badge variant="secondary" className="text-primary bg-primary/10 text-[10px]">
+                          {flow.tag}
+                        </Badge>
+                      </div>
+                      <h3 className="text-base font-semibold mb-1 sm:text-lg">{flow.title}</h3>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{flow.desc}</p>
+                    </div>
                   </div>
-                  <Badge variant="secondary" className="mb-2 sm:mb-3 text-primary bg-primary/10">
-                    {flow.tag}
-                  </Badge>
-                  <h3 className="text-base font-semibold mb-1.5 sm:text-lg sm:mb-2">{flow.title}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{flow.desc}</p>
                 </CardContent>
               </Card>
             ))}
           </div>
 
-          {/* Right — video in phone frame */}
+          {/* Right — sticky video */}
           <div className="lg:sticky lg:top-24 shrink-0">
             <HeroVideo src="https://cdn.glitchgrab.dev/meta/Timeline.mp4" />
           </div>
@@ -242,9 +257,9 @@ export default function LandingPage() {
             </div>
             <div className="mt-6 rounded-xl border border-border bg-background p-3 text-center sm:mt-8 sm:p-4">
               <p className="text-xs text-muted-foreground sm:text-sm">
-                Bring your own key (Claude or OpenAI) or use our platform-provided AI.
+                AI-powered issue generation built in. No API keys, no setup.
                 <br />
-                <span className="text-primary">Your data, your choice.</span>
+                <span className="text-primary">Just connect and ship.</span>
               </p>
             </div>
           </CardContent>
@@ -263,7 +278,7 @@ export default function LandingPage() {
             <thead>
               <tr className="border-b border-border bg-card text-left">
                 <th className="px-3 py-3 font-medium text-muted-foreground sm:px-6 sm:py-4">Tool</th>
-                <th className="px-2 py-3 font-medium text-muted-foreground text-center sm:px-4 sm:py-4">Handwritten</th>
+                <th className="px-2 py-3 font-medium text-muted-foreground text-center sm:px-4 sm:py-4">Screenshot</th>
                 <th className="px-2 py-3 font-medium text-muted-foreground text-center sm:px-4 sm:py-4">SDK</th>
                 <th className="px-2 py-3 font-medium text-muted-foreground text-center sm:px-4 sm:py-4">AI</th>
                 <th className="px-2 py-3 font-medium text-muted-foreground text-center sm:px-4 sm:py-4">Dedup</th>
@@ -282,7 +297,7 @@ export default function LandingPage() {
                   <td className={`px-3 py-3 font-medium sm:px-6 sm:py-4 ${row.name === "Glitchgrab" ? "text-primary" : ""}`}>
                     {row.name}
                   </td>
-                  <td className="px-2 py-3 text-center sm:px-4 sm:py-4"><CellValue val={row.handwritten} /></td>
+                  <td className="px-2 py-3 text-center sm:px-4 sm:py-4"><CellValue val={row.screenshot} /></td>
                   <td className="px-2 py-3 text-center sm:px-4 sm:py-4"><CellValue val={row.sdk} /></td>
                   <td className="px-2 py-3 text-center sm:px-4 sm:py-4"><CellValue val={row.ai} /></td>
                   <td className="px-2 py-3 text-center sm:px-4 sm:py-4"><CellValue val={row.dedup} /></td>
@@ -319,7 +334,7 @@ export default function LandingPage() {
                   "Smart dedup & updates (free)",
                   "SDK auto-capture",
                   "Screenshot analysis",
-                  "No API key needed",
+                  "AI built in — zero setup",
                 ].map((f) => (
                   <li key={f} className="flex items-center gap-2">
                     <span className="text-primary">&#10003;</span>
