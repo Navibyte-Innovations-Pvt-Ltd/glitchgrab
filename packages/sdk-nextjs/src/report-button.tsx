@@ -205,6 +205,7 @@ export function ReportButton({
                 '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
               overflow: "hidden",
               color: t.text,
+              isolation: "isolate",
             }}
           >
             {/* Header */}
@@ -238,13 +239,15 @@ export function ReportButton({
                     border: "none",
                     cursor: "pointer",
                     padding: "4px",
-                    color: t.textMuted,
-                    fontSize: "18px",
-                    lineHeight: 1,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                   }}
                   aria-label="Close"
                 >
-                  &times;
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display: "block" }}>
+                    <path d="M4 4L12 12M12 4L4 12" stroke={t.textMuted} strokeWidth="2" strokeLinecap="round" />
+                  </svg>
                 </button>
               </div>
             </div>
@@ -292,19 +295,18 @@ export function ReportButton({
                           background: "rgba(0,0,0,0.6)",
                           border: "none",
                           borderRadius: "50%",
-                          color: "#fff",
                           width: "20px",
                           height: "20px",
-                          fontSize: "12px",
                           cursor: "pointer",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          lineHeight: 1,
                         }}
                         aria-label="Remove screenshot"
                       >
-                        &times;
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                          <path d="M1 1L9 9M9 1L1 9" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" />
+                        </svg>
                       </button>
                       <div
                         style={{
