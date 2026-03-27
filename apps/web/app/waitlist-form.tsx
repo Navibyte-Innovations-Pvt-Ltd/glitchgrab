@@ -12,7 +12,7 @@ const PRICE_OPTIONS = [
 ];
 
 const FEATURE_OPTIONS = [
-  { value: "handwritten", label: "Handwritten notes → issue" },
+  { value: "dashboard_chat", label: "Dashboard chat → issue" },
   { value: "sdk_auto", label: "SDK auto-capture" },
   { value: "report_button", label: "Report Error button" },
   { value: "screenshot", label: "Screenshot upload → issue" },

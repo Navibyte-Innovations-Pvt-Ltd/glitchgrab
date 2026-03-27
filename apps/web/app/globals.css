@@ -149,10 +149,4 @@ html {
   height: 1px;
 }
 
-/* Disable GPU-heavy CSS in Android WebView to prevent MediaTek GPU crashes */
-.webview * {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  animation-duration: 0s !important;
-  transition-duration: 0s !important;
-}
+/* WebView GPU fixes and pull-to-refresh are handled by injected style tag (#glitchgrab-webview) from the mobile app */

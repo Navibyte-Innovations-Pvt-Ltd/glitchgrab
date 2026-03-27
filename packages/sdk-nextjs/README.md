@@ -161,12 +161,117 @@ curl -H "Authorization: Bearer gg_your_token" \
       "issue": {
         "githubNumber": 42,
         "githubUrl": "https://github.com/your/repo/issues/42",
-        "title": "Button not working"
+        "title": "Button not working",
+        "labels": ["bug"],
+        "severity": "medium",
+        "githubState": "open"
       }
     }
   ]
 }
 ```
+
+### Response fields
+
+| Field | Description |
+|-------|-------------|
+| `id` | Report ID — use this for [managing issues](#managing-issues-approve--reject--close) |
+| `source` | `SDK_AUTO` (crash) or `SDK_USER_REPORT` (user clicked report) |
+| `status` | `PENDING`, `PROCESSING`, `CREATED`, `FAILED` |
+| `reporterPrimaryKey` | The `userId` you passed in the session prop |
+| `reporterName` | Reporter's display name |
+| `issue.githubState` | Live GitHub issue state: `open`, `closed`, or `null` if deleted |
+| `issue.labels` | Labels on the GitHub issue (e.g., `["bug", "approved"]`) |
+| `issue.severity` | AI-assigned severity |
+```
+
+## Managing Issues (Approve / Reject / Close)
+
+Once a report creates a GitHub issue, you can manage it from the dashboard or via API.
+
+### Dashboard
+
+Go to **Reports > Product Issues**. Each open report shows:
+- **Approve** — adds `approved` label to GitHub issue
+- **Reject** — adds `rejected` label to GitHub issue
+- **Close** — closes the GitHub issue
+
+### REST API
+
+`POST /api/v1/reports/{reportId}/actions`
+
+Auth: `Bearer gg_` token or dashboard session.
+
+#### Approve a report
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer gg_your_token" \
+  -H "Content-Type: application/json" \
+  -d '{"action": "label", "label": "approved"}' \
+  https://glitchgrab.dev/api/v1/reports/REPORT_ID/actions
+```
+
+#### Reject a report
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer gg_your_token" \
+  -H "Content-Type: application/json" \
+  -d '{"action": "label", "label": "rejected"}' \
+  https://glitchgrab.dev/api/v1/reports/REPORT_ID/actions
+```
+
+#### Close an issue
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer gg_your_token" \
+  -H "Content-Type: application/json" \
+  -d '{"action": "close"}' \
+  https://glitchgrab.dev/api/v1/reports/REPORT_ID/actions
+```
+
+#### Reopen an issue
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer gg_your_token" \
+  -H "Content-Type: application/json" \
+  -d '{"action": "reopen"}' \
+  https://glitchgrab.dev/api/v1/reports/REPORT_ID/actions
+```
+
+#### Remove a label
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer gg_your_token" \
+  -H "Content-Type: application/json" \
+  -d '{"action": "unlabel", "label": "rejected"}' \
+  https://glitchgrab.dev/api/v1/reports/REPORT_ID/actions
+```
+
+#### Add any custom label
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer gg_your_token" \
+  -H "Content-Type: application/json" \
+  -d '{"action": "label", "label": "high-priority"}' \
+  https://glitchgrab.dev/api/v1/reports/REPORT_ID/actions
+```
+
+### How to get the report ID
+
+Use the [Fetching Reports API](#fetching-reports-by-user) to list reports. Each report has an `id` field — use that as `REPORT_ID`.
+
+### How it works
+
+1. End-user reports a bug via SDK -> GitHub issue created
+2. You fetch reports via API or view on dashboard
+3. Approve/reject/close via API or dashboard buttons
+4. Labels and state sync directly to GitHub — GitHub is the source of truth
 
 ## Error Boundary
 

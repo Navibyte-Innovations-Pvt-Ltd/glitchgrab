@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate --schema=prisma/schema.prisma && next build",
+    "postbuild": "next-sitemap",
     "start": "next start",
     "lint": "eslint .",
     "validate": "eslint . && tsc --noEmit"

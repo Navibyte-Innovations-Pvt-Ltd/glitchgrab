@@ -8,7 +8,7 @@ import { hashToken } from "@/lib/tokens";
  * GET /api/v1/sdk/reports
  *
  * Fetch reports for a repo using the API token.
- * Supports filtering by reporterPrimaryKey to find reports by a specific user.
+ * Returns reports with GitHub issue state (open/closed), reporter info, and metadata.
  *
  * Headers:
  *   Authorization: Bearer gg_xxxxx
@@ -78,6 +78,8 @@ export async function GET(request: Request) {
             githubNumber: true,
             githubUrl: true,
             title: true,
+            labels: true,
+            severity: true,
           },
         },
       },
@@ -85,10 +87,63 @@ export async function GET(request: Request) {
       take: limit,
     });
 
-    return NextResponse.json({
-      success: true,
-      data: reports,
-    });
+    // Fetch GitHub issue states
+    const issueNumbers = reports
+      .filter((r): r is typeof r & { issue: NonNullable<typeof r.issue> } => !!r.issue)
+      .map((r) => r.issue.githubNumber);
+
+    const issueStates: Record<number, string> = {};
+
+    if (issueNumbers.length > 0) {
+      const account = await prisma.account.findFirst({
+        where: { userId: apiToken.repo.userId, provider: "github" },
+        select: { access_token: true },
+      });
+
+      if (account?.access_token) {
+        try {
+          const res = await fetch(
+            `https://api.github.com/repos/${apiToken.repo.owner}/${apiToken.repo.name}/issues?state=all&per_page=100`,
+            { headers: { Authorization: `Bearer ${account.access_token}` } }
+          );
+          if (res.ok) {
+            const issues = (await res.json()) as { number: number; state: string }[];
+            for (const issue of issues) {
+              if (issueNumbers.includes(issue.number)) {
+                issueStates[issue.number] = issue.state;
+              }
+            }
+          }
+        } catch {
+          // skip — return without states
+        }
+      }
+    }
+
+    const data = reports.map((r) => ({
+      id: r.id,
+      source: r.source,
+      status: r.status,
+      rawInput: r.rawInput,
+      reporterPrimaryKey: r.reporterPrimaryKey,
+      reporterName: r.reporterName,
+      reporterEmail: r.reporterEmail,
+      reporterPhone: r.reporterPhone,
+      pageUrl: r.pageUrl,
+      createdAt: r.createdAt,
+      issue: r.issue
+        ? {
+            githubNumber: r.issue.githubNumber,
+            githubUrl: r.issue.githubUrl,
+            title: r.issue.title,
+            labels: r.issue.labels,
+            severity: r.issue.severity,
+            githubState: issueStates[r.issue.githubNumber] ?? null,
+          }
+        : null,
+    }));
+
+    return NextResponse.json({ success: true, data });
   } catch (error) {
     console.error("SDK reports fetch error:", error);
     return NextResponse.json(

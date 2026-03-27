@@ -91,25 +91,3 @@ async function setupGitHubWebhook(userId: string, owner: string, repo: string) {
     }),
   });
 }
-
-export async function disconnectRepo(repoId: string) {
-  const session = await auth();
-
-  if (!session?.user?.id) {
-    throw new Error("Unauthorized");
-  }
-
-  const repo = await prisma.repo.findUnique({
-    where: { id: repoId },
-  });
-
-  if (!repo || repo.userId !== session.user.id) {
-    throw new Error("Repo not found");
-  }
-
-  await prisma.repo.delete({
-    where: { id: repoId },
-  });
-
-  revalidatePath("/dashboard/repos");
-}

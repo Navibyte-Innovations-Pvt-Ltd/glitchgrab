@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Users } from "lucide-react";
 import { InviteCollaboratorDialog } from "./invite-dialog";
 import { RevokeButton } from "./revoke-button";
+import { EditReposDialog } from "./edit-repos-dialog";
 
 export default async function CollaboratorsPage() {
   const session = await auth();
@@ -88,7 +89,17 @@ export default async function CollaboratorsPage() {
                     )}
                   </p>
                 </div>
-                <RevokeButton collaboratorId={collab.id} email={collab.email} />
+                <div className="flex items-center gap-2 shrink-0">
+                  {collab.status === "ACCEPTED" && (
+                    <EditReposDialog
+                      collaboratorId={collab.id}
+                      email={collab.email}
+                      currentRepoIds={collab.repos.map((cr) => cr.repo.id)}
+                      allRepos={repos.map((r) => ({ id: r.id, fullName: r.fullName }))}
+                    />
+                  )}
+                  <RevokeButton collaboratorId={collab.id} email={collab.email} />
+                </div>
               </CardContent>
             </Card>
           ))}

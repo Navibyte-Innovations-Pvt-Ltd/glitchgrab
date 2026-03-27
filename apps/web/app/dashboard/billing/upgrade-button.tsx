@@ -17,9 +17,10 @@ interface RazorpaySubscriptionOptions {
   subscription_id: string;
   name: string;
   description: string;
+  image?: string;
   handler: (response: RazorpaySubscriptionResponse) => void;
   prefill: { name: string; email: string };
-  theme: { color: string };
+  theme: { color: string; backdrop_color?: string };
   modal?: { ondismiss?: () => void };
 }
 
@@ -75,6 +76,7 @@ export function UpgradeButton({
         subscription_id: data.data.subscriptionId,
         name: "Glitchgrab",
         description: data.data.planName,
+        image: "/logo.png",
         handler: async (response: RazorpaySubscriptionResponse) => {
           try {
             const { data: verifyData } = await axios.post("/api/v1/billing/verify", response);
@@ -91,7 +93,7 @@ export function UpgradeButton({
           setLoading(false);
         },
         prefill: { name, email },
-        theme: { color: "#22d3ee" },
+        theme: { color: "#22d3ee", backdrop_color: "#09090b" },
         modal: {
           ondismiss: () => setLoading(false),
         },
@@ -106,13 +108,14 @@ export function UpgradeButton({
 
   if (variant === "link") {
     return (
-      <button
+      <Button
+        variant="link"
         onClick={handleUpgrade}
         disabled={loading}
-        className="shrink-0 text-xs font-medium text-primary hover:underline disabled:opacity-50"
+        className="shrink-0 text-xs font-medium h-auto p-0"
       >
         {loading ? "Processing..." : label}
-      </button>
+      </Button>
     );
   }
 

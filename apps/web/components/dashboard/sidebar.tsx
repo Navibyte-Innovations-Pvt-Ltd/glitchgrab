@@ -71,14 +71,15 @@ export function Sidebar({ user, userType = "owner", planBadge = "none", trialDay
       <div className="px-3 pb-2">
         <ReportButton>
           {({ onClick, capturing }) => (
-            <button
+            <Button
+              variant="ghost"
               onClick={onClick}
               disabled={capturing}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="flex w-full justify-start items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               {capturing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bug className="h-4 w-4" />}
               {capturing ? "Capturing..." : "Report Bug"}
-            </button>
+            </Button>
           )}
         </ReportButton>
       </div>

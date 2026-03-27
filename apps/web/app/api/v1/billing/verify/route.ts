@@ -40,6 +40,15 @@ export async function POST(request: Request) {
       );
     }
 
+    // Verify user exists in DB
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } });
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "User not found. Please sign out and sign in again." },
+        { status: 400 }
+      );
+    }
+
     const plan = "PRO_PLATFORM" as const;
 
     const now = new Date();

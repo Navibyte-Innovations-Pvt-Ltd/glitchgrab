@@ -38,7 +38,7 @@ export default function LegalLayout({
       <footer className="border-t border-border py-8">
         <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
           <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} Glitchgrab. All rights reserved.
+            &copy; {new Date().getFullYear()} Navibyte Innovation Pvt. Ltd. All rights reserved.
           </p>
         </div>
       </footer>

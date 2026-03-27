@@ -3,23 +3,8 @@
     "routes": [
       "/api/auth/**",
       "/api/webhooks/**",
-      "/api/v1/sdk/**",
-      "/api/v1/billing/**",
-      "/api/v1/github/**",
-      "/api/v1/collaborators/**",
-      "/api/waitlist"
+      "/api/v1/billing/webhook"
     ],
-    "folders": [".glitchgrab"],
-    "files": [
-      "**/utils.ts",
-      "**/db-sync.ts",
-      "**/components/**",
-      "**/proxy.ts",
-      "**/lib/**",
-      "**/*actions*",
-      "**/*form*",
-      "**/(legal)/**",
-      "**/original.png"
-    ]
+    "files": ["**/db-sync.ts", "**/components/ui/**"]
   }
 }

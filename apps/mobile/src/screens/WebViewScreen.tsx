@@ -228,7 +228,6 @@ export default function WebViewScreen({
       meta.name = 'viewport';
       meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
       document.head.appendChild(meta);
-      document.documentElement.classList.add('webview');
     })();
     true;
   `;
@@ -243,13 +242,11 @@ export default function WebViewScreen({
       // Force first viewport to our settings
       if (metas[0]) metas[0].content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
 
-      // Ensure webview class is on html (backup for injectedBeforeLoad)
-      document.documentElement.classList.add('webview');
-
-      // Force 16px on inputs + fix layout + disable GPU-heavy CSS for Android WebView
+      // Force 16px on inputs + disable GPU-heavy CSS + enable pull-to-refresh
+      // Style tag with high-specificity selectors — no attribute on <html> to avoid hydration mismatch
       var s = document.createElement('style');
       s.id = 'glitchgrab-webview';
-      s.textContent = 'input,textarea,select{font-size:16px!important} *{touch-action:manipulation} body{height:calc(var(--app-height,100vh))!important;overflow:hidden;overscroll-behavior:none} .webview *{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;animation-duration:0s!important;transition-duration:0s!important}';
+      s.textContent = 'input,textarea,select{font-size:16px!important} #glitchgrab-webview~*,#glitchgrab-webview~* *{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;animation-duration:0s!important;transition-duration:0s!important} body,body>*,body>*>*,body>*>*>*,main{overflow:visible!important;height:auto!important;min-height:0!important;-webkit-overflow-scrolling:touch}';
       document.head.appendChild(s);
 
       document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
@@ -262,7 +259,7 @@ export default function WebViewScreen({
         _rafId = requestAnimationFrame(function() {
           _rafId = 0;
           var h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-          _styleTag.textContent = 'input,textarea,select{font-size:16px!important} *{touch-action:manipulation} body{height:' + h + 'px!important;overflow:hidden;overscroll-behavior:none} :root{--app-height:' + h + 'px}';
+          _styleTag.textContent = 'input,textarea,select{font-size:16px!important} :root{--app-height:' + h + 'px} #glitchgrab-webview~*,#glitchgrab-webview~* *{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;animation-duration:0s!important;transition-duration:0s!important} body,body>*,body>*>*,body>*>*>*,main{overflow:visible!important;height:auto!important;min-height:0!important;-webkit-overflow-scrolling:touch}';
         });
       }
       updateAppHeight();
@@ -384,8 +381,8 @@ export default function WebViewScreen({
           mediaPlaybackRequiresUserAction={false}
           allowsInlineMediaPlayback
           cacheEnabled
-          pullToRefreshEnabled={Platform.OS === "ios"}
-          bounces={Platform.OS === "ios"}
+          pullToRefreshEnabled
+          bounces
           overScrollMode="content"
           decelerationRate={0.998}
           contentMode="mobile"

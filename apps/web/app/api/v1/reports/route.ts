@@ -7,6 +7,112 @@ import { processReport } from "@/lib/pipeline";
 import { getCollabSession } from "@/lib/collab-auth";
 import sharp from "sharp";
 
+export async function GET() {
+  try {
+    const session = await auth();
+    const collabSession = await getCollabSession();
+    const userId = session?.user?.id;
+
+    if (!userId && !collabSession) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
+    const repoIds: string[] = [];
+    if (userId) {
+      const repos = await prisma.repo.findMany({ where: { userId }, select: { id: true } });
+      repoIds.push(...repos.map((r) => r.id));
+    }
+    if (collabSession) {
+      const collabRepos = await prisma.collaboratorRepo.findMany({
+        where: { collaborator: { id: collabSession.collaboratorId, status: "ACCEPTED" } },
+        select: { repoId: true },
+      });
+      repoIds.push(...collabRepos.map((r) => r.repoId));
+    }
+
+    if (repoIds.length === 0) {
+      return NextResponse.json({ success: true, data: [] });
+    }
+
+    const reports = await prisma.report.findMany({
+      where: { repoId: { in: repoIds } },
+      include: {
+        repo: { select: { id: true, fullName: true, userId: true, owner: true, name: true } },
+        issue: { select: { githubNumber: true, githubUrl: true, title: true, labels: true, severity: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
+
+    // Fetch GitHub issue states
+    const issueStates: Record<string, string> = {};
+    if (userId) {
+      const account = await prisma.account.findFirst({
+        where: { userId, provider: "github" },
+        select: { access_token: true },
+      });
+      if (account?.access_token) {
+        const issuesByRepo = new Map<string, number[]>();
+        for (const r of reports) {
+          if (r.issue) {
+            const key = r.repo.fullName;
+            const existing = issuesByRepo.get(key) ?? [];
+            existing.push(r.issue.githubNumber);
+            issuesByRepo.set(key, existing);
+          }
+        }
+        await Promise.all(
+          Array.from(issuesByRepo.entries()).map(async ([fullName, numbers]) => {
+            try {
+              const res = await fetch(
+                `https://api.github.com/repos/${fullName}/issues?state=all&per_page=100`,
+                { headers: { Authorization: `Bearer ${account.access_token}` } }
+              );
+              if (res.ok) {
+                const issues = (await res.json()) as { number: number; state: string }[];
+                for (const issue of issues) {
+                  if (numbers.includes(issue.number)) {
+                    issueStates[`${fullName}#${issue.number}`] = issue.state;
+                  }
+                }
+              }
+            } catch { /* skip */ }
+          })
+        );
+      }
+    }
+
+    const data = reports.map((r) => ({
+      id: r.id,
+      source: r.source,
+      status: r.status,
+      rawInput: r.rawInput,
+      failReason: r.failReason,
+      createdAt: r.createdAt,
+      repoId: r.repoId,
+      repoFullName: r.repo.fullName,
+      reporterPrimaryKey: r.reporterPrimaryKey,
+      reporterName: r.reporterName,
+      reporterEmail: r.reporterEmail,
+      issue: r.issue
+        ? {
+            githubNumber: r.issue.githubNumber,
+            githubUrl: r.issue.githubUrl,
+            title: r.issue.title,
+            labels: r.issue.labels,
+            severity: r.issue.severity,
+            githubState: issueStates[`${r.repo.fullName}#${r.issue.githubNumber}`] ?? null,
+          }
+        : null,
+    }));
+
+    return NextResponse.json({ success: true, data });
+  } catch (error) {
+    console.error("Fetch reports error:", error);
+    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const session = await auth();

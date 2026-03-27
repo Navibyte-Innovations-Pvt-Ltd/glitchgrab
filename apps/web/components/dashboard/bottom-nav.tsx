@@ -113,14 +113,15 @@ export function BottomNav({ user, userType = "owner", planBadge = "none", trialD
         {/* Report Bug */}
         <ReportButton>
           {({ onClick, capturing }) => (
-            <button
+            <Button
+              variant="ghost"
               onClick={onClick}
               disabled={capturing}
-              className="flex flex-col items-center gap-0.5 px-3 py-1 text-xs text-muted-foreground transition"
+              className="flex flex-col items-center gap-0.5 px-3 py-1 h-auto text-xs text-muted-foreground"
             >
               {capturing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Bug className="h-5 w-5" />}
               <span>{capturing ? "..." : "Report"}</span>
-            </button>
+            </Button>
           )}
         </ReportButton>
 
@@ -144,11 +145,12 @@ export function BottomNav({ user, userType = "owner", planBadge = "none", trialD
                     ? pathname === "/dashboard"
                     : pathname.startsWith(item.href);
                 return (
-                  <button
+                  <Button
                     key={item.href}
+                    variant="ghost"
                     onClick={() => {
                       setOpen(false);
-                      const isWebView = document.documentElement.classList.contains("webview");
+                      const isWebView = !!document.getElementById("glitchgrab-webview");
                       if (isWebView) {
                         setNavigating(true);
                         window.location.href = item.href;
@@ -157,7 +159,7 @@ export function BottomNav({ user, userType = "owner", planBadge = "none", trialD
                       }
                     }}
                     className={cn(
-                      "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition text-left",
+                      "flex w-full justify-start items-center gap-3 rounded-lg px-3 py-2 text-sm",
                       isActive
                         ? "bg-primary/10 text-primary font-medium"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -165,20 +167,21 @@ export function BottomNav({ user, userType = "owner", planBadge = "none", trialD
                   >
                     <item.icon className="h-4 w-4" />
                     {item.label}
-                  </button>
+                  </Button>
                 );
               })}
               <div className="mt-2 px-0">
                 <ReportButton>
                   {({ onClick, capturing }) => (
-                    <button
+                    <Button
+                      variant="ghost"
                       onClick={onClick}
                       disabled={capturing}
-                      className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition text-muted-foreground hover:bg-muted hover:text-foreground"
+                      className="flex w-full justify-start items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
                     >
                       {capturing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bug className="h-4 w-4" />}
                       {capturing ? "Capturing..." : "Report Bug"}
-                    </button>
+                    </Button>
                   )}
                 </ReportButton>
               </div>

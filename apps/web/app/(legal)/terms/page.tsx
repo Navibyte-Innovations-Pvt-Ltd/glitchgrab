@@ -28,7 +28,7 @@ export default function TermsOfServicePage() {
         <h2 className="text-xl font-semibold">1. Service Description</h2>
         <p className="text-muted-foreground leading-relaxed">
           Glitchgrab is a SaaS tool that converts bug reports — including
-          handwritten notes, screenshots, production errors, and user-reported
+          screenshots, production errors, and user-reported
           bugs — into well-structured GitHub issues using AI. The service
           includes a web dashboard, an npm SDK for Next.js applications, and an
           MCP server.
@@ -60,12 +60,8 @@ export default function TermsOfServicePage() {
         <h2 className="text-xl font-semibold">3. Payment &amp; Billing</h2>
         <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
           <li>
-            Glitchgrab offers two paid plans:{" "}
-            <strong className="text-foreground">Pro (BYOK) at $5/month</strong>{" "}
-            and{" "}
-            <strong className="text-foreground">
-              Pro (Platform AI) at $10/month
-            </strong>
+            Glitchgrab offers a paid plan:{" "}
+            <strong className="text-foreground">Pro at ₹199/month</strong>
             .
           </li>
           <li>

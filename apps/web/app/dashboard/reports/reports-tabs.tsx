@@ -1,10 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import axios from "axios";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardList, ExternalLink, Bug, GitFork } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ClipboardList, ExternalLink, Bug, GitFork, X, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 interface ReportItem {
   id: string;
@@ -37,18 +42,21 @@ const SOURCE_LABELS: Record<string, string> = {
   SDK_AUTO: "Auto Capture",
   SDK_USER_REPORT: "User Report",
   DASHBOARD_UPLOAD: "Dashboard",
-  HANDWRITTEN_NOTE: "Handwritten",
+  HANDWRITTEN_NOTE: "Note",
   MCP: "MCP",
 };
 
 export function ReportsTabs({
   myReports,
   productIssues,
+  isOwner = false,
 }: {
   myReports: ReportItem[];
   productIssues: ReportItem[];
+  isOwner?: boolean;
 }) {
   const [tab, setTab] = useState<"product" | "my">("product");
+  const router = useRouter();
 
   const reports = tab === "product" ? productIssues : myReports;
 
@@ -183,11 +191,78 @@ export function ReportsTabs({
                     )}
                   </div>
                 </div>
+                {/* Actions — only for owner on product issues with a linked GitHub issue */}
+                {isOwner && tab === "product" && report.issue && report.issue.githubState === "open" && (
+                  <ReportActions reportId={report.id} onDone={() => router.refresh()} />
+                )}
               </CardContent>
             </Card>
           ))}
         </div>
       )}
     </>
+  );
+}
+
+function ReportActions({ reportId, onDone }: { reportId: string; onDone: () => void }) {
+  const closeMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await axios.post(`/api/v1/reports/${reportId}/actions`, { action: "close" });
+      if (!data.success) throw new Error(data.error);
+    },
+    onSuccess: () => { toast.success("Issue closed"); onDone(); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+
+  const labelMutation = useMutation({
+    mutationFn: async (label: string) => {
+      const { data } = await axios.post(`/api/v1/reports/${reportId}/actions`, { action: "label", label });
+      if (!data.success) throw new Error(data.error);
+    },
+    onSuccess: (_, label) => { toast.success(`Label "${label}" added`); onDone(); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+  });
+
+  const isPending = closeMutation.isPending || labelMutation.isPending;
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-border">
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-7 text-xs gap-1 text-green-500 hover:text-green-600"
+        disabled={isPending}
+        onClick={() => labelMutation.mutate("approved")}
+      >
+        {labelMutation.isPending && labelMutation.variables === "approved"
+          ? <Loader2 className="h-3 w-3 animate-spin" />
+          : <CheckCircle className="h-3 w-3" />}
+        Approve
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-7 text-xs gap-1 text-orange-500 hover:text-orange-600"
+        disabled={isPending}
+        onClick={() => labelMutation.mutate("rejected")}
+      >
+        {labelMutation.isPending && labelMutation.variables === "rejected"
+          ? <Loader2 className="h-3 w-3 animate-spin" />
+          : <XCircle className="h-3 w-3" />}
+        Reject
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-7 text-xs gap-1 text-destructive hover:text-destructive"
+        disabled={isPending}
+        onClick={() => closeMutation.mutate()}
+      >
+        {closeMutation.isPending
+          ? <Loader2 className="h-3 w-3 animate-spin" />
+          : <X className="h-3 w-3" />}
+        Close
+      </Button>
+    </div>
   );
 }

@@ -46,7 +46,11 @@
       ]
     }
   },
-  "ignoreBinaries": ["prisma", "expo", "adb"],
+  "ignoreDependencies": [
+    "@semantic-release/changelog",
+    "@semantic-release/git"
+  ],
+  "ignoreBinaries": ["prisma", "expo", "adb", "semantic-release"],
   "ignore": ["apps/scripts/**"],
   "ignoreExportsUsedInFile": true
 }
