@@ -128,22 +128,24 @@ export function ReportButton({
     return () => document.removeEventListener("keydown", handleEsc);
   }, [isOpen, previewOpen]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     try {
       if (!description.trim() || isSubmitting) return;
 
       setIsSubmitting(true);
-      reportBug(description.trim(), screenshot ? { screenshot } : undefined);
+      const result = await reportBug(description.trim(), screenshot ? { screenshot } : undefined);
 
-      setSubmitted(true);
-      setDescription("");
-      setScreenshot(null);
+      if (result) {
+        setSubmitted(true);
+        setDescription("");
+        setScreenshot(null);
+
+        setTimeout(() => {
+          setSubmitted(false);
+          setIsOpen(false);
+        }, 2000);
+      }
       setIsSubmitting(false);
-
-      setTimeout(() => {
-        setSubmitted(false);
-        setIsOpen(false);
-      }, 2000);
     } catch {
       setIsSubmitting(false);
     }
