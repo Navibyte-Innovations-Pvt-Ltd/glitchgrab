@@ -161,11 +161,28 @@ curl -H "Authorization: Bearer gg_your_token" \
       "issue": {
         "githubNumber": 42,
         "githubUrl": "https://github.com/your/repo/issues/42",
-        "title": "Button not working"
+        "title": "Button not working",
+        "labels": ["bug"],
+        "severity": "medium",
+        "githubState": "open"
       }
     }
   ]
 }
+```
+
+### Response fields
+
+| Field | Description |
+|-------|-------------|
+| `id` | Report ID — use this for [managing issues](#managing-issues-approve--reject--close) |
+| `source` | `SDK_AUTO` (crash) or `SDK_USER_REPORT` (user clicked report) |
+| `status` | `PENDING`, `PROCESSING`, `CREATED`, `FAILED` |
+| `reporterPrimaryKey` | The `userId` you passed in the session prop |
+| `reporterName` | Reporter's display name |
+| `issue.githubState` | Live GitHub issue state: `open`, `closed`, or `null` if deleted |
+| `issue.labels` | Labels on the GitHub issue (e.g., `["bug", "approved"]`) |
+| `issue.severity` | AI-assigned severity |
 ```
 
 ## Managing Issues (Approve / Reject / Close)
