@@ -10,7 +10,7 @@ const FEATURES = [
   "Smart dedup & updates",
   "Screenshot analysis",
   "SDK auto-capture",
-  "No API key needed",
+  "AI built in — zero setup",
 ];
 
 export function PaywallBlock({ email, name }: { email: string; name: string }) {
