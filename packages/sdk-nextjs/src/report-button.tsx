@@ -117,7 +117,12 @@ export function ReportButton({
 
   // Listen for programmatic open via useGlitchgrab().openReportDialog()
   useEffect(() => {
-    const handler = () => { if (!isOpen) handleOpen(); };
+    const handler = (e: Event) => {
+      if (isOpen) return;
+      const detail = (e as CustomEvent).detail;
+      if (detail?.description) setDescription(detail.description);
+      handleOpen();
+    };
     window.addEventListener("glitchgrab:open-report", handler);
     return () => window.removeEventListener("glitchgrab:open-report", handler);
   }, [isOpen, handleOpen]);
