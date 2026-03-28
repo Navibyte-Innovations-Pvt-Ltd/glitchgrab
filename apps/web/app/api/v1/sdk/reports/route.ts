@@ -122,14 +122,10 @@ export async function GET(request: Request) {
 
     const data = reports.map((r) => ({
       id: r.id,
-      source: r.source,
-      status: r.status,
-      rawInput: r.rawInput,
       reporterPrimaryKey: r.reporterPrimaryKey,
       reporterName: r.reporterName,
       reporterEmail: r.reporterEmail,
       reporterPhone: r.reporterPhone,
-      pageUrl: r.pageUrl,
       createdAt: r.createdAt,
       issue: r.issue
         ? {
