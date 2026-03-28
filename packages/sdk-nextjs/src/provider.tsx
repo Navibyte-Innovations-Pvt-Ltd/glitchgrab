@@ -251,9 +251,9 @@ function GlitchgrabProviderInner({
     []
   );
 
-  const openReportDialog = useCallback(() => {
+  const openReportDialog = useCallback((options?: { description?: string }) => {
     if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("glitchgrab:open-report"));
+      window.dispatchEvent(new CustomEvent("glitchgrab:open-report", { detail: options }));
     }
   }, []);
 

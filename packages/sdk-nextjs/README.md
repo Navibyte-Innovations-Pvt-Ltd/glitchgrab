@@ -118,8 +118,11 @@ function MyComponent() {
   // Report with a specific type
   await report("FEATURE_REQUEST", "Add dark mode support");
 
-  // Open the Report Bug modal programmatically (captures screenshot + shows dialog)
+  // Open the Report Bug modal (captures screenshot + shows dialog)
   openReportDialog();
+
+  // Open with pre-filled description
+  openReportDialog({ description: "Error on /settings: Something went wrong" });
 
   // Add custom breadcrumbs for debugging context
   addBreadcrumb("User clicked checkout", { cartSize: "3" });

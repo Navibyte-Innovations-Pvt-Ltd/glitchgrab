@@ -133,7 +133,7 @@ export interface UseGlitchgrabReturn {
   /** Add a custom breadcrumb */
   addBreadcrumb: (message: string, data?: Record<string, string>) => void;
   /** Open the ReportButton modal programmatically (captures screenshot + shows dialog) */
-  openReportDialog: () => void;
+  openReportDialog: (options?: { description?: string }) => void;
   /** The token being used */
   token: string;
   /** The base URL of the Glitchgrab API */
