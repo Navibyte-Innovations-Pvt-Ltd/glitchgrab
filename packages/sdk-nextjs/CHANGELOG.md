@@ -1,3 +1,14 @@
+## [1.10.0](https://github.com/WebNaresh/glitchgrab/compare/sdk-v1.9.1...sdk-v1.10.0) (2026-03-28)
+
+### Features
+
+* **sdk:** add openReportDialog() to programmatically trigger ReportButton modal ([280658d](https://github.com/WebNaresh/glitchgrab/commit/280658d8e42cb7786dfee583a29b96153371c4b6))
+
+### Bug Fixes
+
+* **proxy:** add CORS for /api/v1/reports routes used by SDK actions ([2e2ee15](https://github.com/WebNaresh/glitchgrab/commit/2e2ee158d5b23d7613dd20321af61c944f23f2d0))
+* **sdk-api:** remove status, rawInput, source, pageUrl from SDK reports response ([951095a](https://github.com/WebNaresh/glitchgrab/commit/951095a5e5028a8425e833ec12d95fe6ca388651))
+
 ## [1.9.1](https://github.com/WebNaresh/glitchgrab/compare/sdk-v1.9.0...sdk-v1.9.1) (2026-03-27)
 
 ### Bug Fixes
