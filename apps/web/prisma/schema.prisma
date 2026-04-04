@@ -174,31 +174,12 @@ model Issue {
 
 // ─── Billing ─────────────────────────────────────────────
 
-enum Plan {
-  FREE
-  PRO_BYOK
-  PRO_PLATFORM
-}
-
-enum SubscriptionStatus {
-  ACTIVE
-  CANCELLED
-  PAST_DUE
-  EXPIRED
-}
-
 model Subscription {
-  id                    String             @id @default(cuid())
-  userId                String             @unique
-  plan                  Plan               @default(FREE)
-  status                SubscriptionStatus @default(ACTIVE)
-  razorpaySubscriptionId String?           @unique
-  razorpayCustomerId    String?
-  currentPeriodStart    DateTime?
-  currentPeriodEnd      DateTime?
-  cancelledAt           DateTime?
-  createdAt             DateTime           @default(now())
-  updatedAt             DateTime           @updatedAt
+  id                     String   @id @default(cuid())
+  userId                 String   @unique
+  razorpaySubscriptionId String   @unique
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
