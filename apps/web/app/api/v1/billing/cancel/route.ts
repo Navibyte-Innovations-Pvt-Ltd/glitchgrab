@@ -19,16 +19,9 @@ export async function POST() {
       where: { userId: session.user.id },
     });
 
-    if (!subscription || subscription.status !== "ACTIVE") {
+    if (!subscription) {
       return NextResponse.json(
-        { success: false, error: "No active subscription to cancel" },
-        { status: 400 }
-      );
-    }
-
-    if (!subscription.razorpaySubscriptionId) {
-      return NextResponse.json(
-        { success: false, error: "Missing subscription ID" },
+        { success: false, error: "No subscription found" },
         { status: 400 }
       );
     }
@@ -41,13 +34,7 @@ export async function POST() {
       true
     );
 
-    // Mark as cancelled in our DB — access continues until period ends
-    await prisma.subscription.update({
-      where: { userId: session.user.id },
-      data: {
-        cancelledAt: new Date(),
-      },
-    });
+    // No DB update needed — getUserPlan() will fetch the cancelled status from Razorpay
 
     return NextResponse.json({ success: true });
   } catch (error) {
