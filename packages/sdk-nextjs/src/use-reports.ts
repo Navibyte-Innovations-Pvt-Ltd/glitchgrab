@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 
-interface GlitchgrabReport {
+export interface GlitchgrabReport {
   id: string;
   source: string;
   status: string;
@@ -13,6 +13,8 @@ interface GlitchgrabReport {
   reporterPhone: string | null;
   pageUrl: string | null;
   createdAt: string;
+  /** Number of comments on the linked GitHub issue (0 if no issue) */
+  commentCount: number;
   issue: {
     githubNumber: number;
     githubUrl: string;

@@ -93,6 +93,7 @@ export async function GET(request: Request) {
       .map((r) => r.issue.githubNumber);
 
     const issueStates: Record<number, string> = {};
+    const issueCommentCounts: Record<number, number> = {};
 
     if (issueNumbers.length > 0) {
       const account = await prisma.account.findFirst({
@@ -107,10 +108,11 @@ export async function GET(request: Request) {
             { headers: { Authorization: `Bearer ${account.access_token}` } }
           );
           if (res.ok) {
-            const issues = (await res.json()) as { number: number; state: string }[];
+            const issues = (await res.json()) as { number: number; state: string; comments: number }[];
             for (const issue of issues) {
               if (issueNumbers.includes(issue.number)) {
                 issueStates[issue.number] = issue.state;
+                issueCommentCounts[issue.number] = issue.comments;
               }
             }
           }
@@ -122,11 +124,16 @@ export async function GET(request: Request) {
 
     const data = reports.map((r) => ({
       id: r.id,
+      source: r.source,
+      status: r.status,
+      rawInput: r.rawInput,
       reporterPrimaryKey: r.reporterPrimaryKey,
       reporterName: r.reporterName,
       reporterEmail: r.reporterEmail,
       reporterPhone: r.reporterPhone,
+      pageUrl: r.pageUrl,
       createdAt: r.createdAt,
+      commentCount: r.issue ? (issueCommentCounts[r.issue.githubNumber] ?? 0) : 0,
       issue: r.issue
         ? {
             githubNumber: r.issue.githubNumber,
