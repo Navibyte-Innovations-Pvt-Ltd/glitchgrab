@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getRazorpay } from "@/lib/razorpay";
@@ -35,6 +36,9 @@ export async function POST() {
     );
 
     // No DB update needed — getUserPlan() will fetch the cancelled status from Razorpay
+
+    // Bust cached dashboard layout so sidebar badge + PaywallGuard refresh
+    revalidatePath("/dashboard", "layout");
 
     return NextResponse.json({ success: true });
   } catch (error) {
