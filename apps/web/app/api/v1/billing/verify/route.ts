@@ -49,32 +49,19 @@ export async function POST(request: Request) {
       );
     }
 
-    const plan = "PRO_PLATFORM" as const;
-
-    const now = new Date();
-    const periodEnd = new Date(now);
-    periodEnd.setMonth(periodEnd.getMonth() + 1);
-
+    // Just store the Razorpay subscription ID — status comes from Razorpay API directly
     await prisma.subscription.upsert({
       where: { userId: session.user.id },
       update: {
-        plan,
-        status: "ACTIVE",
         razorpaySubscriptionId: body.razorpay_subscription_id,
-        currentPeriodStart: now,
-        currentPeriodEnd: periodEnd,
       },
       create: {
         userId: session.user.id,
-        plan,
-        status: "ACTIVE",
         razorpaySubscriptionId: body.razorpay_subscription_id,
-        currentPeriodStart: now,
-        currentPeriodEnd: periodEnd,
       },
     });
 
-    return NextResponse.json({ success: true, data: { plan } });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Verify error:", error);
     return NextResponse.json(
