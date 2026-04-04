@@ -9,6 +9,7 @@ export { GlitchgrabErrorBoundary } from "./error-boundary";
 
 // ─── Hooks ──────────────────────────────────────────────
 export { useGlitchgrabReports, fetchGlitchgrabReports, useGlitchgrabActions } from "./use-reports";
+export type { GlitchgrabReport } from "./use-reports";
 
 // ─── Breadcrumbs ─────────────────────────────────────────
 export {
