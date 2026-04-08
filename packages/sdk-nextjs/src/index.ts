@@ -29,6 +29,7 @@ export type {
   ReportPayload,
   ReportResult,
   ReportType,
+  ReportSeverity,
   CapturedContext,
   DeviceInfo,
   Breadcrumb,
