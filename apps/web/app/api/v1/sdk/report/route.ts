@@ -138,11 +138,29 @@ export async function POST(request: Request) {
         );
       }
 
-      const title = body.description
+      // Map type → label and title prefix
+      const typeToLabel: Record<string, string> = {
+        BUG: "bug",
+        FEATURE_REQUEST: "enhancement",
+        QUESTION: "question",
+        OTHER: "feedback",
+      };
+      const reportTypeKey = body.type ?? "BUG";
+      const typeLabel = typeToLabel[reportTypeKey] ?? "bug";
+      const severityValue = body.metadata?.severity;
+      const labels = [typeLabel, ...(severityValue ? [`severity:${severityValue}`] : [])];
+
+      const titlePrefix = reportTypeKey === "FEATURE_REQUEST" ? "[Feature] "
+        : reportTypeKey === "QUESTION" ? "[Question] "
+        : reportTypeKey === "OTHER" ? "[Feedback] "
+        : "";
+
+      const rawTitle = body.description
         ? body.description.slice(0, 80) + (body.description.length > 80 ? "..." : "")
         : body.errorMessage
           ? body.errorMessage.slice(0, 80)
           : "Bug report via SDK";
+      const title = titlePrefix + rawTitle;
 
       let issueBody = "";
       if (body.description) issueBody += `## Description\n\n${body.description}\n\n`;
@@ -217,7 +235,7 @@ export async function POST(request: Request) {
         repo: apiToken.repo.name,
         title,
         body: issueBody,
-        labels: ["bug"],
+        labels,
       });
 
       // Save Issue record
@@ -229,8 +247,8 @@ export async function POST(request: Request) {
           githubUrl: createdIssue.url,
           title,
           body: issueBody,
-          labels: ["bug"],
-          severity: "medium",
+          labels,
+          severity: severityValue ?? "medium",
         },
       });
 
@@ -243,8 +261,8 @@ export async function POST(request: Request) {
         issueUrl: createdIssue.url,
         issueNumber: createdIssue.number,
         title,
-        labels: ["bug"],
-        severity: "medium",
+        labels,
+        severity: severityValue ?? "medium",
         repo: apiToken.repo.fullName,
       });
 
