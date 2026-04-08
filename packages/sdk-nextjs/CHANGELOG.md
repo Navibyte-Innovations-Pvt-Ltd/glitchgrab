@@ -1,3 +1,10 @@
+## [1.13.0](https://github.com/WebNaresh/glitchgrab/compare/sdk-v1.12.0...sdk-v1.13.0) (2026-04-08)
+
+### Features
+
+* **sdk:** extract report dialog into standalone component rendered by provider ([49edec6](https://github.com/WebNaresh/glitchgrab/commit/49edec69c9721fef01496719dd422890a17a5bb5))
+* **sdk:** render ReportDialog inside GlitchgrabProvider so dialog is always available ([5e92acc](https://github.com/WebNaresh/glitchgrab/commit/5e92acc3e48662540e8bb388ecb09b3fa445d04b))
+
 ## [1.12.0](https://github.com/WebNaresh/glitchgrab/compare/sdk-v1.11.0...sdk-v1.12.0) (2026-04-08)
 
 ### Features
