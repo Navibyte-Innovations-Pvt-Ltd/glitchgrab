@@ -16,6 +16,7 @@ import type {
   ReportType,
 } from "./types";
 import { GlitchgrabErrorBoundary } from "./error-boundary";
+import { ReportDialog } from "./report-dialog";
 import { sanitizeUrl, captureContext, sendReport, captureDeviceInfo } from "./utils";
 import {
   initBreadcrumbs,
@@ -62,6 +63,8 @@ function GlitchgrabProviderInner({
   maxBreadcrumbs = 50,
   children,
   fallback,
+  types,
+  showSeverity,
 }: GlitchgrabProviderProps) {
   const visitedPagesRef = useRef<string[]>([]);
 
@@ -277,6 +280,7 @@ function GlitchgrabProviderInner({
       >
         {children}
       </GlitchgrabErrorBoundary>
+      <ReportDialog report={report} types={types} showSeverity={showSeverity} />
     </GlitchgrabContext.Provider>
   );
 }

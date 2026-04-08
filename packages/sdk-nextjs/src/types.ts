@@ -115,18 +115,16 @@ export interface GlitchgrabProviderProps {
   maxBreadcrumbs?: number;
   children: ReactNode;
   fallback?: ReactNode;
+  /** Which report types to show in the dialog (default: all four) */
+  types?: ReportType[];
+  /** Show severity picker for BUG type (default: true) */
+  showSeverity?: boolean;
 }
 
 export interface ReportButtonProps {
   position?: "bottom-right" | "bottom-left" | "top-right" | "top-left";
   label?: string;
   className?: string;
-  /** Allow reporting feature requests, questions, not just bugs */
-  types?: ReportType[];
-  /** Dialog variant: "classic" (single screen) or "stepper" (3-step wizard). Default: "classic" */
-  variant?: "classic" | "stepper";
-  /** Show severity picker in stepper mode for BUG type. Default: true */
-  showSeverity?: boolean;
 }
 
 // ─── Hook Return ─────────────────────────────────────────
