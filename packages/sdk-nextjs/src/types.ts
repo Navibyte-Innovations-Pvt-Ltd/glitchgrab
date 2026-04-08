@@ -18,6 +18,8 @@ export interface GlitchgrabConfig {
 
 export type ReportType = "BUG" | "FEATURE_REQUEST" | "QUESTION" | "OTHER";
 
+export type ReportSeverity = "low" | "medium" | "high";
+
 export interface ReportPayload {
   token: string;
   source: "SDK_AUTO" | "SDK_USER_REPORT";
@@ -121,6 +123,10 @@ export interface ReportButtonProps {
   className?: string;
   /** Allow reporting feature requests, questions, not just bugs */
   types?: ReportType[];
+  /** Dialog variant: "classic" (single screen) or "stepper" (3-step wizard). Default: "classic" */
+  variant?: "classic" | "stepper";
+  /** Show severity picker in stepper mode for BUG type. Default: true */
+  showSeverity?: boolean;
 }
 
 // ─── Hook Return ─────────────────────────────────────────
@@ -133,7 +139,7 @@ export interface UseGlitchgrabReturn {
   /** Add a custom breadcrumb */
   addBreadcrumb: (message: string, data?: Record<string, string>) => void;
   /** Open the ReportButton modal programmatically (captures screenshot + shows dialog) */
-  openReportDialog: (options?: { description?: string }) => void;
+  openReportDialog: (options?: { description?: string; type?: ReportType }) => void;
   /** The token being used */
   token: string;
   /** The base URL of the Glitchgrab API */
