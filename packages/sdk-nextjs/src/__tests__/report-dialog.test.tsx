@@ -3,6 +3,22 @@ import { render, screen, act, fireEvent, waitFor } from "@testing-library/react"
 import { renderToString } from "react-dom/server";
 import { ReportDialog } from "../report-dialog";
 
+// Toggle to block useEffect — simulates the hydration window before effects fire
+const { blockEffectsRef } = vi.hoisted(() => ({
+  blockEffectsRef: { current: false },
+}));
+
+vi.mock("react", async () => {
+  const actual = await vi.importActual<typeof import("react")>("react");
+  return {
+    ...actual,
+    useEffect: (...args: Parameters<typeof actual.useEffect>) => {
+      if (blockEffectsRef.current) return;
+      return actual.useEffect(...args);
+    },
+  };
+});
+
 // Mock html2canvas so it doesn't create iframes in jsdom
 vi.mock("html2canvas-pro", () => ({
   default: vi.fn().mockResolvedValue({
@@ -62,6 +78,23 @@ describe("ReportDialog", () => {
       // Both should be empty — no DOM on server, no DOM initially on client
       // This is the exact condition that prevents hydration mismatch
       expect(serverHtml).toBe("");
+    });
+
+    it("first client render matches SSR (guards against hydration mismatch)", () => {
+      // Block useEffect to simulate the hydration window: React commits the
+      // first render BEFORE firing effects. If first render differs from SSR → mismatch.
+      blockEffectsRef.current = true;
+      try {
+        const serverHtml = renderToString(<ReportDialog report={mockReport} />);
+        const { container, unmount } = render(<ReportDialog report={mockReport} />);
+
+        // First client render must be identical to server output
+        expect(container.innerHTML).toBe(serverHtml);
+
+        unmount();
+      } finally {
+        blockEffectsRef.current = false;
+      }
     });
   });
 
