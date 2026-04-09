@@ -51,20 +51,11 @@ jobs:
       - name: Build SDK (needed for type declarations)
         run: cd packages/sdk-nextjs && bun run build
 
-      - name: Lint
-        run: bun run lint
-
-      - name: Typecheck
-        run: cd apps/web && bun run validate
-
       - name: Test SDK
         run: cd packages/sdk-nextjs && bun run test
 
-      - name: Check unused code (knip)
-        run: bunx knip
-
-      - name: Check unused routes (pruny)
-        run: bunx pruny --all --ignore-apps mobile
+      - name: Validate (lint + typecheck + knip + pruny)
+        run: bun run validate
 
       - name: Build web app
         run: bun run build
