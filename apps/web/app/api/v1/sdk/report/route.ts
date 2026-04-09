@@ -16,11 +16,15 @@ const CORS_HEADERS = {
   "Access-Control-Max-Age": "86400",
 };
 
-function isLocalhostOrigin(request: Request): boolean {
+const LOCALHOST_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/;
+
+function isLocalhostRequest(request: Request, body: SdkReportBody): boolean {
+  // Most reliable: the SDK sends the actual page URL in the body
+  if (body.pageUrl && LOCALHOST_RE.test(body.pageUrl)) return true;
+  // Fallback: check headers (may be absent for same-origin requests)
   const origin = request.headers.get("origin") ?? "";
   const referer = request.headers.get("referer") ?? "";
-  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/.test(origin) ||
-    /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/.test(referer);
+  return LOCALHOST_RE.test(origin) || LOCALHOST_RE.test(referer);
 }
 
 export async function OPTIONS() {
@@ -43,9 +47,12 @@ interface SdkReportBody {
 
 export async function POST(request: Request) {
   try {
+    // 1. Parse body first — needed for localhost detection
+    const body = (await request.json()) as SdkReportBody;
+
     // Development mode: if the request comes from localhost, return a friendly
     // response without creating an issue. This prevents hanging requests during local testing.
-    if (isLocalhostOrigin(request)) {
+    if (isLocalhostRequest(request, body)) {
       return NextResponse.json(
         {
           success: true,
@@ -57,7 +64,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 1. Validate token from Authorization header
+    // 2. Validate token from Authorization header
     const authHeader = request.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer gg_")) {
       return NextResponse.json(
@@ -81,7 +88,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Rate limit check
+    // 3. Rate limit check
     const rateLimit = checkRateLimit(tokenHash);
     if (!rateLimit.allowed) {
       const retryAfter = Math.ceil(
@@ -105,7 +112,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 3. Update last used
+    // 4. Update last used
     await prisma.apiToken.update({
       where: { id: apiToken.id },
       data: { lastUsed: new Date() },
@@ -116,9 +123,6 @@ export async function POST(request: Request) {
       "X-RateLimit-Remaining": String(rateLimit.remaining),
       "X-RateLimit-Reset": rateLimit.resetAt.toISOString(),
     };
-
-    // 4. Parse body
-    const body = (await request.json()) as SdkReportBody;
 
     const description = [
       body.errorMessage && `**Error:** ${body.errorMessage}`,
