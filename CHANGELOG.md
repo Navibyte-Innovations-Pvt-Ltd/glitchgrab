@@ -1,3 +1,9 @@
+## [1.8.2](https://github.com/WebNaresh/glitchgrab/compare/v1.8.1...v1.8.2) (2026-04-09)
+
+### Bug Fixes
+
+* **api:** detect localhost via body pageUrl instead of unreliable Origin/Referer headers ([95a7cba](https://github.com/WebNaresh/glitchgrab/commit/95a7cba5024875b9c3126595c28ba374e242cc73))
+
 ## [1.8.1](https://github.com/WebNaresh/glitchgrab/compare/v1.8.0...v1.8.1) (2026-04-09)
 
 ### Bug Fixes
