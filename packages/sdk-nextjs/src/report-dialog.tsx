@@ -21,10 +21,114 @@ function useIsDark(): boolean {
   }
 }
 
+/** Convert HSL values to a hex color string */
+function hslToHex(h: number, s: number, l: number): string {
+  s /= 100;
+  l /= 100;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12;
+    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color).toString(16).padStart(2, "0");
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+/** Parse a CSS color value into [r, g, b] or null */
+function parseColorToRgb(value: string): [number, number, number] | null {
+  try {
+    const trimmed = value.trim();
+
+    // hex (#fff, #ffffff)
+    const hexMatch = trimmed.match(/^#([0-9a-f]{3,8})$/i);
+    if (hexMatch) {
+      let hex = hexMatch[1];
+      if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+      return [parseInt(hex.slice(0, 2), 16), parseInt(hex.slice(2, 4), 16), parseInt(hex.slice(4, 6), 16)];
+    }
+
+    // rgb(r, g, b) or rgba(r, g, b, a)
+    const rgbMatch = trimmed.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+    if (rgbMatch) return [Number(rgbMatch[1]), Number(rgbMatch[2]), Number(rgbMatch[3])];
+
+    // hsl(h, s%, l%) or hsla(h, s%, l%, a)
+    const hslMatch = trimmed.match(/hsla?\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%/);
+    if (hslMatch) {
+      const hex = hslToHex(Number(hslMatch[1]), Number(hslMatch[2]), Number(hslMatch[3]));
+      return parseColorToRgb(hex);
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** Compute relative luminance and return ideal contrast text color */
+function getContrastText(r: number, g: number, b: number): string {
+  const luminance = (r * 299 + g * 587 + b * 114) / 1000;
+  return luminance > 150 ? "#09090b" : "#ffffff";
+}
+
+/**
+ * Auto-detect the host app's primary/accent color from CSS custom properties.
+ * Checks common variable names used by shadcn/ui, Radix, Tailwind, MUI, etc.
+ * Returns { accent, accentText } or null if no theme detected.
+ */
+function detectHostAccent(): { accent: string; accentText: string } | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const root = getComputedStyle(document.documentElement);
+
+    // Common CSS variable names for primary/accent color
+    const varNames = [
+      "--primary",
+      "--accent",
+      "--brand",
+      "--color-primary",
+      "--theme-primary",
+      "--chakra-colors-primary-500",
+      "--mui-palette-primary-main",
+    ];
+
+    for (const name of varNames) {
+      const raw = root.getPropertyValue(name).trim();
+      if (!raw) continue;
+
+      // shadcn/ui style: space-separated HSL values like "243 75% 59%"
+      const hslSpaceMatch = raw.match(/^([\d.]+)\s+([\d.]+)%\s+([\d.]+)%$/);
+      if (hslSpaceMatch) {
+        const hex = hslToHex(Number(hslSpaceMatch[1]), Number(hslSpaceMatch[2]), Number(hslSpaceMatch[3]));
+        const rgb = parseColorToRgb(hex);
+        return { accent: hex, accentText: rgb ? getContrastText(...rgb) : "#ffffff" };
+      }
+
+      // Standard color values (hex, rgb, hsl)
+      const rgb = parseColorToRgb(raw);
+      if (rgb) {
+        const hex = `#${rgb.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
+        return { accent: hex, accentText: getContrastText(...rgb) };
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function getTheme(dark: boolean) {
-  return dark
+  const hostAccent = detectHostAccent();
+  const defaults = dark
     ? { bg: "#1c1c1e", bgSecondary: "#27272a", border: "#2c2c2e", text: "#fafafa", textMuted: "#a1a1aa", accent: "#22d3ee", accentText: "#09090b", inputBg: "#27272a", inputBorder: "#3f3f46" }
     : { bg: "#ffffff", bgSecondary: "#f4f4f5", border: "#e4e4e7", text: "#18181b", textMuted: "#71717a", accent: "#0891b2", accentText: "#ffffff", inputBg: "#fafafa", inputBorder: "#d4d4d8" };
+
+  if (hostAccent) {
+    defaults.accent = hostAccent.accent;
+    defaults.accentText = hostAccent.accentText;
+  }
+
+  return defaults;
 }
 
 /** Validate that report text is meaningful — rejects gibberish, throwaway words, random chars */
