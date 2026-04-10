@@ -1,3 +1,11 @@
+## [1.8.3](https://github.com/WebNaresh/glitchgrab/compare/v1.8.2...v1.8.3) (2026-04-10)
+
+### Bug Fixes
+
+* **dashboard:** validate report text quality before submitting to AI pipeline ([c638011](https://github.com/WebNaresh/glitchgrab/commit/c6380111a7d3ea7fb857dc858348d1daf56bd3ec))
+* **sdk:** add client-side validation to reject gibberish and throwaway text in report dialog ([177bcb5](https://github.com/WebNaresh/glitchgrab/commit/177bcb51b186e822d0406f826aada59a8a8cfa50))
+* **sdk:** skip keepalive for large payloads to avoid 64KB browser limit ([00f53cb](https://github.com/WebNaresh/glitchgrab/commit/00f53cba7c865aa63672071471760b5ad02debcb))
+
 ## [1.8.2](https://github.com/WebNaresh/glitchgrab/compare/v1.8.1...v1.8.2) (2026-04-09)
 
 ### Bug Fixes
