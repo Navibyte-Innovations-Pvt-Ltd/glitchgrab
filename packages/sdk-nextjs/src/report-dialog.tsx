@@ -32,25 +32,50 @@ function isLowQualityText(text: string): string | null {
   const trimmed = text.trim();
   if (!trimmed) return null;
 
+  // Exact throwaway words
   const throwaway =
     /^(done|ok|yes|no|hi|hello|hey|test|testing|asdf|qwerty|abc|xyz|foo|bar|baz|lol|lmao|idk|bruh|nice|cool|wow|sup|yo|nah|yep|nope|thanks|thx|ty|k|kk|hmm|hm|na|mm|mhm|aight|bet|gg|wp|rip|omg|pls|plz)$/i;
   if (throwaway.test(trimmed)) {
     return "Please describe the actual issue you're experiencing";
   }
 
+  // Repeated characters (aaaaaaa, !!!!!!!)
   if (/(.)\1{4,}/.test(trimmed)) {
     return "Please provide a meaningful description";
   }
 
   const letters = trimmed.replace(/[^a-zA-Z]/g, "");
   if (letters.length >= 4) {
+    // Very low vowel ratio (bkdfghjklmn...)
     const vowels = letters.replace(/[^aeiouAEIOU]/g, "").length;
     const vowelRatio = vowels / letters.length;
     if (vowelRatio < 0.08) {
       return "That doesn't look like a valid description";
     }
+
+    // Keyboard mashing: single word with no real English pattern
+    // Detects strings like "asdfasfsdad", "jkljklfsdf", "qwertyuio"
+    // Real words have max 3-4 consecutive consonants; gibberish has long runs
+    if (/[^aeiou\s]{5,}/i.test(letters)) {
+      const words = trimmed.split(/\s+/);
+      // Only flag if it's a single "word" — multi-word text is likely real
+      if (words.length <= 2) {
+        return "That doesn't look like a valid description";
+      }
+    }
+
+    // Check if it looks like a random permutation of a few chars (asdfasfsdad)
+    if (letters.length >= 6) {
+      const uniqueChars = new Set(letters.toLowerCase()).size;
+      const uniqueRatio = uniqueChars / letters.length;
+      // Real English has ~0.6-0.9 unique ratio for short text; gibberish reuses few chars
+      if (uniqueRatio < 0.4 && trimmed.split(/\s+/).length <= 2) {
+        return "That doesn't look like a valid description";
+      }
+    }
   }
 
+  // Single short word that isn't a known tech term
   const words = trimmed.split(/\s+/).filter((w) => w.length > 0);
   if (words.length === 1 && trimmed.length < 10) {
     const techTerms =
