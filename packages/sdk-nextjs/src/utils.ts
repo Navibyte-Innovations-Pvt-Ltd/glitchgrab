@@ -99,8 +99,11 @@ export async function sendReport(
         });
 
         if (response.ok) {
-          const data = (await response.json()) as { success: boolean; data?: ReportResult };
-          return data.data ?? { success: data.success };
+          const envelope = (await response.json()) as {
+            success: boolean;
+            data?: Omit<ReportResult, "success">;
+          };
+          return { success: envelope.success, ...(envelope.data ?? {}) };
         }
 
         if (response.status >= 400 && response.status < 500 && response.status !== 429) {
