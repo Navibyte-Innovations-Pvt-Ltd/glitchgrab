@@ -1,3 +1,10 @@
+## [1.14.1](https://github.com/WebNaresh/glitchgrab/compare/sdk-v1.14.0...sdk-v1.14.1) (2026-04-13)
+
+### Bug Fixes
+
+* **dashboard:** remove toast notifications on screenshot upload ([5e67523](https://github.com/WebNaresh/glitchgrab/commit/5e6752352723ea5e4a5baa16502f2a939ca332e2))
+* **sdk:** preserve envelope success flag in sendReport result ([0c3cded](https://github.com/WebNaresh/glitchgrab/commit/0c3cded2dca21ee82d555e07247e1d694f3a6316))
+
 ## [1.14.0](https://github.com/WebNaresh/glitchgrab/compare/sdk-v1.13.4...sdk-v1.14.0) (2026-04-10)
 
 ### Features
