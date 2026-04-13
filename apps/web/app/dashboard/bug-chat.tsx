@@ -284,10 +284,6 @@ export function BugChat({
       .then((results) => {
         setScreenshots((prev) => [...prev, ...results.map((r) => r.preview)]);
         setScreenshotFiles((prev) => [...prev, ...results.map((r) => r.compressed)]);
-        const totalSaved = newFiles.reduce((sum, f, i) => sum + f.size - results[i].compressed.size, 0);
-        if (totalSaved > 100_000) {
-          toast.success(`Compressed ${(totalSaved / 1_000_000).toFixed(1)} MB`);
-        }
       })
       .catch(() => {
         toast.error("Failed to process images");
@@ -313,7 +309,6 @@ export function BugChat({
     }
     if (imageFiles.length > 0) {
       addFiles(imageFiles);
-      toast.success(`Screenshot${imageFiles.length > 1 ? "s" : ""} pasted`);
     }
   }
 
