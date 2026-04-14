@@ -8,6 +8,11 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   ArrowRight,
   Check,
   CheckCircle2,
@@ -176,18 +181,26 @@ function FileToken({
   name,
   size,
   onRemove,
+  onClick,
 }: {
   src: string;
   name: string;
   size?: number;
   onRemove?: () => void;
+  onClick?: () => void;
 }) {
   return (
     <div className="inline-flex items-center gap-3 bg-background/60 border border-border hover:border-muted-foreground/40 py-1.5 pl-1.5 pr-3 rounded-md group transition-colors">
-      <div className="h-8 w-8 rounded overflow-hidden border border-border shrink-0 bg-muted">
+      <button
+        type="button"
+        onClick={onClick}
+        className="h-8 w-8 rounded overflow-hidden border border-border shrink-0 bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-default"
+        disabled={!onClick}
+        aria-label={onClick ? `View ${name}` : undefined}
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={src} alt={name} className="w-full h-full object-cover" />
-      </div>
+      </button>
       <div className="flex flex-col min-w-0">
         <span className="font-mono text-[11px] text-foreground truncate max-w-55">{name}</span>
         <span className="font-mono text-[10px] text-muted-foreground">
@@ -230,6 +243,7 @@ const MessageBlock = memo(function MessageBlock({
   ) => void;
   onClarifyDismiss: (msgId: string) => void;
 }) {
+  const [selectedScreenshot, setSelectedScreenshot] = useState<string | null>(null);
   const isUser = msg.role === "user";
   const hasClarify = msg.clarifyQuestions && msg.clarifyQuestions.length > 0;
   const isThinking = msg.id === "thinking";
@@ -287,10 +301,29 @@ const MessageBlock = memo(function MessageBlock({
               src={src}
               name={`screenshot_${i + 1}.jpg`}
               size={msg.screenshotFiles?.[i]?.size}
+              onClick={() => setSelectedScreenshot(src)}
             />
           ))}
         </div>
       )}
+
+      {/* Screenshot lightbox */}
+      <Dialog
+        open={selectedScreenshot !== null}
+        onOpenChange={(open) => { if (!open) setSelectedScreenshot(null); }}
+      >
+        <DialogContent className="sm:max-w-3xl p-2">
+          <DialogTitle className="sr-only">Screenshot preview</DialogTitle>
+          {selectedScreenshot && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={selectedScreenshot}
+              alt="Screenshot preview"
+              className="w-full h-auto rounded-lg object-contain max-h-[80vh]"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Issue success card */}
       {isSuccess && msg.issueUrl && (
@@ -347,7 +380,7 @@ const MessageBlock = memo(function MessageBlock({
 /* ---------- Main component ---------- */
 
 export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }) {
-  const [selectedRepoName, setSelectedRepoName] = useState(repos[0]?.fullName ?? "");
+  const [selectedRepoName, setSelectedRepoName] = useState("");
   const selectedRepo = repos.find((r) => r.fullName === selectedRepoName)?.id ?? "";
   const [input, setInput] = useState("");
   const [screenshots, setScreenshots] = useState<string[]>([]);
@@ -730,6 +763,9 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
                       key={repo.id}
                       type="button"
                       onClick={() => {
+                        if (repo.fullName !== selectedRepoName) {
+                          handleNewChat();
+                        }
                         setSelectedRepoName(repo.fullName);
                         setRepoPickerOpen(false);
                         setRepoSearch("");

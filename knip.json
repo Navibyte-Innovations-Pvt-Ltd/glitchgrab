@@ -37,7 +37,6 @@
     "packages/sdk-nextjs": {
       "project": ["src/**/*.{ts,tsx}"],
       "ignoreDependencies": [
-        "react-dom",
         "@semantic-release/commit-analyzer",
         "@semantic-release/github",
         "@semantic-release/npm",

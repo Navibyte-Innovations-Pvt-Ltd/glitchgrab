@@ -15,9 +15,3 @@ export interface EnrichmentMetrics {
   fellBack: boolean;
 }
 
-export type CrossRepoAttempt = {
-  owner: string;
-  repo: string;
-  allowedOwner: string;
-  allowedRepo: string;
-};

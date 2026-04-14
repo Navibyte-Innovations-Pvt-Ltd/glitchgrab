@@ -1,3 +1,15 @@
+## [1.12.0](https://github.com/WebNaresh/glitchgrab/compare/v1.11.1...v1.12.0) (2026-04-14)
+
+### Features
+
+* **chat:** add screenshot lightbox modal on thumbnail click ([08052ca](https://github.com/WebNaresh/glitchgrab/commit/08052ca8026e64029c33f01e25fc91e5c3873699))
+
+## [1.11.1](https://github.com/WebNaresh/glitchgrab/compare/v1.11.0...v1.11.1) (2026-04-14)
+
+### Bug Fixes
+
+* **dashboard:** default to no repo selected and clear chat on repo change ([3bbcb5d](https://github.com/WebNaresh/glitchgrab/commit/3bbcb5d129132cd75d007a87f29aa39135600a40))
+
 ## [1.11.0](https://github.com/WebNaresh/glitchgrab/compare/v1.10.0...v1.11.0) (2026-04-14)
 
 ### Features
