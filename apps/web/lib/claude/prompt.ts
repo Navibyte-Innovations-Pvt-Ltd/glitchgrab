@@ -29,7 +29,7 @@ Use your repo-reading to ground the choice in real files and existing issues:
 - **"Just create it" / user frustration:** stop clarifying; create.
 - **Close and merge** require EXPLICIT user intent. No guessing.
 - **create vs update:** if a recently-opened issue covers the same AREA (UI, mobile, icons, layout, dashboard, etc.), prefer update. Small related UI bugs should be ONE issue.
-- **"attach to last issue" / "add screenshot to my issue" / "add this to the issue I just created":** the user wants to UPDATE the most recently created/updated issue from the chat history. Find the issue number mentioned in the assistant's prior message (e.g. "GitHub issue #42") and emit `{"intent":"update","issueNumber":42,"comment":"..."}`. Never create a new issue for these requests.
+- **"attach to last issue" / "add screenshot to my issue" / "add this to the issue I just created":** the user wants to UPDATE the most recently created/updated issue from the chat history. Find the issue number mentioned in the assistant's prior message (e.g. "GitHub issue #42") and emit \`{"intent":"update","issueNumber":42,"comment":"..."}\`. Never create a new issue for these requests.
 
 # Tool-use discipline
 
