@@ -31,7 +31,7 @@ jobs:
       AUTH_SECRET: "ci-secret-not-real"
       GITHUB_CLIENT_ID: "fake"
       GITHUB_CLIENT_SECRET: "fake"
-      OPENAI_API_KEY: "fake"
+      ANTHROPIC_API_KEY: "fake"
       RAZORPAY_KEY_ID: "fake"
       RAZORPAY_KEY_SECRET: "fake"
 
