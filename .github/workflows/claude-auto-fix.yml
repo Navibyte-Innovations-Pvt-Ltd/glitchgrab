@@ -63,7 +63,7 @@ jobs:
             - The issue is vague, ambiguous, lacks repro steps, or needs clarification.
             - Fixing it safely would require human product/design judgment.
 
-            If you decide to bail out: post ONE comment on the issue explaining that this looks like a broader change needing human intervention, briefly state why (schema change / feature / ambiguous / etc.), and STOP. Do NOT create a branch, do NOT open a PR.
+            If you decide to bail out: post ONE comment on the issue explaining that this looks like a broader change needing human intervention, briefly state why (schema change / feature / ambiguous / etc.), assign the issue to the repo owner with `gh issue edit ${{ github.event.issue.number }} --add-assignee ${{ github.repository_owner }}`, and STOP. Do NOT create a branch, do NOT open a PR.
 
             STEP 2 — FIX (only if triage passed):
             1. Investigate the issue. Read relevant code and confirm the bug before making changes.
@@ -76,4 +76,4 @@ jobs:
             8. Post a single comment on the issue linking to the new PR.
             9. NEVER run `gh pr merge` — the repo owner handles merging.
 
-            If at any point during the fix you discover the change is broader than the triage suggested (e.g. you need a schema change, a new dependency, or design decisions), STOP, discard the branch, and post a comment on the issue explaining this needs human intervention.
+            If at any point during the fix you discover the change is broader than the triage suggested (e.g. you need a schema change, a new dependency, or design decisions), STOP, discard the branch, post a comment on the issue explaining this needs human intervention, and assign the issue to the repo owner with `gh issue edit ${{ github.event.issue.number }} --add-assignee ${{ github.repository_owner }}`.
