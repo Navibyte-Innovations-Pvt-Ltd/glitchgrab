@@ -1,3 +1,14 @@
+## [1.18.0](https://github.com/WebNaresh/glitchgrab/compare/v1.17.3...v1.18.0) (2026-04-14)
+
+### Features
+
+* **reports:** add date-wise filter pills (TODAY, LAST_7_DAYS, LAST_30_DAYS) ([d73e9f4](https://github.com/WebNaresh/glitchgrab/commit/d73e9f49d30a187f545553b8c48d86b1ca06a5b6))
+
+### Bug Fixes
+
+* **reports:** move Date.now() out of component to fix react-hooks/purity lint error ([f602030](https://github.com/WebNaresh/glitchgrab/commit/f602030b5437048b5369e2f4f25246b43b16862c))
+* **reports:** move Date.now() out of useMemo into event handler ([484f393](https://github.com/WebNaresh/glitchgrab/commit/484f39387d4461c86d489d97e28cf20952c514ec))
+
 ## [1.17.3](https://github.com/WebNaresh/glitchgrab/compare/v1.17.2...v1.17.3) (2026-04-14)
 
 ### Bug Fixes
