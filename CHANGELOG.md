@@ -1,3 +1,11 @@
+## [1.17.2](https://github.com/WebNaresh/glitchgrab/compare/v1.17.1...v1.17.2) (2026-04-14)
+
+### Bug Fixes
+
+* **chat:** include issue number in chat history sent to AI ([c41b023](https://github.com/WebNaresh/glitchgrab/commit/c41b0237cccdf8e3465b414ecd9c0c9149e8126f))
+* **prompt:** escape backticks in template literal to fix parse error ([ac2e9df](https://github.com/WebNaresh/glitchgrab/commit/ac2e9df9b6ccfdf732efd5c7222f0ab65f591945))
+* **prompt:** teach AI to recognise attach-to-last-issue requests ([68b68ac](https://github.com/WebNaresh/glitchgrab/commit/68b68ac01f6478598593450f19b89e30f729f658))
+
 ## [1.17.1](https://github.com/WebNaresh/glitchgrab/compare/v1.17.0...v1.17.1) (2026-04-14)
 
 ### Bug Fixes
