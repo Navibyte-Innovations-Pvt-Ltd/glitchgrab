@@ -43,6 +43,16 @@ interface ReportItem {
   } | null;
 }
 
+function computeCutoffMs(filter: "TODAY" | "LAST_7_DAYS" | "LAST_30_DAYS"): number {
+  const ms =
+    filter === "TODAY"
+      ? 24 * 60 * 60 * 1000
+      : filter === "LAST_7_DAYS"
+      ? 7 * 24 * 60 * 60 * 1000
+      : 30 * 24 * 60 * 60 * 1000;
+  return Date.now() - ms;
+}
+
 const SOURCE_LABELS: Record<string, string> = {
   SDK_AUTO: "auto_capture",
   SDK_USER_REPORT: "user_report",
@@ -133,6 +143,8 @@ export function ReportsTabs({
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [repoFilter, setRepoFilter] = useState<string | null>(null);
+  const [dateFilter, setDateFilter] = useState<"ALL" | "TODAY" | "LAST_7_DAYS" | "LAST_30_DAYS">("ALL");
+  const [cutoffTimestamp, setCutoffTimestamp] = useState<number | null>(null);
   const router = useRouter();
 
   const reports = tab === "product" ? productIssues : myReports;
@@ -150,6 +162,9 @@ export function ReportsTabs({
     if (statusFilter) {
       list = list.filter((r) => r.status === statusFilter);
     }
+    if (cutoffTimestamp !== null) {
+      list = list.filter((r) => new Date(r.createdAt).getTime() >= cutoffTimestamp);
+    }
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter((r) => {
@@ -163,14 +178,21 @@ export function ReportsTabs({
       });
     }
     return list;
-  }, [reports, search, statusFilter, repoFilter]);
+  }, [reports, search, statusFilter, repoFilter, cutoffTimestamp]);
 
   const statusOptions = ["CREATED", "PENDING", "PROCESSING", "DUPLICATE", "FAILED"];
+
+  function handleDateFilterChange(filter: "ALL" | "TODAY" | "LAST_7_DAYS" | "LAST_30_DAYS") {
+    setDateFilter(filter);
+    setCutoffTimestamp(filter === "ALL" ? null : computeCutoffMs(filter));
+  }
 
   function handleTabChange(next: "product" | "my") {
     setTab(next);
     setRepoFilter(null);
     setStatusFilter(null);
+    setDateFilter("ALL");
+    setCutoffTimestamp(null);
     setSearch("");
   }
 
@@ -259,6 +281,25 @@ export function ReportsTabs({
                 )}
               >
                 {s.toLowerCase()}
+              </button>
+            ))}
+          </div>
+
+          {/* Date filter pills — third row */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Clock className="h-3 w-3 text-muted-foreground shrink-0" />
+            {(["ALL", "TODAY", "LAST_7_DAYS", "LAST_30_DAYS"] as const).map((d) => (
+              <button
+                key={d}
+                onClick={() => handleDateFilterChange(d)}
+                className={cn(
+                  "font-mono text-[10px] border px-2.5 py-1 rounded-full uppercase tracking-wider transition-colors",
+                  dateFilter === d
+                    ? "bg-primary/10 border-primary/30 text-primary"
+                    : "bg-card border-border text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {d.toLowerCase().replace(/_/g, "_")}
               </button>
             ))}
           </div>
