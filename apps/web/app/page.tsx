@@ -1,9 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { WaitlistForm } from "./waitlist-form";
 import { ContactForm } from "./contact-form";
 import {
@@ -15,492 +12,737 @@ import {
 import { HeroVideo } from "./hero-video";
 import { HeroTerminal } from "./hero-terminal";
 import { HeroWaitlist } from "./hero-waitlist";
+import {
+  Github,
+  TerminalSquare,
+  ArrowRight,
+  ChevronsRight,
+  CheckCircle2,
+  Funnel,
+  Brain,
+  Layers,
+  FileCode,
+  GitMerge,
+  Scan,
+  Plug,
+  MessageSquare,
+  ImageIcon,
+} from "lucide-react";
 
-const FLOWS = [
-  {
-    anim: "dashboard",
-    title: "Describe it. AI writes the issue.",
-    desc: "Type what's broken, paste a screenshot, or both. AI generates the title, body, labels, and severity — your GitHub issue is ready before you finish your coffee.",
-    tag: "AI-powered",
-  },
-  {
-    anim: "autocapture",
-    title: "Your app crashes? We catch it.",
-    desc: "Add one line to your app. When something breaks in production, Glitchgrab captures everything — stack trace, what the user did, a screenshot — and files the issue for you. While you sleep.",
-    tag: "Zero config",
-  },
-  {
-    anim: "report",
-    title: "Your users become QA testers.",
-    desc: "A 'Report Bug' button in your app. Users tap it, we grab a screenshot + context, and a clean GitHub issue appears in your repo. No Slack messages. No vague emails. No 'it doesn't work'.",
-    tag: "Built into SDK",
-  },
-  {
-    anim: "dedup",
-    title: "Same bug? Same issue.",
-    desc: "10 users hit the same crash? You get 1 issue with 10 reports, not 10 issues cluttering your board. AI spots duplicates and merges them. Open source — see a bug in Glitchgrab? Fix it yourself.",
-    tag: "Smart dedup",
-  },
-] as const;
-
-const STEPS = [
-  {
-    num: "01",
-    title: "Connect GitHub",
-    desc: "OAuth in, pick a repo, get a token.",
-  },
-  {
-    num: "02",
-    title: "Drop in the SDK",
-    desc: "One component in your layout. That's it.",
-  },
-  {
-    num: "03",
-    title: "Bugs become issues",
-    desc: "AI writes the issue. Dedup prevents spam. GitHub gets a clean issue.",
-  },
+const PIPELINE = [
+  { n: "01", label: "Normalize", desc: "Strip PII & format", icon: Funnel },
+  { n: "02", label: "Enrich", desc: "Map to codebase", icon: Brain },
+  { n: "03", label: "Dedup", desc: "Semantic match", icon: Layers },
+  { n: "04", label: "Generate", desc: "Draft markdown", icon: FileCode },
+  { n: "05", label: "Push", desc: "Create GitHub issue", icon: Github },
 ];
 
+function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <a
+      href={href}
+      className="font-mono text-xs uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors"
+    >
+      {children}
+    </a>
+  );
+}
+
+type FeatureTone = "primary" | "warn" | "neutral";
+
+function FeatureCard({
+  mode,
+  meta,
+  icon: Icon,
+  tone,
+  title,
+  desc,
+  children,
+  borderRight,
+  borderBottom,
+}: {
+  mode: string;
+  meta: string;
+  icon: typeof Plug;
+  tone: FeatureTone;
+  title: string;
+  desc: string;
+  children: React.ReactNode;
+  borderRight?: boolean;
+  borderBottom?: boolean;
+}) {
+  const toneText =
+    tone === "primary"
+      ? "text-primary"
+      : tone === "warn"
+      ? "text-yellow-400"
+      : "text-foreground";
+  const stripColor =
+    tone === "primary"
+      ? "group-hover:bg-primary"
+      : tone === "warn"
+      ? "group-hover:bg-yellow-400"
+      : "group-hover:bg-foreground";
+
+  return (
+    <div
+      className={`group relative p-6 sm:p-8 transition-colors hover:bg-muted/20 flex flex-col gap-5 min-h-[360px] border-b md:border-b-0 border-border ${
+        borderRight ? "md:border-r" : ""
+      } ${borderBottom ? "md:border-b" : ""}`}
+    >
+      <span
+        aria-hidden
+        className={`absolute left-0 top-0 bottom-0 w-[3px] bg-transparent transition-colors ${stripColor}`}
+      />
+
+      <div className="flex justify-between items-start gap-3">
+        <div
+          className={`flex items-center gap-2 font-mono text-xs uppercase tracking-widest ${toneText}`}
+        >
+          <Icon className="h-3.5 w-3.5" />
+          [MODE: {mode}]
+        </div>
+        <div className="font-mono text-[10px] text-muted-foreground border border-border px-1.5 py-0.5 shrink-0">
+          {meta}
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-lg text-foreground mb-2 font-semibold">{title}</h3>
+        <p className="font-mono text-xs text-muted-foreground leading-relaxed">
+          {desc}
+        </p>
+      </div>
+
+      <div className="mt-auto">{children}</div>
+    </div>
+  );
+}
+
+function CodeSnippet() {
+  return (
+    <div className="bg-background border border-border p-3 font-mono text-[10px] text-muted-foreground overflow-hidden relative group/code hover:border-primary/30 transition-colors">
+      <div className="absolute right-2 top-2 w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse group-hover/code:bg-green-400 transition-colors" />
+      <code className="block whitespace-pre-wrap leading-relaxed">
+        <span className="text-primary">&gt;</span> import {"{ GlitchgrabProvider }"} from{" "}
+        <span className="text-green-400">&apos;glitchgrab&apos;</span>;
+        {"\n"}
+        {"\n"}
+        <span className="text-primary">&gt;</span> export default function RootLayout() {"{"}
+        {"\n"}
+        {"  "}return &lt;GlitchgrabProvider token=
+        <span className="text-green-400">&quot;gg_...&quot;</span>/&gt;;
+        {"\n"}
+        {"}"}
+      </code>
+    </div>
+  );
+}
+
+function ChatBubbles() {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="bg-muted/50 border border-border/60 p-2 font-mono text-[10px] text-muted-foreground max-w-[85%]">
+        <span className="text-primary/70">user@dev &gt;</span> &quot;The checkout button is spinning forever on production&quot;
+      </div>
+      <div className="bg-background border border-primary/30 border-l-2 border-l-primary p-2 font-mono text-[10px] max-w-[85%] self-end relative">
+        <CheckCircle2 className="h-3 w-3 text-primary absolute -left-1.5 -top-1.5 bg-background rounded-full" />
+        <span className="text-primary">[agent/sys] &gt;</span>{" "}
+        <span className="text-foreground">
+          Drafted issue &quot;Infinite loader on /checkout&quot;. Requesting repro steps...
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function VisionPreview() {
+  return (
+    <div className="relative h-20 bg-background border border-border overflow-hidden flex items-center justify-center p-2 group/vis">
+      <div className="font-mono text-[8px] text-border break-all leading-none group-hover/vis:opacity-20 transition-opacity duration-500">
+        data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAlgAAAH0CAYAAADkvqMgAAAAB3RJTUUH5QUUEwA5
+        K5TXXQAAAAlwSFlzAAAOxAAADsQBlSsOGwAAAAJiS0dEAP+Hj8y/AAA...
+      </div>
+      <div className="absolute inset-0 flex items-center justify-center backdrop-blur-[2px] opacity-0 group-hover/vis:opacity-100 transition-opacity duration-500">
+        <div className="flex items-center gap-2 border border-primary bg-card px-3 py-1 font-mono text-xs text-primary">
+          <Scan className="h-3.5 w-3.5" />
+          CheckoutModal.tsx
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DedupVisual() {
+  return (
+    <div className="flex flex-col gap-1 font-mono text-[10px]">
+      <div className="flex items-center justify-between gap-2 p-1.5 border border-border bg-background">
+        <span className="text-muted-foreground truncate">Report A: &quot;Site down&quot;</span>
+        <span className="text-border">→</span>
+        <span className="text-primary">hash: 8f2b</span>
+      </div>
+      <div className="flex items-center justify-between gap-2 p-1.5 border border-border bg-background">
+        <span className="text-muted-foreground truncate">Report B: &quot;502 gateway&quot;</span>
+        <span className="text-border">→</span>
+        <span className="text-primary">hash: 8f2b</span>
+      </div>
+      <div className="text-center text-yellow-400 mt-1.5 uppercase tracking-widest border-t border-dashed border-border pt-1.5 group-hover:text-green-400 transition-colors flex items-center justify-center gap-1.5">
+        <GitMerge className="h-3 w-3" />
+        merged into issue #42
+      </div>
+    </div>
+  );
+}
 
 export default function LandingPage() {
   return (
-    <main className="min-h-screen">
-      {/* Nav */}
-      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
-          <div className="flex items-center gap-2">
-            <Image
-              src="/logo.png"
-              alt="Glitchgrab"
-              width={28}
-              height={28}
-              className="rounded-full sm:w-8 sm:h-8"
-            />
-            <span className="font-semibold text-base sm:text-lg tracking-tight">
+    <main className="min-h-screen relative">
+      {/* Global grid background */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10 opacity-40"
+        style={{
+          backgroundImage:
+            "linear-gradient(to right, color-mix(in srgb, var(--border) 40%, transparent) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in srgb, var(--border) 40%, transparent) 1px, transparent 1px)",
+          backgroundSize: "40px 40px",
+        }}
+      />
+
+      {/* Top nav */}
+      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
+        <div className="mx-auto flex max-w-[90rem] items-center justify-between px-4 sm:px-6 h-14">
+          <Link href="/" className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-[0_0_10px_rgba(34,211,238,0.25)]">
+              <Image src="/logo.png" alt="" width={16} height={16} className="rounded-sm" />
+            </div>
+            <span className="font-mono text-sm font-bold tracking-tight text-foreground lowercase">
               glitchgrab
             </span>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Link
-              href="/docs"
-              className="text-sm text-muted-foreground hover:text-primary transition hidden sm:inline"
+          </Link>
+
+          <div className="hidden md:flex items-center gap-8 h-full border-x border-border px-8">
+            <NavLink href="#features">/features</NavLink>
+            <NavLink href="#pipeline">/pipeline</NavLink>
+            <NavLink href="/docs">/docs</NavLink>
+            <a
+              href="https://github.com/webnaresh/glitchgrab"
+              target="_blank"
+              rel="noopener"
+              className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors"
             >
-              Docs
-            </Link>
-            <a href="#waitlist">
-              <Button size="sm">Join Waitlist</Button>
+              <Github className="h-3.5 w-3.5" />
+              repo
             </a>
           </div>
+
+          <a
+            href="#waitlist"
+            className="group flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors"
+          >
+            <span className="text-border group-hover:text-primary transition-colors">[</span>
+            <kbd className="font-mono text-[10px] py-0.5 px-1.5 border border-border bg-card rounded-sm">
+              ⌘ K
+            </kbd>
+            <span className="hidden sm:inline">Join Waitlist</span>
+            <span className="sm:hidden">Waitlist</span>
+            <span className="text-border group-hover:text-primary transition-colors">]</span>
+          </a>
         </div>
       </nav>
 
       {/* Hero */}
-      <section className="relative flex min-h-screen flex-col items-center justify-center px-4 pt-20 pb-12 text-center overflow-hidden sm:px-6 sm:pt-24 sm:pb-16">
-        {/* Background grid */}
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.03]"
-          style={{
-            backgroundImage: `linear-gradient(var(--color-primary) 1px, transparent 1px), linear-gradient(90deg, var(--color-primary) 1px, transparent 1px)`,
-            backgroundSize: "40px 40px",
-          }}
-        />
-        {/* Glow blob */}
-        <div className="pointer-events-none absolute top-1/4 left-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/5 blur-[100px] sm:h-125 sm:w-125 sm:blur-[120px]" />
-
-        <div className="relative z-10 w-full max-w-5xl">
-          <div className="flex flex-col items-center gap-10 lg:flex-row lg:items-center lg:gap-16">
-            {/* Left — text content */}
-            <div className="flex-1 text-center lg:text-left">
-              <Badge variant="outline" className="mb-4 gap-2 sm:mb-6">
-                <span className="h-2 w-2 rounded-full bg-primary animate-pulse-glow" />
-                Open source — shipping soon
-              </Badge>
-
-              <h1 className="text-4xl leading-none tracking-wide uppercase sm:text-6xl lg:text-7xl" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
-                Grab the glitch.
-                <br />
-                <span className="text-primary">Ship the fix.</span>
-              </h1>
-
-              <p className="mx-auto mt-4 max-w-xl text-sm text-muted-foreground leading-relaxed sm:mt-6 sm:text-lg lg:mx-0">
-                Turn messy bug reports — screenshots, production errors, user
-                complaints — into well-structured GitHub issues. Powered by AI.
-              </p>
-
-              <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm sm:mt-8 lg:justify-start">
-                <span className="flex items-center gap-2 text-muted-foreground">
-                  <span className="text-primary">&#9889;</span> Ship fixes
-                  faster
-                </span>
-                <span className="flex items-center gap-2 text-muted-foreground">
-                  <span className="text-primary">&#128337;</span> Save hours on
-                  triage
-                </span>
-                <span className="flex items-center gap-2 text-muted-foreground">
-                  <span className="text-primary">&#9881;&#65039;</span> Zero
-                  config SDK
-                </span>
-              </div>
-
-              <HeroWaitlist />
+      <section className="relative max-w-[90rem] mx-auto border-x border-border pt-14">
+        <div className="grid lg:grid-cols-12 gap-8 lg:gap-8 items-center px-4 sm:px-6 py-16 lg:py-24">
+          <div className="lg:col-span-6 flex flex-col items-start gap-6 lg:gap-7 z-10">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 border border-border bg-card font-mono text-[10px] text-primary uppercase tracking-widest">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-60 animate-ping" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+              </span>
+              open source · beta
             </div>
 
-            {/* Right — live terminal demo */}
-            <div className="flex-1 w-full max-w-lg">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight leading-[1.05] text-foreground lowercase">
+              <span className="block">Grab the glitch.</span>
+              <span className="block text-muted-foreground">Ship the fix.</span>
+            </h1>
+
+            <p className="font-mono text-sm text-muted-foreground max-w-md leading-relaxed border-l border-border pl-4">
+              Drop-in Next.js SDK. Converts messy stack traces, fragmented
+              screenshots, and vague user complaints into precisely structured
+              GitHub issues.
+            </p>
+
+            <HeroWaitlist />
+
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-[11px] text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="h-3 w-3 text-green-400" />
+                open source engine
+              </span>
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="h-3 w-3 text-green-400" />
+                next.js ready
+              </span>
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="h-3 w-3 text-green-400" />
+                zero config
+              </span>
+            </div>
+          </div>
+
+          <div className="lg:col-span-6 z-10 w-full flex justify-center lg:justify-end">
+            <div className="w-full max-w-xl">
               <HeroTerminal />
             </div>
           </div>
         </div>
       </section>
 
-      {/* Features + Video */}
-      <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
-        <div className="text-center mb-12 sm:mb-20">
-          <Badge variant="outline" className="mb-4 gap-2">
-            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-            How it works
-          </Badge>
-          <h2 className="text-2xl font-bold sm:text-3xl lg:text-4xl">
-            Stop writing issues.{" "}
-            <span className="text-primary">Start shipping fixes.</span>
-          </h2>
-          <p className="mt-3 text-sm text-muted-foreground max-w-xl mx-auto sm:mt-4 sm:text-base leading-relaxed">
-            Crashes, screenshots, user complaints — doesn&apos;t matter how the
-            bug reaches you. Glitchgrab turns it into a clean GitHub issue. One
-            click. Or zero.
-          </p>
-        </div>
-
-        <div className="flex flex-col items-center gap-10 lg:flex-row lg:items-start lg:gap-12">
-          {/* Left — compact 2x2 grid */}
-          <div className="flex-1 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 max-w-2xl">
-            {FLOWS.map((flow, i) => (
-              <Card
-                key={flow.title}
-                className="group transition hover:border-primary/30 hover:shadow-md hover:shadow-primary/5"
-              >
-                <CardContent className="p-4 sm:p-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary font-mono">
-                      {i + 1}
-                    </span>
-                    <Badge
-                      variant="secondary"
-                      className="text-primary bg-primary/10 text-[10px]"
-                    >
-                      {flow.tag}
-                    </Badge>
-                  </div>
-                  <div className="mb-3">
-                    <div className="inline-block rounded-lg bg-primary/5 p-1.5 ring-1 ring-primary/10 group-hover:ring-primary/20 transition">
-                      {flow.anim === "dashboard" && <DashboardChatAnim />}
-                      {flow.anim === "autocapture" && <AutoCaptureAnim />}
-                      {flow.anim === "report" && <ReportButtonAnim />}
-                      {flow.anim === "dedup" && <DedupAnim />}
-                    </div>
-                  </div>
-                  <h3 className="text-sm font-semibold mb-1 sm:text-base">
-                    {flow.title}
-                  </h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed sm:text-sm">
-                    {flow.desc}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
+      {/* Features — log entries grid */}
+      <section id="features" className="border-y border-border bg-card/30">
+        <div className="max-w-[90rem] mx-auto border-x border-border">
+          <div className="border-b border-border p-4 flex items-center justify-between bg-background/40">
+            <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+              <span className="text-primary">/</span> sys.capture_methods
+            </div>
+            <div className="font-mono text-[10px] text-muted-foreground/70">
+              4 modes active
+            </div>
           </div>
 
-          {/* Right — sticky video */}
-          <div className="lg:sticky lg:top-24 shrink-0">
-            <HeroVideo src="https://cdn.glitchgrab.dev/meta/Timeline.mp4" />
+          <div className="grid md:grid-cols-2">
+            <FeatureCard
+              mode="AUTO_CAPTURE"
+              meta="ts-node // edge"
+              icon={Plug}
+              tone="primary"
+              title="Drop-in SDK intercept"
+              desc="Runs at the edge or client side. Automatically grabs stack traces, DOM state, and recent network requests the millisecond a throw occurs."
+              borderRight
+              borderBottom
+            >
+              <CodeSnippet />
+            </FeatureCard>
+
+            <FeatureCard
+              mode="REPL_CHAT"
+              meta="cli // web"
+              icon={MessageSquare}
+              tone="neutral"
+              title="Conversational triage"
+              desc="Paste a massive dumped log or vague Slack message into the command center. The AI parses the mess and extracts actionable repro steps."
+              borderBottom
+            >
+              <ChatBubbles />
+            </FeatureCard>
+
+            <FeatureCard
+              mode="VISION_PARSE"
+              meta="base64 // blob"
+              icon={ImageIcon}
+              tone="neutral"
+              title="Vision-based reverse engineering"
+              desc="Users drop a screenshot of a broken UI component. Models analyze the DOM context and map the visual bug to the exact React component."
+              borderRight
+            >
+              <VisionPreview />
+            </FeatureCard>
+
+            <FeatureCard
+              mode="VECTOR_DEDUP"
+              meta="pinecone // semantic"
+              icon={GitMerge}
+              tone="warn"
+              title="Semantic issue collapsing"
+              desc="Before opening a new issue, every report is converted to embeddings. 50 users reporting the same downtime in different words — all map to a single tracking issue."
+            >
+              <DedupVisual />
+            </FeatureCard>
+
+            {/* Hidden — keep animations available but not used; see DashboardChatAnim etc */}
+            <div className="hidden">
+              <DashboardChatAnim />
+              <AutoCaptureAnim />
+              <ReportButtonAnim />
+              <DedupAnim />
+            </div>
           </div>
         </div>
       </section>
 
-      {/* How it Works */}
-      <section
-        id="how-it-works"
-        className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24"
-      >
-        <div className="text-center mb-10 sm:mb-16">
-          <h2 className="text-2xl font-bold sm:text-3xl lg:text-4xl">
-            Stupid simple setup
-          </h2>
-          <p className="mt-3 text-sm text-muted-foreground sm:mt-4 sm:text-base">
-            Three steps. Under five minutes.
-          </p>
-        </div>
-
-        <div className="grid gap-6 sm:grid-cols-3 sm:gap-8">
-          {STEPS.map((step) => (
-            <div key={step.num} className="relative">
-              <span className="text-4xl font-bold text-primary/10 font-mono sm:text-6xl">
-                {step.num}
-              </span>
-              <h3 className="mt-1 text-lg font-semibold sm:mt-2 sm:text-xl">
-                {step.title}
-              </h3>
-              <p className="mt-1 text-sm text-muted-foreground sm:mt-2">
-                {step.desc}
-              </p>
+      {/* How it works — CLI transcript (left) + demo video (right) */}
+      <section id="how-it-works" className="bg-card/30 border-b border-border">
+        <div className="max-w-[90rem] mx-auto border-x border-border">
+          <div className="p-4 border-b border-border flex items-center justify-between">
+            <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+              <span className="text-primary">/</span> docs.installation
             </div>
-          ))}
+            <div className="font-mono text-[10px] text-muted-foreground/70">
+              45s walkthrough available
+            </div>
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-0">
+            {/* Left — CLI transcript */}
+            <div className="px-4 sm:px-8 py-12 lg:py-16 lg:border-r border-border">
+              <h2 className="font-mono text-xs text-muted-foreground uppercase tracking-widest mb-8 flex items-center gap-2">
+                <span className="w-1 h-3 bg-primary inline-block" />
+                cli install transcript
+              </h2>
+
+              <div className="font-mono text-sm space-y-6">
+                {[
+                  {
+                    cmd: "bun install glitchgrab",
+                    output: [
+                      "+ glitchgrab@latest",
+                      "added 1 package · audited 0 vulnerabilities",
+                    ],
+                    outputHighlightFirst: true,
+                  },
+                  {
+                    cmd: "npx glitchgrab login --provider=github",
+                    output: [
+                      "Authenticating via device flow...",
+                      "Waiting for browser confirmation... Success",
+                      "Linked: acme-corp/production",
+                    ],
+                  },
+                  {
+                    cmd: "glitchgrab watch --auto-issue",
+                    output: [
+                      "[SYS] Agent daemon started on PID 49202",
+                      "[SYS] Listening for unhandled exceptions...",
+                    ],
+                    blink: true,
+                  },
+                ].map((step, i) => (
+                  <div key={i} className="space-y-2">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="text-primary font-bold">❯</span>
+                      <span className="text-foreground">{step.cmd}</span>
+                      {step.blink && (
+                        <span className="inline-block w-2 h-4 bg-primary animate-pulse" />
+                      )}
+                    </div>
+                    <div className="border-l border-border ml-[5px] pl-5 py-2 text-muted-foreground text-xs space-y-0.5">
+                      {step.output.map((line, j) => (
+                        <div
+                          key={j}
+                          className={
+                            step.outputHighlightFirst && j === 0
+                              ? "text-green-400"
+                              : ""
+                          }
+                        >
+                          {line}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right — demo video */}
+            <div className="px-4 sm:px-8 py-12 lg:py-16 flex flex-col gap-4 border-t lg:border-t-0 border-border">
+              <h2 className="font-mono text-xs text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                <span className="w-1 h-3 bg-primary inline-block" />
+                demo.mp4 · 45s
+              </h2>
+              <div className="flex-1 flex items-center justify-center">
+                <HeroVideo src="https://cdn.glitchgrab.dev/meta/Timeline.mp4" />
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* AI Pipeline */}
-      <section className="mx-auto max-w-4xl px-4 py-16 sm:px-6 sm:py-24">
-        <div className="text-center mb-10 sm:mb-16">
-          <h2 className="text-2xl font-bold sm:text-3xl lg:text-4xl">
-            AI does the heavy lifting
-          </h2>
-          <p className="mt-3 text-sm text-muted-foreground max-w-lg mx-auto sm:mt-4 sm:text-base">
-            Not AI-assisted. AI-generated. The full issue — title, description,
-            labels, severity — written from raw input.
-          </p>
-        </div>
+      <section id="pipeline" className="border-y border-border bg-background">
+        <div className="max-w-[90rem] mx-auto border-x border-border py-12 sm:py-16">
+          <div className="px-4 sm:px-6 mb-10 flex items-end justify-between flex-wrap gap-3">
+            <div>
+              <div className="font-mono text-[10px] text-muted-foreground tracking-widest uppercase mb-1">
+                Architecture
+              </div>
+              <h2 className="text-lg sm:text-xl font-bold text-foreground uppercase tracking-tight">
+                Processing Pipeline
+              </h2>
+            </div>
+            <span className="font-mono text-[10px] px-2 py-0.5 border border-green-400/40 text-green-400 bg-green-400/10 uppercase tracking-widest">
+              Status: Operational
+            </span>
+          </div>
 
-        <Card>
-          <CardContent className="p-5 sm:p-12">
-            <div className="flex flex-col gap-4 sm:gap-6">
-              {[
-                {
-                  label: "Normalize",
-                  desc: "Image, text, or error → standard format",
-                },
-                {
-                  label: "Enrich",
-                  desc: "Pull repo context — existing issues, labels",
-                },
-                { label: "Dedup", desc: "Check if this bug already exists" },
-                { label: "Generate", desc: "AI writes the complete issue" },
-                {
-                  label: "Push",
-                  desc: "Create GitHub issue + attach screenshots",
-                },
-              ].map((step, i) => (
-                <div
-                  key={step.label}
-                  className="flex items-start gap-3 sm:gap-4"
-                >
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary font-mono text-xs font-bold sm:h-10 sm:w-10 sm:text-sm">
-                    {i + 1}
+          <div className="px-4 sm:px-6 pb-8 overflow-x-auto pipeline-scroll">
+            <div className="flex items-stretch gap-1.5 min-w-max pb-2">
+              <div className="flex flex-col gap-2 w-36 xl:w-40 shrink-0">
+                <div className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest">
+                  Input
+                </div>
+                <div className="border border-border bg-background p-3 border-l-4 border-l-muted-foreground text-xs h-28 flex items-center">
+                  <ul className="text-muted-foreground space-y-1 font-mono text-[11px]">
+                    <li>- Stack traces</li>
+                    <li>- Screenshots</li>
+                    <li>- User reports</li>
+                  </ul>
+                </div>
+              </div>
+
+              {PIPELINE.map((step) => {
+                const StepIcon = step.icon;
+                return (
+                  <div key={step.n} className="flex items-center">
+                    <div className="w-5 xl:w-6 flex items-center justify-center text-border shrink-0">
+                      <ChevronsRight className="h-4 w-4" />
+                    </div>
+                    <div className="flex flex-col gap-2 w-28 xl:w-32 shrink-0">
+                      <div className="font-mono text-[10px] text-primary uppercase tracking-widest text-center truncate">
+                        {step.n}. {step.label}
+                      </div>
+                      <div className="border border-primary/30 bg-card p-2 text-xs h-28 flex flex-col items-center justify-center text-center gap-1.5 hover:border-primary transition-colors group/step">
+                        <StepIcon className="h-5 w-5 text-foreground group-hover/step:text-primary transition-colors" />
+                        <span className="font-mono text-[10px] text-foreground leading-tight">
+                          {step.desc}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-semibold text-sm sm:text-base">
-                      {step.label}
-                    </h4>
-                    <p className="text-xs text-muted-foreground sm:text-sm">
-                      {step.desc}
-                    </p>
+                );
+              })}
+
+              <div className="w-5 xl:w-6 flex items-center justify-center text-border shrink-0">
+                <ChevronsRight className="h-4 w-4" />
+              </div>
+              <div className="flex flex-col gap-2 w-36 xl:w-40 shrink-0">
+                <div className="font-mono text-[10px] text-foreground uppercase tracking-widest">
+                  Output
+                </div>
+                <div className="border border-border bg-card p-3 border-r-4 border-r-primary text-xs h-28 flex flex-col justify-center">
+                  <div className="font-bold text-foreground mb-1">
+                    Structured issue
+                  </div>
+                  <div className="font-mono text-[10px] text-muted-foreground leading-tight">
+                    Labels · Context · Repro
                   </div>
                 </div>
-              ))}
+              </div>
             </div>
-            <div className="mt-6 rounded-xl border border-border bg-background p-3 text-center sm:mt-8 sm:p-4">
-              <p className="text-xs text-muted-foreground sm:text-sm">
-                AI-powered issue generation built in. No API keys, no setup.
-                <br />
-                <span className="text-primary">Just connect and ship.</span>
-              </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Waitlist — subscribe.sh */}
+      <section
+        id="waitlist"
+        className="min-h-[60vh] flex flex-col items-center justify-center border-b border-border px-4 py-16 sm:py-24 relative overflow-hidden"
+      >
+        <div
+          aria-hidden
+          className="absolute font-bold text-foreground opacity-[0.02] tracking-tighter pointer-events-none select-none whitespace-nowrap text-[180px] sm:text-[240px]"
+        >
+          BETA ACCESS
+        </div>
+
+        <div className="z-10 w-full max-w-2xl flex flex-col gap-6">
+          <div className="text-center space-y-2">
+            <h2 className="text-3xl sm:text-4xl font-bold text-foreground lowercase">
+              Join the closed beta
+            </h2>
+            <p className="font-mono text-sm text-muted-foreground">
+              We&apos;re onboarding teams from the waitlist weekly.
+            </p>
+          </div>
+
+          <div className="border border-border bg-card p-1 w-full shadow-2xl shadow-black/40">
+            <div className="bg-background flex items-center flex-wrap sm:flex-nowrap gap-1 p-4">
+              <span className="text-green-400 font-bold font-mono">~</span>
+              <span className="text-primary font-bold font-mono mr-1">❯</span>
+              <span className="text-foreground font-mono mr-1">
+                ./subscribe.sh --email=
+              </span>
+              <div className="flex-1 min-w-[200px]">
+                <WaitlistForm />
+              </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+
+          <div className="text-center font-mono text-[10px] text-muted-foreground border border-border/50 py-1 px-3 self-center rounded bg-card">
+            Press{" "}
+            <kbd className="border border-border px-1 rounded mx-1 bg-background">
+              Enter ↵
+            </kbd>{" "}
+            to execute
+          </div>
+        </div>
       </section>
 
       {/* Contact */}
-      <section className="mx-auto max-w-2xl px-4 py-16 sm:px-6 sm:py-24">
-        <div className="text-center mb-10 sm:mb-12">
-          <h2 className="text-2xl font-bold sm:text-3xl lg:text-4xl">
+      <section className="max-w-2xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
+        <div className="mb-8">
+          <div className="font-mono text-xs text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-2">
+            <span className="w-1 h-3 bg-primary inline-block" />
+            /contact
+          </div>
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground">
             Got questions? <span className="text-primary">Talk to us.</span>
           </h2>
-          <p className="mt-3 text-sm text-muted-foreground sm:mt-4 sm:text-base">
+          <p className="font-mono text-sm text-muted-foreground mt-2">
             Feature request, feedback, partnership — we read every message.
           </p>
         </div>
 
-        <Card>
-          <CardContent className="p-5 sm:p-8">
-            <ContactForm />
-          </CardContent>
-        </Card>
-      </section>
-
-      {/* Waitlist */}
-      <section
-        id="waitlist"
-        className="mx-auto max-w-2xl px-4 py-16 sm:px-6 sm:py-24"
-      >
-        <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="p-5 text-center sm:p-12">
-            <h2 className="text-2xl font-bold sm:text-3xl lg:text-4xl">
-              Get early access
-            </h2>
-            <p className="mt-3 text-sm text-muted-foreground max-w-md mx-auto sm:mt-4">
-              We&apos;re building Glitchgrab in public. Join the waitlist to get
-              early access, shape the product, and lock in launch pricing.
-            </p>
-
-            <WaitlistForm />
-
-            <p className="mt-3 text-xs text-muted-foreground sm:mt-4">
-              No spam. Just launch updates.
-            </p>
-          </CardContent>
-        </Card>
+        <div className="border border-border bg-card p-5 sm:p-8 rounded-md">
+          <ContactForm />
+        </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border pt-12 pb-8 sm:pt-16 sm:pb-10">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
-            {/* Brand */}
-            <div className="col-span-2 sm:col-span-1">
-              <div className="flex items-center gap-2 mb-3">
-                <Image
-                  src="/logo.png"
-                  alt="Glitchgrab"
-                  width={24}
-                  height={24}
-                  className="rounded-full"
-                />
-                <span className="text-sm font-semibold">glitchgrab</span>
+      <footer className="bg-background border-b-[6px] border-b-primary pt-16 pb-8">
+        <div className="max-w-[90rem] mx-auto px-4 sm:px-6 grid grid-cols-2 md:grid-cols-5 gap-8 md:gap-12 font-mono text-xs border-x border-border/50">
+          <div className="col-span-2 flex flex-col justify-between gap-8">
+            <div>
+              <div className="flex items-center gap-2 text-foreground font-bold text-sm mb-3">
+                <TerminalSquare className="h-4 w-4 text-primary" />
+                <span className="lowercase">glitchgrab</span>
               </div>
-              <p className="text-xs text-muted-foreground leading-relaxed max-w-50">
-                Turn messy bugs into clean GitHub issues. Powered by AI.
+              <p className="text-muted-foreground leading-relaxed max-w-xs">
+                Autonomous issue generation for high-velocity engineering teams.
+                Stop triage, start shipping.
               </p>
             </div>
-
-            {/* Product */}
-            <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-                Product
-              </h4>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <Link
-                    href="/docs"
-                    className="text-muted-foreground hover:text-primary transition"
-                  >
-                    Docs
-                  </Link>
-                </li>
-                <li>
-                  <a
-                    href="#how-it-works"
-                    className="text-muted-foreground hover:text-primary transition"
-                  >
-                    How it works
-                  </a>
-                </li>
-                <li>
-                  <Link
-                    href="/changelog"
-                    className="text-muted-foreground hover:text-primary transition"
-                  >
-                    Changelog
-                  </Link>
-                </li>
-                <li>
-                  <a
-                    href="#waitlist"
-                    className="text-muted-foreground hover:text-primary transition"
-                  >
-                    Join Waitlist
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            {/* Resources */}
-            <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-                Resources
-              </h4>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <a
-                    href="https://github.com/webnaresh/glitchgrab"
-                    target="_blank"
-                    rel="noopener"
-                    className="text-muted-foreground hover:text-primary transition"
-                  >
-                    GitHub
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://www.npmjs.com/package/glitchgrab"
-                    target="_blank"
-                    rel="noopener"
-                    className="text-muted-foreground hover:text-primary transition"
-                  >
-                    npm Package
-                  </a>
-                </li>
-                <li>
-                  <Link
-                    href="/contact"
-                    className="text-muted-foreground hover:text-primary transition"
-                  >
-                    Contact
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            {/* Legal */}
-            <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-                Legal
-              </h4>
-              <ul className="space-y-2 text-sm">
-                <li>
-                  <Link
-                    href="/privacy"
-                    className="text-muted-foreground hover:text-primary transition"
-                  >
-                    Privacy Policy
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/terms"
-                    className="text-muted-foreground hover:text-primary transition"
-                  >
-                    Terms of Service
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/refund"
-                    className="text-muted-foreground hover:text-primary transition"
-                  >
-                    Refund Policy
-                  </Link>
-                </li>
-              </ul>
+            <div className="text-muted-foreground/70 text-[10px] leading-relaxed">
+              © {new Date().getFullYear()} Navibyte Innovation Pvt. Ltd.
+              <br />
+              SYS.STATUS: ALL SYSTEMS NOMINAL
             </div>
           </div>
 
-          {/* Bottom bar */}
-          <div className="mt-10 flex flex-col items-center gap-2 border-t border-border pt-6 sm:flex-row sm:justify-between">
-            <p className="text-xs text-muted-foreground">
-              &copy; {new Date().getFullYear()} Navibyte Innovation Pvt. Ltd.
-              All rights reserved.
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Open source under{" "}
-              <a
-                href="https://github.com/webnaresh/glitchgrab/blob/main/LICENSE"
-                target="_blank"
-                rel="noopener"
-                className="text-primary hover:underline"
-              >
-                MIT License
-              </a>
-            </p>
+          <div className="flex flex-col gap-4">
+            <span className="text-foreground uppercase tracking-widest border-b border-border pb-2">
+              Product
+            </span>
+            <ul className="space-y-2.5">
+              <li>
+                <Link
+                  href="/docs"
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                >
+                  Docs
+                </Link>
+              </li>
+              <li>
+                <a
+                  href="#how-it-works"
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                >
+                  How it works
+                </a>
+              </li>
+              <li>
+                <Link
+                  href="/changelog"
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                >
+                  Changelog
+                </Link>
+              </li>
+              <li>
+                <a
+                  href="#waitlist"
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                >
+                  Join Waitlist
+                </a>
+              </li>
+            </ul>
           </div>
+
+          <div className="flex flex-col gap-4">
+            <span className="text-foreground uppercase tracking-widest border-b border-border pb-2">
+              Resources
+            </span>
+            <ul className="space-y-2.5">
+              <li>
+                <a
+                  href="https://github.com/webnaresh/glitchgrab"
+                  target="_blank"
+                  rel="noopener"
+                  className="flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors"
+                >
+                  <Github className="h-3 w-3" /> GitHub
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://www.npmjs.com/package/glitchgrab"
+                  target="_blank"
+                  rel="noopener"
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                >
+                  npm Package
+                </a>
+              </li>
+              <li>
+                <Link
+                  href="/contact"
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                >
+                  Contact
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <span className="text-foreground uppercase tracking-widest border-b border-border pb-2">
+              Legal
+            </span>
+            <ul className="space-y-2.5">
+              <li>
+                <Link
+                  href="/privacy"
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                >
+                  Privacy
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/terms"
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                >
+                  Terms
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/refund"
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                >
+                  Refund
+                </Link>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="max-w-[90rem] mx-auto mt-10 px-4 sm:px-6 border-x border-border/50 pt-6 border-t">
+          <p className="font-mono text-[10px] text-muted-foreground/70 text-center">
+            Open source under{" "}
+            <a
+              href="https://github.com/webnaresh/glitchgrab/blob/main/LICENSE"
+              target="_blank"
+              rel="noopener"
+              className="text-primary hover:underline"
+            >
+              MIT License
+            </a>
+            <span className="mx-2">·</span>
+            <ArrowRight className="inline h-3 w-3 align-middle" /> built for devs
+          </p>
         </div>
       </footer>
     </main>
