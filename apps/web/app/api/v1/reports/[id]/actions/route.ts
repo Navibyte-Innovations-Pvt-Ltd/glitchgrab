@@ -75,6 +75,15 @@ export async function POST(
       );
     }
 
+    if (action === "dismiss") {
+      const existingMetadata = (report.metadata as Record<string, unknown>) ?? {};
+      await prisma.report.update({
+        where: { id },
+        data: { metadata: { ...existingMetadata, dismissed: true } },
+      });
+      return NextResponse.json({ success: true, data: { action: "dismissed" } });
+    }
+
     if (!report.issue) {
       return NextResponse.json(
         { success: false, error: "No GitHub issue linked to this report" },
