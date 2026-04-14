@@ -1,3 +1,20 @@
+## [1.14.0](https://github.com/WebNaresh/glitchgrab/compare/v1.13.0...v1.14.0) (2026-04-14)
+
+### Features
+
+* **api:** add workflow-runs endpoint listing GitHub Actions per repo ([8f8b010](https://github.com/WebNaresh/glitchgrab/commit/8f8b010c92c8499c231de2e41f470271456bdc9e))
+* **billing:** bypass Razorpay in dev and return PRO_PLATFORM active ([8168e8b](https://github.com/WebNaresh/glitchgrab/commit/8168e8b294003229543356db7463e9dcc1065ff8))
+* **dashboard:** add workflow runs section with smart polling and manual refresh ([d6cb835](https://github.com/WebNaresh/glitchgrab/commit/d6cb835ddaf3131b568084e4743d1722224c925e))
+* **dashboard:** wire workflow runs section into analytics view ([652b4ef](https://github.com/WebNaresh/glitchgrab/commit/652b4ef254574a396631b2ccfd4013593f85b1d0))
+* **github:** add listWorkflowRuns API client for GitHub Actions ([7a1e6fc](https://github.com/WebNaresh/glitchgrab/commit/7a1e6fc7f605c46f763da7a6c65f1eb38cd7434c))
+* **scripts:** load env vars from workspace .env in db-sync script ([83cf32c](https://github.com/WebNaresh/glitchgrab/commit/83cf32c5dd21579058a47375374d4ce8c8473356))
+
+### Bug Fixes
+
+* **api:** replace non-null assertion with local variable in workflow-runs ([f54e75e](https://github.com/WebNaresh/glitchgrab/commit/f54e75efeaf4555ed694c74811a7f4b3a761dba9))
+* **scripts:** point dotenvx at root .env and correct db:sync script path ([e2a4388](https://github.com/WebNaresh/glitchgrab/commit/e2a43880062123fd82dfba65852a29ee18dbfbf7))
+* **turbo:** add env allowlist to dev task so secrets reach next dev ([9756250](https://github.com/WebNaresh/glitchgrab/commit/97562509214bf01ce9b95553c49d6f49c728f684))
+
 ## [1.13.0](https://github.com/WebNaresh/glitchgrab/compare/v1.12.0...v1.13.0) (2026-04-14)
 
 ### Features
