@@ -58,7 +58,11 @@ export async function GET() {
         GROUP BY day
       `),
       prisma.report.count({
-        where: { repoId: { in: repoIds }, status: "FAILED" },
+        where: {
+          repoId: { in: repoIds },
+          status: "FAILED",
+          NOT: { metadata: { path: ["dismissed"], equals: true } },
+        },
       }),
     ]);
 
