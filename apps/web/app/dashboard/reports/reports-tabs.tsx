@@ -134,6 +134,7 @@ export function ReportsTabs({
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [repoFilter, setRepoFilter] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState<"ALL" | "TODAY" | "LAST_7_DAYS" | "LAST_30_DAYS">("ALL");
+  const [cutoffTimestamp, setCutoffTimestamp] = useState<number | null>(null);
   const router = useRouter();
 
   const reports = tab === "product" ? productIssues : myReports;
@@ -151,15 +152,8 @@ export function ReportsTabs({
     if (statusFilter) {
       list = list.filter((r) => r.status === statusFilter);
     }
-    if (dateFilter !== "ALL") {
-      const now = Date.now();
-      const ms =
-        dateFilter === "TODAY"
-          ? 24 * 60 * 60 * 1000
-          : dateFilter === "LAST_7_DAYS"
-          ? 7 * 24 * 60 * 60 * 1000
-          : 30 * 24 * 60 * 60 * 1000;
-      list = list.filter((r) => now - new Date(r.createdAt).getTime() <= ms);
+    if (cutoffTimestamp !== null) {
+      list = list.filter((r) => new Date(r.createdAt).getTime() >= cutoffTimestamp);
     }
     if (search.trim()) {
       const q = search.trim().toLowerCase();
@@ -174,15 +168,32 @@ export function ReportsTabs({
       });
     }
     return list;
-  }, [reports, search, statusFilter, repoFilter, dateFilter]);
+  }, [reports, search, statusFilter, repoFilter, cutoffTimestamp]);
 
   const statusOptions = ["CREATED", "PENDING", "PROCESSING", "DUPLICATE", "FAILED"];
+
+  function handleDateFilterChange(filter: "ALL" | "TODAY" | "LAST_7_DAYS" | "LAST_30_DAYS") {
+    setDateFilter(filter);
+    if (filter === "ALL") {
+      setCutoffTimestamp(null);
+    } else {
+      const now = Date.now();
+      const ms =
+        filter === "TODAY"
+          ? 24 * 60 * 60 * 1000
+          : filter === "LAST_7_DAYS"
+          ? 7 * 24 * 60 * 60 * 1000
+          : 30 * 24 * 60 * 60 * 1000;
+      setCutoffTimestamp(now - ms);
+    }
+  }
 
   function handleTabChange(next: "product" | "my") {
     setTab(next);
     setRepoFilter(null);
     setStatusFilter(null);
     setDateFilter("ALL");
+    setCutoffTimestamp(null);
     setSearch("");
   }
 
@@ -281,7 +292,7 @@ export function ReportsTabs({
             {(["ALL", "TODAY", "LAST_7_DAYS", "LAST_30_DAYS"] as const).map((d) => (
               <button
                 key={d}
-                onClick={() => setDateFilter(d)}
+                onClick={() => handleDateFilterChange(d)}
                 className={cn(
                   "font-mono text-[10px] border px-2.5 py-1 rounded-full uppercase tracking-wider transition-colors",
                   dateFilter === d
