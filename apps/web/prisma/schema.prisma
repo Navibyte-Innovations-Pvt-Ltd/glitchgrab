@@ -4,20 +4,20 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("NEXT_POSTGRES_URL")
 }
 
 // ─── Pre-launch ──────────────────────────────────────────
 
 model Waitlist {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  source        String?  @default("landing")
-  priceFeel     String?
-  topFeature    String?
-  currentTool   String?
-  suggestion    String?
-  createdAt     DateTime @default(now())
+  id          String   @id @default(cuid())
+  email       String   @unique
+  source      String?  @default("landing")
+  priceFeel   String?
+  topFeature  String?
+  currentTool String?
+  suggestion  String?
+  createdAt   DateTime @default(now())
 }
 
 // ─── Auth ────────────────────────────────────────────────
@@ -31,11 +31,11 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts Account[]
-  sessions Session[]
-  repos    Repo[]
-  aiConfig     AiConfig?
-  subscription Subscription?
+  accounts      Account[]
+  sessions      Session[]
+  repos         Repo[]
+  aiConfig      AiConfig?
+  subscription  Subscription?
   webhooks      Webhook[]
   collaborators Collaborator[]
 }
@@ -96,13 +96,13 @@ model Repo {
 }
 
 model ApiToken {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   repoId    String
-  tokenHash String   @unique
-  name      String   @default("Default")
+  tokenHash String    @unique
+  name      String    @default("Default")
   lastUsed  DateTime?
   expiresAt DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   repo    Repo     @relation(fields: [repoId], references: [id], onDelete: Cascade)
   reports Report[]
@@ -128,27 +128,27 @@ enum ReportStatus {
 }
 
 model Report {
-  id             String       @id @default(cuid())
-  repoId         String
-  tokenId        String?
-  collaboratorId String?
-  source         ReportSource
-  status      ReportStatus @default(PENDING)
-  rawInput    String?
-  screenshot  String?
-  errorStack  String?
-  userAgent   String?
-  pageUrl     String?
-  metadata    Json?
-  aiResponse  Json?
-  failReason  String?
+  id                 String       @id @default(cuid())
+  repoId             String
+  tokenId            String?
+  collaboratorId     String?
+  source             ReportSource
+  status             ReportStatus @default(PENDING)
+  rawInput           String?
+  screenshot         String?
+  errorStack         String?
+  userAgent          String?
+  pageUrl            String?
+  metadata           Json?
+  aiResponse         Json?
+  failReason         String?
   /// Primary key of the reporter in the host app's database
   reporterPrimaryKey String
   reporterName       String
   reporterEmail      String?
   reporterPhone      String?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 
   repo  Repo      @relation(fields: [repoId], references: [id], onDelete: Cascade)
   token ApiToken? @relation(fields: [tokenId], references: [id], onDelete: SetNull)
