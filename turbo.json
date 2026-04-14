@@ -26,7 +26,25 @@
     },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "env": [
+        "NEXT_POSTGRES_URL",
+        "NEXTAUTH_URL",
+        "NEXTAUTH_SECRET",
+        "AUTH_SECRET",
+        "GITHUB_CLIENT_ID",
+        "GITHUB_CLIENT_SECRET",
+        "ANTHROPIC_API_KEY",
+        "ENCRYPTION_KEY",
+        "MAIL_FROM",
+        "MAIL_PASSWORD",
+        "NOTIFY_EMAIL",
+        "RAZORPAY_KEY_ID",
+        "RAZORPAY_KEY_SECRET",
+        "RAZORPAY_WEBHOOK_SECRET",
+        "GITHUB_MOBILE_CLIENT_ID",
+        "GITHUB_MOBILE_CLIENT_SECRET"
+      ]
     },
     "lint": {
       "cache": false
