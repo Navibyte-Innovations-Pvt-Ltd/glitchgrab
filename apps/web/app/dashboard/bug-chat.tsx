@@ -130,6 +130,7 @@ interface Message {
   screenshots?: string[];
   screenshotFiles?: File[];
   issueUrl?: string;
+  issueNumber?: number;
   failed?: boolean;
   clarifyQuestions?: ClarifyQuestion[];
 }
@@ -504,7 +505,12 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
       const history = messages
         .filter((m) => m.id !== "welcome" && m.id !== "thinking")
         .slice(-5)
-        .map((m) => ({ role: m.role, content: m.content }));
+        .map((m) => ({
+          role: m.role,
+          content: m.issueNumber
+            ? `${m.content} (GitHub issue #${m.issueNumber})`
+            : m.content,
+        }));
       if (history.length > 0) formData.append("chatHistory", JSON.stringify(history));
 
       const { data } = await axios.post("/api/v1/reports", formData);
@@ -554,6 +560,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
             role: "assistant",
             content,
             issueUrl: data.data?.issueUrl,
+            issueNumber: data.data?.issueNumber,
             failed: !data.success,
             clarifyQuestions,
           });
