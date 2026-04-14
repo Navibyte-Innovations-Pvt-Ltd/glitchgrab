@@ -40,25 +40,19 @@ export default function ReportDetailPage() {
   const [message, setMessage] = useState("");
   const queryClient = useQueryClient();
 
-  const token = process.env.NEXT_PUBLIC_GLITCHGRAB_TOKEN;
-
   const { data: report, isLoading } = useQuery<ReportDetail>({
     queryKey: ["report-detail", id],
     queryFn: async () => {
-      const { data } = await axios.get(`/api/v1/sdk/reports/${id}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const { data } = await axios.get(`/api/v1/reports/${id}`);
       return data.data;
     },
   });
 
   const commentMutation = useMutation({
     mutationFn: async (msg: string) => {
-      const { data } = await axios.post(
-        `/api/v1/sdk/reports/${id}/comments`,
-        { message: msg },
-        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
-      );
+      const { data } = await axios.post(`/api/v1/reports/${id}/comments`, {
+        message: msg,
+      });
       if (!data.success) throw new Error(data.error);
       return data.data;
     },
