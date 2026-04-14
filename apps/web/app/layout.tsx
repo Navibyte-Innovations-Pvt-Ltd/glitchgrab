@@ -4,12 +4,16 @@ import { AuthSessionProvider } from "@/components/providers/session-provider";
 import { GlitchgrabSDKProvider } from "@/components/providers/glitchgrab-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { organizationSchema } from "@/lib/schema";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://glitchgrab.dev"),
   title: "Glitchgrab — Turn messy bugs into GitHub issues with AI",
   description:
     "Convert screenshots, production errors, and user complaints into well-structured GitHub issues. Powered by AI. Open source.",
+  alternates: {
+    canonical: "https://glitchgrab.dev",
+  },
   openGraph: {
     title: "Glitchgrab — Grab the glitch. Ship the fix.",
     description:
@@ -46,6 +50,10 @@ export default function RootLayout({
         <link
           href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
           rel="stylesheet"
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema()) }}
         />
       </head>
       <body>
