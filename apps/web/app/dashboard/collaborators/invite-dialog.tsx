@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Plus, Loader2, Check } from "lucide-react";
+import { UserPlus, Loader2, Check, Mail, GitFork } from "lucide-react";
 import { toast } from "sonner";
 
 interface Repo {
@@ -67,39 +67,67 @@ export function InviteCollaboratorDialog({ repos }: InviteCollaboratorDialogProp
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button size="sm" className="gap-1.5 shrink-0" />}>
-        <Plus className="h-4 w-4" />
-        Invite
+      <DialogTrigger
+        render={
+          <Button
+            size="sm"
+            className="shrink-0 gap-2 bg-foreground text-background hover:bg-foreground/90 rounded-[3px] px-3 py-1.5 text-sm font-medium"
+          />
+        }
+      >
+        <UserPlus className="h-4 w-4" />
+        <span>Invite Collaborator</span>
+        <span className="flex items-center gap-1 bg-background/10 rounded-xs px-1.5 py-0.5 text-[9px] font-mono text-background/60 border border-background/20 uppercase tracking-wider">
+          <span>⌘</span>
+          <span>I</span>
+        </span>
       </DialogTrigger>
       <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md max-h-[80vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Invite Collaborator</DialogTitle>
+          <DialogTitle className="font-mono text-sm uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+            <UserPlus className="h-4 w-4" />
+            invite_collaborator
+          </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-5">
           <div className="space-y-2">
-            <Label htmlFor="collab-email">Email address</Label>
+            <Label
+              htmlFor="collab-email"
+              className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-1.5"
+            >
+              <Mail className="h-3 w-3" />
+              email address
+            </Label>
             <Input
               id="collab-email"
               type="email"
               placeholder="collaborator@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              className="font-mono text-sm"
             />
           </div>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Select repositories</Label>
+              <Label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                <GitFork className="h-3 w-3" />
+                select repositories
+              </Label>
               {repos.length > 1 && (
-                <Button variant="ghost" size="sm" className="text-xs h-7" onClick={toggleAll}>
-                  {allSelected ? "Deselect all" : "Select all"}
-                </Button>
+                <button
+                  type="button"
+                  onClick={toggleAll}
+                  className="font-mono text-[10px] uppercase tracking-widest text-primary hover:text-primary/80"
+                >
+                  {allSelected ? "deselect all" : "select all"}
+                </button>
               )}
             </div>
-            <div className="max-h-48 overflow-y-auto space-y-1.5 rounded-md border p-2">
+            <div className="max-h-48 overflow-y-auto space-y-1 rounded border border-border bg-card/40 p-2">
               {repos.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">
+                <p className="font-mono text-xs text-muted-foreground text-center py-4">
                   No repos connected. Connect a repo first.
                 </p>
               ) : (
@@ -110,10 +138,10 @@ export function InviteCollaboratorDialog({ repos }: InviteCollaboratorDialogProp
                       key={repo.id}
                       type="button"
                       onClick={() => toggleRepo(repo.id)}
-                      className={`flex items-center justify-between w-full rounded-md px-3 py-2 text-sm transition ${
+                      className={`flex items-center justify-between w-full rounded px-3 py-2 text-sm font-mono transition border ${
                         selected
-                          ? "bg-primary/10 text-primary"
-                          : "hover:bg-muted text-foreground"
+                          ? "bg-primary/10 text-primary border-primary/30"
+                          : "hover:bg-muted text-foreground border-transparent"
                       }`}
                     >
                       <span className="truncate">{repo.fullName}</span>
@@ -126,17 +154,20 @@ export function InviteCollaboratorDialog({ repos }: InviteCollaboratorDialogProp
           </div>
 
           <Button
-            className="w-full"
+            className="w-full font-mono text-[11px] uppercase tracking-widest"
             disabled={isPending || !email || selectedRepoIds.size === 0}
             onClick={() => mutate()}
           >
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Sending invitation...
+                sending invitation...
               </>
             ) : (
-              `Send invitation (${selectedRepoIds.size} repo${selectedRepoIds.size !== 1 ? "s" : ""})`
+              <>
+                send invitation ({selectedRepoIds.size} repo
+                {selectedRepoIds.size !== 1 ? "s" : ""})
+              </>
             )}
           </Button>
         </div>
