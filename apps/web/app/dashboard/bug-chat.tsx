@@ -872,9 +872,9 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              disabled={sending}
+              disabled={sending || !selectedRepoName}
               className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors disabled:opacity-50"
-              title="Attach screenshot"
+              title={selectedRepoName ? "Attach screenshot" : "Select a repo first"}
             >
               <ImagePlus className="h-4 w-4" />
             </button>
@@ -895,10 +895,10 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
-              placeholder="describe a bug, paste a log, or drop a screenshot..."
+              placeholder={selectedRepoName ? "describe a bug, paste a log, or drop a screenshot..." : "select a repo above to get started..."}
               rows={1}
               className="flex-1 min-w-0 resize-none bg-transparent border-0 outline-none font-mono text-sm text-foreground placeholder:text-muted-foreground/50 min-h-8 max-h-40 py-1.5 leading-relaxed"
-              disabled={sending}
+              disabled={sending || !selectedRepoName}
             />
             <div className="flex flex-col items-end gap-1 shrink-0 pt-1">
               <button
