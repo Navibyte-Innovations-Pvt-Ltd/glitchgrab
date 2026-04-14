@@ -27,6 +27,16 @@ const PRO_LIMITS = {
 };
 
 export async function getUserPlan(userId: string): Promise<UserPlan> {
+  if (process.env.NODE_ENV === "development") {
+    return {
+      plan: "PRO_PLATFORM",
+      isActive: true,
+      ...PRO_LIMITS,
+      expiresAt: null,
+      razorpayStatus: "dev-bypass",
+    };
+  }
+
   const subscription = await prisma.subscription.findUnique({
     where: { userId },
   });
