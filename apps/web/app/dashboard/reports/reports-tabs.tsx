@@ -43,6 +43,16 @@ interface ReportItem {
   } | null;
 }
 
+function computeCutoffMs(filter: "TODAY" | "LAST_7_DAYS" | "LAST_30_DAYS"): number {
+  const ms =
+    filter === "TODAY"
+      ? 24 * 60 * 60 * 1000
+      : filter === "LAST_7_DAYS"
+      ? 7 * 24 * 60 * 60 * 1000
+      : 30 * 24 * 60 * 60 * 1000;
+  return Date.now() - ms;
+}
+
 const SOURCE_LABELS: Record<string, string> = {
   SDK_AUTO: "auto_capture",
   SDK_USER_REPORT: "user_report",
@@ -174,18 +184,7 @@ export function ReportsTabs({
 
   function handleDateFilterChange(filter: "ALL" | "TODAY" | "LAST_7_DAYS" | "LAST_30_DAYS") {
     setDateFilter(filter);
-    if (filter === "ALL") {
-      setCutoffTimestamp(null);
-    } else {
-      const now = Date.now();
-      const ms =
-        filter === "TODAY"
-          ? 24 * 60 * 60 * 1000
-          : filter === "LAST_7_DAYS"
-          ? 7 * 24 * 60 * 60 * 1000
-          : 30 * 24 * 60 * 60 * 1000;
-      setCutoffTimestamp(now - ms);
-    }
+    setCutoffTimestamp(filter === "ALL" ? null : computeCutoffMs(filter));
   }
 
   function handleTabChange(next: "product" | "my") {
