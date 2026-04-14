@@ -133,6 +133,7 @@ export function ReportsTabs({
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [repoFilter, setRepoFilter] = useState<string | null>(null);
+  const [dateFilter, setDateFilter] = useState<"ALL" | "TODAY" | "LAST_7_DAYS" | "LAST_30_DAYS">("ALL");
   const router = useRouter();
 
   const reports = tab === "product" ? productIssues : myReports;
@@ -150,6 +151,16 @@ export function ReportsTabs({
     if (statusFilter) {
       list = list.filter((r) => r.status === statusFilter);
     }
+    if (dateFilter !== "ALL") {
+      const now = Date.now();
+      const ms =
+        dateFilter === "TODAY"
+          ? 24 * 60 * 60 * 1000
+          : dateFilter === "LAST_7_DAYS"
+          ? 7 * 24 * 60 * 60 * 1000
+          : 30 * 24 * 60 * 60 * 1000;
+      list = list.filter((r) => now - new Date(r.createdAt).getTime() <= ms);
+    }
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter((r) => {
@@ -163,7 +174,7 @@ export function ReportsTabs({
       });
     }
     return list;
-  }, [reports, search, statusFilter, repoFilter]);
+  }, [reports, search, statusFilter, repoFilter, dateFilter]);
 
   const statusOptions = ["CREATED", "PENDING", "PROCESSING", "DUPLICATE", "FAILED"];
 
@@ -171,6 +182,7 @@ export function ReportsTabs({
     setTab(next);
     setRepoFilter(null);
     setStatusFilter(null);
+    setDateFilter("ALL");
     setSearch("");
   }
 
@@ -259,6 +271,25 @@ export function ReportsTabs({
                 )}
               >
                 {s.toLowerCase()}
+              </button>
+            ))}
+          </div>
+
+          {/* Date filter pills — third row */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Clock className="h-3 w-3 text-muted-foreground shrink-0" />
+            {(["ALL", "TODAY", "LAST_7_DAYS", "LAST_30_DAYS"] as const).map((d) => (
+              <button
+                key={d}
+                onClick={() => setDateFilter(d)}
+                className={cn(
+                  "font-mono text-[10px] border px-2.5 py-1 rounded-full uppercase tracking-wider transition-colors",
+                  dateFilter === d
+                    ? "bg-primary/10 border-primary/30 text-primary"
+                    : "bg-card border-border text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {d.toLowerCase().replace(/_/g, "_")}
               </button>
             ))}
           </div>
