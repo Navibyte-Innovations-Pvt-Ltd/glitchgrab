@@ -30,6 +30,8 @@ export async function GET() {
       return NextResponse.json({ success: true, data: [] });
     }
 
+    const accessToken = account.access_token;
+
     const repos = await prisma.repo.findMany({
       where: { userId },
       select: { id: true, fullName: true, owner: true, name: true },
@@ -40,7 +42,7 @@ export async function GET() {
       repos.map(async (repo) => {
         try {
           const runs = await listWorkflowRuns(
-            account.access_token!,
+            accessToken,
             repo.owner,
             repo.name,
             5
