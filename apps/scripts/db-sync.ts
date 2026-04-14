@@ -1,36 +1,11 @@
 import { execSync } from 'child_process';
-import path from 'path';
-import fs from 'fs';
-import dotenv from 'dotenv';
 
-/**
- * Database connection parts
- */
 interface DbConnectionParts {
     host: string;
     port: string;
     user: string;
     password: string;
     database: string;
-}
-
-// Load environment variables from .env file
-// Try to find .env in workspace root
-const findEnvFile = (dir: string): string | null => {
-    const envPath = path.join(dir, '.env');
-    if (fs.existsSync(envPath)) {
-        return envPath;
-    }
-    const parent = path.dirname(dir);
-    if (parent === dir) {
-        return null;
-    }
-    return findEnvFile(parent);
-};
-
-const envFile = findEnvFile(process.cwd());
-if (envFile) {
-    dotenv.config({ path: envFile });
 }
 
 /**
