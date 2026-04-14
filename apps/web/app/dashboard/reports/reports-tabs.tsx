@@ -6,19 +6,17 @@ import axios from "axios";
 import {
   AlertTriangle,
   Bug,
-  Check,
   ChevronRight,
   ClipboardList,
   Clock,
   ExternalLink,
+  EyeOff,
   FileText,
   Filter,
   GitPullRequest,
   Loader2,
   MessageSquare,
   Paperclip,
-  X,
-  XCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -33,6 +31,7 @@ interface ReportItem {
   failReason: string | null;
   createdAt: string;
   repoFullName: string;
+  dismissed?: boolean;
   reporterPrimaryKey: string;
   reporterName: string;
   reporterEmail: string | null;
@@ -126,21 +125,28 @@ function formatAge(date: string): string {
 export function ReportsTabs({
   myReports,
   productIssues,
-  isOwner = false,
 }: {
   myReports: ReportItem[];
   productIssues: ReportItem[];
-  isOwner?: boolean;
 }) {
   const [tab, setTab] = useState<"product" | "my">("product");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [repoFilter, setRepoFilter] = useState<string | null>(null);
   const router = useRouter();
 
   const reports = tab === "product" ? productIssues : myReports;
 
+  const uniqueRepos = useMemo(() => {
+    const repos = new Set(reports.map((r) => r.repoFullName).filter(Boolean));
+    return Array.from(repos).sort();
+  }, [reports]);
+
   const filtered = useMemo(() => {
-    let list = reports;
+    let list = reports.filter((r) => !r.dismissed);
+    if (repoFilter) {
+      list = list.filter((r) => r.repoFullName === repoFilter);
+    }
     if (statusFilter) {
       list = list.filter((r) => r.status === statusFilter);
     }
@@ -157,9 +163,16 @@ export function ReportsTabs({
       });
     }
     return list;
-  }, [reports, search, statusFilter]);
+  }, [reports, search, statusFilter, repoFilter]);
 
   const statusOptions = ["CREATED", "PENDING", "PROCESSING", "DUPLICATE", "FAILED"];
+
+  function handleTabChange(next: "product" | "my") {
+    setTab(next);
+    setRepoFilter(null);
+    setStatusFilter(null);
+    setSearch("");
+  }
 
   return (
     <div className="space-y-4">
@@ -167,14 +180,14 @@ export function ReportsTabs({
       <div className="flex items-center gap-1 border-b border-border">
         <TabButton
           active={tab === "product"}
-          onClick={() => setTab("product")}
+          onClick={() => handleTabChange("product")}
           icon={GitPullRequest}
           label="product_issues"
           count={productIssues.length}
         />
         <TabButton
           active={tab === "my"}
-          onClick={() => setTab("my")}
+          onClick={() => handleTabChange("my")}
           icon={Bug}
           label="my_reports"
           count={myReports.length}
@@ -183,20 +196,46 @@ export function ReportsTabs({
 
       {/* Filter/search strip — shown when we have reports */}
       {reports.length > 0 && (
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 pb-3 border-b border-border/50">
-          <div className="flex items-center gap-2 max-w-sm flex-1 border border-border rounded px-2 py-1 focus-within:border-primary transition-colors">
-            <span className="font-mono text-[11px] text-primary shrink-0">~ /</span>
-            <input
-              type="text"
-              placeholder="grep reports..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-transparent font-mono text-[12px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
-            />
+        <div className="flex flex-col gap-3 pb-3 border-b border-border/50">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-center gap-2 max-w-sm flex-1 border border-border rounded px-2 py-1 focus-within:border-primary transition-colors">
+              <span className="font-mono text-[11px] text-primary shrink-0">~ /</span>
+              <input
+                type="text"
+                placeholder="grep reports..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full bg-transparent font-mono text-[12px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+              />
+            </div>
+            {uniqueRepos.length > 1 && (
+              <>
+                <div className="hidden sm:block w-px h-4 bg-border" />
+                <div className="flex items-center gap-2">
+                  <Filter className="h-3 w-3 text-muted-foreground shrink-0" />
+                  <select
+                    value={repoFilter ?? ""}
+                    onChange={(e) => setRepoFilter(e.target.value || null)}
+                    className="font-mono text-[11px] border border-border bg-card text-muted-foreground px-2 py-1 rounded focus:outline-none focus:border-primary transition-colors hover:text-foreground"
+                  >
+                    <option value="">all_repos</option>
+                    {uniqueRepos.map((repo) => (
+                      <option key={repo} value={repo}>
+                        {repo}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
+            <div className="font-mono text-[11px] text-muted-foreground flex items-center gap-2 sm:ml-auto shrink-0">
+              <span>{filtered.length} result{filtered.length === 1 ? "" : "s"}</span>
+            </div>
           </div>
-          <div className="hidden sm:block w-px h-4 bg-border" />
+
+          {/* Status filter pills — second row */}
           <div className="flex items-center gap-2 flex-wrap">
-            <Filter className="h-3 w-3 text-muted-foreground shrink-0" />
+            {uniqueRepos.length <= 1 && <Filter className="h-3 w-3 text-muted-foreground shrink-0" />}
             <button
               onClick={() => setStatusFilter(null)}
               className={cn(
@@ -222,9 +261,6 @@ export function ReportsTabs({
                 {s.toLowerCase()}
               </button>
             ))}
-          </div>
-          <div className="font-mono text-[11px] text-muted-foreground flex items-center gap-2 sm:ml-auto shrink-0">
-            <span>{filtered.length} result{filtered.length === 1 ? "" : "s"}</span>
           </div>
         </div>
       )}
@@ -256,7 +292,6 @@ export function ReportsTabs({
             <ReportRow
               key={report.id}
               report={report}
-              showActions={isOwner && tab === "product"}
               onActionDone={() => router.refresh()}
             />
           ))}
@@ -312,11 +347,9 @@ function TabButton({
 
 function ReportRow({
   report,
-  showActions,
   onActionDone,
 }: {
   report: ReportItem;
-  showActions: boolean;
   onActionDone: () => void;
 }) {
   const stripClass = getStripClass(report.status);
@@ -345,6 +378,20 @@ function ReportRow({
           report.status === "CREATED" ? "no_issue" : report.status.toLowerCase(),
       };
 
+  const dismissMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await axios.post(`/api/v1/reports/${report.id}/actions`, {
+        action: "dismiss",
+      });
+      if (!data.success) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      toast.success("Report dismissed");
+      onActionDone();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to dismiss"),
+  });
+
   return (
     <div className="data-row group relative rounded bg-transparent hover:bg-card/60 border border-transparent hover:border-border/50 transition-colors">
       <Link
@@ -368,6 +415,11 @@ function ReportRow({
               <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground/60" />
             )}
           </div>
+          {report.status === "FAILED" && report.failReason && (
+            <div className="font-mono text-[11px] text-red-500/80 truncate">
+              ↳ {report.failReason}
+            </div>
+          )}
           <div className="font-mono text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
             <span className="truncate">rpt_{idPrefix}</span>
             <span className="w-0.75 h-0.75 rounded-full bg-border shrink-0" />
@@ -381,7 +433,7 @@ function ReportRow({
             {report.repoFullName && (
               <>
                 <span className="w-0.75 h-0.75 rounded-full bg-border shrink-0" />
-                <span className="truncate">{report.repoFullName}</span>
+                <span className="truncate">repo:{report.repoFullName}</span>
               </>
             )}
             <span className="w-0.75 h-0.75 rounded-full bg-border shrink-0" />
@@ -414,69 +466,26 @@ function ReportRow({
         </div>
       </Link>
 
-      {/* Owner actions for open product issues */}
-      {showActions && report.issue && report.issue.githubState === "open" && (
+      {/* Dismiss action for failed reports */}
+      {report.status === "FAILED" && !report.dismissed && (
         <div className="px-3 pb-3 ml-12">
-          <ReportActions reportId={report.id} onDone={onActionDone} />
+          <button
+            disabled={dismissMutation.isPending}
+            onClick={(e) => {
+              e.preventDefault();
+              dismissMutation.mutate();
+            }}
+            className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground border border-border/50 bg-card px-2.5 py-1 rounded disabled:opacity-50 hover:bg-muted/50 hover:text-foreground transition-colors"
+          >
+            {dismissMutation.isPending ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <EyeOff className="h-3 w-3" />
+            )}
+            dismiss
+          </button>
         </div>
       )}
-    </div>
-  );
-}
-
-function ReportActions({ reportId, onDone }: { reportId: string; onDone: () => void }) {
-  const closeMutation = useMutation({
-    mutationFn: async () => {
-      const { data } = await axios.post(`/api/v1/reports/${reportId}/actions`, { action: "close" });
-      if (!data.success) throw new Error(data.error);
-    },
-    onSuccess: () => { toast.success("Issue closed"); onDone(); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
-  });
-
-  const labelMutation = useMutation({
-    mutationFn: async (label: string) => {
-      const { data } = await axios.post(`/api/v1/reports/${reportId}/actions`, { action: "label", label });
-      if (!data.success) throw new Error(data.error);
-    },
-    onSuccess: (_, label) => { toast.success(`Label "${label}" added`); onDone(); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
-  });
-
-  const isPending = closeMutation.isPending || labelMutation.isPending;
-
-  return (
-    <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border/50">
-      <button
-        disabled={isPending}
-        onClick={(e) => { e.preventDefault(); labelMutation.mutate("approved"); }}
-        className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-primary border border-primary/30 bg-primary/10 px-2.5 py-1 rounded disabled:opacity-50 hover:bg-primary/15 transition-colors"
-      >
-        {labelMutation.isPending && labelMutation.variables === "approved"
-          ? <Loader2 className="h-3 w-3 animate-spin" />
-          : <Check className="h-3 w-3" />}
-        approve
-      </button>
-      <button
-        disabled={isPending}
-        onClick={(e) => { e.preventDefault(); labelMutation.mutate("rejected"); }}
-        className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-amber-500 border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 rounded disabled:opacity-50 hover:bg-amber-500/15 transition-colors"
-      >
-        {labelMutation.isPending && labelMutation.variables === "rejected"
-          ? <Loader2 className="h-3 w-3 animate-spin" />
-          : <XCircle className="h-3 w-3" />}
-        reject
-      </button>
-      <button
-        disabled={isPending}
-        onClick={(e) => { e.preventDefault(); closeMutation.mutate(); }}
-        className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-red-500 border border-red-500/30 bg-red-500/10 px-2.5 py-1 rounded disabled:opacity-50 hover:bg-red-500/15 transition-colors"
-      >
-        {closeMutation.isPending
-          ? <Loader2 className="h-3 w-3 animate-spin" />
-          : <X className="h-3 w-3" />}
-        close
-      </button>
     </div>
   );
 }
