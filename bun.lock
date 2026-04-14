@@ -96,7 +96,7 @@
     },
     "packages/sdk-nextjs": {
       "name": "glitchgrab",
-      "version": "1.13.0",
+      "version": "1.14.1",
       "dependencies": {
         "html2canvas-pro": "^2.0.2",
       },
