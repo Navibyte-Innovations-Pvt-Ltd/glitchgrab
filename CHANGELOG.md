@@ -1,3 +1,9 @@
+## [1.17.1](https://github.com/WebNaresh/glitchgrab/compare/v1.17.0...v1.17.1) (2026-04-14)
+
+### Bug Fixes
+
+* **reports:** exclude dismissed reports from sidebar failed count ([13c2a8e](https://github.com/WebNaresh/glitchgrab/commit/13c2a8e96c3e0c9fc787f60a52c391b7b6acddea))
+
 ## [1.17.0](https://github.com/WebNaresh/glitchgrab/compare/v1.16.0...v1.17.0) (2026-04-14)
 
 ### Features
