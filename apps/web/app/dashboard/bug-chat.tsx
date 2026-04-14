@@ -347,7 +347,7 @@ const MessageBlock = memo(function MessageBlock({
 /* ---------- Main component ---------- */
 
 export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }) {
-  const [selectedRepoName, setSelectedRepoName] = useState(repos[0]?.fullName ?? "");
+  const [selectedRepoName, setSelectedRepoName] = useState("");
   const selectedRepo = repos.find((r) => r.fullName === selectedRepoName)?.id ?? "";
   const [input, setInput] = useState("");
   const [screenshots, setScreenshots] = useState<string[]>([]);
@@ -730,6 +730,9 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
                       key={repo.id}
                       type="button"
                       onClick={() => {
+                        if (repo.fullName !== selectedRepoName) {
+                          handleNewChat();
+                        }
                         setSelectedRepoName(repo.fullName);
                         setRepoPickerOpen(false);
                         setRepoSearch("");
