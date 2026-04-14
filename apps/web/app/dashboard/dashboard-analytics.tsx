@@ -41,6 +41,8 @@ export function DashboardAnalytics({ userName }: { userName: string }) {
       const { data } = await axios.get("/api/v1/reports/analytics");
       return data.data;
     },
+    refetchOnWindowFocus: true,
+    refetchInterval: 60_000,
   });
 
   const { data: prs } = useQuery<PullRequest[]>({
@@ -50,6 +52,8 @@ export function DashboardAnalytics({ userName }: { userName: string }) {
       return data.data ?? [];
     },
     staleTime: 60_000,
+    refetchOnWindowFocus: true,
+    refetchInterval: 60_000,
   });
 
   const { data: issues } = useQuery<IssueItem[]>({
@@ -59,6 +63,8 @@ export function DashboardAnalytics({ userName }: { userName: string }) {
       return data.data ?? [];
     },
     staleTime: 60_000,
+    refetchOnWindowFocus: true,
+    refetchInterval: 60_000,
   });
 
   const { data: contrib } = useQuery<{ total: number; login: string | null; weeks: unknown[] }>({
@@ -68,6 +74,8 @@ export function DashboardAnalytics({ userName }: { userName: string }) {
       return data.data;
     },
     staleTime: 5 * 60_000,
+    refetchOnWindowFocus: true,
+    refetchInterval: 5 * 60_000,
   });
 
   if (loadingAnalytics || !analytics) {
