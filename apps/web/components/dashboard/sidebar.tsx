@@ -160,7 +160,7 @@ export function Sidebar({
     <aside className="hidden md:flex md:w-64 md:flex-col border-r border-border bg-card relative z-20">
       {/* Brand header */}
       <div className="h-14 flex items-center gap-3 px-4 border-b border-border/60 shrink-0">
-        <div className="w-7 h-7 rounded bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-[0_0_12px_rgba(34,211,238,0.2)] shrink-0">
+        <div className="w-7 h-7 rounded bg-linear-to-br from-primary to-primary/60 flex items-center justify-center shadow-[0_0_12px_rgba(34,211,238,0.2)] shrink-0">
           <Image src="/logo.png" alt="Glitchgrab" width={18} height={18} className="rounded-sm" />
         </div>
         <div className="flex-1 min-w-0">
@@ -207,7 +207,7 @@ export function Sidebar({
                       {isActive && (
                         <span
                           aria-hidden
-                          className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r bg-primary shadow-[0_0_6px_rgba(34,211,238,0.5)] z-10"
+                          className="absolute left-0 top-1 bottom-1 w-0.75 rounded-r bg-primary shadow-[0_0_6px_rgba(34,211,238,0.5)] z-10"
                         />
                       )}
                       <Link

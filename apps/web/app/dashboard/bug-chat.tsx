@@ -189,7 +189,7 @@ function FileToken({
         <img src={src} alt={name} className="w-full h-full object-cover" />
       </div>
       <div className="flex flex-col min-w-0">
-        <span className="font-mono text-[11px] text-foreground truncate max-w-[220px]">{name}</span>
+        <span className="font-mono text-[11px] text-foreground truncate max-w-55">{name}</span>
         <span className="font-mono text-[10px] text-muted-foreground">
           {size != null ? formatBytes(size) : ""} · image
         </span>
@@ -708,7 +708,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
             >
               <PopoverTrigger className="flex items-center gap-2 font-mono text-xs text-foreground hover:text-primary transition-colors px-2 py-1 rounded hover:bg-muted min-w-0">
                 <GitFork className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                <span className="truncate max-w-[200px] sm:max-w-[320px]">
+                <span className="truncate max-w-50 sm:max-w-[320px]">
                   {selectedRepoName || "select repo"}
                 </span>
                 <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
@@ -854,7 +854,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
               onPaste={handlePaste}
               placeholder="describe a bug, paste a log, or drop a screenshot..."
               rows={1}
-              className="flex-1 min-w-0 resize-none bg-transparent border-0 outline-none font-mono text-sm text-foreground placeholder:text-muted-foreground/50 min-h-8 max-h-[160px] py-1.5 leading-relaxed"
+              className="flex-1 min-w-0 resize-none bg-transparent border-0 outline-none font-mono text-sm text-foreground placeholder:text-muted-foreground/50 min-h-8 max-h-40 py-1.5 leading-relaxed"
               disabled={sending}
             />
             <div className="flex flex-col items-end gap-1 shrink-0 pt-1">

@@ -130,15 +130,15 @@ function RepoRow({ repo, kind }: { repo: Repo; kind: "own" | "shared" }) {
           <span className="text-sm font-medium text-foreground truncate">
             {name}
           </span>
-          <span className="px-1.5 py-[1px] rounded bg-muted text-[9px] font-mono text-muted-foreground uppercase border border-border">
+          <span className="px-1.5 py-px rounded bg-muted text-[9px] font-mono text-muted-foreground uppercase border border-border">
             {repo.isPrivate ? "private" : "public"}
           </span>
         </div>
         <div className="font-mono text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
           <span className="truncate">{owner}</span>
-          <span className="w-[3px] h-[3px] rounded-full bg-border shrink-0" />
+          <span className="w-0.75 h-0.75 rounded-full bg-border shrink-0" />
           <span className="truncate">id:{repo.githubId}</span>
-          <span className="sm:hidden w-[3px] h-[3px] rounded-full bg-border shrink-0" />
+          <span className="sm:hidden w-0.75 h-0.75 rounded-full bg-border shrink-0" />
           <span className="sm:hidden">
             {repo.tokens} tok · {repo.reports} rep
           </span>

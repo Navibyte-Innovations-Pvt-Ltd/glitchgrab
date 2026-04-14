@@ -259,7 +259,7 @@ function StatCard({
           : "hover:border-foreground/30"
       }`}
     >
-      {critical && <div className="absolute top-0 left-0 right-0 h-[2px] bg-red-500/60" />}
+      {critical && <div className="absolute top-0 left-0 right-0 h-0.5 bg-red-500/60" />}
       <CardContent className="p-4 md:p-5">
         <div className="flex items-start justify-between mb-3">
           <span
@@ -340,11 +340,11 @@ function HeatmapLegend() {
   return (
     <div className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground">
       <span>Less</span>
-      <span className="h-3 w-3 rounded-[2px] bg-muted border border-border" />
-      <span className="h-3 w-3 rounded-[2px] bg-primary/25 border border-primary/30" />
-      <span className="h-3 w-3 rounded-[2px] bg-primary/50 border border-primary/60" />
-      <span className="h-3 w-3 rounded-[2px] bg-primary/75 border border-primary/80" />
-      <span className="h-3 w-3 rounded-[2px] bg-primary border border-foreground/30" />
+      <span className="h-3 w-3 rounded-xs bg-muted border border-border" />
+      <span className="h-3 w-3 rounded-xs bg-primary/25 border border-primary/30" />
+      <span className="h-3 w-3 rounded-xs bg-primary/50 border border-primary/60" />
+      <span className="h-3 w-3 rounded-xs bg-primary/75 border border-primary/80" />
+      <span className="h-3 w-3 rounded-xs bg-primary border border-foreground/30" />
       <span>More</span>
     </div>
   );

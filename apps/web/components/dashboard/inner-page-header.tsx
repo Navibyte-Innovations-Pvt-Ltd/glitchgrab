@@ -46,7 +46,7 @@ export function InnerPageHeader({
         </div>
 
         {(subtitle || meta) && (
-          <div className="sm:h-8 sm:border-l sm:border-border sm:pl-4 flex flex-col justify-end pb-[2px] min-w-0">
+          <div className="sm:h-8 sm:border-l sm:border-border sm:pl-4 flex flex-col justify-end pb-0.5 min-w-0">
             {subtitle && (
               <p className="font-mono text-[11px] text-muted-foreground leading-tight truncate">
                 {subtitle}

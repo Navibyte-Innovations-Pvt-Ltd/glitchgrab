@@ -87,7 +87,7 @@ export function ConnectRepoDialog() {
       >
         <Plus className="h-3.5 w-3.5" />
         <span>Connect Repo</span>
-        <span className="hidden sm:inline-flex items-center gap-1 bg-background/40 rounded-[2px] px-1.5 py-0.5 text-[9px] border border-border/60 text-foreground/70 normal-case tracking-normal">
+        <span className="hidden sm:inline-flex items-center gap-1 bg-background/40 rounded-xs px-1.5 py-0.5 text-[9px] border border-border/60 text-foreground/70 normal-case tracking-normal">
           <span className="font-mono">⌘N</span>
         </span>
       </DialogTrigger>
@@ -169,7 +169,7 @@ export function ConnectRepoDialog() {
                       <span className="text-sm font-medium text-foreground break-all">
                         {repo.fullName}
                       </span>
-                      <span className="px-1.5 py-[1px] rounded bg-muted text-[9px] font-mono text-muted-foreground uppercase border border-border">
+                      <span className="px-1.5 py-px rounded bg-muted text-[9px] font-mono text-muted-foreground uppercase border border-border">
                         {repo.isPrivate ? "private" : "public"}
                       </span>
                     </div>
