@@ -14,7 +14,6 @@ import { HeroTerminal } from "./hero-terminal";
 import { HeroWaitlist } from "./hero-waitlist";
 import {
   Github,
-  TerminalSquare,
   ArrowRight,
   ChevronsRight,
   CheckCircle2,
@@ -210,9 +209,9 @@ export default function LandingPage() {
 
       {/* Top nav */}
       <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-[90rem] items-center justify-between px-4 sm:px-6 h-14">
+        <div className="mx-auto flex max-w-360 items-center justify-between px-4 sm:px-6 h-14">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-[0_0_10px_rgba(34,211,238,0.25)]">
+            <div className="w-6 h-6 rounded bg-linear-to-br from-primary to-primary/60 flex items-center justify-center shadow-[0_0_10px_rgba(34,211,238,0.25)]">
               <Image src="/logo.png" alt="" width={16} height={16} className="rounded-sm" />
             </div>
             <span className="font-mono text-sm font-bold tracking-tight text-foreground lowercase">
@@ -251,7 +250,7 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero */}
-      <section className="relative max-w-[90rem] mx-auto border-x border-border pt-14">
+      <section className="relative max-w-360 mx-auto border-x border-border pt-14">
         <div className="grid lg:grid-cols-12 gap-8 lg:gap-8 items-center px-4 sm:px-6 py-16 lg:py-24">
           <div className="lg:col-span-6 flex flex-col items-start gap-6 lg:gap-7 z-10">
             <div className="inline-flex items-center gap-2 px-2.5 py-1 border border-border bg-card font-mono text-[10px] text-primary uppercase tracking-widest">
@@ -301,7 +300,7 @@ export default function LandingPage() {
 
       {/* Features — log entries grid */}
       <section id="features" className="border-y border-border bg-card/30">
-        <div className="max-w-[90rem] mx-auto border-x border-border">
+        <div className="max-w-360 mx-auto border-x border-border">
           <div className="border-b border-border p-4 flex items-center justify-between bg-background/40">
             <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
               <span className="text-primary">/</span> sys.capture_methods
@@ -373,7 +372,7 @@ export default function LandingPage() {
 
       {/* How it works — CLI transcript (left) + demo video (right) */}
       <section id="how-it-works" className="bg-card/30 border-b border-border">
-        <div className="max-w-[90rem] mx-auto border-x border-border">
+        <div className="max-w-360 mx-auto border-x border-border">
           <div className="p-4 border-b border-border flex items-center justify-between">
             <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
               <span className="text-primary">/</span> docs.installation
@@ -426,7 +425,7 @@ export default function LandingPage() {
                         <span className="inline-block w-2 h-4 bg-primary animate-pulse" />
                       )}
                     </div>
-                    <div className="border-l border-border ml-[5px] pl-5 py-2 text-muted-foreground text-xs space-y-0.5">
+                    <div className="border-l border-border ml-1.25 pl-5 py-2 text-muted-foreground text-xs space-y-0.5">
                       {step.output.map((line, j) => (
                         <div
                           key={j}
@@ -461,7 +460,7 @@ export default function LandingPage() {
 
       {/* AI Pipeline */}
       <section id="pipeline" className="border-y border-border bg-background">
-        <div className="max-w-[90rem] mx-auto border-x border-border py-12 sm:py-16">
+        <div className="max-w-360 mx-auto border-x border-border py-12 sm:py-16">
           <div className="px-4 sm:px-6 mb-10 flex items-end justify-between flex-wrap gap-3">
             <div>
               <div className="font-mono text-[10px] text-muted-foreground tracking-widest uppercase mb-1">
@@ -563,7 +562,7 @@ export default function LandingPage() {
               <span className="text-foreground font-mono mr-1">
                 ./subscribe.sh --email=
               </span>
-              <div className="flex-1 min-w-[200px]">
+              <div className="flex-1 min-w-50">
                 <WaitlistForm />
               </div>
             </div>
@@ -601,12 +600,14 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="bg-background border-b-[6px] border-b-primary pt-16 pb-8">
-        <div className="max-w-[90rem] mx-auto px-4 sm:px-6 grid grid-cols-2 md:grid-cols-5 gap-8 md:gap-12 font-mono text-xs border-x border-border/50">
+        <div className="max-w-360 mx-auto px-4 sm:px-6 grid grid-cols-2 md:grid-cols-5 gap-8 md:gap-12 font-mono text-xs border-x border-border/50">
           <div className="col-span-2 flex flex-col justify-between gap-8">
             <div>
-              <div className="flex items-center gap-2 text-foreground font-bold text-sm mb-3">
-                <TerminalSquare className="h-4 w-4 text-primary" />
-                <span className="lowercase">glitchgrab</span>
+              <div className="flex items-center gap-2.5 text-foreground font-bold text-sm mb-3">
+                <div className="w-7 h-7 rounded bg-linear-to-br from-primary to-primary/60 flex items-center justify-center shadow-[0_0_12px_rgba(34,211,238,0.25)]">
+                  <Image src="/logo.png" alt="Glitchgrab" width={18} height={18} className="rounded-sm" />
+                </div>
+                <span className="font-mono lowercase tracking-tight">glitchgrab</span>
               </div>
               <p className="text-muted-foreground leading-relaxed max-w-xs">
                 Autonomous issue generation for high-velocity engineering teams.
@@ -729,7 +730,7 @@ export default function LandingPage() {
           </div>
         </div>
 
-        <div className="max-w-[90rem] mx-auto mt-10 px-4 sm:px-6 border-x border-border/50 pt-6 border-t">
+        <div className="max-w-360 mx-auto mt-10 px-4 sm:px-6 border-x border-border/50 pt-6 border-t">
           <p className="font-mono text-[10px] text-muted-foreground/70 text-center">
             Open source under{" "}
             <a
