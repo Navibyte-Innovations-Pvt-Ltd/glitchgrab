@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { LayoutDashboard, GitFork, Key, Settings, LogOut, CreditCard, Users, ClipboardList } from "lucide-react";
+import { LayoutDashboard, GitFork, Key, Settings, LogOut, CreditCard, Users, ClipboardList, MessageSquare } from "lucide-react";
 import { ReportButton } from "glitchgrab";
 import { Bug, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,7 @@ import { PlanBadge, type PlanBadgeType } from "@/components/dashboard/plan-badge
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard, ownerOnly: false },
+  { href: "/dashboard/chat", label: "Chat", icon: MessageSquare, ownerOnly: false },
   { href: "/dashboard/repos", label: "Repos", icon: GitFork, ownerOnly: false },
   { href: "/dashboard/reports", label: "Reports", icon: ClipboardList, ownerOnly: false },
   { href: "/dashboard/tokens", label: "API Tokens", icon: Key, ownerOnly: true },
