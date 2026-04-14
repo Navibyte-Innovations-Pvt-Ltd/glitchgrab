@@ -1,5 +1,7 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { softwareApplicationSchema, breadcrumbSchema } from "@/lib/schema";
 
 import { WaitlistForm } from "./waitlist-form";
 import { ContactForm } from "./contact-form";
@@ -193,9 +195,27 @@ function DedupVisual() {
   );
 }
 
+export const metadata: Metadata = {
+  alternates: {
+    canonical: "https://glitchgrab.dev",
+  },
+};
+
 export default function LandingPage() {
+  const homeBreadcrumb = breadcrumbSchema([
+    { name: "Home", url: "https://glitchgrab.dev" },
+  ]);
+
   return (
     <main className="min-h-screen relative">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareApplicationSchema()) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(homeBreadcrumb) }}
+      />
       {/* Global grid background */}
       <div
         aria-hidden
