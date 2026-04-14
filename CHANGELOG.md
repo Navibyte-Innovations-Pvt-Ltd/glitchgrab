@@ -1,3 +1,9 @@
+## [1.15.1](https://github.com/WebNaresh/glitchgrab/compare/v1.15.0...v1.15.1) (2026-04-14)
+
+### Bug Fixes
+
+* **dashboard:** add refetchOnWindowFocus and refetchInterval to analytics queries ([a34894e](https://github.com/WebNaresh/glitchgrab/commit/a34894e57d7531325519945e71a15347372a8693))
+
 ## [1.15.0](https://github.com/WebNaresh/glitchgrab/compare/v1.14.0...v1.15.0) (2026-04-14)
 
 ### Features
