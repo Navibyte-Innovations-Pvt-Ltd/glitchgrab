@@ -53,20 +53,20 @@ const SOURCE_LABELS: Record<string, string> = {
   COLLABORATOR: "collaborator",
 };
 
-function getSourceIcon(source: string) {
+function renderSourceIcon(source: string, className = "h-4 w-4") {
   switch (source) {
     case "SDK_AUTO":
-      return AlertTriangle;
+      return <AlertTriangle className={className} />;
     case "SDK_USER_REPORT":
-      return Bug;
+      return <Bug className={className} />;
     case "DASHBOARD_UPLOAD":
-      return MessageSquare;
+      return <MessageSquare className={className} />;
     case "HANDWRITTEN_NOTE":
-      return FileText;
+      return <FileText className={className} />;
     case "MCP":
-      return Paperclip;
+      return <Paperclip className={className} />;
     default:
-      return Bug;
+      return <Bug className={className} />;
   }
 }
 
@@ -319,7 +319,6 @@ function ReportRow({
   showActions: boolean;
   onActionDone: () => void;
 }) {
-  const SourceIcon = getSourceIcon(report.source);
   const stripClass = getStripClass(report.status);
   const sourceLabel = SOURCE_LABELS[report.source] ?? report.source.toLowerCase();
   const title =
@@ -356,7 +355,7 @@ function ReportRow({
 
         {/* Source icon box */}
         <div className="w-8 h-8 rounded border border-border bg-card flex items-center justify-center text-muted-foreground ml-2 shrink-0">
-          <SourceIcon className="h-4 w-4" />
+          {renderSourceIcon(report.source)}
         </div>
 
         {/* Title + mono meta */}
