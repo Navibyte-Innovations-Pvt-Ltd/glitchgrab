@@ -17,6 +17,7 @@ import {
 import { OpenPullRequests } from "./open-pull-requests";
 import { OpenIssues } from "./open-issues";
 import { GithubContributions } from "./github-contributions";
+import { WorkflowRunsSection } from "./workflow-runs";
 
 interface AnalyticsData {
   daily: { date: string; count: number }[];
@@ -155,6 +156,9 @@ export function DashboardAnalytics({ userName }: { userName: string }) {
           href={analytics.failed > 0 ? "/dashboard/reports" : undefined}
         />
       </section>
+
+      {/* GitHub Actions workflow runs */}
+      <WorkflowRunsSection />
 
       {/* Two-column action lists */}
       <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2">
