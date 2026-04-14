@@ -111,18 +111,25 @@ export async function processReport(
       ),
     ]);
 
-    // 5. AI classifies intent and generates content
-    const action = await classifyAndGenerate({
-      description: report.rawInput ?? "",
-      screenshotUrl: report.screenshot,
-      errorStack: report.errorStack,
-      pageUrl: report.pageUrl,
-      userAgent: report.userAgent,
-      openIssues,
-      chatHistory,
-      repoReadme,
-      repoDescription,
-    });
+    // 5. AI classifies intent and generates content (Claude Haiku + repo tools)
+    const action = await classifyAndGenerate(
+      {
+        description: report.rawInput ?? "",
+        screenshotUrl: report.screenshot,
+        errorStack: report.errorStack,
+        pageUrl: report.pageUrl,
+        userAgent: report.userAgent,
+        openIssues,
+        chatHistory,
+        repoReadme,
+        repoDescription,
+      },
+      {
+        accessToken: account.access_token,
+        owner: report.repo.owner,
+        repo: report.repo.name,
+      },
+    );
 
     // Store AI response
     await prisma.report.update({
