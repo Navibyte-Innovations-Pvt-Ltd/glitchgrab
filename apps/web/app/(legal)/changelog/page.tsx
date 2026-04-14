@@ -5,6 +5,9 @@ import { join } from "node:path";
 export const metadata: Metadata = {
   title: "Changelog — Glitchgrab",
   description: "See what's new in Glitchgrab — features, fixes, and improvements.",
+  alternates: {
+    canonical: "https://glitchgrab.dev/changelog",
+  },
 };
 
 interface ChangelogEntry {

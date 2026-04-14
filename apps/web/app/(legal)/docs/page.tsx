@@ -6,6 +6,9 @@ export const metadata: Metadata = {
   title: "Documentation — Glitchgrab",
   description:
     "Learn how to install, configure, and use the Glitchgrab SDK to turn bugs into GitHub issues.",
+  alternates: {
+    canonical: "https://glitchgrab.dev/docs",
+  },
 };
 
 /* ------------------------------------------------------------------ */

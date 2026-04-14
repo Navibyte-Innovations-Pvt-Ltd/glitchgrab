@@ -4,6 +4,9 @@ export const metadata: Metadata = {
   title: "Terms of Service — Glitchgrab",
   description:
     "Terms and conditions for using Glitchgrab.",
+  alternates: {
+    canonical: "https://glitchgrab.dev/terms",
+  },
 };
 
 export default function TermsOfServicePage() {

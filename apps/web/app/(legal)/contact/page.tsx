@@ -4,6 +4,9 @@ export const metadata: Metadata = {
   title: "Contact Us — Glitchgrab",
   description:
     "Get in touch with the Glitchgrab team.",
+  alternates: {
+    canonical: "https://glitchgrab.dev/contact",
+  },
 };
 
 export default function ContactPage() {

@@ -4,6 +4,9 @@ export const metadata: Metadata = {
   title: "Privacy Policy — Glitchgrab",
   description:
     "How Glitchgrab collects, uses, and protects your data.",
+  alternates: {
+    canonical: "https://glitchgrab.dev/privacy",
+  },
 };
 
 export default function PrivacyPolicyPage() {
