@@ -9,6 +9,9 @@ module.exports = {
     "/collaborate/*",
   ],
   robotsTxtOptions: {
+    additionalSitemaps: [
+      "https://glitchgrab.dev/sitemap.xml",
+    ],
     policies: [
       { userAgent: "*", allow: "/" },
       { userAgent: "*", disallow: ["/dashboard", "/api", "/login", "/collaborate"] },
