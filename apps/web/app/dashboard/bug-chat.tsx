@@ -2,23 +2,25 @@
 
 import { useState, useRef, memo } from "react";
 import axios from "axios";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-  ImagePlus,
-  Send,
-  X,
-  Loader2,
-  GitFork,
-  RotateCcw,
-  ChevronDown,
+  ArrowRight,
   Check,
-  MessageSquarePlus,
+  CheckCircle2,
+  ChevronDown,
+  ExternalLink,
+  File as FileIcon,
+  GitFork,
+  ImagePlus,
+  Loader2,
+  Paperclip,
+  RotateCcw,
+  Terminal,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { InteractiveQuestions } from "@/components/dashboard/interactive-questions";
@@ -26,21 +28,18 @@ import { InteractiveQuestions } from "@/components/dashboard/interactive-questio
 /** Validate that report text is meaningful — rejects gibberish, throwaway words, random chars */
 function isLowQualityText(text: string): string | null {
   const trimmed = text.trim();
-  if (!trimmed) return null; // empty is OK (screenshot-only)
+  if (!trimmed) return null;
 
-  // Common throwaway / test inputs
   const throwaway =
     /^(done|ok|yes|no|hi|hello|hey|test|testing|asdf|qwerty|abc|xyz|foo|bar|baz|lol|lmao|idk|bruh|nice|cool|wow|sup|yo|nah|yep|nope|thanks|thx|ty|k|kk|hmm|hm|na|mm|mhm|aight|bet|gg|wp|rip|omg|pls|plz)$/i;
   if (throwaway.test(trimmed)) {
     return "Please describe the actual issue you're experiencing";
   }
 
-  // Repeated characters (e.g., "aaaaaa", "xxxxxxx")
   if (/(.)\1{4,}/.test(trimmed)) {
     return "Please provide a meaningful bug description";
   }
 
-  // Gibberish detection: if the text is mostly letters, check vowel ratio
   const letters = trimmed.replace(/[^a-zA-Z]/g, "");
   if (letters.length >= 4) {
     const vowels = letters.replace(/[^aeiouAEIOU]/g, "").length;
@@ -50,7 +49,6 @@ function isLowQualityText(text: string): string | null {
     }
   }
 
-  // Single short word that isn't a known tech term
   const words = trimmed.split(/\s+/).filter((w) => w.length > 0);
   if (words.length === 1 && trimmed.length < 10) {
     const techTerms =
@@ -63,28 +61,23 @@ function isLowQualityText(text: string): string | null {
   return null;
 }
 
-/** Compress an image file client-side to stay under Vercel's 4.5MB payload limit */
 async function compressImage(
   file: File,
   maxWidth = 1024,
   quality = 0.7,
 ): Promise<File> {
-  if (file.size <= 500_000) return file; // skip if already small
+  if (file.size <= 500_000) return file;
 
   try {
     const img = document.createElement("img");
     const url = URL.createObjectURL(file);
-
     await new Promise<void>((resolve, reject) => {
       img.onload = () => resolve();
       img.onerror = reject;
       img.src = url;
     });
 
-    const scale = Math.min(
-      1,
-      maxWidth / Math.max(img.naturalWidth, img.naturalHeight),
-    );
+    const scale = Math.min(1, maxWidth / Math.max(img.naturalWidth, img.naturalHeight));
     const w = Math.round(img.naturalWidth * scale);
     const h = Math.round(img.naturalHeight * scale);
 
@@ -101,108 +94,17 @@ async function compressImage(
     );
     if (!blob) return file;
 
-    return new File([blob], file.name.replace(/\.\w+$/, ".jpg"), {
-      type: "image/jpeg",
-    });
+    return new File([blob], file.name.replace(/\.\w+$/, ".jpg"), { type: "image/jpeg" });
   } catch {
-    return file; // fallback to original if compression fails
+    return file;
   }
 }
 
-/* ── Memoized message bubble to prevent re-rendering all messages on state change ── */
-const MessageBubble = memo(function MessageBubble({
-  msg,
-  sending,
-  onRetry,
-  onClarifyComplete,
-  onClarifyDismiss,
-}: {
-  msg: Message;
-  sending: boolean;
-  onRetry: () => void;
-  onClarifyComplete: (
-    msgId: string,
-    answers: { question: string; answer: string }[],
-  ) => void;
-  onClarifyDismiss: (msgId: string) => void;
-}) {
-  return (
-    <div
-      className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}
-    >
-      <div
-        className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-3 text-sm ${
-          msg.role === "user"
-            ? "bg-primary text-primary-foreground rounded-br-md"
-            : "bg-card border border-border rounded-bl-md"
-        } ${msg.clarifyQuestions && msg.clarifyQuestions.length > 0 ? "hidden" : ""}`}
-      >
-        {msg.id === "thinking" ? (
-          <div className="flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span>{msg.content}</span>
-          </div>
-        ) : (
-          <>
-            {msg.content && (
-              <p className="whitespace-pre-wrap">{msg.content}</p>
-            )}
-            {msg.screenshots && msg.screenshots.length > 0 && (
-              <div
-                className={`mt-2 flex flex-wrap gap-2 ${msg.screenshots.length === 1 ? "" : "grid grid-cols-2"}`}
-              >
-                {msg.screenshots.map((src, i) => (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    key={`${msg.id}-ss-${i}`}
-                    src={src}
-                    alt={`Screenshot ${i + 1}`}
-                    width={msg.screenshots?.length === 1 ? 300 : 150}
-                    height={msg.screenshots?.length === 1 ? 200 : 100}
-                    className="rounded-lg border border-border object-cover"
-                  />
-                ))}
-              </div>
-            )}
-            {msg.issueUrl && (
-              <a
-                href={msg.issueUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-block mt-2"
-              >
-                <Badge variant="outline" className="gap-1 hover:bg-primary/10">
-                  View on GitHub →
-                </Badge>
-              </a>
-            )}
-            {msg.failed && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2 gap-1.5 text-xs"
-                onClick={onRetry}
-                disabled={sending}
-              >
-                <RotateCcw className="h-3 w-3" />
-                Retry
-              </Button>
-            )}
-          </>
-        )}
-      </div>
-      {msg.clarifyQuestions && msg.clarifyQuestions.length > 0 && (
-        <div className="w-full max-w-[95%] sm:max-w-[80%] mt-2">
-          <InteractiveQuestions
-            questions={msg.clarifyQuestions}
-            onComplete={(answers) => onClarifyComplete(msg.id, answers)}
-            onDismiss={() => onClarifyDismiss(msg.id)}
-          />
-        </div>
-      )}
-    </div>
-  );
-});
+function formatBytes(n: number) {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)} MB`;
+  if (n >= 1_000) return `${Math.round(n / 1_000)} KB`;
+  return `${n} B`;
+}
 
 interface Repo {
   id: string;
@@ -227,18 +129,226 @@ interface Message {
   clarifyQuestions?: ClarifyQuestion[];
 }
 
-export function BugChat({
-  repos,
-  userName,
+/* ---------- REPL row building blocks ---------- */
+
+function ReplPrefix({
+  label,
+  tone,
 }: {
-  repos: Repo[];
-  userName: string;
+  label: string;
+  tone: "user" | "sys" | "err" | "res";
 }) {
-  const [selectedRepoName, setSelectedRepoName] = useState(
-    repos[0]?.fullName ?? "",
+  const color =
+    tone === "user"
+      ? "text-primary/80"
+      : tone === "err"
+      ? "text-red-400/80"
+      : tone === "res"
+      ? "text-green-400/80"
+      : "text-muted-foreground";
+
+  return (
+    <div className={`font-mono text-[11px] ${color} text-right whitespace-nowrap pt-0.5 select-none`}>
+      {label}
+    </div>
   );
-  const selectedRepo =
-    repos.find((r) => r.fullName === selectedRepoName)?.id ?? "";
+}
+
+function ReplRow({
+  prefix,
+  tone,
+  children,
+}: {
+  prefix: string;
+  tone: "user" | "sys" | "err" | "res";
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="grid grid-cols-[72px_1fr] md:grid-cols-[110px_1fr] gap-3 md:gap-4 py-4 border-b border-dashed border-border/40">
+      <ReplPrefix label={prefix} tone={tone} />
+      <div className="min-w-0">{children}</div>
+    </div>
+  );
+}
+
+function FileToken({
+  src,
+  name,
+  size,
+  onRemove,
+}: {
+  src: string;
+  name: string;
+  size?: number;
+  onRemove?: () => void;
+}) {
+  return (
+    <div className="inline-flex items-center gap-3 bg-background/60 border border-border hover:border-muted-foreground/40 py-1.5 pl-1.5 pr-3 rounded-md group transition-colors">
+      <div className="h-8 w-8 rounded overflow-hidden border border-border shrink-0 bg-muted">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt={name} className="w-full h-full object-cover" />
+      </div>
+      <div className="flex flex-col min-w-0">
+        <span className="font-mono text-[11px] text-foreground truncate max-w-[220px]">{name}</span>
+        <span className="font-mono text-[10px] text-muted-foreground">
+          {size != null ? formatBytes(size) : ""} · image
+        </span>
+      </div>
+      {onRemove ? (
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label="Remove attachment"
+          className="w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-red-400 hover:bg-red-400/10 transition-colors shrink-0"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      ) : (
+        <FileIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+      )}
+    </div>
+  );
+}
+
+/* ---------- Memoized message rendering ---------- */
+
+const MessageBlock = memo(function MessageBlock({
+  msg,
+  userName,
+  sending,
+  onRetry,
+  onClarifyComplete,
+  onClarifyDismiss,
+}: {
+  msg: Message;
+  userName: string;
+  sending: boolean;
+  onRetry: () => void;
+  onClarifyComplete: (
+    msgId: string,
+    answers: { question: string; answer: string }[],
+  ) => void;
+  onClarifyDismiss: (msgId: string) => void;
+}) {
+  const isUser = msg.role === "user";
+  const hasClarify = msg.clarifyQuestions && msg.clarifyQuestions.length > 0;
+  const isThinking = msg.id === "thinking";
+  const isFailed = !!msg.failed;
+  const isSuccess = !!msg.issueUrl;
+
+  const tone: "user" | "sys" | "err" | "res" = isUser
+    ? "user"
+    : isFailed
+    ? "err"
+    : isSuccess
+    ? "res"
+    : "sys";
+
+  const prefix = isUser
+    ? `user@${userName.toLowerCase()} >`
+    : isFailed
+    ? "[agent/err] >"
+    : isSuccess
+    ? "[agent/res] >"
+    : "[agent/sys] >";
+
+  return (
+    <ReplRow prefix={prefix} tone={tone}>
+      {/* Thinking state */}
+      {isThinking && (
+        <div className="flex items-center gap-2 font-mono text-sm text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+          <span>{msg.content}</span>
+          <span className="w-2 h-4 bg-primary animate-pulse" />
+        </div>
+      )}
+
+      {/* Standard text content (hidden when clarify card shows) */}
+      {!isThinking && msg.content && !hasClarify && (
+        <div
+          className={`font-mono text-sm whitespace-pre-wrap leading-relaxed ${
+            isFailed
+              ? "text-red-400/90"
+              : isSuccess
+              ? "text-green-400/90"
+              : "text-foreground"
+          }`}
+        >
+          {msg.content}
+        </div>
+      )}
+
+      {/* Attachments (screenshots) as file tokens */}
+      {msg.screenshots && msg.screenshots.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-3">
+          {msg.screenshots.map((src, i) => (
+            <FileToken
+              key={`${msg.id}-ss-${i}`}
+              src={src}
+              name={`screenshot_${i + 1}.jpg`}
+              size={msg.screenshotFiles?.[i]?.size}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Issue success card */}
+      {isSuccess && msg.issueUrl && (
+        <div className="mt-3 border border-border rounded-md overflow-hidden bg-card/60 max-w-2xl">
+          <div className="flex items-center justify-between px-4 py-2 bg-background/40 border-b border-border">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-green-400" />
+              <span className="font-mono text-xs text-foreground font-semibold tracking-wide">
+                ISSUE_CREATED
+              </span>
+            </div>
+            <a
+              href={msg.issueUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground hover:text-primary border border-border hover:border-primary/50 bg-card hover:bg-muted rounded px-2 py-1 transition-colors"
+            >
+              <span>View on GitHub</span>
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* Retry on failure */}
+      {isFailed && !isThinking && (
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={onRetry}
+            disabled={sending}
+            className="inline-flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground hover:text-foreground border border-border hover:border-muted-foreground/40 bg-card hover:bg-muted rounded px-2 py-1 transition-colors disabled:opacity-50"
+          >
+            <RotateCcw className="h-3 w-3" />
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Clarifying questions */}
+      {hasClarify && (
+        <div className="mt-2">
+          <InteractiveQuestions
+            questions={msg.clarifyQuestions!}
+            onComplete={(answers) => onClarifyComplete(msg.id, answers)}
+            onDismiss={() => onClarifyDismiss(msg.id)}
+          />
+        </div>
+      )}
+    </ReplRow>
+  );
+});
+
+/* ---------- Main component ---------- */
+
+export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }) {
+  const [selectedRepoName, setSelectedRepoName] = useState(repos[0]?.fullName ?? "");
+  const selectedRepo = repos.find((r) => r.fullName === selectedRepoName)?.id ?? "";
   const [input, setInput] = useState("");
   const [screenshots, setScreenshots] = useState<string[]>([]);
   const [screenshotFiles, setScreenshotFiles] = useState<File[]>([]);
@@ -248,7 +358,7 @@ export function BugChat({
     {
       id: "welcome",
       role: "assistant",
-      content: `Hey ${userName}! Describe a bug, paste a screenshot, or both — I'll create a GitHub issue for you.`,
+      content: `Hey ${userName} — describe a bug, paste a screenshot, or both. I'll turn it into a GitHub issue.`,
     },
   ]);
   const [sending, setSending] = useState(false);
@@ -257,7 +367,6 @@ export function BugChat({
 
   function addFiles(files: FileList | File[]) {
     const newFiles: File[] = [];
-
     for (const file of Array.from(files)) {
       if (!file.type.startsWith("image/")) continue;
       newFiles.push(file);
@@ -268,7 +377,6 @@ export function BugChat({
       return;
     }
 
-    // Compress files upfront so the user sees the real size that will be uploaded
     Promise.all(
       newFiles.map(async (file) => {
         const compressed = await compressImage(file);
@@ -285,9 +393,7 @@ export function BugChat({
         setScreenshots((prev) => [...prev, ...results.map((r) => r.preview)]);
         setScreenshotFiles((prev) => [...prev, ...results.map((r) => r.compressed)]);
       })
-      .catch(() => {
-        toast.error("Failed to process images");
-      });
+      .catch(() => toast.error("Failed to process images"));
   }
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -307,9 +413,7 @@ export function BugChat({
         if (file) imageFiles.push(file);
       }
     }
-    if (imageFiles.length > 0) {
-      addFiles(imageFiles);
-    }
+    if (imageFiles.length > 0) addFiles(imageFiles);
   }
 
   function removeScreenshot(index: number) {
@@ -329,7 +433,7 @@ export function BugChat({
       {
         id: "welcome",
         role: "assistant",
-        content: `Hey ${userName}! Describe a bug, paste a screenshot, or both — I'll create a GitHub issue for you.`,
+        content: `Hey ${userName} — describe a bug, paste a screenshot, or both. I'll turn it into a GitHub issue.`,
       },
     ]);
     setInput("");
@@ -343,7 +447,7 @@ export function BugChat({
     const thinkingMsg: Message = {
       id: "thinking",
       role: "assistant",
-      content: "Thinking...",
+      content: "analyzing input...",
     };
     setMessages((prev) => [...prev, thinkingMsg]);
 
@@ -352,86 +456,63 @@ export function BugChat({
       formData.append("repoId", selectedRepo);
       formData.append("description", description);
 
-      // Collect all screenshots: current files + any from earlier messages in this conversation
-      // (so clarification follow-ups keep screenshot context from the original report)
       const allFiles: File[] = files ? [...files] : [];
       if (allFiles.length === 0) {
         for (let i = messages.length - 1; i >= 0; i--) {
           const m = messages[i];
-          if (
-            m.role === "user" &&
-            m.screenshotFiles &&
-            m.screenshotFiles.length > 0
-          ) {
+          if (m.role === "user" && m.screenshotFiles && m.screenshotFiles.length > 0) {
             allFiles.push(...m.screenshotFiles);
             break;
           }
         }
       }
-      // Files are already compressed at attach time
-      for (const file of allFiles) {
-        formData.append("screenshot", file);
-      }
+      for (const file of allFiles) formData.append("screenshot", file);
 
-      // Send last 5 chat messages for context (exclude thinking messages)
       const history = messages
         .filter((m) => m.id !== "welcome" && m.id !== "thinking")
         .slice(-5)
         .map((m) => ({ role: m.role, content: m.content }));
-      if (history.length > 0) {
-        formData.append("chatHistory", JSON.stringify(history));
-      }
+      if (history.length > 0) formData.append("chatHistory", JSON.stringify(history));
 
       const { data } = await axios.post("/api/v1/reports", formData);
 
       let content: string;
       if (!data.success) {
-        content = `Failed: ${data.error ?? "Something went wrong."}`;
+        content = `Exception: ${data.error ?? "Something went wrong."}`;
       } else {
         const intent = data.data?.intent;
-        if (intent === "create") {
-          content = `Issue created: **${data.data?.title ?? "Bug report"}**`;
-        } else if (intent === "update") {
-          content = data.data?.message ?? "Issue updated";
-        } else if (intent === "close") {
-          content = data.data?.message ?? "Issues closed";
-        } else if (intent === "merge") {
-          content = data.data?.message ?? "Issues merged";
-        } else if (intent === "clarify") {
+        if (intent === "create") content = `Issue created: ${data.data?.title ?? "Bug report"}`;
+        else if (intent === "update") content = data.data?.message ?? "Issue updated";
+        else if (intent === "close") content = data.data?.message ?? "Issues closed";
+        else if (intent === "merge") content = data.data?.message ?? "Issues merged";
+        else if (intent === "clarify")
           content = data.data?.message ?? "Could you provide more details?";
-        } else {
-          content = data.data?.message ?? "Done";
-        }
+        else content = data.data?.message ?? "Done";
       }
 
-      // Extract clarify questions if present
       let clarifyQuestions: ClarifyQuestion[] | undefined;
       if (data.data?.intent === "clarify") {
         if (
           Array.isArray(data.data?.clarifyQuestions) &&
           data.data.clarifyQuestions.length > 0
         ) {
-          // Structured format from API
           clarifyQuestions = data.data.clarifyQuestions;
         } else if (content) {
-          // Fallback: parse numbered questions from the text message
           const lines = content
             .split("\n")
             .filter((l: string) => /^\d+\.\s/.test(l.trim()));
           if (lines.length > 0) {
             clarifyQuestions = lines.map((line: string) => ({
               question: line.replace(/^\d+\.\s*/, "").trim(),
-              options: [], // No AI-generated options — user will use "Something else" input
+              options: [],
             }));
           }
         }
       }
 
       const isTerminalAction =
-        data.success &&
-        ["create", "update", "close", "merge"].includes(data.data?.intent);
+        data.success && ["create", "update", "close", "merge"].includes(data.data?.intent);
 
-      // Single state update instead of two — prevents double re-render
       setMessages((prev) => {
         let updated = prev
           .filter((m) => m.id !== "thinking")
@@ -444,22 +525,20 @@ export function BugChat({
             clarifyQuestions,
           });
 
-        // Clear screenshotFiles from all messages after terminal actions
         if (isTerminalAction) {
           updated = updated.map((m) =>
             m.screenshotFiles ? { ...m, screenshotFiles: undefined } : m,
           );
         }
-
         return updated;
       });
 
       if (data.success) {
         const intent = data.data?.intent;
-        if (intent === "create") toast.success("Issue created!");
-        else if (intent === "update") toast.success("Issue updated!");
-        else if (intent === "close") toast.success("Issue(s) closed!");
-        else if (intent === "merge") toast.success("Issues merged!");
+        if (intent === "create") toast.success("Issue created");
+        else if (intent === "update") toast.success("Issue updated");
+        else if (intent === "close") toast.success("Issue(s) closed");
+        else if (intent === "merge") toast.success("Issues merged");
       }
     } catch {
       setMessages((prev) =>
@@ -468,7 +547,7 @@ export function BugChat({
           .concat({
             id: Date.now().toString(),
             role: "assistant",
-            content: "Something went wrong. Please try again.",
+            content: "Exception: connection failed. Please retry.",
             failed: true,
           }),
       );
@@ -481,7 +560,6 @@ export function BugChat({
     );
   }
 
-  // Test mode: detect "ask me questions" and show sample interactive questions locally
   const TEST_QUESTIONS_PATTERN = /^ask\s+me\s+(some\s+)?questions?$/i;
 
   function handleTestQuestions() {
@@ -500,12 +578,7 @@ export function BugChat({
       clarifyQuestions: [
         {
           question: "What type of bug are you reporting?",
-          options: [
-            "UI/Visual issue",
-            "Crash/Error",
-            "Performance",
-            "Feature not working",
-          ],
+          options: ["UI/Visual issue", "Crash/Error", "Performance", "Feature not working"],
         },
         {
           question: "Which part of the app is affected?",
@@ -528,7 +601,6 @@ export function BugChat({
   async function handleSend() {
     if (!input.trim() && screenshots.length === 0) return;
 
-    // Intercept test command — show sample interactive questions without API call
     if (TEST_QUESTIONS_PATTERN.test(input.trim())) {
       handleTestQuestions();
       return;
@@ -539,7 +611,6 @@ export function BugChat({
       return;
     }
 
-    // Validate text quality — reject gibberish / throwaway words
     const qualityError = isLowQualityText(input);
     if (qualityError) {
       toast.error(qualityError);
@@ -565,13 +636,9 @@ export function BugChat({
   }
 
   async function handleRetry() {
-    // Find the last user message
     const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
     if (!lastUserMsg) return;
-
-    // Remove the failed assistant message
     setMessages((prev) => prev.filter((m) => !m.failed));
-
     await sendReport(lastUserMsg.content, lastUserMsg.screenshotFiles);
   }
 
@@ -579,14 +646,10 @@ export function BugChat({
     msgId: string,
     answers: { question: string; answer: string }[],
   ) {
-    // Clear the interactive questions from the message
     setMessages((prev) =>
-      prev.map((m) =>
-        m.id === msgId ? { ...m, clarifyQuestions: undefined } : m,
-      ),
+      prev.map((m) => (m.id === msgId ? { ...m, clarifyQuestions: undefined } : m)),
     );
 
-    // Compile answers into a user message
     const answerText = answers
       .map((a) => `Q: ${a.question}\nA: ${a.answer}`)
       .join("\n\n");
@@ -597,16 +660,12 @@ export function BugChat({
       content: answerText,
     };
     setMessages((prev) => [...prev, userMsg]);
-
     await sendReport(answerText);
   }
 
   function handleClarifyDismiss(msgId: string) {
-    // Just remove the interactive card — no API call, no issue creation
     setMessages((prev) =>
-      prev.map((m) =>
-        m.id === msgId ? { ...m, clarifyQuestions: undefined } : m,
-      ),
+      prev.map((m) => (m.id === msgId ? { ...m, clarifyQuestions: undefined } : m)),
     );
   }
 
@@ -618,15 +677,111 @@ export function BugChat({
   }
 
   const hasConversation = messages.length > 1;
+  const filteredRepos = repos.filter((r) =>
+    r.fullName.toLowerCase().includes(repoSearch.toLowerCase()),
+  );
 
   return (
     <div className="flex flex-col h-full max-h-[calc(var(--app-height,100dvh)-100px)] md:max-h-[calc(var(--app-height,100dvh)-0px)]">
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto space-y-4 pb-4">
+      {/* Top context bar */}
+      <div className="shrink-0 border-b border-border bg-card/40 backdrop-blur-sm">
+        <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-60 animate-ping" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-primary shadow-[0_0_6px_rgba(34,211,238,0.6)]" />
+              </span>
+              <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+                agent active
+              </span>
+            </div>
+
+            <div className="h-4 w-px bg-border shrink-0" />
+
+            <Popover
+              open={repoPickerOpen}
+              onOpenChange={(open) => {
+                setRepoPickerOpen(open);
+                if (!open) setRepoSearch("");
+              }}
+            >
+              <PopoverTrigger className="flex items-center gap-2 font-mono text-xs text-foreground hover:text-primary transition-colors px-2 py-1 rounded hover:bg-muted min-w-0">
+                <GitFork className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                <span className="truncate max-w-[200px] sm:max-w-[320px]">
+                  {selectedRepoName || "select repo"}
+                </span>
+                <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+              </PopoverTrigger>
+              <PopoverContent align="start" side="bottom" className="w-72 p-0">
+                <div className="p-2 border-b border-border">
+                  <input
+                    type="text"
+                    value={repoSearch}
+                    onChange={(e) => setRepoSearch(e.target.value)}
+                    placeholder="Search repos..."
+                    className="w-full bg-transparent text-sm font-mono outline-none placeholder:text-muted-foreground"
+                    autoFocus
+                  />
+                </div>
+                <div className="max-h-48 overflow-y-auto p-1">
+                  {filteredRepos.map((repo) => (
+                    <button
+                      key={repo.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedRepoName(repo.fullName);
+                        setRepoPickerOpen(false);
+                        setRepoSearch("");
+                      }}
+                      className="flex items-center justify-between w-full rounded px-2 py-1.5 font-mono text-xs text-foreground hover:bg-muted transition"
+                    >
+                      <span className="truncate">{repo.fullName}</span>
+                      {selectedRepoName === repo.fullName && (
+                        <Check className="h-3.5 w-3.5 text-primary shrink-0" />
+                      )}
+                    </button>
+                  ))}
+                  {filteredRepos.length === 0 && (
+                    <p className="font-mono text-xs text-muted-foreground text-center py-3">
+                      No repos found
+                    </p>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {hasConversation && (
+            <button
+              type="button"
+              onClick={handleNewChat}
+              title="Reset session"
+              className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground hover:text-foreground border border-border hover:border-muted-foreground/40 bg-card hover:bg-muted rounded px-2 py-1 transition-colors shrink-0"
+            >
+              <RotateCcw className="h-3 w-3" />
+              <span className="hidden sm:inline">[reset]</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Transcript */}
+      <div className="flex-1 overflow-y-auto px-3 sm:px-6 pb-4">
+        <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground/70 flex items-center gap-3 py-4 select-none">
+          <div className="h-px bg-border flex-1" />
+          <span className="flex items-center gap-1.5">
+            <Terminal className="h-3 w-3" />
+            session start
+          </span>
+          <div className="h-px bg-border flex-1" />
+        </div>
+
         {messages.map((msg) => (
-          <MessageBubble
+          <MessageBlock
             key={msg.id}
             msg={msg}
+            userName={userName}
             sending={sending}
             onRetry={handleRetry}
             onClarifyComplete={handleClarifyComplete}
@@ -636,155 +791,91 @@ export function BugChat({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Screenshot previews */}
-      {screenshots.length > 0 && (
-        <div className="flex gap-2 flex-wrap mb-2">
-          {screenshots.map((src, i) => {
-            const sizeBytes = screenshotFiles[i]?.size ?? 0;
-            const sizeLabel = sizeBytes >= 1_000_000
-              ? `${(sizeBytes / 1_000_000).toFixed(1)} MB`
-              : `${Math.round(sizeBytes / 1_000)} KB`;
-            return (
-              <div key={i} className="relative inline-block">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+      {/* Staging area + composer */}
+      <div className="shrink-0 border-t border-border bg-card/40 backdrop-blur-sm px-3 sm:px-4 py-3">
+        {/* Attachment staging */}
+        {screenshots.length > 0 && (
+          <div className="mb-2 flex flex-col gap-1.5">
+            <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground/70 flex items-center gap-1.5">
+              <Paperclip className="h-3 w-3" />
+              staged ({screenshots.length})
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {screenshots.map((src, i) => (
+                <FileToken
+                  key={i}
                   src={src}
-                  alt={`Attached screenshot ${i + 1}`}
-                  width={80}
-                  height={56}
-                  className="rounded-lg border border-border object-cover bg-transparent"
+                  name={`screenshot_${i + 1}.jpg`}
+                  size={screenshotFiles[i]?.size}
+                  onRemove={() => removeScreenshot(i)}
                 />
-                <span className="absolute bottom-0.5 left-0.5 rounded bg-black/70 px-1 py-0.5 text-[9px] text-white leading-none">
-                  {sizeLabel}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => removeScreenshot(i)}
-                  className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 p-0"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              </div>
-            );
-          })}
-        </div>
-      )}
+              ))}
+            </div>
+          </div>
+        )}
 
-      {/* Input */}
-      <div className="shrink-0 rounded-xl border border-border bg-card p-2 sm:p-3">
-        {/* Repo selector row */}
-        <div className="mb-1.5 pb-1.5 border-b border-border flex items-center justify-between">
-          <Popover
-            open={repoPickerOpen}
-            onOpenChange={(open) => {
-              setRepoPickerOpen(open);
-              if (!open) setRepoSearch("");
-            }}
-          >
-            <PopoverTrigger className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition px-1 py-0.5 rounded">
-              <GitFork className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate max-w-50">
-                {selectedRepoName || "Select repo"}
-              </span>
-              <ChevronDown className="h-3 w-3 shrink-0" />
-            </PopoverTrigger>
-            <PopoverContent align="start" side="top" className="w-72 p-0">
-              <div className="p-2 border-b border-border">
-                <input
-                  type="text"
-                  value={repoSearch}
-                  onChange={(e) => setRepoSearch(e.target.value)}
-                  placeholder="Search repos..."
-                  className="w-full bg-transparent text-base outline-none placeholder:text-muted-foreground"
-                />
-              </div>
-              <div className="max-h-48 overflow-y-auto p-1">
-                {repos
-                  .filter((r) =>
-                    r.fullName.toLowerCase().includes(repoSearch.toLowerCase()),
-                  )
-                  .map((repo) => (
-                    <button
-                      key={repo.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedRepoName(repo.fullName);
-                        setRepoPickerOpen(false);
-                        setRepoSearch("");
-                      }}
-                      className="flex items-center justify-between w-full rounded-md px-2 py-1.5 text-base hover:bg-muted transition"
-                    >
-                      <span className="truncate">{repo.fullName}</span>
-                      {selectedRepoName === repo.fullName && (
-                        <Check className="h-3.5 w-3.5 text-primary shrink-0" />
-                      )}
-                    </button>
-                  ))}
-                {repos.filter((r) =>
-                  r.fullName.toLowerCase().includes(repoSearch.toLowerCase()),
-                ).length === 0 && (
-                  <p className="text-xs text-muted-foreground text-center py-3">
-                    No repos found
-                  </p>
-                )}
-              </div>
-            </PopoverContent>
-          </Popover>
-          {hasConversation && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleNewChat}
-              className="flex items-center gap-1 text-xs text-muted-foreground h-auto px-1.5 py-0.5"
-              title="New chat"
+        {/* Composer */}
+        <div className="border border-border bg-background/60 rounded-md focus-within:border-primary/50 transition-colors">
+          {/* Toolbar */}
+          <div className="flex items-center gap-1 px-2 py-1.5 border-b border-border">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={sending}
+              className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors disabled:opacity-50"
+              title="Attach screenshot"
             >
-              <MessageSquarePlus className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">New chat</span>
-            </Button>
-          )}
-        </div>
-        {/* Input row */}
-        <div className="flex items-end gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={handleFileSelect}
-            className="hidden"
-          />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="shrink-0"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={sending}
-          >
-            <ImagePlus className="h-5 w-5" />
-          </Button>
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onPaste={handlePaste}
-            placeholder="Describe a bug..."
-            rows={1}
-            className="flex-1 resize-none bg-transparent border-0 outline-none text-base placeholder:text-muted-foreground min-h-9 max-h-30 py-2"
-            disabled={sending}
-          />
-          <Button
-            size="icon"
-            onClick={handleSend}
-            disabled={sending || (!input.trim() && screenshots.length === 0)}
-            className="shrink-0"
-          >
-            {sending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </Button>
+              <ImagePlus className="h-4 w-4" />
+            </button>
+            <div className="h-4 w-px bg-border mx-1" />
+            <span className="font-mono text-[10px] text-muted-foreground/70 flex-1 truncate">
+              context: {selectedRepoName || "—"}
+            </span>
+            <span className="font-mono text-[10px] text-muted-foreground/50 hidden sm:inline">
+              enter to send · shift+enter newline
+            </span>
+          </div>
+
+          {/* Input row */}
+          <div className="flex items-start gap-2 px-2 py-2">
+            <div className="pt-1.5 pl-1 font-mono text-sm text-primary shrink-0 select-none">~ $</div>
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
+              placeholder="describe a bug, paste a log, or drop a screenshot..."
+              rows={1}
+              className="flex-1 min-w-0 resize-none bg-transparent border-0 outline-none font-mono text-sm text-foreground placeholder:text-muted-foreground/50 min-h-8 max-h-[160px] py-1.5 leading-relaxed"
+              disabled={sending}
+            />
+            <div className="flex flex-col items-end gap-1 shrink-0 pt-1">
+              <button
+                type="button"
+                onClick={handleSend}
+                disabled={sending || (!input.trim() && screenshots.length === 0)}
+                className="flex items-center justify-center h-7 w-7 rounded bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 hover:border-primary/50 transition-colors disabled:opacity-40 disabled:hover:bg-primary/10 disabled:hover:border-primary/30"
+                title="Send (Enter)"
+              >
+                {sending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <ArrowRight className="h-3.5 w-3.5" />
+                )}
+              </button>
+              <kbd className="font-mono text-[9px] text-muted-foreground/60 tracking-widest uppercase hidden sm:inline">
+                ↵
+              </kbd>
+            </div>
+          </div>
         </div>
       </div>
     </div>
