@@ -1,3 +1,9 @@
+## [1.18.1](https://github.com/WebNaresh/glitchgrab/compare/v1.18.0...v1.18.1) (2026-04-14)
+
+### Bug Fixes
+
+* **dashboard:** show toast error when pasting image without repo selected ([8163718](https://github.com/WebNaresh/glitchgrab/commit/81637182465d2f195e8e5e71726a59be832aa973))
+
 ## [1.18.0](https://github.com/WebNaresh/glitchgrab/compare/v1.17.3...v1.18.0) (2026-04-14)
 
 ### Features
