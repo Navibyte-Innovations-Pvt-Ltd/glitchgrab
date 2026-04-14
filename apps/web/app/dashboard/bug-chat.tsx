@@ -447,7 +447,13 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
         if (file) imageFiles.push(file);
       }
     }
-    if (imageFiles.length > 0) addFiles(imageFiles);
+    if (imageFiles.length > 0) {
+      if (!selectedRepo) {
+        toast.error("Select a repo first");
+        return;
+      }
+      addFiles(imageFiles);
+    }
   }
 
   function removeScreenshot(index: number) {
