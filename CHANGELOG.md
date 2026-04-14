@@ -1,3 +1,16 @@
+## [1.17.0](https://github.com/WebNaresh/glitchgrab/compare/v1.16.0...v1.17.0) (2026-04-14)
+
+### Features
+
+* **reports:** add dismiss action for failed reports ([108a683](https://github.com/WebNaresh/glitchgrab/commit/108a6835aa75133028f52c1a2b2e58043a2096a6))
+* **reports:** include dismissed field in reports GET response ([bee9214](https://github.com/WebNaresh/glitchgrab/commit/bee92146457a0361f1228b64911d09c3de884a97))
+
+### Bug Fixes
+
+* **reports:** add dismissed field to ReportItem, remove isOwner from ReportsTabs ([5a38431](https://github.com/WebNaresh/glitchgrab/commit/5a38431939c2a8bb540cff6b4b6ffb603a683607))
+* **reports:** add repo filter, remove approve/reject, clarify failed status ([7fe2ead](https://github.com/WebNaresh/glitchgrab/commit/7fe2ead88003294be5a04d850f5470f78a5f9a28))
+* **reports:** remove unused isOwner prop from ReportsList ([ef3579f](https://github.com/WebNaresh/glitchgrab/commit/ef3579f1d4dd9f4b4d66357f2ed0357e0e9d6e78))
+
 ## [1.16.0](https://github.com/WebNaresh/glitchgrab/compare/v1.15.1...v1.16.0) (2026-04-14)
 
 ### Features
