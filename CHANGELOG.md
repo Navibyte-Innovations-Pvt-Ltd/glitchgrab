@@ -1,3 +1,17 @@
+## [1.19.0](https://github.com/WebNaresh/glitchgrab/compare/v1.18.1...v1.19.0) (2026-04-15)
+
+### Features
+
+* **dashboard:** add elapsed time and progress bar to active workflow rows ([16fa7ce](https://github.com/WebNaresh/glitchgrab/commit/16fa7ceb83f315c027179489756dbb149b2c21c1))
+* **dashboard:** show check status pill on awaiting-review PR list ([c1f9273](https://github.com/WebNaresh/glitchgrab/commit/c1f9273b30899fc89aca1c765587d714bc70d592))
+* **enricher:** add structured emit tools for reliable action termination ([df60244](https://github.com/WebNaresh/glitchgrab/commit/df602441f18ed40b6c584528135619d4ccd19a73))
+* **pulls:** fetch and roll up check-run status per PR ([9a622f5](https://github.com/WebNaresh/glitchgrab/commit/9a622f531ae9ac8d8ed04e7fd12913a96b6cb355))
+
+### Bug Fixes
+
+* **enricher:** detect emit-tool calls to eliminate JSON parse failures ([a291126](https://github.com/WebNaresh/glitchgrab/commit/a2911267776d828cad479f5f5701777bf9a60287))
+* **reports:** link rows directly to GitHub issue instead of in-app page ([b45f6b3](https://github.com/WebNaresh/glitchgrab/commit/b45f6b3876e1d237b95c24a96dcf8a6da3e00167))
+
 ## [1.18.1](https://github.com/WebNaresh/glitchgrab/compare/v1.18.0...v1.18.1) (2026-04-14)
 
 ### Bug Fixes
