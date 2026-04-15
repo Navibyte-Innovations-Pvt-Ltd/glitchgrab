@@ -18,7 +18,6 @@ import {
   MessageSquare,
   Paperclip,
 } from "lucide-react";
-import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -433,13 +432,11 @@ function ReportRow({
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to dismiss"),
   });
 
-  return (
-    <div className="data-row group relative rounded bg-transparent hover:bg-card/60 border border-transparent hover:border-border/50 transition-colors">
-      <Link
-        href={`/dashboard/reports/${report.id}`}
-        className="grid grid-cols-[auto_1fr_auto_40px] items-center gap-3 p-3"
-      >
-        <div className={`absolute inset-y-2 left-[2px] w-[2px] rounded-full ${stripClass}`} />
+  const githubUrl = report.issue?.githubUrl ?? null;
+  const rowClassName = "grid grid-cols-[auto_1fr_auto_40px] items-center gap-3 p-3";
+  const rowContent = (
+    <>
+      <div className={`absolute inset-y-2 left-[2px] w-[2px] rounded-full ${stripClass}`} />
 
         {/* Source icon box */}
         <div className="w-8 h-8 rounded border border-border bg-card flex items-center justify-center text-muted-foreground ml-2 shrink-0">
@@ -501,11 +498,31 @@ function ReportRow({
           {statusChip.label}
         </div>
 
-        {/* Hover chevron */}
-        <div className="flex justify-end pr-2 text-muted-foreground opacity-0 -translate-x-3 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0">
-          <ChevronRight className="h-4 w-4" />
-        </div>
-      </Link>
+        {/* Hover chevron — only when the row links out */}
+        {githubUrl ? (
+          <div className="flex justify-end pr-2 text-muted-foreground opacity-0 -translate-x-3 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0">
+            <ChevronRight className="h-4 w-4" />
+          </div>
+        ) : (
+          <div />
+        )}
+    </>
+  );
+
+  return (
+    <div className="data-row group relative rounded bg-transparent hover:bg-card/60 border border-transparent hover:border-border/50 transition-colors">
+      {githubUrl ? (
+        <a
+          href={githubUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={rowClassName}
+        >
+          {rowContent}
+        </a>
+      ) : (
+        <div className={rowClassName}>{rowContent}</div>
+      )}
 
       {/* Dismiss action for failed reports */}
       {report.status === "FAILED" && !report.dismissed && (
