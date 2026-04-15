@@ -154,7 +154,7 @@ function ReplPrefix({
       : "text-muted-foreground";
 
   return (
-    <div className={`font-mono text-[11px] ${color} text-right whitespace-nowrap pt-0.5 select-none`}>
+    <div className={`font-mono text-[11px] ${color} md:text-right whitespace-nowrap pt-0.5 select-none`}>
       {label}
     </div>
   );
@@ -170,7 +170,7 @@ function ReplRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-[72px_1fr] md:grid-cols-[110px_1fr] gap-3 md:gap-4 py-4 border-b border-dashed border-border/40">
+    <div className="flex flex-col gap-1 md:grid md:grid-cols-[110px_1fr] md:gap-4 py-4 border-b border-dashed border-border/40">
       <ReplPrefix label={prefix} tone={tone} />
       <div className="min-w-0">{children}</div>
     </div>
@@ -340,10 +340,10 @@ const MessageBlock = memo(function MessageBlock({
               href={msg.issueUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground hover:text-primary border border-border hover:border-primary/50 bg-card hover:bg-muted rounded px-2 py-1 transition-colors"
+              className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground hover:text-primary border border-border hover:border-primary/50 bg-card hover:bg-muted rounded px-2 py-1 transition-colors whitespace-nowrap shrink-0"
             >
               <span>View on GitHub</span>
-              <ExternalLink className="h-3 w-3" />
+              <ExternalLink className="h-3 w-3 shrink-0" />
             </a>
           </div>
         </div>
