@@ -1,0 +1,20 @@
+{
+  "search.useIgnoreFiles": true,
+  "search.exclude": {
+    "**/.next": true,
+    "**/dist": true,
+    "**/.turbo": true,
+    "**/node_modules": true,
+    "**/*.tsbuildinfo": true,
+    "**/prisma/generated": true,
+    "apps/web/public/sitemap*.xml": true,
+    "**/bun.lock": true,
+    "**/package-lock.json": true
+  },
+  "files.watcherExclude": {
+    "**/.next/**": true,
+    "**/dist/**": true,
+    "**/.turbo/**": true,
+    "**/node_modules/**": true
+  }
+}
