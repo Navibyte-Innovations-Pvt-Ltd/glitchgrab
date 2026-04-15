@@ -1,9 +1,3 @@
-export interface ToolContext {
-  accessToken: string;
-  owner: string;
-  repo: string;
-}
-
 export interface EnrichmentMetrics {
   turns: number;
   tokensIn: number;
