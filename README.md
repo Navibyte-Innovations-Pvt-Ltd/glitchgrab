@@ -3,7 +3,7 @@
 **Grab the glitch. Ship the fix.**
 
 [![npm](https://img.shields.io/npm/v/glitchgrab)](https://www.npmjs.com/package/glitchgrab)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/WebNaresh/glitchgrab/blob/main/LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/blob/main/LICENSE)
 
 Glitchgrab turns messy bug reports — screenshots, production errors, user complaints — into well-structured GitHub issues using AI.
 
