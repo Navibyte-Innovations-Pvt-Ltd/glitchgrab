@@ -23,7 +23,7 @@ concurrency:
 jobs:
   ci:
     name: Lint, Typecheck, Test & Build
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     env:
       NEXT_POSTGRES_URL: "postgresql://fake:fake@localhost:5432/fake"

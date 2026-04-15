@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     // Log webhook events for debugging — no DB updates needed.
     // Razorpay is the single source of truth for subscription status.
     // getUserPlan() fetches live status from Razorpay API on every call.
-    console.info("[Webhook]", event.event);
+    console.info("[Webhook ]", event.event);
 
     return NextResponse.json({ success: true });
   } catch (error) {

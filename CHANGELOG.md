@@ -1,3 +1,11 @@
+## [1.19.2](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.19.1...v1.19.2) (2026-04-15)
+
+## [1.19.1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.19.0...v1.19.1) (2026-04-15)
+
+### Bug Fixes
+
+* **chat:** stack REPL prefix above content on mobile and prevent issue card button wrap ([b8e5215](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/b8e5215553a1c41a8040993dcab2fec5e7ab17f3))
+
 ## [1.19.0](https://github.com/WebNaresh/glitchgrab/compare/v1.18.1...v1.19.0) (2026-04-15)
 
 ### Features
