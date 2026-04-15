@@ -1,4 +1,5 @@
 import type Anthropic from "@anthropic-ai/sdk";
+import type { AiAction, ClarifyQuestion } from "@/lib/ai-types";
 import { getCache, setCache, TTL } from "./cache";
 import type { ToolContext } from "./types";
 
@@ -17,6 +18,127 @@ function ghHeaders(accessToken: string): Record<string, string> {
     "X-GitHub-Api-Version": "2022-11-28",
   };
 }
+
+// ─── Emit tools ─────────────────────────────────────────
+// Structured terminal tools. When the model calls one of these, we read its
+// tool_use.input directly as the final action — no text parsing. Anthropic
+// guarantees tool inputs conform to the declared schema.
+
+export const EMIT_TOOL_NAMES = new Set([
+  "create_issue",
+  "update_issue",
+  "close_issues",
+  "merge_issues",
+  "clarify",
+  "emit_chat",
+]);
+
+export const EMIT_TOOL_SCHEMAS: Anthropic.Tool[] = [
+  {
+    name: "create_issue",
+    description:
+      "Emit a 'create' action to open a new GitHub issue. Call this when the report is an unambiguous new bug or feature and you know enough to write a scoped ticket.",
+    input_schema: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "Issue title, ≤80 chars." },
+        body: {
+          type: "string",
+          description:
+            "Markdown body with ## Description, ## Steps to Reproduce, ## Expected Behavior, ## Actual Behavior, ## Relevant Files (cite real paths), ## Additional Context.",
+        },
+        labels: {
+          type: "array",
+          items: { type: "string" },
+          description: "Labels like 'bug', 'ui', 'mobile'.",
+        },
+        severity: {
+          type: "string",
+          enum: ["critical", "high", "medium", "low"],
+        },
+      },
+      required: ["title", "body", "labels", "severity"],
+    },
+  },
+  {
+    name: "update_issue",
+    description:
+      "Emit an 'update' action to add a comment to an existing issue. Use when a recently-opened issue already covers the same area, or when the user asks to attach context to a specific issue number.",
+    input_schema: {
+      type: "object",
+      properties: {
+        issueNumber: { type: "number" },
+        comment: { type: "string", description: "Markdown comment." },
+      },
+      required: ["issueNumber", "comment"],
+    },
+  },
+  {
+    name: "close_issues",
+    description:
+      "Emit a 'close' action. Only use when the user EXPLICITLY said to close the issue(s) by number or 'close all'.",
+    input_schema: {
+      type: "object",
+      properties: {
+        issueNumbers: {
+          type: "array",
+          items: { type: "number" },
+        },
+        comment: { type: "string" },
+      },
+      required: ["issueNumbers", "comment"],
+    },
+  },
+  {
+    name: "merge_issues",
+    description:
+      "Emit a 'merge' action. Only use when the user EXPLICITLY asked to merge/combine specific issue numbers.",
+    input_schema: {
+      type: "object",
+      properties: {
+        keepIssue: { type: "number" },
+        closeIssues: { type: "array", items: { type: "number" } },
+        mergedTitle: { type: "string" },
+        mergedBody: {
+          type: "string",
+          description:
+            "Comprehensive merged body preserving ALL content from every merged issue with clear sections.",
+        },
+      },
+      required: ["keepIssue", "closeIssues", "mergedTitle", "mergedBody"],
+    },
+  },
+  {
+    name: "clarify",
+    description:
+      "Emit a 'clarify' action with EXACTLY ONE grounded question. Use only when the code does not resolve the ambiguity. Options must be 2–4 concrete repo-grounded choices (real paths / component names), not generic labels.",
+    input_schema: {
+      type: "object",
+      properties: {
+        question: { type: "string" },
+        options: {
+          type: "array",
+          items: { type: "string" },
+          minItems: 2,
+          maxItems: 4,
+        },
+      },
+      required: ["question", "options"],
+    },
+  },
+  {
+    name: "emit_chat",
+    description:
+      "Emit a 'chat' reply. Use for greetings, repo status questions, or a polite 'a human will review this' fallback when the report is too vague to even clarify.",
+    input_schema: {
+      type: "object",
+      properties: {
+        message: { type: "string" },
+      },
+      required: ["message"],
+    },
+  },
+];
 
 export const TOOL_SCHEMAS: Anthropic.Tool[] = [
   {
@@ -67,6 +189,77 @@ export const TOOL_SCHEMAS: Anthropic.Tool[] = [
     },
   },
 ];
+
+// Parse an emit-tool use block into an AiAction. Anthropic validates the
+// input against the declared schema, but we still defensively coerce so a
+// malformed/partial input doesn't throw at the edge.
+export function actionFromEmitTool(
+  name: string,
+  rawInput: unknown,
+): AiAction | null {
+  const input = (rawInput ?? {}) as Record<string, unknown>;
+
+  if (name === "create_issue") {
+    const labels = Array.isArray(input.labels) ? input.labels.map(String) : ["bug"];
+    return {
+      intent: "create",
+      title: String(input.title ?? "Bug report").slice(0, 80),
+      body: String(input.body ?? ""),
+      labels: labels.length > 0 ? labels : ["bug"],
+      severity: String(input.severity ?? "medium"),
+    };
+  }
+  if (name === "update_issue") {
+    const n = Number(input.issueNumber);
+    if (!Number.isFinite(n) || n <= 0) return null;
+    return {
+      intent: "update",
+      issueNumber: n,
+      comment: String(input.comment ?? ""),
+    };
+  }
+  if (name === "close_issues") {
+    const nums = Array.isArray(input.issueNumbers)
+      ? input.issueNumbers.map(Number).filter((n) => Number.isFinite(n))
+      : [];
+    if (nums.length === 0) return null;
+    return {
+      intent: "close",
+      issueNumbers: nums,
+      comment: String(input.comment ?? "Closed via Glitchgrab"),
+    };
+  }
+  if (name === "merge_issues") {
+    const keep = Number(input.keepIssue);
+    if (!Number.isFinite(keep) || keep <= 0) return null;
+    const closeNums = Array.isArray(input.closeIssues)
+      ? input.closeIssues.map(Number).filter((n) => Number.isFinite(n))
+      : [];
+    return {
+      intent: "merge",
+      keepIssue: keep,
+      closeIssues: closeNums,
+      mergedTitle: String(input.mergedTitle ?? ""),
+      mergedBody: String(input.mergedBody ?? ""),
+    };
+  }
+  if (name === "clarify") {
+    const q = String(input.question ?? "").trim();
+    if (!q) return null;
+    const options = Array.isArray(input.options)
+      ? input.options.map(String).slice(0, 4)
+      : [];
+    const questions: ClarifyQuestion[] = [{ question: q, options }];
+    return { intent: "clarify", questions };
+  }
+  if (name === "emit_chat") {
+    return {
+      intent: "chat",
+      message: String(input.message ?? "I'm not sure how to help with that."),
+    };
+  }
+  return null;
+}
 
 interface ToolRunResult {
   content: string;
