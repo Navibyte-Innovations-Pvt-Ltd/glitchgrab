@@ -2,7 +2,13 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { AiAction, AiInput, ClarifyQuestion } from "@/lib/ai-types";
 import { getClaude, hasClaudeKey } from "./client";
 import { SYSTEM_PROMPT } from "./prompt";
-import { TOOL_SCHEMAS, runTool } from "./tools";
+import {
+  EMIT_TOOL_NAMES,
+  EMIT_TOOL_SCHEMAS,
+  TOOL_SCHEMAS,
+  actionFromEmitTool,
+  runTool,
+} from "./tools";
 import type { EnrichmentMetrics, ToolContext } from "./types";
 
 const MODEL = "claude-haiku-4-5";
@@ -56,8 +62,8 @@ export async function enrich(input: EnrichInput): Promise<EnrichResult> {
 
       if (Date.now() > deadline) throw new EnrichTimeoutError();
 
-      // On the last turn, withhold tools so the model is forced to output JSON
-      // instead of making more tool calls and exhausting the turn budget.
+      // On the last turn, withhold exploration tools. Only emit tools remain,
+      // so the model is forced to terminate with a structured action.
       const isLastTurn = turn >= MAX_TURNS - 1;
       const systemBlocks: Anthropic.TextBlockParam[] = [
         {
@@ -69,42 +75,58 @@ export async function enrich(input: EnrichInput): Promise<EnrichResult> {
       if (isLastTurn) {
         systemBlocks.push({
           type: "text",
-          text: "FINAL TURN: No more tool calls are available. Output your JSON action now — no tools, just the JSON object.",
+          text: "FINAL TURN: exploration tools are unavailable. Call one of the emit tools (create_issue, update_issue, close_issues, merge_issues, clarify, emit_chat) now — that is the only way to finalize.",
         });
       }
+
+      const availableTools = isLastTurn
+        ? EMIT_TOOL_SCHEMAS
+        : [...TOOL_SCHEMAS, ...EMIT_TOOL_SCHEMAS];
 
       const response = await client.messages.create({
         model: MODEL,
         max_tokens: MAX_OUTPUT_TOKENS,
         system: systemBlocks,
-        ...(isLastTurn ? {} : { tools: TOOL_SCHEMAS }),
+        tools: availableTools,
         messages,
       });
 
       metrics.tokensIn += response.usage.input_tokens;
       metrics.tokensOut += response.usage.output_tokens;
 
+      // Look for an emit-tool call first — that's the structured terminal path.
+      const toolUses = response.content.filter(
+        (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
+      );
+      const emitUse = toolUses.find((u) => EMIT_TOOL_NAMES.has(u.name));
+      if (emitUse) {
+        const action = actionFromEmitTool(emitUse.name, emitUse.input);
+        if (action) {
+          metrics.latencyMs = Date.now() - started;
+          return { action, metrics };
+        }
+        // Emit tool called with invalid shape (rare — schema-validated) — fall back.
+        break;
+      }
+
       if (response.stop_reason === "end_turn" || response.stop_reason === "max_tokens") {
+        // Legacy path: model ended without calling an emit tool. Try the
+        // text-JSON parser as a safety net for older prompt behavior.
         const action = parseAction(response.content);
         if (action) {
           metrics.latencyMs = Date.now() - started;
           return { action, metrics };
         }
-        // Model finished without JSON we could parse — fall back.
         break;
       }
 
       if (response.stop_reason !== "tool_use") {
-        // Unexpected stop — fall back.
         break;
       }
 
-      messages.push({ role: "assistant", content: response.content });
-
-      const toolUses = response.content.filter(
-        (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
-      );
       if (toolUses.length === 0) break;
+
+      messages.push({ role: "assistant", content: response.content });
 
       const toolResults: Anthropic.ToolResultBlockParam[] = [];
       for (const use of toolUses) {

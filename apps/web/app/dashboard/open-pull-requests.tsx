@@ -2,8 +2,10 @@
 
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import { ArrowRight, Clock, GitPullRequest, Loader2 } from "lucide-react";
+import { ArrowRight, Check, Clock, GitPullRequest, Loader2, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
+type ChecksRollup = "passing" | "failing" | "pending" | "none";
 
 interface PullRequest {
   number: number;
@@ -14,6 +16,36 @@ interface PullRequest {
   author: string;
   authorAvatar: string | null;
   repoFullName: string;
+  checks?: ChecksRollup;
+  checksTotal?: number;
+  checksFailed?: number;
+}
+
+function ChecksPill({ pr }: { pr: PullRequest }) {
+  if (!pr.checks || pr.checks === "none" || !pr.checksTotal) return null;
+
+  if (pr.checks === "passing") {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-mono border border-green-500/30 bg-green-500/10 text-green-400 px-1.5 py-0.5 rounded">
+        <Check className="h-2.5 w-2.5" />
+        {pr.checksTotal} passing
+      </span>
+    );
+  }
+  if (pr.checks === "failing") {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-mono border border-red-500/30 bg-red-500/10 text-red-400 px-1.5 py-0.5 rounded">
+        <X className="h-2.5 w-2.5" />
+        {pr.checksFailed}/{pr.checksTotal} failing
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-mono border border-yellow-500/30 bg-yellow-500/10 text-yellow-400 px-1.5 py-0.5 rounded">
+      <Loader2 className="h-2.5 w-2.5 animate-spin" />
+      checks running
+    </span>
+  );
 }
 
 function timeAgo(iso: string) {
@@ -110,6 +142,7 @@ export function OpenPullRequests() {
                       <Clock className="h-3 w-3" />
                       {timeAgo(pr.createdAt)}
                     </span>
+                    <ChecksPill pr={pr} />
                     {pr.draft && (
                       <>
                         <span className="opacity-40">·</span>

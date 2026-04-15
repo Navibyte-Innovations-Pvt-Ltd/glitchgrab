@@ -15,7 +15,7 @@
         "@semantic-release/git": "^10.0.1",
         "@types/node": "^25.5.0",
         "knip": "^6.0.2",
-        "pruny": "^1.42.1",
+        "pruny": "^1.43.8",
         "turbo": "^2",
       },
     },
@@ -2731,7 +2731,7 @@
 
     "proxy-from-env": ["proxy-from-env@1.1.0", "", {}, "sha512-D+zkORCbA9f1tdWRK0RaCR3GPv50cMxcrz4X8k5LTSUD1Dkw47mKJEZQNunItRTkWwgtaUSo1RVFRIG9ZXiFYg=="],
 
-    "pruny": ["pruny@1.42.1", "", { "dependencies": { "chalk": "^5.3.0", "commander": "^12.0.0", "fast-glob": "^3.3.2", "minimatch": "^10.1.2", "prompts": "^2.4.2" }, "bin": { "pruny": "dist/index.js" } }, "sha512-bkUYEzstkKH0iZuTGsqN58SZFmAguK8niK7G0xk+uw09F6vRxcWifKSECu6K9TRHVDSOLPVzw44YY+l12VKPlg=="],
+    "pruny": ["pruny@1.43.8", "", { "dependencies": { "chalk": "^5.3.0", "commander": "^12.0.0", "fast-glob": "^3.3.2", "minimatch": "^10.1.2", "prompts": "^2.4.2" }, "bin": { "pruny": "dist/index.js" } }, "sha512-3XT53gS1mRk2I3rYvZWN25rde5+Zz0Nl1D+M4uC9xHkROQaTpYaoM7DfpKRnSmqo5sNGnEQtbTHHs8FSNCSFhQ=="],
 
     "punycode": ["punycode@2.3.1", "", {}, "sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg=="],
 

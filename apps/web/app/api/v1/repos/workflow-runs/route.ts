@@ -41,11 +41,13 @@ export async function GET() {
     const results: RepoWorkflowRuns[] = await Promise.all(
       repos.map(async (repo) => {
         try {
+          // Fetch more runs than we need so the client has enough completed
+          // samples to estimate median duration for in-progress workflows.
           const runs = await listWorkflowRuns(
             accessToken,
             repo.owner,
             repo.name,
-            5
+            20
           );
           return {
             repoId: repo.id,
