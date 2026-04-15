@@ -39,11 +39,27 @@ export async function resyncRepo(repoId: string): Promise<{
   );
 
   if (!res.ok) {
-    throw new Error(
-      res.status === 404
-        ? "Repo not accessible — was it deleted or access revoked?"
-        : "Failed to fetch repo from GitHub"
+    const body = await res.text().catch(() => "");
+    console.error(
+      `[resyncRepo] GitHub ${res.status} for repo id=${repo.githubId} (${repo.fullName}):`,
+      body
     );
+    if (res.status === 404) {
+      throw new Error(
+        "Can't see this repo — if it was transferred to an org, click RECONNECT in Connect Repo dialog to refresh GitHub access"
+      );
+    }
+    if (res.status === 401) {
+      throw new Error(
+        "GitHub token expired — click RECONNECT in Connect Repo dialog to re-authenticate"
+      );
+    }
+    if (res.status === 403) {
+      throw new Error(
+        "GitHub denied access (rate limit or org OAuth policy). Click ADD ORG in Connect Repo dialog to grant access."
+      );
+    }
+    throw new Error(`Failed to fetch repo from GitHub (${res.status})`);
   }
 
   const gh = (await res.json()) as {
