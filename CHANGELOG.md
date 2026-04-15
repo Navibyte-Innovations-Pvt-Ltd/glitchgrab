@@ -1,3 +1,9 @@
+## [1.20.1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.20.0...v1.20.1) (2026-04-15)
+
+### Bug Fixes
+
+* **repos:** surface specific GitHub status codes in resyncRepo error messages ([390daf6](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/390daf6b31a25f046f2472966a7503eafc36bc86))
+
 ## [1.20.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.19.3...v1.20.0) (2026-04-15)
 
 ### Features
