@@ -396,6 +396,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
     },
   ]);
   const [sending, setSending] = useState(false);
+  const [stagedPreview, setStagedPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -856,12 +857,31 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
                   src={src}
                   name={`screenshot_${i + 1}.jpg`}
                   size={screenshotFiles[i]?.size}
+                  onClick={() => setStagedPreview(src)}
                   onRemove={() => removeScreenshot(i)}
                 />
               ))}
             </div>
           </div>
         )}
+
+        {/* Staged screenshot lightbox */}
+        <Dialog
+          open={stagedPreview !== null}
+          onOpenChange={(open) => { if (!open) setStagedPreview(null); }}
+        >
+          <DialogContent className="sm:max-w-3xl p-2">
+            <DialogTitle className="sr-only">Screenshot preview</DialogTitle>
+            {stagedPreview && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={stagedPreview}
+                alt="Screenshot preview"
+                className="w-full h-auto rounded-lg object-contain max-h-[80vh]"
+              />
+            )}
+          </DialogContent>
+        </Dialog>
 
         {/* Composer */}
         <div className="border border-border bg-background/60 rounded-md focus-within:border-primary/50 transition-colors">
