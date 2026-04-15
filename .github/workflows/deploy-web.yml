@@ -14,4 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Vercel Deploy Hook
-        run: curl -s -X POST "${{ secrets.VERCEL_DEPLOY_HOOK }}"
+        run: |
+          response=$(curl -sS -X POST "${{ secrets.VERCEL_DEPLOY_HOOK }}")
+          echo "Vercel response: $response"
+          if echo "$response" | grep -q '"error"'; then
+            echo "::error::Vercel deploy hook returned an error"
+            exit 1
+          fi
