@@ -8,6 +8,83 @@ const WEBHOOK_URL = process.env.NEXTAUTH_URL
   ? `${process.env.NEXTAUTH_URL}/api/v1/github/webhook`
   : "https://glitchgrab.dev/api/v1/github/webhook";
 
+export async function resyncRepo(repoId: string): Promise<{
+  fullName: string;
+  owner: string;
+  name: string;
+  changed: boolean;
+}> {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+
+  const repo = await prisma.repo.findFirst({
+    where: { id: repoId, userId: session.user.id },
+  });
+  if (!repo) throw new Error("Repo not found");
+
+  const account = await prisma.account.findFirst({
+    where: { userId: session.user.id, provider: "github" },
+  });
+  if (!account?.access_token) throw new Error("GitHub account not linked");
+
+  const res = await fetch(
+    `https://api.github.com/repositories/${repo.githubId}`,
+    {
+      headers: {
+        Authorization: `Bearer ${account.access_token}`,
+        Accept: "application/vnd.github+json",
+      },
+      cache: "no-store",
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error(
+      res.status === 404
+        ? "Repo not accessible — was it deleted or access revoked?"
+        : "Failed to fetch repo from GitHub"
+    );
+  }
+
+  const gh = (await res.json()) as {
+    full_name: string;
+    name: string;
+    owner: { login: string };
+    private: boolean;
+  };
+
+  const changed =
+    gh.full_name !== repo.fullName ||
+    gh.owner.login !== repo.owner ||
+    gh.name !== repo.name;
+
+  if (changed) {
+    await prisma.repo.update({
+      where: { id: repo.id },
+      data: {
+        fullName: gh.full_name,
+        owner: gh.owner.login,
+        name: gh.name,
+        isPrivate: gh.private,
+      },
+    });
+
+    // Re-setup webhook on the new location (non-blocking)
+    setupGitHubWebhook(session.user.id, gh.owner.login, gh.name).catch((err) =>
+      console.error("Failed to setup webhook after resync:", err)
+    );
+  }
+
+  revalidatePath("/dashboard/repos");
+
+  return {
+    fullName: gh.full_name,
+    owner: gh.owner.login,
+    name: gh.name,
+    changed,
+  };
+}
+
 export async function connectRepo(
   githubId: number,
   fullName: string,
