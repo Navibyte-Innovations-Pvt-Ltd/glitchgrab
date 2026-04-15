@@ -1,14 +1,17 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import {
   ChevronRight,
   GitFork,
   Github,
   Loader2,
+  RefreshCw,
   Users,
 } from "lucide-react";
+import { toast } from "sonner";
+import { resyncRepo } from "./actions";
 
 interface Repo {
   id: string;
@@ -110,6 +113,23 @@ function RepoRow({ repo, kind }: { repo: Repo; kind: "own" | "shared" }) {
     ? repo.fullName.split("/")
     : ["—", repo.fullName];
 
+  const queryClient = useQueryClient();
+
+  const { mutate: syncRepo, isPending: isSyncing } = useMutation({
+    mutationFn: () => resyncRepo(repo.id),
+    onSuccess: (result) => {
+      if (result.changed) {
+        toast.success(`Synced: now ${result.fullName}`);
+      } else {
+        toast.info("Already up to date");
+      }
+      queryClient.invalidateQueries({ queryKey: ["repos"] });
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to sync repo");
+    },
+  });
+
   const stripClass =
     kind === "shared"
       ? "bg-primary shadow-[0_0_8px_rgba(34,211,238,0.4)]"
@@ -150,9 +170,31 @@ function RepoRow({ repo, kind }: { repo: Repo; kind: "own" | "shared" }) {
       <div className="hidden sm:block font-mono text-[11px] text-muted-foreground tabular-nums mr-8">
         {repo.reports} {repo.reports === 1 ? "report" : "reports"}
       </div>
-      <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-primary/10 border border-primary/30 text-primary font-mono text-[10px] uppercase tracking-wider">
-        <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-        {kind === "shared" ? "shared" : "connected"}
+      <div className="flex items-center gap-2">
+        {kind === "own" && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              syncRepo();
+            }}
+            disabled={isSyncing}
+            title="Sync with GitHub (detects renames & transfers)"
+            className="inline-flex items-center gap-1 px-2 py-1 rounded border border-border bg-card text-muted-foreground hover:text-foreground hover:border-primary/40 font-mono text-[10px] uppercase tracking-wider transition-colors disabled:opacity-50"
+          >
+            {isSyncing ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3 w-3" />
+            )}
+            sync
+          </button>
+        )}
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-primary/10 border border-primary/30 text-primary font-mono text-[10px] uppercase tracking-wider">
+          <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+          {kind === "shared" ? "shared" : "connected"}
+        </div>
       </div>
       <div className="flex justify-end pr-2 text-muted-foreground opacity-0 -translate-x-3 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0">
         <ChevronRight className="h-4 w-4" />
