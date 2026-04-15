@@ -33,9 +33,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: "/login",
   },
   callbacks: {
-    jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
         token.id = user.id;
+      }
+      if (account?.provider === "github" && account.access_token && token.id) {
+        await prisma.account.updateMany({
+          where: { userId: token.id as string, provider: "github" },
+          data: {
+            access_token: account.access_token,
+            token_type: account.token_type,
+            scope: account.scope,
+            refresh_token: account.refresh_token,
+            expires_at: account.expires_at,
+          },
+        });
       }
       return token;
     },
