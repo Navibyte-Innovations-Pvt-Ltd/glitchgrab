@@ -82,12 +82,12 @@ export default function ContactPage() {
             contributions.
           </p>
           <a
-            href="https://github.com/WebNaresh/glitchgrab"
+            href="https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-block text-primary hover:underline text-sm font-medium"
           >
-            github.com/WebNaresh/glitchgrab
+            github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab
           </a>
         </div>
       </div>
