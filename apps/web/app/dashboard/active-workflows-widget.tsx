@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { Activity, Loader2, PlayCircle, RefreshCw } from "lucide-react";
@@ -17,6 +17,38 @@ interface RepoWorkflowRuns {
 interface ActiveRun {
   run: WorkflowRun;
   repoFullName: string;
+  estimatedMs: number | null;
+}
+
+function computeMedianByWorkflow(
+  runs: WorkflowRun[],
+): Map<string, number> {
+  const buckets = new Map<string, number[]>();
+  for (const r of runs) {
+    if (r.status !== "completed" || r.conclusion !== "success" || r.durationMs === null) continue;
+    const list = buckets.get(r.name) ?? [];
+    list.push(r.durationMs);
+    buckets.set(r.name, list);
+  }
+  const medians = new Map<string, number>();
+  for (const [name, list] of buckets) {
+    if (list.length === 0) continue;
+    const sorted = [...list].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    const median = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+    medians.set(name, median);
+  }
+  return medians;
+}
+
+function formatElapsed(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const remSec = s % 60;
+  if (m < 60) return `${m}m ${remSec}s`;
+  const h = Math.floor(m / 60);
+  return `${h}h ${m % 60}m`;
 }
 
 const POLL_INTERVAL_MS = 30_000;
@@ -54,9 +86,14 @@ export function ActiveWorkflowsWidget() {
   const activeRuns = useMemo<ActiveRun[]>(() => {
     const out: ActiveRun[] = [];
     for (const repo of data ?? []) {
+      const medians = computeMedianByWorkflow(repo.runs);
       for (const run of repo.runs) {
         if (isLive(run.status)) {
-          out.push({ run, repoFullName: repo.repoFullName });
+          out.push({
+            run,
+            repoFullName: repo.repoFullName,
+            estimatedMs: medians.get(run.name) ?? null,
+          });
         }
       }
     }
@@ -111,11 +148,12 @@ export function ActiveWorkflowsWidget() {
           </div>
         ) : (
           <ul className="flex flex-col gap-1 max-h-65 overflow-y-auto pr-1">
-            {activeRuns.map(({ run, repoFullName }) => (
+            {activeRuns.map(({ run, repoFullName, estimatedMs }) => (
               <ActiveWorkflowRow
                 key={`${repoFullName}:${run.id}`}
                 run={run}
                 repoFullName={repoFullName}
+                estimatedMs={estimatedMs}
               />
             ))}
           </ul>
@@ -128,10 +166,26 @@ export function ActiveWorkflowsWidget() {
 function ActiveWorkflowRow({
   run,
   repoFullName,
+  estimatedMs,
 }: {
   run: WorkflowRun;
   repoFullName: string;
+  estimatedMs: number | null;
 }) {
+  const startMs = run.runStartedAt ? new Date(run.runStartedAt).getTime() : null;
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const elapsedMs = startMs ? Math.max(0, now - startMs) : null;
+  const progress =
+    estimatedMs !== null && estimatedMs > 0 && elapsedMs !== null
+      ? Math.min(0.95, elapsedMs / estimatedMs)
+      : null;
+
   return (
     <li>
       <a
@@ -143,12 +197,33 @@ function ActiveWorkflowRow({
         <span className="inline-flex items-center justify-center h-6 w-6 rounded shrink-0 bg-yellow-400/10 border border-yellow-400/30 text-yellow-400">
           <PlayCircle className="h-3.5 w-3.5 animate-pulse" />
         </span>
-        <div className="flex-1 min-w-0">
-          <div className="text-xs font-medium text-foreground truncate group-hover:text-primary transition-colors">
-            {run.name}
+        <div className="flex-1 min-w-0 flex flex-col gap-1">
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-xs font-medium text-foreground truncate group-hover:text-primary transition-colors">
+              {run.name}
+            </div>
+            {elapsedMs !== null && (
+              <div className="text-[10px] font-mono text-muted-foreground shrink-0 tabular-nums">
+                {formatElapsed(elapsedMs)}
+                {estimatedMs !== null && estimatedMs > 0 && (
+                  <span className="opacity-60"> / ~{formatElapsed(estimatedMs)}</span>
+                )}
+              </div>
+            )}
           </div>
           <div className="text-[10px] font-mono text-muted-foreground truncate">
             {repoFullName}
+          </div>
+          {/* Progress bar: determinate if we have a historical median, shimmer otherwise */}
+          <div className="relative h-0.5 w-full overflow-hidden rounded-full bg-border/60">
+            {progress !== null ? (
+              <span
+                className="absolute inset-y-0 left-0 bg-primary transition-[width] duration-500 ease-linear"
+                style={{ width: `${progress * 100}%` }}
+              />
+            ) : (
+              <span className="absolute inset-y-0 -left-1/3 w-1/3 bg-primary/70 animate-[shimmer_1.4s_ease-in-out_infinite]" />
+            )}
           </div>
         </div>
       </a>
