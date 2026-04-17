@@ -146,6 +146,27 @@ function FeedbackWidget() {
 
 Note: `openReportDialog()` requires a `<ReportButton>` to be mounted somewhere in the component tree. It triggers the same modal with screenshot capture.
 
+### Misconfiguration behavior
+
+If the provider is rendered without a token (e.g. `NEXT_PUBLIC_GLITCHGRAB_TOKEN` is missing in your deployment), the SDK won't silently no-op:
+
+- `useGlitchgrab()` **does not throw** — it returns stub methods so your components keep rendering.
+- Calling `openReportDialog()`, `reportBug()`, or `report()` shows a visible toast in the browser and logs a `console.warn`.
+- `<ReportButton>` hides itself automatically.
+
+Use `isGlitchgrabReady()` to gate your own trigger buttons:
+
+```tsx
+import { useGlitchgrab, isGlitchgrabReady } from "glitchgrab";
+
+function SupportButton() {
+  const { openReportDialog } = useGlitchgrab();
+  const ready = isGlitchgrabReady();
+  if (!ready) return null;
+  return <button onClick={() => openReportDialog()}>Report a bug</button>;
+}
+```
+
 ## Fetching Reports by User
 
 ### React hook (recommended)
