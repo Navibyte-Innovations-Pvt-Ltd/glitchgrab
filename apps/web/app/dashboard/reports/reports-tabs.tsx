@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   Bug,
   ChevronRight,
+  CircleDot,
   ClipboardList,
   Clock,
   ExternalLink,
@@ -144,6 +145,7 @@ export function ReportsTabs({
   const [repoFilter, setRepoFilter] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState<"ALL" | "TODAY" | "LAST_7_DAYS" | "LAST_30_DAYS">("ALL");
   const [cutoffTimestamp, setCutoffTimestamp] = useState<number | null>(null);
+  const [issueStateFilter, setIssueStateFilter] = useState<"all" | "open" | "closed">("all");
   const router = useRouter();
 
   const reports = tab === "product" ? productIssues : myReports;
@@ -161,6 +163,9 @@ export function ReportsTabs({
     if (statusFilter) {
       list = list.filter((r) => r.status === statusFilter);
     }
+    if (issueStateFilter !== "all") {
+      list = list.filter((r) => r.issue?.githubState === issueStateFilter);
+    }
     if (cutoffTimestamp !== null) {
       list = list.filter((r) => new Date(r.createdAt).getTime() >= cutoffTimestamp);
     }
@@ -177,7 +182,7 @@ export function ReportsTabs({
       });
     }
     return list;
-  }, [reports, search, statusFilter, repoFilter, cutoffTimestamp]);
+  }, [reports, search, statusFilter, issueStateFilter, repoFilter, cutoffTimestamp]);
 
   const statusOptions = ["CREATED", "PENDING", "PROCESSING", "DUPLICATE", "FAILED"];
 
@@ -190,6 +195,7 @@ export function ReportsTabs({
     setTab(next);
     setRepoFilter(null);
     setStatusFilter(null);
+    setIssueStateFilter("all");
     setDateFilter("ALL");
     setCutoffTimestamp(null);
     setSearch("");
@@ -299,6 +305,25 @@ export function ReportsTabs({
                 )}
               >
                 {d.toLowerCase().replace(/_/g, "_")}
+              </button>
+            ))}
+          </div>
+
+          {/* Issue state filter pills — fourth row */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <CircleDot className="h-3 w-3 text-muted-foreground shrink-0" />
+            {(["all", "open", "closed"] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => setIssueStateFilter(s)}
+                className={cn(
+                  "font-mono text-[10px] border px-2.5 py-1 rounded-full uppercase tracking-wider transition-colors",
+                  issueStateFilter === s
+                    ? "bg-primary/10 border-primary/30 text-primary"
+                    : "bg-card border-border text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {s}
               </button>
             ))}
           </div>
