@@ -2,16 +2,7 @@
 
 import { useState, type CSSProperties, type ReactNode } from "react";
 import type { ReportButtonProps } from "./types";
-import { useGlitchgrab } from "./provider";
-
-/** Safe version of useGlitchgrab that returns null when outside provider */
-function useGlitchgrabSafe() {
-  try {
-    return useGlitchgrab();
-  } catch {
-    return null;
-  }
-}
+import { useGlitchgrab, isGlitchgrabReady } from "./provider";
 
 /**
  * Optional trigger button for opening the report dialog.
@@ -44,9 +35,10 @@ export function ReportButton({
   children?: (props: { onClick: () => void; capturing: boolean }) => ReactNode;
 }) {
   const [capturing, setCapturing] = useState(false);
-  const glitchgrab = useGlitchgrabSafe();
+  const glitchgrab = useGlitchgrab();
+  const ready = isGlitchgrabReady();
 
-  if (!glitchgrab) return null;
+  if (!ready) return null;
 
   const handleClick = async () => {
     setCapturing(true);
