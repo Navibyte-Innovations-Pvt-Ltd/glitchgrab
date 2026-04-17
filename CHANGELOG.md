@@ -1,3 +1,9 @@
+## [1.20.5](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.20.4...v1.20.5) (2026-04-17)
+
+### Bug Fixes
+
+* **reports:** add open/closed issue state filter to reports list ([0af44ee](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/0af44eefe49e3fbf652df91beeea0afa7c9c80c0))
+
 ## [1.20.4](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.20.3...v1.20.4) (2026-04-17)
 
 ### Bug Fixes
