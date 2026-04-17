@@ -141,7 +141,6 @@ export function ReportsTabs({
 }) {
   const [tab, setTab] = useState<"product" | "my">("product");
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [repoFilter, setRepoFilter] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState<"ALL" | "TODAY" | "LAST_7_DAYS" | "LAST_30_DAYS">("ALL");
   const [cutoffTimestamp, setCutoffTimestamp] = useState<number | null>(null);
@@ -159,9 +158,6 @@ export function ReportsTabs({
     let list = reports.filter((r) => !r.dismissed);
     if (repoFilter) {
       list = list.filter((r) => r.repoFullName === repoFilter);
-    }
-    if (statusFilter) {
-      list = list.filter((r) => r.status === statusFilter);
     }
     if (issueStateFilter !== "all") {
       list = list.filter((r) => r.issue?.githubState === issueStateFilter);
@@ -182,9 +178,7 @@ export function ReportsTabs({
       });
     }
     return list;
-  }, [reports, search, statusFilter, issueStateFilter, repoFilter, cutoffTimestamp]);
-
-  const statusOptions = ["CREATED", "PENDING", "PROCESSING", "DUPLICATE", "FAILED"];
+  }, [reports, search, issueStateFilter, repoFilter, cutoffTimestamp]);
 
   function handleDateFilterChange(filter: "ALL" | "TODAY" | "LAST_7_DAYS" | "LAST_30_DAYS") {
     setDateFilter(filter);
@@ -194,7 +188,6 @@ export function ReportsTabs({
   function handleTabChange(next: "product" | "my") {
     setTab(next);
     setRepoFilter(null);
-    setStatusFilter(null);
     setIssueStateFilter("all");
     setDateFilter("ALL");
     setCutoffTimestamp(null);
@@ -260,37 +253,7 @@ export function ReportsTabs({
             </div>
           </div>
 
-          {/* Status filter pills — second row */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {uniqueRepos.length <= 1 && <Filter className="h-3 w-3 text-muted-foreground shrink-0" />}
-            <button
-              onClick={() => setStatusFilter(null)}
-              className={cn(
-                "font-mono text-[10px] border px-2.5 py-1 rounded-full uppercase tracking-wider transition-colors",
-                !statusFilter
-                  ? "bg-primary/10 border-primary/30 text-primary"
-                  : "bg-card border-border text-muted-foreground hover:text-foreground"
-              )}
-            >
-              all
-            </button>
-            {statusOptions.map((s) => (
-              <button
-                key={s}
-                onClick={() => setStatusFilter(statusFilter === s ? null : s)}
-                className={cn(
-                  "font-mono text-[10px] border px-2.5 py-1 rounded-full uppercase tracking-wider transition-colors",
-                  statusFilter === s
-                    ? "bg-primary/10 border-primary/30 text-primary"
-                    : "bg-card border-border text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {s.toLowerCase()}
-              </button>
-            ))}
-          </div>
-
-          {/* Date filter pills — third row */}
+          {/* Date filter pills */}
           <div className="flex items-center gap-2 flex-wrap">
             <Clock className="h-3 w-3 text-muted-foreground shrink-0" />
             {(["ALL", "TODAY", "LAST_7_DAYS", "LAST_30_DAYS"] as const).map((d) => (
@@ -309,7 +272,7 @@ export function ReportsTabs({
             ))}
           </div>
 
-          {/* Issue state filter pills — fourth row */}
+          {/* Issue state filter pills */}
           <div className="flex items-center gap-2 flex-wrap">
             <CircleDot className="h-3 w-3 text-muted-foreground shrink-0" />
             {(["all", "open", "closed"] as const).map((s) => (
