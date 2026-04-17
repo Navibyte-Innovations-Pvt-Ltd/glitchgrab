@@ -155,7 +155,7 @@ export function CreateTokenDialog({ repos }: { repos: Repo[] }) {
                   if (val) setRepoName(val);
                 }}
               >
-                <SelectTrigger className="font-mono text-sm">
+                <SelectTrigger className="w-full font-mono text-sm">
                   <SelectValue placeholder="Select a repo" />
                 </SelectTrigger>
                 <SelectContent>

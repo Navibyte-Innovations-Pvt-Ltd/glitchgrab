@@ -755,7 +755,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
             >
               <PopoverTrigger className="flex items-center gap-2 font-mono text-xs text-foreground hover:text-primary transition-colors px-2 py-1 rounded hover:bg-muted min-w-0">
                 <GitFork className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                <span className="truncate max-w-50 sm:max-w-[320px]">
+                <span className="truncate max-w-[320px]">
                   {selectedRepoName || "select repo"}
                 </span>
                 <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />

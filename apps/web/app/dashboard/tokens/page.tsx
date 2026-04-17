@@ -175,7 +175,7 @@ function TokenRow({
       </div>
       <div className="hidden sm:flex font-mono text-[11px] text-muted-foreground items-center gap-1.5 tabular-nums mr-8 min-w-0">
         <GitFork className="h-3 w-3 shrink-0" />
-        <span className="truncate max-w-40">{repoFullName}</span>
+        <span className="truncate">{repoFullName}</span>
       </div>
       <div className="hidden sm:block font-mono text-[11px] text-muted-foreground tabular-nums mr-8">
         {createdLabel}
