@@ -1,3 +1,9 @@
+## [1.20.6](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.20.5...v1.20.6) (2026-04-17)
+
+### Bug Fixes
+
+* **reports:** remove internal status filter, keep GitHub open/closed only ([43de5f5](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/43de5f5231406c6b60305381d59cf4a965c537ba))
+
 ## [1.20.5](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.20.4...v1.20.5) (2026-04-17)
 
 ### Bug Fixes
