@@ -760,7 +760,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
                 </span>
                 <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
               </PopoverTrigger>
-              <PopoverContent align="start" side="bottom" className="w-72 p-0">
+              <PopoverContent align="start" side="bottom" className="w-80 p-0">
                 <div className="p-2 border-b border-border">
                   <input
                     type="text"
@@ -786,7 +786,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
                       }}
                       className="flex items-center justify-between w-full rounded px-2 py-1.5 font-mono text-xs text-foreground hover:bg-muted transition"
                     >
-                      <span className="truncate">{repo.fullName}</span>
+                      <span className="break-all text-left">{repo.fullName}</span>
                       {selectedRepoName === repo.fullName && (
                         <Check className="h-3.5 w-3.5 text-primary shrink-0" />
                       )}
