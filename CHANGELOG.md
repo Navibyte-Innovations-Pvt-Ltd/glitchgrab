@@ -1,3 +1,9 @@
+## [1.22.2](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.22.1...v1.22.2) (2026-04-21)
+
+### Bug Fixes
+
+* **bug-chat:** show full repo names in dropdown without truncation ([ce79687](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/ce796870ef10d6785a44e204cc9e7c6421ff0ac3))
+
 ## [1.22.1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.22.0...v1.22.1) (2026-04-21)
 
 ### Bug Fixes
