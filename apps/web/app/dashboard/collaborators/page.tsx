@@ -188,7 +188,7 @@ export default async function CollaboratorsPage() {
                     {invitedDate}
                   </div>
                   {statusChip}
-                  <div className="flex items-center justify-end gap-1 pr-1 opacity-0 -translate-x-2 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0">
+                  <div className="flex items-center justify-end gap-1 pr-1 transition-all duration-200 sm:opacity-0 sm:-translate-x-2 sm:group-hover:opacity-100 sm:group-hover:translate-x-0">
                     {status === "ACCEPTED" && (
                       <EditReposDialog
                         collaboratorId={collab.id}
