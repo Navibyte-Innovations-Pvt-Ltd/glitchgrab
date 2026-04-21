@@ -1,3 +1,10 @@
+## [1.22.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.21.0...v1.22.0) (2026-04-21)
+
+### Features
+
+* add CreateTokenDialog component for repository-scoped API token generation ([0e15b8a](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/0e15b8a1f6e5f837ae2737758ff43fc3b17a29a6))
+* add db:deploy script to run prisma migrate deploy ([4889f93](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/4889f93a88817204c6ecb2d21e6dd437c6979917))
+
 ## [1.21.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.20.6...v1.21.0) (2026-04-21)
 
 ### Features
