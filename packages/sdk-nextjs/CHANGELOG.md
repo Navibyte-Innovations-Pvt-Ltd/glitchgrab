@@ -1,3 +1,47 @@
+## [1.16.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.15.0...sdk-v1.16.0) (2026-04-21)
+
+### Features
+
+* add CreateTokenDialog component for repository-scoped API token generation ([0e15b8a](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/0e15b8a1f6e5f837ae2737758ff43fc3b17a29a6))
+* add db:deploy script to run prisma migrate deploy ([4889f93](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/4889f93a88817204c6ecb2d21e6dd437c6979917))
+* **repos:** add org filter chips, reconnect github, and grant-access CTA ([6b6f70b](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/6b6f70be264da46a1cfdf3c11f6f78e0253e7e5f))
+* **repos:** add resyncRepo server action for detecting transfers and renames ([2dafd0a](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/2dafd0aa2e1a09bc7751634c0bd013b57ff4c45a))
+* **repos:** add sync button on repo rows to resync transferred or renamed repos ([4812162](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/481216273178e84e19c3bef35a185db38a1ddfb4))
+* **repos:** expose owner avatar_url in GitHub repo listing ([3267d1a](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/3267d1a9a369ba8aa54a0855a1a4d938dee0fc64))
+* **repos:** paginate GitHub repos and expose accounts + reconnect url ([a810367](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/a810367c7f5434251bf12997e4de838ec7fa6306))
+* **repos:** render GitHub owner avatars in connect dialog ([22f3abf](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/22f3abf9e7a59fb304e4bd61be7b8c7deb3e024c))
+* **sdk:** add deduplication check before dispatching report in error boundary ([340487b](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/340487be7bf55073aaa94c6a4f6bd77003f0c25c))
+* **sdk:** add in-memory error signature dedup with 5min window ([517b622](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/517b62265e752fb0123d99842865eb5d673cb66d))
+* **sdk:** export deduplication utilities ([c65ad1c](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/c65ad1cd03fe341f483c9f91894d2792a72bcbdf))
+* **sdk:** implement deduplication check for global error and unhandled rejection listeners ([4f6d865](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/4f6d865116976560f76a51c88cc5e1dee2df66f7))
+* **web:** add utility to compute error signatures for issue deduplication ([7df700a](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/7df700a34b6f1dc28362f57fef01f301bcf4801a))
+* **web:** implement server-side verification to detect and skip duplicate error reports ([2473c26](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/2473c2623ba787ac63e49ad0fbd690e050284278))
+* **web:** update schema with report signature field and index for deduplication ([561f2ab](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/561f2ab304e870ca199caf5a53719baa5f416b3d))
+
+### Bug Fixes
+
+* **auth:** refresh stored GitHub access_token on every sign-in ([be027e6](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/be027e637671e71e2e25513a1d1a727ac5eeee28))
+* **bug-chat:** show full repo names in dropdown without truncation ([ce79687](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/ce796870ef10d6785a44e204cc9e7c6421ff0ac3))
+* **chat:** add lightbox for staged screenshot preview ([6561880](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/65618802b394f8012d28c99d5e54e5bac84d32d9))
+* **chat:** increase repo name max-width to prevent premature truncation ([f79aefd](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/f79aefdbc393f7d3ae16463dd181ba6d5b20fbed))
+* **ci:** fail deploy-web step when Vercel hook returns error ([db1706d](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/db1706d2dd430ed4f375a9abfc4ba67febf1b172))
+* **claude:** simplify enricher to single-turn API call ([3500632](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/3500632d1c2e5a06a5904dfd178a3a3c3a4076b6))
+* **claude:** trim enricher context to prevent turn exhaustion on large issue lists ([9f51536](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/9f5153644dc9d1405c1773b94f559f300f7d5fb8)), closes [#142](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/issues/142)
+* **claude:** use instanceof directly in ternary to fix TS2749 type error ([205b952](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/205b952d568fd8817df1a30f8722da9993d01fa8))
+* **collaborators:** show action buttons on mobile without hover ([4ff6a1c](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/4ff6a1cc51ab89973f380f74d250f26f62580115))
+* **dashboard:** wrap GitHub contributions heatmap in horizontal scroll container ([2245fc8](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/2245fc847b14369e264c1f3ffaaff2261ed177cf))
+* **db:** migration for per-user Repo.githubId uniqueness ([212f628](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/212f6287cfe9432764bb4399b96a025ab22b4421))
+* **reports:** add open/closed issue state filter to reports list ([0af44ee](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/0af44eefe49e3fbf652df91beeea0afa7c9c80c0))
+* **reports:** remove internal status filter, keep GitHub open/closed only ([43de5f5](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/43de5f5231406c6b60305381d59cf4a965c537ba))
+* **repos:** return result from connectRepo instead of throwing ([16d5211](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/16d5211fbd8c82b0f7937d6157530350450295af))
+* **repos:** stack sync + status badge vertically on mobile ([731ea34](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/731ea344cae9d211e087caaea6c449ec7b938a81))
+* **repos:** surface specific GitHub status codes in resyncRepo error messages ([390daf6](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/390daf6b31a25f046f2472966a7503eafc36bc86))
+* **responsive:** use canonical min-w-130 instead of min-w-[520px] ([03c22d0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/03c22d0d63d10b7c6e13d9bdd5feb36c150b1453))
+* **schema:** scope Repo.githubId uniqueness per user ([8680193](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/868019394bcc8aa21194d7b7a4c5a4e9c1b75f62))
+* **select:** allow popup to grow wider than trigger for long repo names ([ebde8e6](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/ebde8e6aaae1f15ca79a0da36c798845d2feb889))
+* **tokens:** make repo select trigger full-width to show complete names ([282e7a3](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/282e7a3795bdefc2a88008045fc33a452e280e64))
+* **tokens:** remove max-w-40 cap on repo column to show full repo names ([6265933](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/6265933a18b1cb7c3d16505eb6aa8142569a8583))
+
 ## [1.15.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.14.1...sdk-v1.15.0) (2026-04-15)
 
 ### Features
