@@ -18,6 +18,7 @@ import type {
 import { GlitchgrabErrorBoundary } from "./error-boundary";
 import { ReportDialog } from "./report-dialog";
 import { sanitizeUrl, captureContext, sendReport, captureDeviceInfo } from "./utils";
+import { computeSignature, shouldSkipDuplicate } from "./dedup";
 import {
   initBreadcrumbs,
   addBreadcrumb as addBreadcrumbInternal,
@@ -130,6 +131,12 @@ function GlitchgrabProviderInner({
       const handleError = (event: ErrorEvent) => {
         try {
           const context = captureContext(visitedPagesRef.current);
+          const sig = computeSignature({
+            errorMessage: event.message,
+            pageUrl: context.url,
+            errorStack: event.error?.stack,
+          });
+          if (shouldSkipDuplicate(sig)) return;
           const payload: ReportPayload = {
             token,
             source: "SDK_AUTO",
@@ -164,12 +171,20 @@ function GlitchgrabProviderInner({
         try {
           const context = captureContext(visitedPagesRef.current);
           const reason = event.reason;
+          const errMsg = reason instanceof Error ? reason.message : String(reason);
+          const errStack = reason instanceof Error ? reason.stack : undefined;
+          const sig = computeSignature({
+            errorMessage: errMsg,
+            pageUrl: context.url,
+            errorStack: errStack,
+          });
+          if (shouldSkipDuplicate(sig)) return;
           const payload: ReportPayload = {
             token,
             source: "SDK_AUTO",
             type: "BUG",
-            errorMessage: reason instanceof Error ? reason.message : String(reason),
-            errorStack: reason instanceof Error ? reason.stack : undefined,
+            errorMessage: errMsg,
+            errorStack: errStack,
             pageUrl: context.url,
             userAgent: context.userAgent,
             breadcrumbs: context.breadcrumbs,
