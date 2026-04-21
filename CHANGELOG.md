@@ -1,3 +1,16 @@
+## [1.21.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.20.6...v1.21.0) (2026-04-21)
+
+### Features
+
+* **repos:** expose owner avatar_url in GitHub repo listing ([3267d1a](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/3267d1a9a369ba8aa54a0855a1a4d938dee0fc64))
+* **repos:** render GitHub owner avatars in connect dialog ([22f3abf](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/22f3abf9e7a59fb304e4bd61be7b8c7deb3e024c))
+
+### Bug Fixes
+
+* **db:** migration for per-user Repo.githubId uniqueness ([212f628](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/212f6287cfe9432764bb4399b96a025ab22b4421))
+* **repos:** return result from connectRepo instead of throwing ([16d5211](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/16d5211fbd8c82b0f7937d6157530350450295af))
+* **schema:** scope Repo.githubId uniqueness per user ([8680193](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/868019394bcc8aa21194d7b7a4c5a4e9c1b75f62))
+
 ## [1.20.6](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.20.5...v1.20.6) (2026-04-17)
 
 ### Bug Fixes
