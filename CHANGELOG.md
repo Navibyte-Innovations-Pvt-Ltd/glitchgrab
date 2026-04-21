@@ -1,3 +1,12 @@
+## [1.22.1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.22.0...v1.22.1) (2026-04-21)
+
+### Bug Fixes
+
+* **collaborators:** show action buttons on mobile without hover ([4ff6a1c](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/4ff6a1cc51ab89973f380f74d250f26f62580115))
+* **dashboard:** wrap GitHub contributions heatmap in horizontal scroll container ([2245fc8](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/2245fc847b14369e264c1f3ffaaff2261ed177cf))
+* **repos:** stack sync + status badge vertically on mobile ([731ea34](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/731ea344cae9d211e087caaea6c449ec7b938a81))
+* **responsive:** use canonical min-w-130 instead of min-w-[520px] ([03c22d0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/03c22d0d63d10b7c6e13d9bdd5feb36c150b1453))
+
 ## [1.22.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.21.0...v1.22.0) (2026-04-21)
 
 ### Features
