@@ -6,5 +6,11 @@ on:
 
 jobs:
   auto-fix:
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
     uses: Navibyte-Innovations-Pvt-Ltd/.github/.github/workflows/claude-auto-fix-reusable.yml@main
     secrets: inherit
