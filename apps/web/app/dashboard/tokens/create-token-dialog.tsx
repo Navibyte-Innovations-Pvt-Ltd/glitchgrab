@@ -40,8 +40,12 @@ export function CreateTokenDialog({ repos }: { repos: Repo[] }) {
   const [repoName, setRepoName] = useState(repos[0]?.fullName ?? "");
   const [name, setName] = useState("");
   const [generatedToken, setGeneratedToken] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"token" | "env" | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const envLine = generatedToken
+    ? `NEXT_PUBLIC_GLITCHGRAB_TOKEN=${generatedToken}`
+    : "";
 
   const selectedRepoId = repos.find((r) => r.fullName === repoName)?.id ?? "";
 
@@ -62,12 +66,13 @@ export function CreateTokenDialog({ repos }: { repos: Repo[] }) {
     });
   }
 
-  async function handleCopy() {
+  async function handleCopy(kind: "token" | "env") {
     if (!generatedToken) return;
-    await copyToClipboard(generatedToken);
-    setCopied(true);
-    toast.success("Copied to clipboard");
-    setTimeout(() => setCopied(false), 2000);
+    const value = kind === "env" ? envLine : generatedToken;
+    await copyToClipboard(value);
+    setCopied(kind);
+    toast.success(kind === "env" ? "Copied .env line" : "Copied token");
+    setTimeout(() => setCopied(null), 2000);
   }
 
   function handleClose(isOpen: boolean) {
@@ -75,7 +80,7 @@ export function CreateTokenDialog({ repos }: { repos: Repo[] }) {
     if (!isOpen) {
       setGeneratedToken(null);
       setName("");
-      setCopied(false);
+      setCopied(null);
     }
   }
 
@@ -110,29 +115,58 @@ export function CreateTokenDialog({ repos }: { repos: Repo[] }) {
 
         {generatedToken ? (
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <code className="flex-1 rounded border border-border bg-card px-3 py-2 text-xs font-mono break-all text-foreground">
-                {generatedToken}
-              </code>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handleCopy}
-                aria-label="Copy token"
-              >
-                {copied ? (
-                  <Check className="h-4 w-4 text-primary" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-              </Button>
+            <div>
+              <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5">
+                token
+              </p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 rounded border border-border bg-card px-3 py-2 text-xs font-mono break-all text-foreground">
+                  {generatedToken}
+                </code>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleCopy("token")}
+                  aria-label="Copy token"
+                >
+                  {copied === "token" ? (
+                    <Check className="h-4 w-4 text-primary" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
             </div>
+
+            <div>
+              <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5">
+                .env line
+              </p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 rounded border border-border bg-card px-3 py-2 text-xs font-mono break-all text-foreground">
+                  {envLine}
+                </code>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleCopy("env")}
+                  aria-label="Copy as .env line"
+                >
+                  {copied === "env" ? (
+                    <Check className="h-4 w-4 text-primary" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+
             <div className="rounded border border-primary/30 bg-primary/5 p-3">
               <p className="font-mono text-[10px] uppercase tracking-widest text-primary/80 mb-2">
                 usage · next.js
               </p>
               <code className="text-[11px] font-mono text-foreground block break-all">
-                {`<GlitchgrabProvider token="${generatedToken}">`}
+                {`<GlitchgrabProvider token={process.env.NEXT_PUBLIC_GLITCHGRAB_TOKEN}>`}
               </code>
             </div>
             <Button

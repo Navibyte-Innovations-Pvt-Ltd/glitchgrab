@@ -12,5 +12,11 @@ on:
 
 jobs:
   claude:
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
     uses: Navibyte-Innovations-Pvt-Ltd/.github/.github/workflows/claude-reusable.yml@main
     secrets: inherit
