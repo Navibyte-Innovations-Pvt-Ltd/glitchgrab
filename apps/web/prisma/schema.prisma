@@ -81,7 +81,7 @@ model VerificationToken {
 model Repo {
   id        String   @id @default(cuid())
   userId    String
-  githubId  Int      @unique
+  githubId  Int
   fullName  String
   owner     String
   name      String
@@ -93,6 +93,9 @@ model Repo {
   reports           Report[]
   issues            Issue[]
   collaboratorRepos CollaboratorRepo[]
+
+  @@unique([userId, githubId])
+  @@index([githubId])
 }
 
 model ApiToken {

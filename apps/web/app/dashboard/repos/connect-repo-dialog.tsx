@@ -23,6 +23,7 @@ interface GitHubRepo {
   name: string;
   owner: string;
   ownerType: "user" | "org";
+  ownerAvatarUrl: string;
   isPrivate: boolean;
   description: string | null;
 }
@@ -30,6 +31,7 @@ interface GitHubRepo {
 interface GitHubAccount {
   login: string;
   type: "user" | "org";
+  avatarUrl: string;
 }
 
 interface GitHubReposResponse {
@@ -72,13 +74,14 @@ export function ConnectRepoDialog() {
 
   const { mutate, isPending, variables } = useMutation({
     mutationFn: async (repo: GitHubRepo) => {
-      await connectRepo(
+      const result = await connectRepo(
         repo.githubId,
         repo.fullName,
         repo.owner,
         repo.name,
         repo.isPrivate
       );
+      if (!result.ok) throw new Error(result.error);
       return repo;
     },
     onSuccess: (repo) => {
@@ -89,6 +92,7 @@ export function ConnectRepoDialog() {
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : "Failed to connect repo");
+      queryClient.invalidateQueries({ queryKey: ["repos"] });
     },
   });
 
@@ -193,7 +197,17 @@ export function ConnectRepoDialog() {
                       : "bg-card border-border text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  <Building2 className="h-3 w-3" />
+                  {acc.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={acc.avatarUrl}
+                      alt={acc.login}
+                      loading="lazy"
+                      className="h-3.5 w-3.5 rounded-sm object-cover"
+                    />
+                  ) : (
+                    <Building2 className="h-3 w-3" />
+                  )}
                   {acc.login}
                 </button>
               );
@@ -276,8 +290,20 @@ export function ConnectRepoDialog() {
                       isConnected ? "bg-border" : "bg-primary/70"
                     }`}
                   />
-                  <div className="w-8 h-8 rounded border border-border bg-card flex items-center justify-center text-muted-foreground shrink-0 ml-1">
-                    <Github className="h-4 w-4" />
+                  <div className="w-8 h-8 rounded border border-border bg-card overflow-hidden shrink-0 ml-1">
+                    {repo.ownerAvatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={repo.ownerAvatarUrl}
+                        alt={repo.owner}
+                        loading="lazy"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                        <Github className="h-4 w-4" />
+                      </div>
+                    )}
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">

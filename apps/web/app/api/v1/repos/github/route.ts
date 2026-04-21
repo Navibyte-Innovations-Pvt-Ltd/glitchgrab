@@ -8,7 +8,7 @@ interface GitHubRepo {
   id: number;
   full_name: string;
   name: string;
-  owner: { login: string; type: "User" | "Organization" };
+  owner: { login: string; type: "User" | "Organization"; avatar_url: string };
   private: boolean;
   description: string | null;
 }
@@ -71,21 +71,28 @@ export async function GET() {
     name: repo.name,
     owner: repo.owner.login,
     ownerType: repo.owner.type === "Organization" ? "org" : "user",
+    ownerAvatarUrl: repo.owner.avatar_url,
     isPrivate: repo.private,
     description: repo.description,
   }));
 
-  const accountsMap = new Map<string, "user" | "org">();
+  const accountsMap = new Map<string, { type: "user" | "org"; avatarUrl: string }>();
   for (const repo of repos) {
     if (!accountsMap.has(repo.owner)) {
-      accountsMap.set(repo.owner, repo.ownerType as "user" | "org");
+      accountsMap.set(repo.owner, {
+        type: repo.ownerType as "user" | "org",
+        avatarUrl: repo.ownerAvatarUrl,
+      });
     }
   }
-  const accounts = Array.from(accountsMap, ([login, type]) => ({ login, type }))
-    .sort((a, b) => {
-      if (a.type !== b.type) return a.type === "user" ? -1 : 1;
-      return a.login.localeCompare(b.login);
-    });
+  const accounts = Array.from(accountsMap, ([login, meta]) => ({
+    login,
+    type: meta.type,
+    avatarUrl: meta.avatarUrl,
+  })).sort((a, b) => {
+    if (a.type !== b.type) return a.type === "user" ? -1 : 1;
+    return a.login.localeCompare(b.login);
+  });
 
   const clientId = process.env.GITHUB_CLIENT_ID;
   const connectionUrl = clientId

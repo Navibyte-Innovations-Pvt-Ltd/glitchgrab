@@ -12,7 +12,7 @@
   "packageManager": "bun@1.3.7",
   "private": true,
   "scripts": {
-    "dev": "dotenvx run -- turbo dev",
+    "dev": "dotenvx run -- turbo dev --filter=!@glitchgrab/mobile",
     "dev:web": "dotenvx run -- turbo dev --filter=@glitchgrab/web",
     "dev:mobile": "cd apps/mobile && expo start",
     "build": "dotenvx run -- turbo build --filter=@glitchgrab/web",

@@ -107,19 +107,19 @@ export async function connectRepo(
   owner: string,
   name: string,
   isPrivate: boolean
-) {
+): Promise<{ ok: true } | { ok: false; error: string }> {
   const session = await auth();
 
   if (!session?.user?.id) {
-    throw new Error("Unauthorized");
+    return { ok: false, error: "Unauthorized" };
   }
 
   const existing = await prisma.repo.findUnique({
-    where: { githubId },
+    where: { userId_githubId: { userId: session.user.id, githubId } },
   });
 
   if (existing) {
-    throw new Error("Repo already connected");
+    return { ok: false, error: "Repo already connected" };
   }
 
   await prisma.repo.create({
@@ -139,6 +139,8 @@ export async function connectRepo(
   );
 
   revalidatePath("/dashboard/repos");
+
+  return { ok: true };
 }
 
 async function setupGitHubWebhook(userId: string, owner: string, repo: string) {
