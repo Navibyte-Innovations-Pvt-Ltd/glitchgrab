@@ -170,7 +170,7 @@ function RepoRow({ repo, kind }: { repo: Repo; kind: "own" | "shared" }) {
       <div className="hidden sm:block font-mono text-[11px] text-muted-foreground tabular-nums mr-8">
         {repo.reports} {repo.reports === 1 ? "report" : "reports"}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1.5 sm:gap-2">
         {kind === "own" && (
           <button
             type="button"
