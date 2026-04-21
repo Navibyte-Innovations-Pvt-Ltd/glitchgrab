@@ -142,6 +142,8 @@ model Report {
   errorStack         String?
   userAgent          String?
   pageUrl            String?
+  /// Hash of errorMessage + pageUrl + top stack frame for dedup
+  signature          String?
   metadata           Json?
   aiResponse         Json?
   failReason         String?
@@ -156,6 +158,8 @@ model Report {
   repo  Repo      @relation(fields: [repoId], references: [id], onDelete: Cascade)
   token ApiToken? @relation(fields: [tokenId], references: [id], onDelete: SetNull)
   issue Issue?
+
+  @@index([repoId, signature, createdAt])
 }
 
 model Issue {

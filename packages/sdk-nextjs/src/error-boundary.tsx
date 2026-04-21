@@ -3,6 +3,7 @@
 import * as React from "react";
 import type { ReportPayload } from "./types";
 import { captureContext, sendReport } from "./utils";
+import { computeSignature, shouldSkipDuplicate } from "./dedup";
 
 interface ErrorBoundaryProps {
   token: string;
@@ -33,6 +34,16 @@ export class GlitchgrabErrorBoundary extends React.Component<
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
     try {
       const context = captureContext(this.props.visitedPages);
+
+      const sig = computeSignature({
+        errorMessage: error.message,
+        pageUrl: context.url,
+        errorStack: error.stack,
+      });
+      if (shouldSkipDuplicate(sig)) {
+        if (this.props.onError) this.props.onError(error);
+        return;
+      }
 
       const payload: ReportPayload = {
         token: this.props.token,

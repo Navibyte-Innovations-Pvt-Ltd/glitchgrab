@@ -8,6 +8,7 @@ import { createGitHubIssue } from "@/lib/github";
 import { uploadScreenshotToS3 } from "@/lib/s3";
 import { dispatchWebhook } from "@/lib/webhooks";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { computeReportSignature, DEDUP_WINDOW_MS } from "@/lib/signature";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -124,6 +125,45 @@ export async function POST(request: Request) {
       "X-RateLimit-Reset": rateLimit.resetAt.toISOString(),
     };
 
+    // Signature dedup — only for SDK_AUTO. USER_REPORT is explicit user action, never dedupe.
+    const signature =
+      body.source === "SDK_AUTO"
+        ? computeReportSignature({
+            errorMessage: body.errorMessage,
+            pageUrl: body.pageUrl,
+            errorStack: body.errorStack,
+          })
+        : null;
+
+    if (body.source === "SDK_AUTO" && signature) {
+      const existing = await prisma.report.findFirst({
+        where: {
+          repoId: apiToken.repoId,
+          signature,
+          createdAt: { gte: new Date(Date.now() - DEDUP_WINDOW_MS) },
+          status: { in: ["CREATED", "PROCESSING", "PENDING"] },
+        },
+        orderBy: { createdAt: "desc" },
+        include: { issue: true },
+      });
+
+      if (existing) {
+        return NextResponse.json(
+          {
+            success: true,
+            data: {
+              reportId: existing.id,
+              status: "DUPLICATE",
+              issueUrl: existing.issue?.githubUrl ?? null,
+              issueNumber: existing.issue?.githubNumber ?? null,
+              message: "Duplicate of recent report — skipped",
+            },
+          },
+          { headers: rateLimitHeaders }
+        );
+      }
+    }
+
     const description = [
       body.errorMessage && `**Error:** ${body.errorMessage}`,
       body.description,
@@ -155,6 +195,7 @@ export async function POST(request: Request) {
         errorStack: body.errorStack || null,
         pageUrl: body.pageUrl || null,
         userAgent: body.userAgent || null,
+        signature,
         metadata: JSON.parse(JSON.stringify(enrichedMetadata)),
         reporterPrimaryKey: body.metadata?.sessionUserId || "unknown",
         reporterName: body.metadata?.sessionUserName || "Unknown",
