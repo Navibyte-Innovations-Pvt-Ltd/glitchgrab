@@ -87,8 +87,8 @@ export function GithubContributions() {
   }
 
   return (
-    <div className="flex flex-col gap-3 w-full">
-      <div className="flex gap-2 w-full">
+    <div className="flex flex-col gap-3 w-full overflow-x-auto">
+      <div className="flex gap-2 min-w-130">
         {/* Day labels */}
         <div className="flex flex-col gap-1 shrink-0 text-[10px] font-mono text-muted-foreground/80 w-6">
           <div className="h-3.25" />
@@ -101,7 +101,7 @@ export function GithubContributions() {
         </div>
 
         {/* Week columns */}
-        <div className="flex flex-1 gap-1 min-w-0">
+        <div className="flex flex-1 gap-1">
           {weeks.map((week, wi) => (
             <div key={wi} className="flex-1 flex flex-col gap-1 min-w-0">
               {Array.from({ length: 7 }).map((_, di) => {
@@ -133,9 +133,9 @@ export function GithubContributions() {
       </div>
 
       {/* Month labels */}
-      <div className="flex gap-2 w-full text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">
+      <div className="flex gap-2 min-w-130 text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">
         <div className="w-6 shrink-0" />
-        <div className="flex flex-1 gap-1 min-w-0">
+        <div className="flex flex-1 gap-1">
           {weeks.map((_, i) => {
             const marker = monthMarkers.find((m) => m.col === i);
             return (
