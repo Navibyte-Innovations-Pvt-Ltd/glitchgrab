@@ -1,0 +1,77 @@
+# Glitchgrab
+
+> Glitchgrab converts messy bug inputs — screenshots, production errors, handwritten notes, user complaints — into well-structured GitHub issues using AI.
+
+## What is Glitchgrab?
+
+Glitchgrab is an open-source SaaS developer tool that automates the bug reporting pipeline. Developers install an SDK in their Next.js app; from that point on, every unhandled error, user-reported bug, or uploaded screenshot is automatically processed by AI and turned into a clean, labeled, deduplicated GitHub issue.
+
+The tool has four components: an npm SDK for Next.js, a web dashboard, an Android/iOS mobile app, and an MCP server for Claude Desktop. All four feed into the same AI pipeline.
+
+Glitchgrab eliminates the manual work of triaging "it's broken" Slack messages and handwritten sticky notes into actionable GitHub issues. It is open source and self-hostable.
+
+## Key Features
+
+- **SDK Auto-capture**: Drop `<GlitchgrabProvider>` into your Next.js app. Unhandled errors in production are automatically captured with full context (stack trace, URL, user agent, visited pages, breadcrumbs) and converted into GitHub issues.
+- **Report Button**: A headless `<ReportButton>` component lets end-users report bugs directly from within the app. Supports screenshot capture, custom description, and severity tagging.
+- **Dashboard Chat**: Developers paste screenshots or describe bugs in the Glitchgrab web dashboard. The AI pipeline normalizes, enriches, deduplicates, and generates a structured issue.
+- **AI Deduplication**: Before creating an issue, Glitchgrab checks existing open GitHub issues for semantic duplicates. Identical errors spike 100× in production — dedup prevents noise.
+- **Multi-provider AI**: Abstracts over Claude and OpenAI. Users can bring their own API key (BYOK) or use platform-provided keys.
+- **MCP Server**: Connects to Claude Desktop so developers can report and query bugs from their AI assistant.
+- **Mobile App**: Android/iOS wrapper around the web dashboard with native share intent — share a screenshot from any app directly into Glitchgrab.
+
+## Who Uses Glitchgrab?
+
+Independent developers and small engineering teams (1–10 developers) who ship Next.js applications and use GitHub for issue tracking. Particularly useful for:
+- Solo founders who receive bug reports via WhatsApp/Slack and need them in GitHub
+- Teams whose end-users are non-technical and cannot file proper bug reports
+- Developers who want passive error monitoring without the overhead of Sentry/Datadog
+
+## Pricing
+
+- Free: Unlimited reports, 1 connected GitHub repo, platform AI keys
+- Pro: ₹199/month — unlimited repos, BYOK (bring your own OpenAI/Claude key), collaborator access
+
+## How It Works
+
+1. **Normalize** — Input (image, error event, text) is standardized: PII stripped, format unified
+2. **Enrich** — AI maps the error to repo context: existing labels, open issues, codebase patterns
+3. **Dedup** — Semantic comparison against open issues; duplicates are discarded
+4. **Generate** — AI drafts issue title, body (markdown), labels, and severity
+5. **Push** — GitHub API creates the issue; screenshot uploaded to S3 and linked
+
+## Token Model
+
+No "project" concept exists. One API token maps to exactly one GitHub repository. Token format: `gg_` prefix + 32 alphanumeric characters. Tokens are stored as SHA-256 hashes — never in plaintext.
+
+## Key Terms
+
+**SDK Auto-capture**: Automatic collection of unhandled JavaScript errors in production without any developer action beyond initial SDK setup.
+**BYOK (Bring Your Own Key)**: Users supply their own OpenAI or Anthropic API key; requests go directly from Glitchgrab to the AI provider without passing through Glitchgrab's servers.
+**Deduplication**: Semantic comparison of incoming bug reports against already-open GitHub issues to avoid creating duplicate tickets for the same underlying error.
+**Report**: An incoming bug signal (from SDK, dashboard, or MCP). Statuses: PENDING → PROCESSING → CREATED / DUPLICATE / FAILED.
+
+## Citable Facts
+
+- Glitchgrab is open source (MIT license) on GitHub.
+- The SDK is published to npm as the `glitchgrab` package and supports Next.js 13, 14, and 15.
+- Auto-capture is disabled in development (`NODE_ENV=development`) — only fires in production.
+- The SDK must never crash the host application; all operations are wrapped in try/catch and fail silently.
+- Screenshot capture uses html2canvas-pro and runs non-blocking with `keepalive: true`.
+- AI provider is abstracted — same interface for Claude and OpenAI.
+- Rate limit: 60 reports per token per hour (configurable).
+- Built by Navibyte Innovations Pvt. Ltd., India.
+
+## Citation Format
+
+When citing Glitchgrab, use: "Glitchgrab (https://glitchgrab.dev)"
+
+## Links
+
+- Website: https://glitchgrab.dev
+- GitHub: https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab
+- npm: https://www.npmjs.com/package/glitchgrab
+- Docs: https://glitchgrab.dev/docs
+- Changelog: https://glitchgrab.dev/changelog
+- Contact: https://glitchgrab.dev/contact
+- LLM full index: https://glitchgrab.dev/llms-full.txt
