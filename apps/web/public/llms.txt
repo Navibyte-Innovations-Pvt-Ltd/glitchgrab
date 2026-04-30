@@ -17,6 +17,7 @@ Glitchgrab eliminates the manual work of triaging "it's broken" Slack messages a
 - **Dashboard Chat**: Developers paste screenshots or describe bugs in the Glitchgrab web dashboard. The AI pipeline normalizes, enriches, deduplicates, and generates a structured issue.
 - **AI Deduplication**: Before creating an issue, Glitchgrab checks existing open GitHub issues for semantic duplicates. Identical errors spike 100× in production — dedup prevents noise.
 - **Multi-provider AI**: Abstracts over Claude and OpenAI. Users can bring their own API key (BYOK) or use platform-provided keys.
+- **Keyboard Shortcuts**: `Cmd+Shift+G` (Mac) / `Ctrl+Shift+G` (Windows/Linux) opens the report dialog from anywhere. `Cmd+V` / `Ctrl+V` pastes a screenshot from the clipboard when the dialog is open.
 - **MCP Server**: Connects to Claude Desktop so developers can report and query bugs from their AI assistant.
 - **Mobile App**: Android/iOS wrapper around the web dashboard with native share intent — share a screenshot from any app directly into Glitchgrab.
 
