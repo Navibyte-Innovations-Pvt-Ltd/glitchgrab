@@ -1,3 +1,21 @@
+## [1.23.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.22.2...v1.23.0) (2026-04-30)
+
+### Features
+
+* **sdk:** add Cmd+Shift+G global keyboard shortcut to open report dialog ([23cfae1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/23cfae1e3b27f11352d23164ee882e11af0aae4e))
+* **sdk:** add deduplication check before dispatching report in error boundary ([340487b](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/340487be7bf55073aaa94c6a4f6bd77003f0c25c))
+* **sdk:** add in-memory error signature dedup with 5min window ([517b622](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/517b62265e752fb0123d99842865eb5d673cb66d))
+* **sdk:** export deduplication utilities ([c65ad1c](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/c65ad1cd03fe341f483c9f91894d2792a72bcbdf))
+* **sdk:** implement deduplication check for global error and unhandled rejection listeners ([4f6d865](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/4f6d865116976560f76a51c88cc5e1dee2df66f7))
+* **sdk:** support Cmd+V clipboard paste and update upload hint text in report dialog ([e33924b](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/e33924ba6250199e34781a2cf52d03d8c68d2b2c))
+* **seo:** add dynamic llms-full.txt route with SDK quickstart and API reference ([f5067c7](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/f5067c76cc8941bc8b3ba6887430f91fa0e35097))
+* **seo:** add keywords, authors, robots meta and title template to root layout ([ec8c8d7](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/ec8c8d763ee823c5eb8b5c560dac9ecb5ba24aa8))
+* **seo:** add llms.txt for AI crawler indexing and citation ([f8c6b34](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/f8c6b349ab70f85782784abaa790cc1c311ccec0))
+* **seo:** add Script-based JSON-LD components for Organization, FAQ, Breadcrumb, HowTo ([fe1830b](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/fe1830b9e951a9e76fce0a969d8707a6145e399d))
+* **web:** add utility to compute error signatures for issue deduplication ([7df700a](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/7df700a34b6f1dc28362f57fef01f301bcf4801a))
+* **web:** implement server-side verification to detect and skip duplicate error reports ([2473c26](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/2473c2623ba787ac63e49ad0fbd690e050284278))
+* **web:** update schema with report signature field and index for deduplication ([561f2ab](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/561f2ab304e870ca199caf5a53719baa5f416b3d))
+
 ## [1.22.2](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.22.1...v1.22.2) (2026-04-21)
 
 ### Bug Fixes
