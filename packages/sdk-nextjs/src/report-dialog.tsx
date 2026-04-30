@@ -9,11 +9,16 @@ import type { ReportType, ReportSeverity, UseGlitchgrabReturn } from "./types";
 function useIsDark(): boolean {
   if (typeof window === "undefined") return true;
   try {
-    const bg = getComputedStyle(document.body).backgroundColor;
-    const match = bg.match(/\d+/g);
-    if (match && match.length >= 3) {
-      const [r, g, b] = match.map(Number);
-      return (r * 299 + g * 587 + b * 114) / 1000 < 128;
+    // Check body then html — most sites set background on html, not body
+    for (const el of [document.body, document.documentElement]) {
+      const bg = getComputedStyle(el).backgroundColor;
+      const match = bg.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?\s*\)/);
+      if (match) {
+        const alpha = match[4] !== undefined ? parseFloat(match[4]) : 1;
+        if (alpha < 0.05) continue; // transparent — skip to next element
+        const [r, g, b] = [Number(match[1]), Number(match[2]), Number(match[3])];
+        return (r * 299 + g * 587 + b * 114) / 1000 < 128;
+      }
     }
     return window.matchMedia("(prefers-color-scheme: dark)").matches;
   } catch {
