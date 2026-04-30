@@ -1,3 +1,9 @@
+## [1.23.2](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.23.1...v1.23.2) (2026-04-30)
+
+### Bug Fixes
+
+* **sdk:** detect host theme from html element when body bg is transparent ([dc848c3](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/dc848c36d18788474abd84648d42d2030eedea86))
+
 ## [1.23.1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.23.0...v1.23.1) (2026-04-30)
 
 ## [1.23.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.22.2...v1.23.0) (2026-04-30)
