@@ -146,6 +146,18 @@ function FeedbackWidget() {
 
 Note: `openReportDialog()` requires a `<ReportButton>` to be mounted somewhere in the component tree. It triggers the same modal with screenshot capture.
 
+## Keyboard Shortcuts
+
+Once `GlitchgrabProvider` is mounted, these shortcuts work globally:
+
+| Shortcut | Action |
+|----------|--------|
+| `Cmd+Shift+G` / `Ctrl+Shift+G` | Open the report dialog |
+| `Cmd+V` / `Ctrl+V` (dialog open) | Paste a screenshot from clipboard |
+| `Escape` | Close the dialog |
+
+No configuration needed — shortcuts are active as long as the provider is in the tree.
+
 ## Fetching Reports by User
 
 ### React hook (recommended)
