@@ -4,29 +4,58 @@ import { AuthSessionProvider } from "@/components/providers/session-provider";
 import { GlitchgrabSDKProvider } from "@/components/providers/glitchgrab-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { Toaster } from "@/components/ui/sonner";
-import { organizationSchema } from "@/lib/schema";
+import { OrganizationJsonLd } from "@/components/seo/json-ld";
+
+const BASE_URL = "https://glitchgrab.dev";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://glitchgrab.dev"),
-  title: "Glitchgrab — Turn messy bugs into GitHub issues with AI",
+  metadataBase: new URL(BASE_URL),
+  title: {
+    default: "Glitchgrab — Turn messy bugs into GitHub issues with AI",
+    template: "%s — Glitchgrab",
+  },
   description:
     "Convert screenshots, production errors, and user complaints into well-structured GitHub issues. Powered by AI. Open source.",
+  keywords: [
+    "ai bug reporting tool",
+    "github issue automation",
+    "bug report to github issue",
+    "nextjs error capture sdk",
+    "production error tracking",
+    "screenshot to github issue",
+    "automated bug tracking developer tool",
+    "open source bug reporting",
+    "ai issue creator",
+    "developer error monitoring",
+    "unhandled error capture nextjs",
+    "user bug report widget",
+  ],
+  authors: [{ name: "Navibyte Innovations Pvt. Ltd.", url: BASE_URL }],
+  creator: "Navibyte Innovations Pvt. Ltd.",
   alternates: {
-    canonical: "https://glitchgrab.dev",
+    canonical: BASE_URL,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true },
   },
   openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: BASE_URL,
+    siteName: "Glitchgrab",
     title: "Glitchgrab — Grab the glitch. Ship the fix.",
     description:
       "Turn messy bug reports into structured GitHub issues with AI. SDK auto-capture, screenshots, user reports — all become clean issues.",
-    siteName: "Glitchgrab",
-    images: [{ url: "/og-image.png", width: 1200, height: 630 }],
+    images: [{ url: `${BASE_URL}/og-image.png`, width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Glitchgrab — Grab the glitch. Ship the fix.",
     description:
       "Turn messy bug reports into structured GitHub issues with AI.",
-    images: ["/og-image.png"],
+    images: [`${BASE_URL}/og-image.png`],
   },
 };
 
@@ -51,10 +80,7 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
           rel="stylesheet"
         />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema()) }}
-        />
+        <OrganizationJsonLd />
       </head>
       <body>
         <AuthSessionProvider>
