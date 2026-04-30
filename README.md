@@ -122,11 +122,11 @@ bun run dev
 - [x] GitHub OAuth + repo connection + token generation
 - [x] AI pipeline: image/text → structured GitHub issue
 - [x] SDK: Error boundary + auto-capture
-- [x] SDK: Report Error button
+- [x] SDK: Report Error button + keyboard shortcuts (Cmd+Shift+G, Cmd+V paste)
 - [x] Dashboard: Upload screenshots
 - [x] AI deduplication check
+- [x] Mobile app (Android + iOS)
 - [ ] MCP server
-- [ ] Mobile app (Android + iOS)
 - [ ] Linear + Jira support
 - [ ] Multi-framework SDK (React, Vue)
 
