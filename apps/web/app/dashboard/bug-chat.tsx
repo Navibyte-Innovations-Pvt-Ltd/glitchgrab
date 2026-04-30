@@ -30,41 +30,6 @@ import {
 import { toast } from "sonner";
 import { InteractiveQuestions } from "@/components/dashboard/interactive-questions";
 
-/** Validate that report text is meaningful — rejects gibberish, throwaway words, random chars */
-function isLowQualityText(text: string): string | null {
-  const trimmed = text.trim();
-  if (!trimmed) return null;
-
-  const throwaway =
-    /^(done|ok|yes|no|hi|hello|hey|test|testing|asdf|qwerty|abc|xyz|foo|bar|baz|lol|lmao|idk|bruh|nice|cool|wow|sup|yo|nah|yep|nope|thanks|thx|ty|k|kk|hmm|hm|na|mm|mhm|aight|bet|gg|wp|rip|omg|pls|plz)$/i;
-  if (throwaway.test(trimmed)) {
-    return "Please describe the actual issue you're experiencing";
-  }
-
-  if (/(.)\1{4,}/.test(trimmed)) {
-    return "Please provide a meaningful bug description";
-  }
-
-  const letters = trimmed.replace(/[^a-zA-Z]/g, "");
-  if (letters.length >= 4) {
-    const vowels = letters.replace(/[^aeiouAEIOU]/g, "").length;
-    const vowelRatio = vowels / letters.length;
-    if (vowelRatio < 0.08) {
-      return "That doesn't look like a valid bug description";
-    }
-  }
-
-  const words = trimmed.split(/\s+/).filter((w) => w.length > 0);
-  if (words.length === 1 && trimmed.length < 10) {
-    const techTerms =
-      /^(crash|error|bug|fail|broken|slow|freeze|lag|404|500|null|undefined|nan|timeout|overflow|leak|cors|oom)$/i;
-    if (!techTerms.test(trimmed)) {
-      return "Please provide more detail about the issue";
-    }
-  }
-
-  return null;
-}
 
 async function compressImage(
   file: File,
@@ -655,12 +620,6 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
 
     if (!selectedRepo) {
       toast.error("Select a repo first");
-      return;
-    }
-
-    const qualityError = isLowQualityText(input);
-    if (qualityError) {
-      toast.error(qualityError);
       return;
     }
 
