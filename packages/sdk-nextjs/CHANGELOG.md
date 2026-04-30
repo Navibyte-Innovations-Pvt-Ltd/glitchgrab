@@ -1,3 +1,14 @@
+## [1.17.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.16.0...sdk-v1.17.0) (2026-04-30)
+
+### Features
+
+* **sdk:** add Cmd+Shift+G global keyboard shortcut to open report dialog ([23cfae1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/23cfae1e3b27f11352d23164ee882e11af0aae4e))
+* **sdk:** support Cmd+V clipboard paste and update upload hint text in report dialog ([e33924b](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/e33924ba6250199e34781a2cf52d03d8c68d2b2c))
+* **seo:** add dynamic llms-full.txt route with SDK quickstart and API reference ([f5067c7](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/f5067c76cc8941bc8b3ba6887430f91fa0e35097))
+* **seo:** add keywords, authors, robots meta and title template to root layout ([ec8c8d7](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/ec8c8d763ee823c5eb8b5c560dac9ecb5ba24aa8))
+* **seo:** add llms.txt for AI crawler indexing and citation ([f8c6b34](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/f8c6b349ab70f85782784abaa790cc1c311ccec0))
+* **seo:** add Script-based JSON-LD components for Organization, FAQ, Breadcrumb, HowTo ([fe1830b](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/fe1830b9e951a9e76fce0a969d8707a6145e399d))
+
 ## [1.16.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.15.0...sdk-v1.16.0) (2026-04-21)
 
 ### Features
