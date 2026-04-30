@@ -275,6 +275,23 @@ function GlitchgrabProviderInner({
     }
   }, []);
 
+  // Global keyboard shortcut: Cmd+Shift+G (Mac) / Ctrl+Shift+G (Windows/Linux)
+  useEffect(() => {
+    try {
+      if (typeof window === "undefined") return;
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "g") {
+          e.preventDefault();
+          openReportDialog();
+        }
+      };
+      window.addEventListener("keydown", handleKeyDown);
+      return () => window.removeEventListener("keydown", handleKeyDown);
+    } catch {
+      // Never crash
+    }
+  }, [openReportDialog]);
+
   return (
     <GlitchgrabContext.Provider
       value={{

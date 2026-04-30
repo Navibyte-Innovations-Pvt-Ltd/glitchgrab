@@ -312,6 +312,32 @@ export function ReportDialog({
     return () => document.removeEventListener("keydown", handleEsc);
   }, [isOpen, previewOpen]);
 
+  // Paste image from clipboard (Cmd+V / Ctrl+V) when dialog is open
+  useEffect(() => {
+    if (!isOpen) return;
+    const handlePaste = (e: ClipboardEvent) => {
+      try {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].type.startsWith("image/")) {
+            const file = items[i].getAsFile();
+            if (!file) continue;
+            const reader = new FileReader();
+            reader.onload = () => setScreenshot(reader.result as string);
+            reader.readAsDataURL(file);
+            e.preventDefault();
+            break;
+          }
+        }
+      } catch {
+        // silently fail
+      }
+    };
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, [isOpen]);
+
   const handleClose = () => {
     setIsOpen(false);
     setStep(1);
@@ -734,7 +760,7 @@ export function ReportDialog({
                               cursor: "pointer",
                             }}
                           >
-                            Upload screenshot
+                            Upload or paste (⌘V)
                           </button>
                           <button
                             type="button"
