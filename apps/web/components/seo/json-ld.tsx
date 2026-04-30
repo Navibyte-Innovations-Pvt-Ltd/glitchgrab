@@ -43,25 +43,6 @@ export function OrganizationJsonLd() {
   );
 }
 
-export function FAQJsonLd({ faqs }: { faqs: { q: string; a: string }[] }) {
-  const schema = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: faqs.map(({ q, a }) => ({
-      "@type": "Question",
-      name: q,
-      acceptedAnswer: { "@type": "Answer", text: a },
-    })),
-  };
-  return (
-    <Script
-      id="faq-json-ld"
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
-    />
-  );
-}
-
 export function BreadcrumbJsonLd({
   items,
 }: {
@@ -80,33 +61,6 @@ export function BreadcrumbJsonLd({
   return (
     <Script
       id="breadcrumb-json-ld"
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
-    />
-  );
-}
-
-export function HowToJsonLd({
-  name,
-  steps,
-}: {
-  name: string;
-  steps: { name: string; text: string }[];
-}) {
-  const schema = {
-    "@context": "https://schema.org",
-    "@type": "HowTo",
-    name,
-    step: steps.map((s, i) => ({
-      "@type": "HowToStep",
-      position: i + 1,
-      name: s.name,
-      text: s.text,
-    })),
-  };
-  return (
-    <Script
-      id="howto-json-ld"
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
     />
