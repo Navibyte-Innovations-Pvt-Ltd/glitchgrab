@@ -37,6 +37,7 @@
   "dependencies": {
     "@tanstack/react-query": "^5.95.2",
     "axios": "^1.13.6",
+    "dotenv": "^17.4.2",
     "next-sitemap": "^4.2.3"
   }
 }
