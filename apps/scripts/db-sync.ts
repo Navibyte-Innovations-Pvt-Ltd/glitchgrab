@@ -1,11 +1,36 @@
 import { execSync } from 'child_process';
+import path from 'path';
+import fs from 'fs';
+import dotenv from 'dotenv';
 
+/**
+ * Database connection parts
+ */
 interface DbConnectionParts {
     host: string;
     port: string;
     user: string;
     password: string;
     database: string;
+}
+
+// Load environment variables from .env file
+// Try to find .env in workspace root
+const findEnvFile = (dir: string): string | null => {
+    const envPath = path.join(dir, '.env');
+    if (fs.existsSync(envPath)) {
+        return envPath;
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) {
+        return null;
+    }
+    return findEnvFile(parent);
+};
+
+const envFile = findEnvFile(process.cwd());
+if (envFile) {
+    dotenv.config({ path: envFile });
 }
 
 /**
@@ -23,7 +48,7 @@ const colors = {
 
 const validateEnv = (): { localDbUrl: string; prodDbUrl: string } => {
     const localDbUrl = process.env.NEXT_DIRECT_URL;
-    const prodDbUrl = process.env.PROD_NEXT_POSTGRES_URL;
+    const prodDbUrl = process.env.PROD_DATABASE_URL; // eslint-disable-line turbo/no-undeclared-env-vars
 
     if (!localDbUrl) {
         console.error(
@@ -34,16 +59,16 @@ const validateEnv = (): { localDbUrl: string; prodDbUrl: string } => {
 
     if (!prodDbUrl) {
         console.error(
-            `${colors.red}${colors.bold}Error: PROD_NEXT_POSTGRES_URL is not defined in your environment.${colors.reset}`
+            `${colors.red}${colors.bold}Error: PROD_DATABASE_URL is not defined in your environment.${colors.reset}`
         );
         console.warn(
-            `${colors.yellow}Please add PROD_NEXT_POSTGRES_URL to your .env file.${colors.reset}`
+            `${colors.yellow}Please add PROD_DATABASE_URL to your .env file.${colors.reset}`
         );
         process.exit(1);
     }
 
     // Hard stop: destination must never be a cloud/remote database
-    const isRemoteDb = (url: string) =>
+    const isRemoteDb = (url: string): boolean =>
         url.includes('neon.tech') ||
         url.includes('.aws.') ||
         url.includes('supabase') ||
@@ -63,7 +88,7 @@ const validateEnv = (): { localDbUrl: string; prodDbUrl: string } => {
         const localHost = new URL(localDbUrl).hostname;
         const prodHost = new URL(prodDbUrl).hostname;
         if (localHost === prodHost) {
-            console.error(`${colors.red}${colors.bold}ABORTED: NEXT_DIRECT_URL and PROD_NEXT_POSTGRES_URL point to the same host.${colors.reset}`);
+            console.error(`${colors.red}${colors.bold}ABORTED: NEXT_DIRECT_URL and PROD_DATABASE_URL point to the same host.${colors.reset}`);
             console.error(`${colors.red}You are about to overwrite your production database. Refusing to run.${colors.reset}`);
             process.exit(1);
         }
