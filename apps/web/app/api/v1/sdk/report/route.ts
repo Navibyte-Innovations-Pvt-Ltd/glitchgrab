@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import { prisma } from "@/lib/db";
 import { hashToken } from "@/lib/tokens";
 import { processReport } from "@/lib/pipeline";
@@ -360,9 +361,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // Auto-capture — process async, respond immediately
-    processReport(report.id).catch((err) =>
-      console.error("SDK auto-capture pipeline error:", err)
+    // Auto-capture — register background work before responding so Vercel doesn't kill it
+    waitUntil(
+      processReport(report.id).catch((err) =>
+        console.error("SDK auto-capture pipeline error:", err)
+      )
     );
 
     return NextResponse.json(
