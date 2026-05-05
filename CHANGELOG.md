@@ -1,3 +1,9 @@
+## [1.25.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.24.0...v1.25.0) (2026-05-05)
+
+### Features
+
+* **dashboard:** group open issues by repo with per-project count badges ([af5e0ae](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/af5e0ae5684d8b6be4c77e992c0b5e4ddfe51e9a))
+
 ## [1.24.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.23.2...v1.24.0) (2026-05-05)
 
 ### Features
