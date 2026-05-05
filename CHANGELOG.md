@@ -1,3 +1,13 @@
+## [1.24.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.23.2...v1.24.0) (2026-05-05)
+
+### Features
+
+* add dotenv support for environment variable management ([627eec2](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/627eec26ea21ac727365add142873fc52568c189))
+
+### Bug Fixes
+
+* **sdk:** use waitUntil to keep pipeline alive after response on Vercel ([bd06245](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/bd062456473929f13a40415569b59f89e53f6ede))
+
 ## [1.23.2](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.23.1...v1.23.2) (2026-04-30)
 
 ### Bug Fixes
