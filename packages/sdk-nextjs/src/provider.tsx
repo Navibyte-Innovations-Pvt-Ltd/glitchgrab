@@ -156,6 +156,7 @@ function GlitchgrabProviderInner({
               ...(session?.userId ? { sessionUserId: session.userId } : {}),
               ...(session?.name ? { sessionUserName: String(session.name) } : {}),
               ...(session?.email ? { sessionUserEmail: String(session.email) } : {}),
+              ...(session?.phone ? { sessionUserPhone: String(session.phone) } : {}),
             },
           };
           sendReport(payload, baseUrl).then((result) => {
@@ -196,6 +197,7 @@ function GlitchgrabProviderInner({
               ...(session?.userId ? { sessionUserId: session.userId } : {}),
               ...(session?.name ? { sessionUserName: String(session.name) } : {}),
               ...(session?.email ? { sessionUserEmail: String(session.email) } : {}),
+              ...(session?.phone ? { sessionUserPhone: String(session.phone) } : {}),
             },
           };
           sendReport(payload, baseUrl).then((result) => {
@@ -217,7 +219,7 @@ function GlitchgrabProviderInner({
     } catch {
       // Never crash
     }
-  }, [token, baseUrl, onError, onReportSent]);
+  }, [token, baseUrl, onError, onReportSent, session]);
 
   const report = useCallback(
     async (
