@@ -150,14 +150,25 @@ export async function processReport(
           issueBody += `\n\n## Screenshot${refs.length > 1 ? "s" : ""}\n\n${refs.join("\n\n")}`;
         }
       }
-      // Add collaborator attribution if applicable
+      // Add reporter / collaborator attribution
       const collabEmail = report.metadata && typeof report.metadata === "object"
         ? (report.metadata as Record<string, unknown>).collaboratorEmail
         : null;
+
       if (collabEmail) {
         issueBody += `\n\n---\n> Reported by: ${collabEmail}\n\n*Reported via [Glitchgrab](https://glitchgrab.dev)*`;
       } else {
-        issueBody += "\n\n---\n*Reported via [Glitchgrab](https://glitchgrab.dev)*";
+        const reporterParts: string[] = [];
+        if (report.reporterName && report.reporterName !== "Unknown") reporterParts.push(report.reporterName);
+        if (report.reporterEmail) reporterParts.push(`(${report.reporterEmail})`);
+        if (report.reporterPhone) reporterParts.push(`📞 ${report.reporterPhone}`);
+        if (report.reporterPrimaryKey && report.reporterPrimaryKey !== "unknown") reporterParts.push(`• ID: \`${report.reporterPrimaryKey}\``);
+
+        if (reporterParts.length > 0) {
+          issueBody += `\n\n---\n> **Reported by:** ${reporterParts.join(" ")}\n\n*Reported via [Glitchgrab](https://glitchgrab.dev)*`;
+        } else {
+          issueBody += "\n\n---\n*Reported via [Glitchgrab](https://glitchgrab.dev)*";
+        }
       }
 
       const createdIssue = await createGitHubIssue(account.access_token, {
