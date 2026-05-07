@@ -1,3 +1,16 @@
+## [1.18.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.17.1...sdk-v1.18.0) (2026-05-07)
+
+### Features
+
+* add dotenv support for environment variable management ([627eec2](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/627eec26ea21ac727365add142873fc52568c189))
+* **dashboard:** group open issues by repo with per-project count badges ([af5e0ae](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/af5e0ae5684d8b6be4c77e992c0b5e4ddfe51e9a))
+
+### Bug Fixes
+
+* **pipeline:** append reporter session info to SDK_AUTO GitHub issues ([92b06f1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/92b06f137016a8867c9afd20e3ac8f2b1a486502))
+* **sdk:** include phone in auto-capture payloads and add session to effect deps ([6a0f8de](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/6a0f8de55910d3f59017f279e0d3f34fcce47281))
+* **sdk:** use waitUntil to keep pipeline alive after response on Vercel ([bd06245](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/bd062456473929f13a40415569b59f89e53f6ede))
+
 ## [1.17.1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.17.0...sdk-v1.17.1) (2026-04-30)
 
 ### Bug Fixes
