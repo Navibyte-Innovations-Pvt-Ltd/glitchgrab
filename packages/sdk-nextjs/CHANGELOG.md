@@ -1,3 +1,9 @@
+## [1.18.1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.18.0...sdk-v1.18.1) (2026-05-12)
+
+### Bug Fixes
+
+* **sdk:** include session data in error boundary auto-reports ([b93fd62](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/b93fd625d3145308ef318d3c2fa24edcec790306))
+
 ## [1.18.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.17.1...sdk-v1.18.0) (2026-05-07)
 
 ### Features
