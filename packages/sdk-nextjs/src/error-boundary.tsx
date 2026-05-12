@@ -1,13 +1,14 @@
 "use client";
 
 import * as React from "react";
-import type { ReportPayload } from "./types";
+import type { GlitchgrabSession, ReportPayload } from "./types";
 import { captureContext, sendReport } from "./utils";
 import { computeSignature, shouldSkipDuplicate } from "./dedup";
 
 interface ErrorBoundaryProps {
   token: string;
   baseUrl?: string;
+  session?: GlitchgrabSession | null;
   onError?: (error: Error) => void;
   fallback?: React.ReactNode;
   visitedPages: string[];
@@ -45,6 +46,7 @@ export class GlitchgrabErrorBoundary extends React.Component<
         return;
       }
 
+      const session = this.props.session;
       const payload: ReportPayload = {
         token: this.props.token,
         source: "SDK_AUTO",
@@ -59,6 +61,10 @@ export class GlitchgrabErrorBoundary extends React.Component<
         metadata: {
           timestamp: context.timestamp,
           visitedPages: JSON.stringify(context.visitedPages),
+          ...(session?.userId ? { sessionUserId: session.userId } : {}),
+          ...(session?.name ? { sessionUserName: String(session.name) } : {}),
+          ...(session?.email ? { sessionUserEmail: String(session.email) } : {}),
+          ...(session?.phone ? { sessionUserPhone: String(session.phone) } : {}),
         },
       };
 

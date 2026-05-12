@@ -308,6 +308,7 @@ function GlitchgrabProviderInner({
       <GlitchgrabErrorBoundary
         token={token}
         baseUrl={baseUrl}
+        session={session}
         onError={onError}
         fallback={fallback}
         visitedPages={visitedPagesRef.current}
