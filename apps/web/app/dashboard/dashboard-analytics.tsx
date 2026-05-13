@@ -315,8 +315,8 @@ function StatCard({
       }`}
     >
       {critical && <div className="absolute top-0 left-0 right-0 h-0.5 bg-red-500/60" />}
-      <CardContent className="p-4 md:p-5">
-        <div className="flex items-start justify-between mb-3">
+      <CardContent className="p-3">
+        <div className="flex items-start justify-between mb-1.5">
           <span
             className={`text-[10px] font-mono uppercase tracking-[0.15em] ${
               critical ? "text-red-400" : "text-muted-foreground"
@@ -324,20 +324,20 @@ function StatCard({
           >
             {label}
           </span>
-          <span className={critical ? "text-red-400/70" : "text-muted-foreground/60"}>
+          <span className={`${critical ? "text-red-400/70" : "text-muted-foreground/60"} [&>svg]:h-3.5 [&>svg]:w-3.5`}>
             {icon}
           </span>
         </div>
-        <div className="flex items-baseline gap-3 flex-wrap">
+        <div className="flex items-baseline gap-2 flex-wrap">
           <span
-            className={`text-3xl md:text-4xl font-mono tabular-nums font-medium ${
+            className={`text-2xl font-mono tabular-nums font-medium ${
               critical ? "text-red-400" : "text-foreground"
             }`}
           >
             {decimal ? value.toFixed(1) : value < 100 ? String(value).padStart(2, "0") : value}
           </span>
           <span
-            className={`text-[10px] font-mono px-2 py-0.5 rounded border ${toneClasses[pill.tone]}`}
+            className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${toneClasses[pill.tone]}`}
           >
             {pill.text}
           </span>
