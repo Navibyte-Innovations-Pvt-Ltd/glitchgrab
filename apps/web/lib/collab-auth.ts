@@ -4,7 +4,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 const COOKIE_NAME = "glitchgrab-collab-session";
 const SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "collab-fallback-secret";
 
-export interface CollabSession {
+interface CollabSession {
   collaboratorId: string;
   email: string;
   ownerId: string;
@@ -22,7 +22,7 @@ export function createCollabToken(payload: CollabSession): string {
   return `${encoded}.${sig}`;
 }
 
-export function verifyCollabToken(token: string): CollabSession | null {
+function verifyCollabToken(token: string): CollabSession | null {
   try {
     const [encoded, sig] = token.split(".");
     if (!encoded || !sig) return null;
