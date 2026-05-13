@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, memo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import Link from "next/link";
@@ -47,9 +47,77 @@ function formatDateFull(iso: string) {
   return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
 }
 
+// Memoized so it never re-renders when parent hoveredDay state changes.
+// That's the only way to keep CSS :hover stable while parent re-renders.
+const BarList = memo(function BarList({
+  barData,
+  maxCount,
+  tickDates,
+  onHover,
+}: {
+  barData: DayBucket[];
+  maxCount: number;
+  tickDates: string[];
+  onHover: (bucket: DayBucket | null) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      {/* No overflow wrapper — overflow clips tooltips on both axes */}
+      <div className="flex items-end gap-0.5 h-40 pb-1 w-full">
+        {barData.map((bucket) => {
+          const heightPct = maxCount > 0 ? (bucket.count / maxCount) * 100 : 0;
+          return (
+            <div
+              key={bucket.date}
+              className="group/bar relative flex-1 min-w-0 flex flex-col items-center justify-end h-full cursor-pointer"
+              onMouseEnter={() => onHover(bucket)}
+              onMouseLeave={() => onHover(null)}
+            >
+              {/* CSS-only tooltip: opacity transition, zero state, zero re-render */}
+              <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 z-30 pointer-events-none whitespace-nowrap rounded-md bg-popover text-popover-foreground border border-border px-2.5 py-1.5 text-[11px] font-mono shadow-lg opacity-0 group-hover/bar:opacity-100 transition-opacity duration-100">
+                <div className="font-semibold text-primary">{bucket.count} closed</div>
+                <div className="text-muted-foreground">{formatDateFull(bucket.date)}</div>
+                <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-border" />
+              </div>
+              <div
+                className={cn(
+                  "w-full rounded-t-xs transition-colors group-hover/bar:bg-primary group-hover/bar:shadow-[0_0_8px_rgba(34,211,238,0.5)]",
+                  bucket.count === 0 ? "bg-muted/50 border border-border/40" : "bg-primary/60"
+                )}
+                style={{ height: `${Math.max(bucket.count > 0 ? 4 : 2, heightPct)}%` }}
+              />
+            </div>
+          );
+        })}
+      </div>
+
+      {/* X-axis labels */}
+      <div className="flex items-end gap-0.5 w-full">
+        {barData.map((bucket) => {
+          const showTick = tickDates.includes(bucket.date);
+          return (
+            <div key={bucket.date} className="flex-1 min-w-0 flex justify-center">
+              {showTick && (
+                <span className="text-[9px] font-mono text-muted-foreground/70 whitespace-nowrap -rotate-45 origin-top-left ml-1">
+                  {formatDate(bucket.date)}
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+});
+
 export function IssuesClosedAnalytics() {
   const [days, setDays] = useState<7 | 30 | 90>(30);
   const [hoveredDay, setHoveredDay] = useState<DayBucket | null>(null);
+
+  // Stable callback — BarList memo only works if onHover ref is stable
+  const handleHover = useCallback((bucket: DayBucket | null) => {
+    setHoveredDay(bucket);
+  }, []);
 
   const { data, isLoading } = useQuery<AnalyticsData>({
     queryKey: ["issues-closed-analytics", days],
@@ -64,17 +132,13 @@ export function IssuesClosedAnalytics() {
   const { barData, maxCount, tickDates } = useMemo(() => {
     if (!data?.daily.length) return { barData: [], maxCount: 1, tickDates: [] as string[] };
     const max = Math.max(1, ...data.daily.map((d) => d.count));
-
     const step = days === 7 ? 1 : days === 30 ? 5 : 15;
     const ticks: string[] = [];
     data.daily.forEach((d, i) => {
       if (i % step === 0) ticks.push(d.date);
     });
-
     return { barData: data.daily, maxCount: max, tickDates: ticks };
   }, [data, days]);
-
-  const displayed = hoveredDay ?? null;
 
   return (
     <div className="flex flex-col gap-6 md:gap-8">
@@ -148,7 +212,7 @@ export function IssuesClosedAnalytics() {
             backgroundSize: "40px 40px",
           }}
         />
-        <CardContent className="relative z-10 p-6 space-y-4">
+        <CardContent className="relative z-10 p-6 space-y-4 overflow-visible">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-medium text-foreground flex items-center gap-2">
               <Calendar className="h-4 w-4 text-primary" />
@@ -168,73 +232,29 @@ export function IssuesClosedAnalytics() {
               No closed issues found. Connect a GitHub repo to get started.
             </div>
           ) : (
-            <div className="flex flex-col gap-2">
-              {/* Chart area — overflow-visible so tooltips don't get clipped */}
-              <div className="overflow-x-auto">
-                <div className="flex items-end gap-0.5 h-40 pb-1 min-w-full">
-                  {barData.map((bucket) => {
-                    const heightPct = maxCount > 0 ? (bucket.count / maxCount) * 100 : 0;
-                    return (
-                      <div
-                        key={bucket.date}
-                        className="group/bar relative flex-1 min-w-1.5 flex flex-col items-center justify-end h-full cursor-pointer"
-                        onMouseEnter={() => setHoveredDay(bucket)}
-                        onMouseLeave={() => setHoveredDay(null)}
-                      >
-                        {/* CSS-only tooltip — no state, no re-render, no flicker */}
-                        <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 z-30 pointer-events-none whitespace-nowrap rounded-md bg-popover text-popover-foreground border border-border px-2.5 py-1.5 text-[11px] font-mono shadow-lg opacity-0 group-hover/bar:opacity-100 transition-opacity duration-100">
-                          <div className="font-semibold text-primary">{bucket.count} closed</div>
-                          <div className="text-muted-foreground">{formatDateFull(bucket.date)}</div>
-                          <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-border" />
-                        </div>
-                        <div
-                          className={cn(
-                            "w-full rounded-t-xs transition-colors group-hover/bar:bg-primary group-hover/bar:shadow-[0_0_8px_rgba(34,211,238,0.5)]",
-                            bucket.count === 0
-                              ? "bg-muted/50 border border-border/40"
-                              : "bg-primary/60"
-                          )}
-                          style={{ height: `${Math.max(bucket.count > 0 ? 4 : 2, heightPct)}%` }}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* X-axis labels */}
-              <div className="flex items-end gap-0.5 overflow-x-auto">
-                {barData.map((bucket) => {
-                  const showTick = tickDates.includes(bucket.date);
-                  return (
-                    <div key={bucket.date} className="flex-1 min-w-1.5 flex justify-center">
-                      {showTick && (
-                        <span className="text-[9px] font-mono text-muted-foreground/70 whitespace-nowrap -rotate-45 origin-top-left ml-1">
-                          {formatDate(bucket.date)}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <BarList
+              barData={barData}
+              maxCount={maxCount}
+              tickDates={tickDates}
+              onHover={handleHover}
+            />
           )}
         </CardContent>
       </Card>
 
       {/* Hovered day issue list */}
-      {displayed && displayed.issues.length > 0 && (
+      {hoveredDay && hoveredDay.issues.length > 0 && (
         <Card>
           <CardContent className="p-5 space-y-3">
             <h3 className="text-sm font-medium text-foreground">
               Closed on{" "}
-              <span className="text-primary font-mono">{formatDateFull(displayed.date)}</span>
+              <span className="text-primary font-mono">{formatDateFull(hoveredDay.date)}</span>
               <span className="ml-2 text-muted-foreground font-mono text-xs">
-                {displayed.count} issue{displayed.count === 1 ? "" : "s"}
+                {hoveredDay.count} issue{hoveredDay.count === 1 ? "" : "s"}
               </span>
             </h3>
             <ul className="space-y-1.5">
-              {displayed.issues.map((issue) => (
+              {hoveredDay.issues.map((issue) => (
                 <li key={`${issue.repoFullName}-${issue.number}`}>
                   <Link
                     href={issue.url}
@@ -254,9 +274,9 @@ export function IssuesClosedAnalytics() {
                   </Link>
                 </li>
               ))}
-              {displayed.count > displayed.issues.length && (
+              {hoveredDay.count > hoveredDay.issues.length && (
                 <li className="text-[11px] font-mono text-muted-foreground/60 pl-5">
-                  +{displayed.count - displayed.issues.length} more issues
+                  +{hoveredDay.count - hoveredDay.issues.length} more issues
                 </li>
               )}
             </ul>
