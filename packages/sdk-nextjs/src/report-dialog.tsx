@@ -407,6 +407,7 @@ export function ReportDialog({
           }}
           onClick={() => { if (!previewOpen) handleClose(); }}
           onPointerDown={(e) => e.stopPropagation()}
+          onFocus={(e) => e.stopPropagation()}
         >
           <div
             ref={modalRef}
