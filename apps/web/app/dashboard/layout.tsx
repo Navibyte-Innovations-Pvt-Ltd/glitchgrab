@@ -8,7 +8,7 @@ import type { PlanBadgeType } from "@/components/dashboard/plan-badge";
 import { PaywallGuard } from "@/components/dashboard/paywall-guard";
 import { DashboardStatusBar } from "@/components/dashboard/dashboard-status-bar";
 
-export type UserType = "owner" | "collaborator";
+type UserType = "owner" | "collaborator";
 
 export default async function DashboardLayout({
   children,
