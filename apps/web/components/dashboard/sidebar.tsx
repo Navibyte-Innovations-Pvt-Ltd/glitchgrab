@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -204,57 +205,12 @@ export function Sidebar({
                     item.href === "/dashboard"
                       ? pathname === "/dashboard"
                       : pathname.startsWith(item.href);
-
                   return (
-                    <li key={item.href} className="relative">
-                      {isActive && (
-                        <span
-                          aria-hidden
-                          className="absolute left-0 top-1 bottom-1 w-0.75 rounded-r bg-primary shadow-[0_0_6px_rgba(34,211,238,0.5)] z-10"
-                        />
-                      )}
-                      <Link
-                        href={item.href}
-                        prefetch
-                        className={cn(
-                          "group flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors",
-                          isActive
-                            ? "bg-primary/10 text-foreground font-medium"
-                            : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                        )}
-                      >
-                        <item.icon
-                          size={16}
-                          className={cn(
-                            "shrink-0 transition-colors",
-                            isActive
-                              ? "text-primary"
-                              : "text-muted-foreground group-hover:text-foreground",
-                          )}
-                        />
-                        <span className="truncate flex-1">{item.label}</span>
-                        {item.badge && (
-                          <span
-                            className={cn(
-                              "font-mono text-[9px] px-1.5 py-0.5 rounded border leading-none tabular-nums uppercase tracking-wide",
-                              TONE_CLASS[item.badge.tone],
-                            )}
-                          >
-                            {item.badge.text}
-                          </span>
-                        )}
-                        {item.kbd && !isActive && !item.badge && (
-                          <kbd
-                            className={cn(
-                              "font-mono text-[9px] px-1.5 py-0.5 rounded bg-background border border-border text-muted-foreground/50 leading-none transition-colors",
-                              "group-hover:text-muted-foreground group-hover:border-border",
-                            )}
-                          >
-                            {item.kbd}
-                          </kbd>
-                        )}
-                      </Link>
-                    </li>
+                    <NavItemRow
+                      key={item.href}
+                      item={item}
+                      isActive={isActive}
+                    />
                   );
                 })}
               </ul>
@@ -344,5 +300,67 @@ export function Sidebar({
         </div>
       </div>
     </aside>
+  );
+}
+
+interface AnimHandle {
+  startAnimation: () => void;
+  stopAnimation: () => void;
+}
+
+function NavItemRow({ item, isActive }: { item: NavItem; isActive: boolean }) {
+  const iconRef = useRef<AnimHandle>(null);
+
+  return (
+    <li className="relative">
+      {isActive && (
+        <span
+          aria-hidden
+          className="absolute left-0 top-1 bottom-1 w-0.75 rounded-r bg-primary shadow-[0_0_6px_rgba(34,211,238,0.5)] z-10"
+        />
+      )}
+      <Link
+        href={item.href}
+        prefetch
+        className={cn(
+          "group flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors",
+          isActive
+            ? "bg-primary/10 text-foreground font-medium"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+        )}
+        onMouseEnter={() => iconRef.current?.startAnimation()}
+        onMouseLeave={() => iconRef.current?.stopAnimation()}
+      >
+        <item.icon
+          ref={iconRef}
+          size={16}
+          className={cn(
+            "shrink-0 transition-colors",
+            isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground",
+          )}
+        />
+        <span className="truncate flex-1">{item.label}</span>
+        {item.badge && (
+          <span
+            className={cn(
+              "font-mono text-[9px] px-1.5 py-0.5 rounded border leading-none tabular-nums uppercase tracking-wide",
+              TONE_CLASS[item.badge.tone],
+            )}
+          >
+            {item.badge.text}
+          </span>
+        )}
+        {item.kbd && !isActive && !item.badge && (
+          <kbd
+            className={cn(
+              "font-mono text-[9px] px-1.5 py-0.5 rounded bg-background border border-border text-muted-foreground/50 leading-none transition-colors",
+              "group-hover:text-muted-foreground group-hover:border-border",
+            )}
+          >
+            {item.kbd}
+          </kbd>
+        )}
+      </Link>
+    </li>
   );
 }
