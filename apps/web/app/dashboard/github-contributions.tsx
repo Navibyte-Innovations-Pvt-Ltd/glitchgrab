@@ -87,65 +87,71 @@ export function GithubContributions() {
   }
 
   return (
-    <div className="flex flex-col gap-3 w-full overflow-x-auto">
-      <div className="flex gap-2 min-w-130">
-        {/* Day labels */}
-        <div className="flex flex-col gap-1 shrink-0 text-[10px] font-mono text-muted-foreground/80 w-6">
-          <div className="h-3.25" />
-          <div className="h-3.25 leading-3.25">Mon</div>
-          <div className="h-3.25" />
-          <div className="h-3.25 leading-3.25">Wed</div>
-          <div className="h-3.25" />
-          <div className="h-3.25 leading-3.25">Fri</div>
-          <div className="h-3.25" />
-        </div>
+    <div className="w-full">
+      {/* pt-8 -mt-8: creates headroom inside the scroll container so absolute tooltips
+          positioned above top-row cells aren't clipped by overflow-x-auto */}
+      <div className="overflow-x-auto pt-8 -mt-8">
+        <div className="flex flex-col gap-3 min-w-130">
+          <div className="flex gap-2">
+            {/* Day labels */}
+            <div className="flex flex-col gap-1 shrink-0 text-[10px] font-mono text-muted-foreground/80 w-6">
+              <div className="h-3.25" />
+              <div className="h-3.25 leading-3.25">Mon</div>
+              <div className="h-3.25" />
+              <div className="h-3.25 leading-3.25">Wed</div>
+              <div className="h-3.25" />
+              <div className="h-3.25 leading-3.25">Fri</div>
+              <div className="h-3.25" />
+            </div>
 
-        {/* Week columns */}
-        <div className="flex flex-1 gap-1">
-          {weeks.map((week, wi) => (
-            <div key={wi} className="flex-1 flex flex-col gap-1 min-w-0">
-              {Array.from({ length: 7 }).map((_, di) => {
-                const cell = week[di];
-                if (!cell) {
-                  return <div key={di} className="aspect-square w-full opacity-0" />;
-                }
+            {/* Week columns */}
+            <div className="flex flex-1 gap-1">
+              {weeks.map((week, wi) => (
+                <div key={wi} className="flex-1 flex flex-col gap-1 min-w-0">
+                  {Array.from({ length: 7 }).map((_, di) => {
+                    const cell = week[di];
+                    if (!cell) {
+                      return <div key={di} className="aspect-square w-full opacity-0" />;
+                    }
+                    return (
+                      <div
+                        key={di}
+                        className={`group/cell relative aspect-square w-full rounded-[2px] border transition-colors hover:border-primary ${level(
+                          cell.count
+                        )}`}
+                      >
+                        <div
+                          role="tooltip"
+                          className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-md bg-popover text-popover-foreground border border-border px-2 py-1 text-[11px] font-mono shadow-lg opacity-0 group-hover/cell:opacity-100 transition-opacity z-20"
+                        >
+                          <span className="font-semibold">{cell.count}</span>
+                          {" "}contribution{cell.count === 1 ? "" : "s"} on {formatTooltipDate(cell.date)}
+                          <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-border" />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Month labels */}
+          <div className="flex gap-2 text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">
+            <div className="w-6 shrink-0" />
+            <div className="flex flex-1 gap-1">
+              {weeks.map((_, i) => {
+                const marker = monthMarkers.find((m) => m.col === i);
                 return (
-                  <div
-                    key={di}
-                    className={`group/cell relative aspect-square w-full rounded-[2px] border transition-colors hover:border-primary ${level(
-                      cell.count
-                    )}`}
-                  >
-                    <div
-                      role="tooltip"
-                      className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 whitespace-nowrap rounded-md bg-popover text-popover-foreground border border-border px-2 py-1 text-[11px] font-mono shadow-lg opacity-0 group-hover/cell:opacity-100 transition-opacity z-20"
-                    >
-                      <span className="font-semibold">{cell.count}</span>
-                      {" "}contribution{cell.count === 1 ? "" : "s"} on {formatTooltipDate(cell.date)}
-                      <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-border" />
-                    </div>
+                  <div key={i} className="flex-1 min-w-0 relative">
+                    {marker && (
+                      <span className="absolute left-0 top-0 whitespace-nowrap">{marker.label}</span>
+                    )}
                   </div>
                 );
               })}
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Month labels */}
-      <div className="flex gap-2 min-w-130 text-[10px] font-mono uppercase tracking-widest text-muted-foreground/70">
-        <div className="w-6 shrink-0" />
-        <div className="flex flex-1 gap-1">
-          {weeks.map((_, i) => {
-            const marker = monthMarkers.find((m) => m.col === i);
-            return (
-              <div key={i} className="flex-1 min-w-0 relative">
-                {marker && (
-                  <span className="absolute left-0 top-0 whitespace-nowrap">{marker.label}</span>
-                )}
-              </div>
-            );
-          })}
+          </div>
         </div>
       </div>
     </div>
