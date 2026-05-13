@@ -91,14 +91,14 @@ const BarList = memo(function BarList({
         })}
       </div>
 
-      {/* X-axis labels */}
-      <div className="flex items-end gap-0.5 w-full">
+      {/* X-axis labels — absolute so rotation doesn't get clipped by flex container */}
+      <div className="flex gap-0.5 w-full h-7">
         {barData.map((bucket) => {
           const showTick = tickDates.includes(bucket.date);
           return (
-            <div key={bucket.date} className="flex-1 min-w-0 flex justify-center">
+            <div key={bucket.date} className="relative flex-1 min-w-0">
               {showTick && (
-                <span className="text-[9px] font-mono text-muted-foreground/70 whitespace-nowrap -rotate-45 origin-top-left ml-1">
+                <span className="absolute left-0 top-0 text-[9px] font-mono text-muted-foreground/70 whitespace-nowrap -rotate-45 origin-top-left">
                   {formatDate(bucket.date)}
                 </span>
               )}
