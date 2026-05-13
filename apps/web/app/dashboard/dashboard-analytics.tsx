@@ -18,6 +18,7 @@ import { OpenPullRequests } from "./open-pull-requests";
 import { OpenIssues } from "./open-issues";
 import { GithubContributions } from "./github-contributions";
 import { ActiveWorkflowsWidget } from "./active-workflows-widget";
+import { IssuesClosedPreview } from "./issues-closed-preview";
 
 interface AnalyticsData {
   daily: { date: string; count: number }[];
@@ -171,8 +172,8 @@ export function DashboardAnalytics({ userName }: { userName: string }) {
         </div>
       </div>
 
-      {/* Two-column action lists */}
-      <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2">
+      {/* Three-column action lists */}
+      <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-3">
         <ListPanel
           icon={<GitPullRequest className="h-4 w-4 text-primary" />}
           title="Awaiting your review"
@@ -190,6 +191,8 @@ export function DashboardAnalytics({ userName }: { userName: string }) {
         >
           <OpenIssues />
         </ListPanel>
+
+        <IssuesClosedPreview />
       </div>
 
       {/* Yearly GitHub contributions heatmap */}
