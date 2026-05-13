@@ -1,3 +1,9 @@
+## [1.26.1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.26.0...v1.26.1) (2026-05-13)
+
+### Bug Fixes
+
+* **dashboard:** show tooltips on upper contribution graph cells ([576022e](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/576022e62f52d4991ca5407f67d9b5491d8ce925))
+
 ## [1.26.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.25.0...v1.26.0) (2026-05-13)
 
 ### Features
