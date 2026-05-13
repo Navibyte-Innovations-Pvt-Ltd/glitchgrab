@@ -169,40 +169,37 @@ export function IssuesClosedAnalytics() {
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              {/* Chart area */}
-              <div className="flex items-end gap-0.5 h-40 overflow-x-auto pb-1">
-                {barData.map((bucket) => {
-                  const heightPct = maxCount > 0 ? (bucket.count / maxCount) * 100 : 0;
-                  const isHovered = hoveredDay?.date === bucket.date;
-                  return (
-                    <div
-                      key={bucket.date}
-                      className="group relative flex-1 min-w-1.5 flex flex-col items-center justify-end h-full cursor-pointer"
-                      onMouseEnter={() => setHoveredDay(bucket)}
-                      onMouseLeave={() => setHoveredDay(null)}
-                    >
-                      {/* Tooltip */}
-                      {isHovered && (
-                        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-30 pointer-events-none whitespace-nowrap rounded-md bg-popover text-popover-foreground border border-border px-2.5 py-1.5 text-[11px] font-mono shadow-lg">
+              {/* Chart area — overflow-visible so tooltips don't get clipped */}
+              <div className="overflow-x-auto">
+                <div className="flex items-end gap-0.5 h-40 pb-1 min-w-full">
+                  {barData.map((bucket) => {
+                    const heightPct = maxCount > 0 ? (bucket.count / maxCount) * 100 : 0;
+                    return (
+                      <div
+                        key={bucket.date}
+                        className="group/bar relative flex-1 min-w-1.5 flex flex-col items-center justify-end h-full cursor-pointer"
+                        onMouseEnter={() => setHoveredDay(bucket)}
+                        onMouseLeave={() => setHoveredDay(null)}
+                      >
+                        {/* CSS-only tooltip — no state, no re-render, no flicker */}
+                        <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 z-30 pointer-events-none whitespace-nowrap rounded-md bg-popover text-popover-foreground border border-border px-2.5 py-1.5 text-[11px] font-mono shadow-lg opacity-0 group-hover/bar:opacity-100 transition-opacity duration-100">
                           <div className="font-semibold text-primary">{bucket.count} closed</div>
                           <div className="text-muted-foreground">{formatDateFull(bucket.date)}</div>
                           <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-border" />
                         </div>
-                      )}
-                      <div
-                        className={cn(
-                          "w-full rounded-t-[2px] transition-colors",
-                          bucket.count === 0
-                            ? "bg-muted/50 border border-border/40"
-                            : isHovered
-                            ? "bg-primary shadow-[0_0_8px_rgba(34,211,238,0.5)]"
-                            : "bg-primary/60 hover:bg-primary/80"
-                        )}
-                        style={{ height: `${Math.max(bucket.count > 0 ? 4 : 2, heightPct)}%` }}
-                      />
-                    </div>
-                  );
-                })}
+                        <div
+                          className={cn(
+                            "w-full rounded-t-xs transition-colors group-hover/bar:bg-primary group-hover/bar:shadow-[0_0_8px_rgba(34,211,238,0.5)]",
+                            bucket.count === 0
+                              ? "bg-muted/50 border border-border/40"
+                              : "bg-primary/60"
+                          )}
+                          style={{ height: `${Math.max(bucket.count > 0 ? 4 : 2, heightPct)}%` }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* X-axis labels */}
