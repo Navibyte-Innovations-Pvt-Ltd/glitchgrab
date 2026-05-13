@@ -153,8 +153,8 @@ export function DashboardAnalytics({ userName }: { userName: string }) {
       </div>
 
       {/* Stat grid (3×2) + active workflows widget */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-4 lg:gap-6">
-        <section className="grid grid-cols-2 md:grid-cols-3 gap-3 lg:col-span-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
+        <section className="grid grid-cols-2 md:grid-cols-3 gap-3 lg:col-span-2">
           <StatCard
             label="PRs to review"
             value={openPrs}
