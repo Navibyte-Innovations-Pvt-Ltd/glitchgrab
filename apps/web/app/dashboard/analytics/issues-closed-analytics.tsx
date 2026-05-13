@@ -302,8 +302,6 @@ export function IssuesClosedAnalytics() {
                   <div
                     key={bucket.date}
                     className="flex items-center justify-between px-5 py-2.5 hover:bg-muted/40 transition-colors"
-                    onMouseEnter={() => setHoveredDay(bucket)}
-                    onMouseLeave={() => setHoveredDay(null)}
                   >
                     <span className="text-sm font-mono text-foreground">
                       {formatDateFull(bucket.date)}
