@@ -7,19 +7,19 @@ import { signOut } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import {
-  LayoutDashboard,
-  GitFork,
-  Key,
-  Settings,
-  LogOut,
-  CreditCard,
-  Users,
   ClipboardList,
-  MessageSquare,
   Bug,
   Loader2,
-  BarChart3,
 } from "lucide-react";
+import { LayoutGridIcon } from "@/components/ui/layout-grid";
+import { MessageSquareIcon } from "@/components/ui/message-square";
+import { GitForkIcon } from "@/components/ui/git-fork";
+import { ActivityIcon } from "@/components/ui/activity";
+import { KeyIcon } from "@/components/ui/key";
+import { UsersIcon } from "@/components/ui/users";
+import { CreditCardIcon } from "@/components/ui/credit-card";
+import { SettingsIcon } from "@/components/ui/settings";
+import { LogoutIcon } from "@/components/ui/logout";
 import { ReportButton } from "glitchgrab";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -35,7 +35,8 @@ interface NavBadge {
 interface NavItem {
   href: string;
   label: string;
-  icon: typeof LayoutDashboard;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  icon: React.ComponentType<any>;
   ownerOnly: boolean;
   kbd?: string;
   badge?: NavBadge;
@@ -121,9 +122,9 @@ export function Sidebar({
       label: "Workspace",
       statusDot: "ok",
       items: [
-        { href: "/dashboard", label: "Overview", icon: LayoutDashboard, ownerOnly: false, kbd: "G O" },
-        { href: "/dashboard/chat", label: "Chat", icon: MessageSquare, ownerOnly: false, kbd: "G C" },
-        { href: "/dashboard/repos", label: "Repos", icon: GitFork, ownerOnly: false, kbd: "G R" },
+        { href: "/dashboard", label: "Overview", icon: LayoutGridIcon, ownerOnly: false, kbd: "G O" },
+        { href: "/dashboard/chat", label: "Chat", icon: MessageSquareIcon, ownerOnly: false, kbd: "G C" },
+        { href: "/dashboard/repos", label: "Repos", icon: GitForkIcon, ownerOnly: false, kbd: "G R" },
         {
           href: "/dashboard/reports",
           label: "Reports",
@@ -132,23 +133,23 @@ export function Sidebar({
           kbd: "G P",
           badge: reportsBadge,
         },
-        { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3, ownerOnly: false, kbd: "G A" },
+        { href: "/dashboard/analytics", label: "Analytics", icon: ActivityIcon, ownerOnly: false, kbd: "G A" },
       ],
     },
     {
       label: "Config",
       items: [
-        { href: "/dashboard/tokens", label: "API Tokens", icon: Key, ownerOnly: true, kbd: "G T" },
-        { href: "/dashboard/collaborators", label: "Collaborators", icon: Users, ownerOnly: true },
+        { href: "/dashboard/tokens", label: "API Tokens", icon: KeyIcon, ownerOnly: true, kbd: "G T" },
+        { href: "/dashboard/collaborators", label: "Collaborators", icon: UsersIcon, ownerOnly: true },
         {
           href: "/dashboard/billing",
           label: "Billing",
-          icon: CreditCard,
+          icon: CreditCardIcon,
           ownerOnly: true,
           kbd: "G B",
           badge: billingBadge,
         },
-        { href: "/dashboard/settings", label: "Settings", icon: Settings, ownerOnly: true, kbd: "G S" },
+        { href: "/dashboard/settings", label: "Settings", icon: SettingsIcon, ownerOnly: true, kbd: "G S" },
       ],
     },
   ];
@@ -223,8 +224,9 @@ export function Sidebar({
                         )}
                       >
                         <item.icon
+                          size={16}
                           className={cn(
-                            "h-4 w-4 shrink-0 transition-colors",
+                            "shrink-0 transition-colors",
                             isActive
                               ? "text-primary"
                               : "text-muted-foreground group-hover:text-foreground",
@@ -337,7 +339,7 @@ export function Sidebar({
             title="Sign out"
             className="w-7 h-7 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:text-red-400 hover:bg-red-400/10 transition-colors"
           >
-            <LogOut className="h-4 w-4" />
+            <LogoutIcon className="text-current" size={16} />
           </button>
         </div>
       </div>
