@@ -328,8 +328,8 @@ function NavItemRow({ item, isActive }: { item: NavItem; isActive: boolean }) {
             ? "bg-primary/10 text-foreground font-medium"
             : "text-muted-foreground hover:bg-muted hover:text-foreground",
         )}
-        onMouseEnter={() => iconRef.current?.startAnimation()}
-        onMouseLeave={() => iconRef.current?.stopAnimation()}
+        onMouseEnter={() => { if (typeof (iconRef.current as AnimHandle | null)?.startAnimation === "function") (iconRef.current as AnimHandle).startAnimation(); }}
+        onMouseLeave={() => { if (typeof (iconRef.current as AnimHandle | null)?.stopAnimation === "function") (iconRef.current as AnimHandle).stopAnimation(); }}
       >
         <item.icon
           ref={iconRef}
