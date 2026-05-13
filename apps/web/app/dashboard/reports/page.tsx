@@ -1,4 +1,3 @@
-import { ClipboardList } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { InnerPageHeader } from "@/components/dashboard/inner-page-header";
 import { ReportsList } from "./reports-list";
@@ -10,8 +9,6 @@ export default async function ReportsPage() {
   return (
     <div className="space-y-6">
       <InnerPageHeader
-        segment="reports"
-        icon={ClipboardList}
         title="reports"
         subtitle={
           isOwner
