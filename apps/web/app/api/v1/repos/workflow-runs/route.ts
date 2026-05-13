@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { listWorkflowRuns, type WorkflowRun } from "@/lib/github";
 
-export interface RepoWorkflowRuns {
+interface RepoWorkflowRuns {
   repoId: string;
   repoFullName: string;
   runs: WorkflowRun[];
