@@ -10,10 +10,8 @@ import {
   Bug,
   CheckCircle2,
   CircleDashed,
-  GitBranch,
   GitPullRequest,
   Loader2,
-  TerminalSquare,
   TrendingUp,
 } from "lucide-react";
 import { OpenPullRequests } from "./open-pull-requests";
@@ -113,24 +111,6 @@ export function DashboardAnalytics() {
 
   return (
     <div className="flex flex-col gap-6 md:gap-8">
-      {/* Terminal status bar */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-xs font-mono text-muted-foreground border-b border-border pb-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <TerminalSquare className="h-4 w-4 text-primary shrink-0" />
-          <span className="truncate">~/glitchgrab/dashboard</span>
-          <span className="hidden sm:inline-flex items-center gap-1 text-[10px] px-2 py-0.5 bg-card rounded border border-border">
-            <GitBranch className="h-3 w-3" /> main
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-60 animate-ping" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-green-400" />
-          </span>
-          <span>System Ops Normal</span>
-        </div>
-      </div>
-
       {/* Stat grid (3×2) + active workflows widget */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
         <section className="grid grid-cols-2 md:grid-cols-3 gap-3 lg:col-span-2">
