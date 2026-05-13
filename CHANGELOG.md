@@ -1,3 +1,38 @@
+## [1.26.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.25.0...v1.26.0) (2026-05-13)
+
+### Features
+
+* **analytics:** add Analytics nav item to sidebar ([78edba8](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/78edba899bd1d19a45572a9560d1fad28a6a20b7))
+* **analytics:** add day-wise issues-closed API endpoint ([e96c694](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/e96c69447eb1da2a7888a3a10a8fc375810d9988))
+* **analytics:** add issues closed dashboard page with bar chart ([aa0c656](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/aa0c6567b2f81dc8b544331220360b5c4bff453c))
+* **dashboard:** add DashboardStatusBar component with dynamic path from usePathname ([f5f9939](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/f5f99394b12707b50dd54ef74fe614d5bf5a5964))
+* **dashboard:** add issues-closed sneak peek mini chart to dashboard ([67ca6cb](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/67ca6cb9939243fe48f7676149adde1c41a67416))
+* **dashboard:** expand stat grid to 3x2 with issues-closed metrics ([a81fce3](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/a81fce3a02ee2b5b0adc0fe44813ee0c9f14eef3))
+* **dependencies:** add motion library version 12.38.0 to package.json and bun.lock ([11c5ae7](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/11c5ae7f768351e04ed1cc22ad2d4cd159e08a4e))
+* **layout:** mount DashboardStatusBar above main for full-width border ([1a0a36e](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/1a0a36e0e05626489aaf393217cdf4d954fa29c5))
+* **sidebar:** replace static Lucide icons with animated lucide-animated icons ([4abf196](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/4abf196e9365b943c2b11e4d00c2d1df0220a8bc))
+* **sidebar:** wire Cmd+G shortcut and animate Bug icon on report button ([38bcf69](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/38bcf6907aafa08f3db7873a4c4c33cc011b6ec5))
+* **ui:** add animated BugIcon with shake wiggle using motion/react ([12a54dd](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/12a54dd878d34bb69c61f17445d389115c7f8820))
+
+### Bug Fixes
+
+* **analytics:** eliminate tooltip flicker using CSS group-hover instead of React state ([5260282](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/5260282133ef831426063866d8ac1013d6ffde4a))
+* **analytics:** memo BarList to prevent re-render disrupting CSS hover state ([5c2af19](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/5c2af1909829ca1299be4faa5360d202291e5d5b))
+* **analytics:** remove hover from breakdown table rows to prevent layout shift flicker ([75d0bc6](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/75d0bc65515b25b3620999556479b8d783dd8ff5))
+* **analytics:** use absolute positioned x-axis labels to prevent rotation clipping ([c40905c](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/c40905c3dc3ef80e7db4dc797e7262f3eee396dc))
+* **dashboard:** cap priority issues triage height to prevent layout imbalance ([e555da5](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/e555da525a9e9cf64f29e65deaf312bf20c0c8dc))
+* **dashboard:** compact stat cards - reduce padding and font sizes ([9757877](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/97578776c548a858cf76cd564b482b540b58e635))
+* **dashboard:** drop unused userName from DashboardAnalytics call ([1b9f9c8](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/1b9f9c8bbd0bd3d63c7661bf0af97ac3912112f3))
+* **dashboard:** reduce stat card width by shrinking grid column span ([c46507d](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/c46507db08687f46a799ada8c1e81f3d6b4e6d12))
+* **dashboard:** remove greeting header and userName prop ([c82330e](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/c82330efa31f0ea5f0684080b0ec402972134b61))
+* **pipeline:** append reporter session info to SDK_AUTO GitHub issues ([92b06f1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/92b06f137016a8867c9afd20e3ac8f2b1a486502))
+* **sdk:** include phone in auto-capture payloads and add session to effect deps ([6a0f8de](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/6a0f8de55910d3f59017f279e0d3f34fcce47281))
+* **sdk:** include session data in error boundary auto-reports ([b93fd62](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/b93fd625d3145308ef318d3c2fa24edcec790306))
+* **sidebar:** guard startAnimation call for non-animated Lucide icons ([302abd8](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/302abd8c84efd505388b2746735612bdfa4ab935))
+* **sidebar:** replace static Bug with animated BugIcon and fix CMD G shortcut display ([c8ca2e4](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/c8ca2e462a59450e6e8100fcafc8a981cbc75a38))
+* **sidebar:** trigger icon animation from full nav item hover via imperative ref ([3d58482](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/3d58482115640e0881586b1828806f309e9522c2))
+* **ui:** add global dark themed scrollbar styles ([f64667d](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/f64667d6883a5590e0e0b1b81753a1aa36d18afa))
+
 ## [1.25.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.24.0...v1.25.0) (2026-05-05)
 
 ### Features
