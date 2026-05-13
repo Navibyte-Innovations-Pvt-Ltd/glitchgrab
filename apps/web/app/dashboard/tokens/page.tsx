@@ -6,7 +6,6 @@ import {
   ChevronRight,
   GitFork,
   Key,
-  KeyRound,
   Shield,
 } from "lucide-react";
 import { InnerPageHeader } from "@/components/dashboard/inner-page-header";
@@ -38,8 +37,6 @@ export default async function TokensPage() {
   return (
     <div className="space-y-6">
       <InnerPageHeader
-        segment="tokens"
-        icon={KeyRound}
         title="api_tokens"
         subtitle="Manage programmable access keys for the Glitchgrab SDK"
         meta={
