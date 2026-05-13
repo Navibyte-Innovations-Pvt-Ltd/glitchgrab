@@ -1,3 +1,9 @@
+## [1.19.1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.19.0...sdk-v1.19.1) (2026-05-13)
+
+### Bug Fixes
+
+* **sdk:** stop focus propagation to fix textarea clickability with radix focusscope ([7d1dfb9](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/7d1dfb9d60a0536a56bb0533631acf161ece7289))
+
 ## [1.19.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.18.1...sdk-v1.19.0) (2026-05-13)
 
 ### Features
