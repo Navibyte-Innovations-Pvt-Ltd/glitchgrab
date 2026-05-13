@@ -4,7 +4,6 @@ import { auth } from "@/lib/auth";
 import { getUserPlan } from "@/lib/billing";
 import { InnerPageHeader } from "@/components/dashboard/inner-page-header";
 import {
-  CreditCard,
   CheckCircle2,
   Crown,
   Clock,
@@ -58,8 +57,6 @@ export default async function BillingPage() {
   return (
     <div className="space-y-6">
       <InnerPageHeader
-        segment="billing"
-        icon={CreditCard}
         title="billing"
         subtitle={subtitle}
         meta={meta}
