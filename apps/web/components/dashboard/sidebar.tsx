@@ -9,9 +9,9 @@ import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import {
   ClipboardList,
-  Bug,
   Loader2,
 } from "lucide-react";
+import { BugIcon } from "@/components/ui/bug";
 import { LayoutGridIcon } from "@/components/ui/layout-grid";
 import { MessageSquareIcon } from "@/components/ui/message-square";
 import { GitForkIcon } from "@/components/ui/git-fork";
@@ -233,37 +233,7 @@ export function Sidebar({
 
         {/* Report Bug — keyboard-styled command, sticks to bottom of nav */}
         <div className="mt-auto pt-2">
-          <ReportButton>
-            {({ onClick, capturing }) => (
-              <button
-                ref={reportBtnRef}
-                type="button"
-                onClick={onClick}
-                disabled={capturing}
-                className="w-full group border border-dashed border-border hover:border-primary/50 bg-background/40 hover:bg-muted rounded-md p-2 flex items-center justify-between transition-colors focus:outline-none focus:ring-1 focus:ring-primary/50 disabled:opacity-60"
-              >
-                <span className="flex items-center gap-2 font-mono text-[11px] text-muted-foreground group-hover:text-foreground transition-colors">
-                  {capturing ? (
-                    <>
-                      <Loader2 className="h-3 w-3 animate-spin text-primary" />
-                      <span>CAPTURING…</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-primary group-hover:animate-pulse">{">"}</span>
-                      <Bug className="h-3 w-3 transition-transform group-hover:rotate-12 group-hover:scale-110" />
-                      <span>REPORT_BUG</span>
-                    </>
-                  )}
-                </span>
-                {!capturing && (
-                  <kbd className="font-mono text-[9px] text-muted-foreground bg-card border border-border group-hover:border-muted-foreground/40 rounded px-1.5 py-0.5 leading-none">
-                    ⌘G
-                  </kbd>
-                )}
-              </button>
-            )}
-          </ReportButton>
+          <ReportBugButton reportBtnRef={reportBtnRef} />
         </div>
       </nav>
 
@@ -320,6 +290,50 @@ export function Sidebar({
 interface AnimHandle {
   startAnimation: () => void;
   stopAnimation: () => void;
+}
+
+function ReportBugButton({ reportBtnRef }: { reportBtnRef: React.RefObject<HTMLButtonElement | null> }) {
+  const bugIconRef = useRef<AnimHandle>(null);
+
+  return (
+    <ReportButton>
+      {({ onClick, capturing }) => (
+        <button
+          ref={reportBtnRef}
+          type="button"
+          onClick={onClick}
+          disabled={capturing}
+          onMouseEnter={() => bugIconRef.current?.startAnimation()}
+          onMouseLeave={() => bugIconRef.current?.stopAnimation()}
+          className="w-full group border border-dashed border-border hover:border-primary/50 bg-background/40 hover:bg-muted rounded-md p-2 flex items-center justify-between transition-colors focus:outline-none focus:ring-1 focus:ring-primary/50 disabled:opacity-60"
+        >
+          <span className="flex items-center gap-2 font-mono text-[11px] text-muted-foreground group-hover:text-foreground transition-colors">
+            {capturing ? (
+              <>
+                <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                <span>CAPTURING…</span>
+              </>
+            ) : (
+              <>
+                <span className="text-primary group-hover:animate-pulse">{">"}</span>
+                <BugIcon
+                  ref={bugIconRef}
+                  size={12}
+                  className="shrink-0 text-current"
+                />
+                <span>REPORT_BUG</span>
+              </>
+            )}
+          </span>
+          {!capturing && (
+            <kbd className="font-mono text-[9px] text-muted-foreground bg-card border border-border group-hover:border-muted-foreground/40 rounded px-1.5 py-0.5 leading-none tracking-wider">
+              CMD G
+            </kbd>
+          )}
+        </button>
+      )}
+    </ReportButton>
+  );
 }
 
 function NavItemRow({ item, isActive }: { item: NavItem; isActive: boolean }) {
