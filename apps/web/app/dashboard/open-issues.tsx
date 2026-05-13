@@ -73,7 +73,7 @@ export function OpenIssues() {
   );
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 max-h-80 overflow-y-auto pr-1">
       {/* Per-repo summary chips */}
       <div className="flex flex-wrap gap-2">
         {sortedRepos.map(([repo, items]) => {

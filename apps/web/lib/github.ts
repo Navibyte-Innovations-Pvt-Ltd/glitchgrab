@@ -1,6 +1,6 @@
 // ─── Types ──────────────────────────────────────────────
 
-export interface CreateIssueInput {
+interface CreateIssueInput {
   owner: string;
   repo: string;
   title: string;
@@ -8,7 +8,7 @@ export interface CreateIssueInput {
   labels: string[];
 }
 
-export interface CreatedIssue {
+interface CreatedIssue {
   number: number;
   url: string;
   title: string;
@@ -98,7 +98,7 @@ export async function updateIssueBody(
 
 // ─── Comment on Issue ──────────────────────────────────
 
-export async function commentOnIssue(
+async function commentOnIssue(
   accessToken: string,
   owner: string,
   repo: string,
@@ -216,7 +216,7 @@ export type WorkflowRunStatus =
   | "pending"
   | "unknown";
 
-export type WorkflowRunConclusion =
+type WorkflowRunConclusion =
   | "success"
   | "failure"
   | "cancelled"

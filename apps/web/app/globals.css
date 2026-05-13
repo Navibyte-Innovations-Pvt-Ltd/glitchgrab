@@ -154,6 +154,26 @@ html {
   height: 1px;
 }
 
+/* Global dark scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
 /* Terminal-style thin scrollbar for horizontal overflow sections */
 .pipeline-scroll::-webkit-scrollbar {
   height: 6px;

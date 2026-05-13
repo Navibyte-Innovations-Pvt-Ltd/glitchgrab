@@ -8,16 +8,17 @@ import {
   AlertCircle,
   AlertTriangle,
   Bug,
+  CheckCircle2,
   CircleDashed,
-  GitBranch,
   GitPullRequest,
   Loader2,
-  TerminalSquare,
+  TrendingUp,
 } from "lucide-react";
 import { OpenPullRequests } from "./open-pull-requests";
 import { OpenIssues } from "./open-issues";
 import { GithubContributions } from "./github-contributions";
 import { ActiveWorkflowsWidget } from "./active-workflows-widget";
+import { IssuesClosedPreview } from "./issues-closed-preview";
 
 interface AnalyticsData {
   daily: { date: string; count: number }[];
@@ -27,6 +28,13 @@ interface AnalyticsData {
   failed: number;
 }
 
+interface ClosedData {
+  daily: { date: string; count: number }[];
+  total: number;
+  avgPerDay: number;
+  bestDay: { date: string; count: number } | null;
+}
+
 interface PullRequest { repoFullName: string; number: number }
 interface IssueItem { repoFullName: string; number: number }
 
@@ -34,7 +42,7 @@ function pad2(n: number) {
   return n < 10 && n >= 0 ? `0${n}` : String(n);
 }
 
-export function DashboardAnalytics({ userName }: { userName: string }) {
+export function DashboardAnalytics() {
   const { data: analytics, isLoading: loadingAnalytics } = useQuery<AnalyticsData>({
     queryKey: ["reports-analytics"],
     queryFn: async () => {
@@ -67,6 +75,17 @@ export function DashboardAnalytics({ userName }: { userName: string }) {
     refetchInterval: 60_000,
   });
 
+  const { data: closed } = useQuery<ClosedData>({
+    queryKey: ["issues-closed-analytics", 7],
+    queryFn: async () => {
+      const { data } = await axios.get("/api/v1/reports/analytics/issues-closed?days=7");
+      return data.data;
+    },
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: true,
+    refetchInterval: 5 * 60_000,
+  });
+
   const { data: contrib } = useQuery<{ total: number; login: string | null; weeks: unknown[] }>({
     queryKey: ["github-contributions"],
     queryFn: async () => {
@@ -92,48 +111,9 @@ export function DashboardAnalytics({ userName }: { userName: string }) {
 
   return (
     <div className="flex flex-col gap-6 md:gap-8">
-      {/* Terminal status bar */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-xs font-mono text-muted-foreground border-b border-border pb-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <TerminalSquare className="h-4 w-4 text-primary shrink-0" />
-          <span className="truncate">~/glitchgrab/dashboard</span>
-          <span className="hidden sm:inline-flex items-center gap-1 text-[10px] px-2 py-0.5 bg-card rounded border border-border">
-            <GitBranch className="h-3 w-3" /> main
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-60 animate-ping" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-green-400" />
-          </span>
-          <span>System Ops Normal</span>
-        </div>
-      </div>
-
-      {/* Header */}
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl md:text-3xl font-medium tracking-tight text-foreground">
-          Good to see you, {userName}.
-        </h1>
-        <p className="text-sm font-mono text-muted-foreground leading-relaxed max-w-2xl">
-          {openPrs > 0 && (
-            <>
-              You have <span className="text-primary">{openPrs} open PR{openPrs === 1 ? "" : "s"}</span> awaiting review
-              {openIssues > 0 ? ", and " : "."}
-            </>
-          )}
-          {openIssues > 0 && (
-            <>
-              <span className="text-yellow-400">{openIssues} open issue{openIssues === 1 ? "" : "s"}</span> to triage.
-            </>
-          )}
-          {openPrs === 0 && openIssues === 0 && "Nothing pressing — enjoy the quiet."}
-        </p>
-      </div>
-
-      {/* Stat grid + active workflows widget */}
+      {/* Stat grid (3×2) + active workflows widget */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
-        <section className="grid grid-cols-2 gap-3 lg:col-span-2">
+        <section className="grid grid-cols-2 md:grid-cols-3 gap-3 lg:col-span-2">
           <StatCard
             label="PRs to review"
             value={openPrs}
@@ -145,6 +125,13 @@ export function DashboardAnalytics({ userName }: { userName: string }) {
             value={openIssues}
             icon={<AlertCircle className="h-4 w-4" />}
             pill={openIssues > 0 ? { text: "Triage", tone: "primary" } : { text: "Clear", tone: "muted" }}
+          />
+          <StatCard
+            label="Closed this week"
+            value={closed?.total ?? 0}
+            icon={<CheckCircle2 className="h-4 w-4" />}
+            pill={{ text: "last 7 days", tone: "muted" }}
+            href="/dashboard/analytics"
           />
           <StatCard
             label="New reports"
@@ -164,6 +151,14 @@ export function DashboardAnalytics({ userName }: { userName: string }) {
             }
             href={analytics.failed > 0 ? "/dashboard/reports" : undefined}
           />
+          <StatCard
+            label="Avg closed / day"
+            value={closed?.avgPerDay ?? 0}
+            icon={<TrendingUp className="h-4 w-4" />}
+            pill={{ text: "7-day avg", tone: "muted" }}
+            href="/dashboard/analytics"
+            decimal
+          />
         </section>
 
         <div className="lg:col-span-1">
@@ -171,8 +166,8 @@ export function DashboardAnalytics({ userName }: { userName: string }) {
         </div>
       </div>
 
-      {/* Two-column action lists */}
-      <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-2">
+      {/* Three-column action lists */}
+      <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-3">
         <ListPanel
           icon={<GitPullRequest className="h-4 w-4 text-primary" />}
           title="Awaiting your review"
@@ -190,6 +185,8 @@ export function DashboardAnalytics({ userName }: { userName: string }) {
         >
           <OpenIssues />
         </ListPanel>
+
+        <IssuesClosedPreview />
       </div>
 
       {/* Yearly GitHub contributions heatmap */}
@@ -251,6 +248,7 @@ function StatCard({
   pill,
   critical,
   href,
+  decimal,
 }: {
   label: string;
   value: number;
@@ -258,6 +256,7 @@ function StatCard({
   pill: { text: string; tone: PillTone };
   critical?: boolean;
   href?: string;
+  decimal?: boolean;
 }) {
   const toneClasses: Record<PillTone, string> = {
     primary: "text-primary bg-primary/10 border-primary/20",
@@ -275,8 +274,8 @@ function StatCard({
       }`}
     >
       {critical && <div className="absolute top-0 left-0 right-0 h-0.5 bg-red-500/60" />}
-      <CardContent className="p-4 md:p-5">
-        <div className="flex items-start justify-between mb-3">
+      <CardContent className="p-3">
+        <div className="flex items-start justify-between mb-1.5">
           <span
             className={`text-[10px] font-mono uppercase tracking-[0.15em] ${
               critical ? "text-red-400" : "text-muted-foreground"
@@ -284,20 +283,20 @@ function StatCard({
           >
             {label}
           </span>
-          <span className={critical ? "text-red-400/70" : "text-muted-foreground/60"}>
+          <span className={`${critical ? "text-red-400/70" : "text-muted-foreground/60"} [&>svg]:h-3.5 [&>svg]:w-3.5`}>
             {icon}
           </span>
         </div>
-        <div className="flex items-baseline gap-3 flex-wrap">
+        <div className="flex items-baseline gap-2 flex-wrap">
           <span
-            className={`text-3xl md:text-4xl font-mono tabular-nums font-medium ${
+            className={`text-2xl font-mono tabular-nums font-medium ${
               critical ? "text-red-400" : "text-foreground"
             }`}
           >
-            {value < 100 ? String(value).padStart(2, "0") : value}
+            {decimal ? value.toFixed(1) : value < 100 ? String(value).padStart(2, "0") : value}
           </span>
           <span
-            className={`text-[10px] font-mono px-2 py-0.5 rounded border ${toneClasses[pill.tone]}`}
+            className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${toneClasses[pill.tone]}`}
           >
             {pill.text}
           </span>

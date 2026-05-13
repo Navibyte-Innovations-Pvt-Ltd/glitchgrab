@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { getRazorpay } from "@/lib/razorpay";
 
-export interface UserPlan {
+interface UserPlan {
   plan: "NONE" | "PRO_PLATFORM";
   isActive: boolean;
   maxRepos: number;
@@ -82,7 +82,7 @@ export async function getUserPlan(userId: string): Promise<UserPlan> {
 
 const TRIAL_DAYS = 7;
 
-export interface TrialStatus {
+interface TrialStatus {
   inTrial: boolean;
   trialEndsAt: Date;
   daysLeft: number;

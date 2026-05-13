@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -7,18 +8,19 @@ import { signOut } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import {
-  LayoutDashboard,
-  GitFork,
-  Key,
-  Settings,
-  LogOut,
-  CreditCard,
-  Users,
   ClipboardList,
-  MessageSquare,
-  Bug,
   Loader2,
 } from "lucide-react";
+import { BugIcon } from "@/components/ui/bug";
+import { LayoutGridIcon } from "@/components/ui/layout-grid";
+import { MessageSquareIcon } from "@/components/ui/message-square";
+import { GitForkIcon } from "@/components/ui/git-fork";
+import { ActivityIcon } from "@/components/ui/activity";
+import { KeyIcon } from "@/components/ui/key";
+import { UsersIcon } from "@/components/ui/users";
+import { CreditCardIcon } from "@/components/ui/credit-card";
+import { SettingsIcon } from "@/components/ui/settings";
+import { LogoutIcon } from "@/components/ui/logout";
 import { ReportButton } from "glitchgrab";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -34,9 +36,9 @@ interface NavBadge {
 interface NavItem {
   href: string;
   label: string;
-  icon: typeof LayoutDashboard;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  icon: React.ComponentType<any>;
   ownerOnly: boolean;
-  kbd?: string;
   badge?: NavBadge;
 }
 
@@ -77,6 +79,19 @@ export function Sidebar({
   trialDaysLeft = 0,
 }: SidebarProps) {
   const pathname = usePathname();
+  const reportBtnRef = useRef<HTMLButtonElement>(null);
+
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === "g" && (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {
+      e.preventDefault();
+      reportBtnRef.current?.click();
+    }
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
 
   // Live counts from TanStack cache (fetched by the dashboard; sidebar just reads)
   const { data: issues } = useQuery<unknown[]>({
@@ -120,33 +135,32 @@ export function Sidebar({
       label: "Workspace",
       statusDot: "ok",
       items: [
-        { href: "/dashboard", label: "Overview", icon: LayoutDashboard, ownerOnly: false, kbd: "G O" },
-        { href: "/dashboard/chat", label: "Chat", icon: MessageSquare, ownerOnly: false, kbd: "G C" },
-        { href: "/dashboard/repos", label: "Repos", icon: GitFork, ownerOnly: false, kbd: "G R" },
+        { href: "/dashboard", label: "Overview", icon: LayoutGridIcon, ownerOnly: false },
+        { href: "/dashboard/chat", label: "Chat", icon: MessageSquareIcon, ownerOnly: false },
+        { href: "/dashboard/repos", label: "Repos", icon: GitForkIcon, ownerOnly: false },
         {
           href: "/dashboard/reports",
           label: "Reports",
           icon: ClipboardList,
           ownerOnly: false,
-          kbd: "G P",
           badge: reportsBadge,
         },
+        { href: "/dashboard/analytics", label: "Analytics", icon: ActivityIcon, ownerOnly: false },
       ],
     },
     {
       label: "Config",
       items: [
-        { href: "/dashboard/tokens", label: "API Tokens", icon: Key, ownerOnly: true, kbd: "G T" },
-        { href: "/dashboard/collaborators", label: "Collaborators", icon: Users, ownerOnly: true },
+        { href: "/dashboard/tokens", label: "API Tokens", icon: KeyIcon, ownerOnly: true },
+        { href: "/dashboard/collaborators", label: "Collaborators", icon: UsersIcon, ownerOnly: true },
         {
           href: "/dashboard/billing",
           label: "Billing",
-          icon: CreditCard,
+          icon: CreditCardIcon,
           ownerOnly: true,
-          kbd: "G B",
           badge: billingBadge,
         },
-        { href: "/dashboard/settings", label: "Settings", icon: Settings, ownerOnly: true, kbd: "G S" },
+        { href: "/dashboard/settings", label: "Settings", icon: SettingsIcon, ownerOnly: true },
       ],
     },
   ];
@@ -201,56 +215,12 @@ export function Sidebar({
                     item.href === "/dashboard"
                       ? pathname === "/dashboard"
                       : pathname.startsWith(item.href);
-
                   return (
-                    <li key={item.href} className="relative">
-                      {isActive && (
-                        <span
-                          aria-hidden
-                          className="absolute left-0 top-1 bottom-1 w-0.75 rounded-r bg-primary shadow-[0_0_6px_rgba(34,211,238,0.5)] z-10"
-                        />
-                      )}
-                      <Link
-                        href={item.href}
-                        prefetch
-                        className={cn(
-                          "group flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors",
-                          isActive
-                            ? "bg-primary/10 text-foreground font-medium"
-                            : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                        )}
-                      >
-                        <item.icon
-                          className={cn(
-                            "h-4 w-4 shrink-0 transition-colors",
-                            isActive
-                              ? "text-primary"
-                              : "text-muted-foreground group-hover:text-foreground",
-                          )}
-                        />
-                        <span className="truncate flex-1">{item.label}</span>
-                        {item.badge && (
-                          <span
-                            className={cn(
-                              "font-mono text-[9px] px-1.5 py-0.5 rounded border leading-none tabular-nums uppercase tracking-wide",
-                              TONE_CLASS[item.badge.tone],
-                            )}
-                          >
-                            {item.badge.text}
-                          </span>
-                        )}
-                        {item.kbd && !isActive && !item.badge && (
-                          <kbd
-                            className={cn(
-                              "font-mono text-[9px] px-1.5 py-0.5 rounded bg-background border border-border text-muted-foreground/50 leading-none transition-colors",
-                              "group-hover:text-muted-foreground group-hover:border-border",
-                            )}
-                          >
-                            {item.kbd}
-                          </kbd>
-                        )}
-                      </Link>
-                    </li>
+                    <NavItemRow
+                      key={item.href}
+                      item={item}
+                      isActive={isActive}
+                    />
                   );
                 })}
               </ul>
@@ -260,36 +230,7 @@ export function Sidebar({
 
         {/* Report Bug — keyboard-styled command, sticks to bottom of nav */}
         <div className="mt-auto pt-2">
-          <ReportButton>
-            {({ onClick, capturing }) => (
-              <button
-                type="button"
-                onClick={onClick}
-                disabled={capturing}
-                className="w-full group border border-dashed border-border hover:border-primary/50 bg-background/40 hover:bg-muted rounded-md p-2 flex items-center justify-between transition-colors focus:outline-none focus:ring-1 focus:ring-primary/50 disabled:opacity-60"
-              >
-                <span className="flex items-center gap-2 font-mono text-[11px] text-muted-foreground group-hover:text-foreground transition-colors">
-                  {capturing ? (
-                    <>
-                      <Loader2 className="h-3 w-3 animate-spin text-primary" />
-                      <span>CAPTURING…</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-primary group-hover:animate-pulse">{">"}</span>
-                      <Bug className="h-3 w-3" />
-                      <span>REPORT_BUG</span>
-                    </>
-                  )}
-                </span>
-                {!capturing && (
-                  <kbd className="font-mono text-[9px] text-muted-foreground bg-card border border-border group-hover:border-muted-foreground/40 rounded px-1.5 py-0.5 leading-none">
-                    ⇧⌘B
-                  </kbd>
-                )}
-              </button>
-            )}
-          </ReportButton>
+          <ReportBugButton reportBtnRef={reportBtnRef} />
         </div>
       </nav>
 
@@ -335,10 +276,106 @@ export function Sidebar({
             title="Sign out"
             className="w-7 h-7 flex items-center justify-center shrink-0 rounded text-muted-foreground hover:text-red-400 hover:bg-red-400/10 transition-colors"
           >
-            <LogOut className="h-4 w-4" />
+            <LogoutIcon className="text-current" size={16} />
           </button>
         </div>
       </div>
     </aside>
+  );
+}
+
+interface AnimHandle {
+  startAnimation: () => void;
+  stopAnimation: () => void;
+}
+
+function ReportBugButton({ reportBtnRef }: { reportBtnRef: React.RefObject<HTMLButtonElement | null> }) {
+  const bugIconRef = useRef<AnimHandle>(null);
+
+  return (
+    <ReportButton>
+      {({ onClick, capturing }) => (
+        <button
+          ref={reportBtnRef}
+          type="button"
+          onClick={onClick}
+          disabled={capturing}
+          onMouseEnter={() => bugIconRef.current?.startAnimation()}
+          onMouseLeave={() => bugIconRef.current?.stopAnimation()}
+          className="w-full group border border-dashed border-border hover:border-primary/50 bg-background/40 hover:bg-muted rounded-md p-2 flex items-center justify-between transition-colors focus:outline-none focus:ring-1 focus:ring-primary/50 disabled:opacity-60"
+        >
+          <span className="flex items-center gap-2 font-mono text-[11px] text-muted-foreground group-hover:text-foreground transition-colors">
+            {capturing ? (
+              <>
+                <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                <span>CAPTURING…</span>
+              </>
+            ) : (
+              <>
+                <span className="text-primary group-hover:animate-pulse">{">"}</span>
+                <BugIcon
+                  ref={bugIconRef}
+                  size={12}
+                  className="shrink-0 text-current"
+                />
+                <span>REPORT_BUG</span>
+              </>
+            )}
+          </span>
+          {!capturing && (
+            <kbd className="font-mono text-[9px] text-muted-foreground bg-card border border-border group-hover:border-muted-foreground/40 rounded px-1.5 py-0.5 leading-none tracking-wider">
+              CMD G
+            </kbd>
+          )}
+        </button>
+      )}
+    </ReportButton>
+  );
+}
+
+function NavItemRow({ item, isActive }: { item: NavItem; isActive: boolean }) {
+  const iconRef = useRef<AnimHandle>(null);
+
+  return (
+    <li className="relative">
+      {isActive && (
+        <span
+          aria-hidden
+          className="absolute left-0 top-1 bottom-1 w-0.75 rounded-r bg-primary shadow-[0_0_6px_rgba(34,211,238,0.5)] z-10"
+        />
+      )}
+      <Link
+        href={item.href}
+        prefetch
+        className={cn(
+          "group flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors",
+          isActive
+            ? "bg-primary/10 text-foreground font-medium"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+        )}
+        onMouseEnter={() => { if (typeof (iconRef.current as AnimHandle | null)?.startAnimation === "function") (iconRef.current as AnimHandle).startAnimation(); }}
+        onMouseLeave={() => { if (typeof (iconRef.current as AnimHandle | null)?.stopAnimation === "function") (iconRef.current as AnimHandle).stopAnimation(); }}
+      >
+        <item.icon
+          ref={iconRef}
+          size={16}
+          className={cn(
+            "shrink-0 transition-colors",
+            isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground",
+          )}
+        />
+        <span className="truncate flex-1">{item.label}</span>
+        {item.badge && (
+          <span
+            className={cn(
+              "font-mono text-[9px] px-1.5 py-0.5 rounded border leading-none tabular-nums uppercase tracking-wide",
+              TONE_CLASS[item.badge.tone],
+            )}
+          >
+            {item.badge.text}
+          </span>
+        )}
+      </Link>
+    </li>
   );
 }

@@ -1,4 +1,3 @@
-import { LayoutGrid } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { InnerPageHeader } from "@/components/dashboard/inner-page-header";
 import { ConnectRepoDialog } from "./connect-repo-dialog";
@@ -11,8 +10,6 @@ export default async function ReposPage() {
   return (
     <div className="space-y-6">
       <InnerPageHeader
-        segment="repos"
-        icon={LayoutGrid}
         title="repositories"
         subtitle={
           isOwner

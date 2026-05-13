@@ -46,8 +46,6 @@ export default async function CollaboratorsPage() {
   return (
     <div className="space-y-6">
       <InnerPageHeader
-        segment="collaborators"
-        icon={Users}
         title="collaborators"
         subtitle="Invite people to report bugs on your repos — no GitHub account needed"
         meta={

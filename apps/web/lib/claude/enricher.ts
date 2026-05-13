@@ -22,13 +22,13 @@ Severity guide:
 - medium: feature partially broken, workaround exists
 - low: cosmetic, minor inconvenience`;
 
-export interface EnrichInput extends AiInput {
+interface EnrichInput extends AiInput {
   accessToken: string;
   owner: string;
   repo: string;
 }
 
-export interface EnrichResult {
+interface EnrichResult {
   action: AiAction;
   metrics: EnrichmentMetrics;
 }

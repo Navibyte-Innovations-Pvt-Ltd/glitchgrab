@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 
-import { Settings as SettingsIcon, Github, Shield, Mail, User } from "lucide-react";
+import { Github, Shield, Mail, User } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { InnerPageHeader } from "@/components/dashboard/inner-page-header";
@@ -13,8 +13,6 @@ export default async function SettingsPage() {
   return (
     <div className="space-y-6">
       <InnerPageHeader
-        segment="settings"
-        icon={SettingsIcon}
         title="settings"
         subtitle="Your account & integration preferences"
         meta="account · webhooks · danger zone"
