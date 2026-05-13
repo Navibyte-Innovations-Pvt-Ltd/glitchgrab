@@ -18,6 +18,7 @@ import {
   MessageSquare,
   Bug,
   Loader2,
+  BarChart3,
 } from "lucide-react";
 import { ReportButton } from "glitchgrab";
 import { cn } from "@/lib/utils";
@@ -131,6 +132,7 @@ export function Sidebar({
           kbd: "G P",
           badge: reportsBadge,
         },
+        { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3, ownerOnly: false, kbd: "G A" },
       ],
     },
     {
