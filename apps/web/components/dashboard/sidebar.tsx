@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -80,6 +80,19 @@ export function Sidebar({
   trialDaysLeft = 0,
 }: SidebarProps) {
   const pathname = usePathname();
+  const reportBtnRef = useRef<HTMLButtonElement>(null);
+
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === "g" && (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {
+      e.preventDefault();
+      reportBtnRef.current?.click();
+    }
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
 
   // Live counts from TanStack cache (fetched by the dashboard; sidebar just reads)
   const { data: issues } = useQuery<unknown[]>({
@@ -223,6 +236,7 @@ export function Sidebar({
           <ReportButton>
             {({ onClick, capturing }) => (
               <button
+                ref={reportBtnRef}
                 type="button"
                 onClick={onClick}
                 disabled={capturing}
@@ -237,14 +251,14 @@ export function Sidebar({
                   ) : (
                     <>
                       <span className="text-primary group-hover:animate-pulse">{">"}</span>
-                      <Bug className="h-3 w-3" />
+                      <Bug className="h-3 w-3 transition-transform group-hover:rotate-12 group-hover:scale-110" />
                       <span>REPORT_BUG</span>
                     </>
                   )}
                 </span>
                 {!capturing && (
                   <kbd className="font-mono text-[9px] text-muted-foreground bg-card border border-border group-hover:border-muted-foreground/40 rounded px-1.5 py-0.5 leading-none">
-                    ⇧⌘B
+                    ⌘G
                   </kbd>
                 )}
               </button>
