@@ -39,7 +39,6 @@ interface NavItem {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   icon: React.ComponentType<any>;
   ownerOnly: boolean;
-  kbd?: string;
   badge?: NavBadge;
 }
 
@@ -136,34 +135,32 @@ export function Sidebar({
       label: "Workspace",
       statusDot: "ok",
       items: [
-        { href: "/dashboard", label: "Overview", icon: LayoutGridIcon, ownerOnly: false, kbd: "G O" },
-        { href: "/dashboard/chat", label: "Chat", icon: MessageSquareIcon, ownerOnly: false, kbd: "G C" },
-        { href: "/dashboard/repos", label: "Repos", icon: GitForkIcon, ownerOnly: false, kbd: "G R" },
+        { href: "/dashboard", label: "Overview", icon: LayoutGridIcon, ownerOnly: false },
+        { href: "/dashboard/chat", label: "Chat", icon: MessageSquareIcon, ownerOnly: false },
+        { href: "/dashboard/repos", label: "Repos", icon: GitForkIcon, ownerOnly: false },
         {
           href: "/dashboard/reports",
           label: "Reports",
           icon: ClipboardList,
           ownerOnly: false,
-          kbd: "G P",
           badge: reportsBadge,
         },
-        { href: "/dashboard/analytics", label: "Analytics", icon: ActivityIcon, ownerOnly: false, kbd: "G A" },
+        { href: "/dashboard/analytics", label: "Analytics", icon: ActivityIcon, ownerOnly: false },
       ],
     },
     {
       label: "Config",
       items: [
-        { href: "/dashboard/tokens", label: "API Tokens", icon: KeyIcon, ownerOnly: true, kbd: "G T" },
+        { href: "/dashboard/tokens", label: "API Tokens", icon: KeyIcon, ownerOnly: true },
         { href: "/dashboard/collaborators", label: "Collaborators", icon: UsersIcon, ownerOnly: true },
         {
           href: "/dashboard/billing",
           label: "Billing",
           icon: CreditCardIcon,
           ownerOnly: true,
-          kbd: "G B",
           badge: billingBadge,
         },
-        { href: "/dashboard/settings", label: "Settings", icon: SettingsIcon, ownerOnly: true, kbd: "G S" },
+        { href: "/dashboard/settings", label: "Settings", icon: SettingsIcon, ownerOnly: true },
       ],
     },
   ];
@@ -377,16 +374,6 @@ function NavItemRow({ item, isActive }: { item: NavItem; isActive: boolean }) {
           >
             {item.badge.text}
           </span>
-        )}
-        {item.kbd && !isActive && !item.badge && (
-          <kbd
-            className={cn(
-              "font-mono text-[9px] px-1.5 py-0.5 rounded bg-background border border-border text-muted-foreground/50 leading-none transition-colors",
-              "group-hover:text-muted-foreground group-hover:border-border",
-            )}
-          >
-            {item.kbd}
-          </kbd>
         )}
       </Link>
     </li>
