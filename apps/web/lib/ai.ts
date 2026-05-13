@@ -3,7 +3,7 @@ import { enrich } from "@/lib/claude/enricher";
 
 export type { AiAction, AiInput, ClarifyQuestion } from "@/lib/ai-types";
 
-export interface ClassifyContext {
+interface ClassifyContext {
   accessToken: string;
   owner: string;
   repo: string;
