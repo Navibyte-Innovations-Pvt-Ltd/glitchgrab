@@ -398,6 +398,7 @@ export function ReportDialog({
             position: "fixed",
             inset: 0,
             zIndex: 2147483647,
+            pointerEvents: "auto",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -405,6 +406,7 @@ export function ReportDialog({
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
           }}
           onClick={() => { if (!previewOpen) handleClose(); }}
+          onPointerDown={(e) => e.stopPropagation()}
         >
           <div
             ref={modalRef}
