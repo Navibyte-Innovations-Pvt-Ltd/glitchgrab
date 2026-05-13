@@ -6,6 +6,7 @@ import { getCollabSession } from "@/lib/collab-auth";
 import { getUserPlan, getTrialStatus } from "@/lib/billing";
 import type { PlanBadgeType } from "@/components/dashboard/plan-badge";
 import { PaywallGuard } from "@/components/dashboard/paywall-guard";
+import { DashboardStatusBar } from "@/components/dashboard/dashboard-status-bar";
 
 export type UserType = "owner" | "collaborator";
 
@@ -52,6 +53,7 @@ export default async function DashboardLayout({
     <div className="flex h-(--app-height,100vh) bg-background transition-[height] duration-100">
       <Sidebar user={user} userType={userType} planBadge={planBadge} trialDaysLeft={trialDaysLeft} />
       <div className="flex flex-1 flex-col overflow-hidden">
+        <DashboardStatusBar />
         <main className="flex-1 overflow-y-auto p-4 pb-20 md:p-6 md:pb-6">
           <PaywallGuard>{children}</PaywallGuard>
         </main>
