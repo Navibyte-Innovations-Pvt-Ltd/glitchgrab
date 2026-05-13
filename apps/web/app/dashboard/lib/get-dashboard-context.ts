@@ -2,14 +2,14 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getCollabSession } from "@/lib/collab-auth";
 
-export interface DashboardRepo {
+interface DashboardRepo {
   id: string;
   fullName: string;
   owner: string;
   name: string;
 }
 
-export interface DashboardContext {
+interface DashboardContext {
   userName: string;
   repos: DashboardRepo[];
   hasOwnerSession: boolean;
