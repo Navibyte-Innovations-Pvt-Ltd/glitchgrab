@@ -44,7 +44,7 @@ function pad2(n: number) {
   return n < 10 && n >= 0 ? `0${n}` : String(n);
 }
 
-export function DashboardAnalytics({ userName }: { userName: string }) {
+export function DashboardAnalytics() {
   const { data: analytics, isLoading: loadingAnalytics } = useQuery<AnalyticsData>({
     queryKey: ["reports-analytics"],
     queryFn: async () => {
@@ -129,27 +129,6 @@ export function DashboardAnalytics({ userName }: { userName: string }) {
           </span>
           <span>System Ops Normal</span>
         </div>
-      </div>
-
-      {/* Header */}
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl md:text-3xl font-medium tracking-tight text-foreground">
-          Good to see you, {userName}.
-        </h1>
-        <p className="text-sm font-mono text-muted-foreground leading-relaxed max-w-2xl">
-          {openPrs > 0 && (
-            <>
-              You have <span className="text-primary">{openPrs} open PR{openPrs === 1 ? "" : "s"}</span> awaiting review
-              {openIssues > 0 ? ", and " : "."}
-            </>
-          )}
-          {openIssues > 0 && (
-            <>
-              <span className="text-yellow-400">{openIssues} open issue{openIssues === 1 ? "" : "s"}</span> to triage.
-            </>
-          )}
-          {openPrs === 0 && openIssues === 0 && "Nothing pressing — enjoy the quiet."}
-        </p>
       </div>
 
       {/* Stat grid (3×2) + active workflows widget */}
