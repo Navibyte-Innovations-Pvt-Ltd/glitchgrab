@@ -1,3 +1,9 @@
+## [1.19.2](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.19.1...sdk-v1.19.2) (2026-05-13)
+
+### Bug Fixes
+
+* **sdk:** set inert on host radix dialogs to prevent focusscope stealing focus ([1f60c97](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/1f60c97d8001ade55bee0b872737fbb54230f084))
+
 ## [1.19.1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.19.0...sdk-v1.19.1) (2026-05-13)
 
 ### Bug Fixes
