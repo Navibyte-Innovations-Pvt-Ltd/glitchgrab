@@ -225,6 +225,17 @@ export function ReportDialog({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
+  // When open, set inert on any host Radix/shadcn dialogs so their FocusScope
+  // doesn't steal focus back from GlitchGrab's textarea via focusout interception.
+  useEffect(() => {
+    if (!isOpen) return;
+    const dialogs = Array.from(
+      document.querySelectorAll<HTMLElement>('[role="dialog"][data-state="open"]')
+    );
+    dialogs.forEach((d) => d.setAttribute("inert", ""));
+    return () => dialogs.forEach((d) => d.removeAttribute("inert"));
+  }, [isOpen]);
+
   // Stepper state
   const [step, setStep] = useState(1);
   const [reportType, setReportType] = useState<ReportType>("BUG");
