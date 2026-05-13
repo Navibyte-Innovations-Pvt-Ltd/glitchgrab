@@ -8,11 +8,13 @@ import {
   AlertCircle,
   AlertTriangle,
   Bug,
+  CheckCircle2,
   CircleDashed,
   GitBranch,
   GitPullRequest,
   Loader2,
   TerminalSquare,
+  TrendingUp,
 } from "lucide-react";
 import { OpenPullRequests } from "./open-pull-requests";
 import { OpenIssues } from "./open-issues";
@@ -26,6 +28,13 @@ interface AnalyticsData {
   avgPerDay: number;
   today: number;
   failed: number;
+}
+
+interface ClosedData {
+  daily: { date: string; count: number }[];
+  total: number;
+  avgPerDay: number;
+  bestDay: { date: string; count: number } | null;
 }
 
 interface PullRequest { repoFullName: string; number: number }
@@ -66,6 +75,17 @@ export function DashboardAnalytics({ userName }: { userName: string }) {
     staleTime: 60_000,
     refetchOnWindowFocus: true,
     refetchInterval: 60_000,
+  });
+
+  const { data: closed } = useQuery<ClosedData>({
+    queryKey: ["issues-closed-analytics", 7],
+    queryFn: async () => {
+      const { data } = await axios.get("/api/v1/reports/analytics/issues-closed?days=7");
+      return data.data;
+    },
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: true,
+    refetchInterval: 5 * 60_000,
   });
 
   const { data: contrib } = useQuery<{ total: number; login: string | null; weeks: unknown[] }>({
@@ -132,9 +152,9 @@ export function DashboardAnalytics({ userName }: { userName: string }) {
         </p>
       </div>
 
-      {/* Stat grid + active workflows widget */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
-        <section className="grid grid-cols-2 gap-3 lg:col-span-2">
+      {/* Stat grid (3×2) + active workflows widget */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-4 lg:gap-6">
+        <section className="grid grid-cols-2 md:grid-cols-3 gap-3 lg:col-span-3">
           <StatCard
             label="PRs to review"
             value={openPrs}
@@ -146,6 +166,13 @@ export function DashboardAnalytics({ userName }: { userName: string }) {
             value={openIssues}
             icon={<AlertCircle className="h-4 w-4" />}
             pill={openIssues > 0 ? { text: "Triage", tone: "primary" } : { text: "Clear", tone: "muted" }}
+          />
+          <StatCard
+            label="Closed this week"
+            value={closed?.total ?? 0}
+            icon={<CheckCircle2 className="h-4 w-4" />}
+            pill={{ text: "last 7 days", tone: "muted" }}
+            href="/dashboard/analytics"
           />
           <StatCard
             label="New reports"
@@ -164,6 +191,14 @@ export function DashboardAnalytics({ userName }: { userName: string }) {
                 : { text: "None", tone: "muted" }
             }
             href={analytics.failed > 0 ? "/dashboard/reports" : undefined}
+          />
+          <StatCard
+            label="Avg closed / day"
+            value={closed?.avgPerDay ?? 0}
+            icon={<TrendingUp className="h-4 w-4" />}
+            pill={{ text: "7-day avg", tone: "muted" }}
+            href="/dashboard/analytics"
+            decimal
           />
         </section>
 
@@ -254,6 +289,7 @@ function StatCard({
   pill,
   critical,
   href,
+  decimal,
 }: {
   label: string;
   value: number;
@@ -261,6 +297,7 @@ function StatCard({
   pill: { text: string; tone: PillTone };
   critical?: boolean;
   href?: string;
+  decimal?: boolean;
 }) {
   const toneClasses: Record<PillTone, string> = {
     primary: "text-primary bg-primary/10 border-primary/20",
@@ -297,7 +334,7 @@ function StatCard({
               critical ? "text-red-400" : "text-foreground"
             }`}
           >
-            {value < 100 ? String(value).padStart(2, "0") : value}
+            {decimal ? value.toFixed(1) : value < 100 ? String(value).padStart(2, "0") : value}
           </span>
           <span
             className={`text-[10px] font-mono px-2 py-0.5 rounded border ${toneClasses[pill.tone]}`}
