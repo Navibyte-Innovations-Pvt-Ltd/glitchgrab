@@ -1,10 +1,12 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import axios from "axios";
 import Image from "next/image";
-import { GitFork, Users, ClipboardList, Activity, Clock } from "lucide-react";
+import { GitFork, Users, ClipboardList, Activity, Clock, Mail, Loader2, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import type { OrgContext } from "./lib/get-org-context";
 
 interface MergedMember {
@@ -84,42 +86,7 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
           </div>
           <ul className="divide-y divide-border/40">
             {membersData.members.map((m) => (
-              <li key={m.githubLogin} className="px-4 py-3 flex items-center gap-3">
-                {m.avatarUrl ? (
-                  <Image
-                    src={m.avatarUrl}
-                    alt={m.githubLogin}
-                    width={32}
-                    height={32}
-                    className={cn("rounded-full border border-border shrink-0", !m.joined && "opacity-50 grayscale")}
-                  />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-mono font-bold text-foreground shrink-0">
-                    {(m.name ?? m.githubLogin).charAt(0).toUpperCase()}
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className={cn("text-sm font-medium truncate", m.joined ? "text-foreground" : "text-muted-foreground")}>
-                    {m.name ?? m.githubLogin}
-                  </div>
-                  <div className="text-[11px] font-mono text-muted-foreground/70">@{m.githubLogin}</div>
-                </div>
-                {m.joined && m.role ? (
-                  <span className={cn(
-                    "font-mono text-[10px] px-1.5 py-0.5 rounded border uppercase tracking-wide shrink-0",
-                    m.role === "OWNER"
-                      ? "text-primary border-primary/30 bg-primary/10"
-                      : "text-muted-foreground border-border bg-muted"
-                  )}>
-                    {m.role}
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded border border-yellow-500/30 bg-yellow-500/10 text-yellow-500/80 uppercase tracking-wide shrink-0">
-                    <Clock size={9} />
-                    Pending
-                  </span>
-                )}
-              </li>
+              <MemberRow key={m.githubLogin} member={m} orgSlug={ctx.orgSlug} isOwner={ctx.role === "OWNER"} />
             ))}
           </ul>
         </div>
@@ -144,5 +111,118 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
         ))}
       </div>
     </div>
+  );
+}
+
+function MemberRow({
+  member,
+  orgSlug,
+  isOwner,
+}: {
+  member: MergedMember;
+  orgSlug: string;
+  isOwner: boolean;
+}) {
+  const [showInvite, setShowInvite] = useState(false);
+  const [email, setEmail] = useState("");
+
+  const { mutate: sendInvite, isPending, isSuccess } = useMutation({
+    mutationFn: async () => {
+      await axios.post(`/api/v1/orgs/${orgSlug}/members/invite`, {
+        email: email.trim(),
+        githubLogin: member.githubLogin,
+      });
+    },
+    onSuccess: () => {
+      toast.success(`Invite sent to ${email}`);
+      setShowInvite(false);
+      setEmail("");
+    },
+    onError: () => toast.error("Failed to send invite"),
+  });
+
+  return (
+    <li className="px-4 py-3 space-y-2">
+      <div className="flex items-center gap-3">
+        {member.avatarUrl ? (
+          <Image
+            src={member.avatarUrl}
+            alt={member.githubLogin}
+            width={32}
+            height={32}
+            className={cn("rounded-full border border-border shrink-0", !member.joined && "opacity-50 grayscale")}
+          />
+        ) : (
+          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-mono font-bold text-foreground shrink-0">
+            {(member.name ?? member.githubLogin).charAt(0).toUpperCase()}
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <div className={cn("text-sm font-medium truncate", member.joined ? "text-foreground" : "text-muted-foreground")}>
+            {member.name ?? member.githubLogin}
+          </div>
+          <div className="text-[11px] font-mono text-muted-foreground/70">@{member.githubLogin}</div>
+        </div>
+
+        {member.joined && member.role ? (
+          <span className={cn(
+            "font-mono text-[10px] px-1.5 py-0.5 rounded border uppercase tracking-wide shrink-0",
+            member.role === "OWNER"
+              ? "text-primary border-primary/30 bg-primary/10"
+              : "text-muted-foreground border-border bg-muted"
+          )}>
+            {member.role}
+          </span>
+        ) : (
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded border border-yellow-500/30 bg-yellow-500/10 text-yellow-500/80 uppercase tracking-wide">
+              <Clock size={9} />
+              Pending
+            </span>
+            {isOwner && !showInvite && (
+              <button
+                type="button"
+                onClick={() => setShowInvite(true)}
+                className="flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 transition-colors uppercase tracking-wide"
+              >
+                <Mail size={9} />
+                Invite
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Inline invite form */}
+      {showInvite && (
+        <div className="flex items-center gap-2 pl-10">
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && email.trim() && sendInvite()}
+            placeholder={`${member.githubLogin}@email.com`}
+            autoFocus
+            className="flex-1 bg-background border border-border rounded px-2 py-1 text-xs font-mono text-foreground outline-none focus:border-primary/50 placeholder:text-muted-foreground/40"
+          />
+          <button
+            type="button"
+            onClick={() => sendInvite()}
+            disabled={isPending || !email.trim() || isSuccess}
+            className="flex items-center gap-1 px-2 py-1 rounded bg-primary text-background text-xs font-mono font-semibold disabled:opacity-60 hover:bg-primary/90 transition-colors"
+          >
+            {isPending ? <Loader2 size={10} className="animate-spin" /> : isSuccess ? <Check size={10} /> : <Mail size={10} />}
+            Send
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowInvite(false)}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors px-1"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+    </li>
   );
 }
