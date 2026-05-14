@@ -15,6 +15,12 @@ import {
   Copy,
   Check,
   ChevronsUpDown,
+  ShieldAlert,
+  AlertTriangle,
+  ExternalLink,
+  ScanSearch,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -332,9 +338,43 @@ interface PropertyRowProps {
   onMutated: () => void;
 }
 
+interface FaviconIssue {
+  status: "Error" | "Warning";
+  id: number;
+  text: string;
+}
+
+interface FaviconCheckData {
+  pageTitle: string;
+  currentFavicon: string | null;
+  issues: FaviconIssue[];
+  errorCount: number;
+  warningCount: number;
+}
+
 function PropertyRow({ property, repos, selected, onToggleSelect, onMutated }: PropertyRowProps) {
   const [selectedRepoId, setSelectedRepoId] = useState(property.repoId ?? "");
   const [repoPickerOpen, setRepoPickerOpen] = useState(false);
+  const [faviconOpen, setFaviconOpen] = useState(false);
+  const [copiedPrompt, setCopiedPrompt] = useState(false);
+  const domain = getSiteDomain(property.siteUrl);
+
+  const {
+    data: faviconData,
+    isFetching: isFaviconFetching,
+    isError: isFaviconError,
+    refetch: checkFavicon,
+  } = useQuery<FaviconCheckData>({
+    queryKey: ["favicon-check", domain],
+    queryFn: async () => {
+      const { data } = await axios.get(`/api/v1/gsc/favicon-check?domain=${encodeURIComponent(domain)}`);
+      if (!data.success) throw new Error(data.error ?? "Favicon check failed");
+      return data.data;
+    },
+    enabled: false,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
 
   const { mutate: syncNow, isPending: isSyncing } = useMutation({
     mutationFn: async () => {
@@ -587,6 +627,115 @@ function PropertyRow({ property, repos, selected, onToggleSelect, onMutated }: P
             </Command>
           </PopoverContent>
         </Popover>
+      </div>
+
+      {/* Favicon check */}
+      <div className="border-t border-border/40 pt-2">
+        <button
+          type="button"
+          onClick={() => {
+            if (!faviconOpen) {
+              setFaviconOpen(true);
+              if (!faviconData) checkFavicon();
+            } else {
+              setFaviconOpen(false);
+            }
+          }}
+          className="flex items-center gap-2 font-mono text-[11px] text-muted-foreground hover:text-foreground transition-colors w-full text-left"
+        >
+          <ScanSearch className="h-3.5 w-3.5 shrink-0" />
+          <span>Favicon health</span>
+          {faviconData && faviconData.errorCount === 0 && faviconData.warningCount === 0 && (
+            <span className="ml-1 text-green-400">— ok</span>
+          )}
+          {faviconData && (faviconData.errorCount > 0 || faviconData.warningCount > 0) && (
+            <span className="ml-1 text-red-400">
+              {faviconData.errorCount > 0 ? `${faviconData.errorCount} error${faviconData.errorCount > 1 ? "s" : ""}` : ""}
+              {faviconData.errorCount > 0 && faviconData.warningCount > 0 ? ", " : ""}
+              {faviconData.warningCount > 0 ? `${faviconData.warningCount} warning${faviconData.warningCount > 1 ? "s" : ""}` : ""}
+            </span>
+          )}
+          <span className="ml-auto">
+            {isFaviconFetching
+              ? <Loader2 className="h-3 w-3 animate-spin" />
+              : faviconOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+            }
+          </span>
+        </button>
+
+        {faviconOpen && (
+          <div className="mt-2 space-y-2">
+            {isFaviconFetching && (
+              <p className="font-mono text-[11px] text-muted-foreground">Checking favicon…</p>
+            )}
+
+            {isFaviconError && !isFaviconFetching && (
+              <div className="flex items-center gap-2">
+                <p className="font-mono text-[11px] text-red-400">Check failed.</p>
+                <button
+                  type="button"
+                  onClick={() => checkFavicon()}
+                  className="font-mono text-[11px] text-primary hover:underline"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+
+            {faviconData && !isFaviconFetching && (
+              <>
+                {faviconData.issues.length === 0 ? (
+                  <p className="font-mono text-[11px] text-green-400">No issues found.</p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {faviconData.issues.map((issue) => (
+                      <li key={issue.id} className="flex items-start gap-2">
+                        {issue.status === "Error"
+                          ? <ShieldAlert className="h-3.5 w-3.5 text-red-400 shrink-0 mt-px" />
+                          : <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-px" />
+                        }
+                        <span className="font-mono text-[11px] text-foreground/80">{issue.text}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                {faviconData.issues.length > 0 && (
+                  <div className="flex items-center gap-3 flex-wrap pt-0.5">
+                    <a
+                      href={`https://realfavicongenerator.net/?site=${encodeURIComponent(domain)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-primary hover:underline"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      Fix with RealFaviconGenerator
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const issueLines = faviconData.issues
+                          .map((i) => `- [${i.status}] ${i.text}`)
+                          .join("\n");
+                        const prompt = `Fix the favicon issues for ${property.siteUrl}.\n\nIssues detected by RealFaviconGenerator:\n${issueLines}\n\nGenerate and add all missing favicon files and the correct <link> tags in the <head>. Follow best practices: include ICO, PNG (16x16, 32x32, 96x96, 180x180), SVG, and a web manifest if missing.`;
+                        navigator.clipboard.writeText(prompt).then(() => {
+                          setCopiedPrompt(true);
+                          setTimeout(() => setCopiedPrompt(false), 2000);
+                        });
+                      }}
+                      className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {copiedPrompt
+                        ? <Check className="h-3 w-3 text-green-400" />
+                        : <Copy className="h-3 w-3" />}
+                      {copiedPrompt ? "Copied!" : "Copy fix prompt"}
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
