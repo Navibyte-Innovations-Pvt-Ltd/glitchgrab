@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { softwareApplicationSchema } from "@/lib/schema";
-import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
+import { BreadcrumbJsonLd, FAQJsonLd } from "@/components/seo/json-ld";
 
 import { WaitlistForm } from "./waitlist-form";
 import { ContactForm } from "./contact-form";
@@ -30,6 +30,39 @@ import {
   MessageSquare,
   ImageIcon,
 } from "lucide-react";
+
+const FAQS = [
+  {
+    question: "What is Glitchgrab?",
+    answer:
+      "Glitchgrab is an open-source Next.js SDK that automatically converts production errors, user-submitted screenshots, and vague bug reports into well-structured GitHub issues using AI.",
+  },
+  {
+    question: "Which versions of Next.js does Glitchgrab support?",
+    answer:
+      "Glitchgrab supports Next.js 13, 14, and 15 with full App Router compatibility.",
+  },
+  {
+    question: "Is Glitchgrab free to use?",
+    answer:
+      "Yes. The free tier includes unlimited reports and one GitHub repository. The Pro plan at ₹199/month unlocks multiple repositories and bring-your-own-key (BYOK) support for OpenAI or Anthropic.",
+  },
+  {
+    question: "How does AI deduplication work?",
+    answer:
+      "Every incoming report is converted to a vector embedding and compared against existing open issues. Semantically similar reports — like '502 gateway error' and 'site down' — are collapsed into a single tracking issue rather than creating duplicates.",
+  },
+  {
+    question: "Is Glitchgrab open source?",
+    answer:
+      "Yes. Glitchgrab is MIT-licensed and the full source code is available on GitHub at github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab.",
+  },
+  {
+    question: "How do I get started?",
+    answer:
+      "Install via bun install glitchgrab, wrap your root layout with GlitchgrabProvider using your token, and you're done. Full documentation is available at glitchgrab.dev/docs.",
+  },
+];
 
 const PIPELINE = [
   { n: "01", label: "Normalize", desc: "Strip PII & format", icon: Funnel },
@@ -210,6 +243,7 @@ export default function LandingPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareApplicationSchema()) }}
       />
       <BreadcrumbJsonLd items={[{ name: "Home", url: "https://glitchgrab.dev" }]} />
+      <FAQJsonLd faqs={FAQS} />
       {/* Global grid background */}
       <div
         aria-hidden
@@ -543,6 +577,41 @@ export default function LandingPage() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section id="faq" className="border-y border-border bg-card/30">
+        <div className="max-w-360 mx-auto border-x border-border">
+          <div className="border-b border-border p-4 flex items-center justify-between bg-background/40">
+            <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+              <span className="text-primary">/</span> sys.faq
+            </div>
+            <div className="font-mono text-[10px] text-muted-foreground/70">
+              {FAQS.length} entries
+            </div>
+          </div>
+          <div className="divide-y divide-border">
+            {FAQS.map((faq, i) => (
+              <details key={i} className="group px-6 sm:px-8 py-5 hover:bg-muted/10 transition-colors">
+                <summary className="list-none cursor-pointer flex items-start justify-between gap-4">
+                  <h3 className="font-mono text-sm text-foreground group-open:text-primary transition-colors">
+                    <span className="text-primary mr-2 select-none">&gt;</span>
+                    {faq.question}
+                  </h3>
+                  <span
+                    aria-hidden
+                    className="font-mono text-muted-foreground text-xs shrink-0 mt-0.5 group-open:text-primary transition-colors select-none"
+                  >
+                    [<span className="group-open:hidden">+</span><span className="hidden group-open:inline">−</span>]
+                  </span>
+                </summary>
+                <p className="mt-3 ml-5 font-mono text-xs text-muted-foreground leading-relaxed border-l border-border pl-4">
+                  {faq.answer}
+                </p>
+              </details>
+            ))}
           </div>
         </div>
       </section>
