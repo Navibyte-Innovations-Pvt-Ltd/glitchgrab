@@ -1,5 +1,15 @@
 {
   "git": {
     "deploymentEnabled": false
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/v1/cron/nightly-sync",
+      "schedule": "30 20 * * *"
+    },
+    {
+      "path": "/api/v1/cron/seo-health",
+      "schedule": "0 21 * * *"
+    }
+  ]
 }
