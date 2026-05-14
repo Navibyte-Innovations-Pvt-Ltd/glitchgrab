@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
         encryptedRefresh: refreshToken ? encrypt(refreshToken) : null,
         tokenExpiresAt,
         sites,
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 min
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 min — enough to log in and return
       },
     });
 
