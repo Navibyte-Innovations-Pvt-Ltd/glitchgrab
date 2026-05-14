@@ -348,3 +348,75 @@ export async function fetchRepoDescription(
   }
 }
 
+// ─── Org Types ──────────────────────────────────────────
+
+export interface GitHubOrg {
+  id: number;
+  login: string;
+  description: string | null;
+  avatarUrl: string | null;
+}
+
+export interface GitHubOrgRepo {
+  id: number;
+  fullName: string;
+  owner: string;
+  name: string;
+  isPrivate: boolean;
+}
+
+// ─── Org Helpers ────────────────────────────────────────
+
+export async function getGitHubUserLogin(accessToken: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${GITHUB_API}/user`, { headers: headers(accessToken) });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { login: string };
+    return data.login;
+  } catch {
+    return null;
+  }
+}
+
+export async function getUserOrgs(accessToken: string): Promise<GitHubOrg[]> {
+  try {
+    const res = await fetch(`${GITHUB_API}/user/orgs?per_page=100`, { headers: headers(accessToken) });
+    if (!res.ok) return [];
+    const data = (await res.json()) as { id: number; login: string; description: string | null; avatar_url: string }[];
+    return data.map((o) => ({ id: o.id, login: o.login, description: o.description, avatarUrl: o.avatar_url }));
+  } catch {
+    return [];
+  }
+}
+
+export async function getOrgRepos(accessToken: string, orgLogin: string): Promise<GitHubOrgRepo[]> {
+  const results: GitHubOrgRepo[] = [];
+  let page = 1;
+  while (true) {
+    const res = await fetch(
+      `${GITHUB_API}/orgs/${orgLogin}/repos?per_page=100&page=${page}&type=all`,
+      { headers: headers(accessToken) }
+    );
+    if (!res.ok) break;
+    const data = (await res.json()) as { id: number; full_name: string; owner: { login: string }; name: string; private: boolean }[];
+    if (data.length === 0) break;
+    for (const r of data) {
+      results.push({ id: r.id, fullName: r.full_name, owner: r.owner.login, name: r.name, isPrivate: r.private });
+    }
+    if (data.length < 100) break;
+    page++;
+  }
+  return results;
+}
+
+export async function getGitHubOrgInfo(accessToken: string, orgLogin: string): Promise<{ id: number; login: string; name: string } | null> {
+  try {
+    const res = await fetch(`${GITHUB_API}/orgs/${orgLogin}`, { headers: headers(accessToken) });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { id: number; login: string; name: string | null };
+    return { id: data.id, login: data.login, name: data.name ?? data.login };
+  } catch {
+    return null;
+  }
+}
+
