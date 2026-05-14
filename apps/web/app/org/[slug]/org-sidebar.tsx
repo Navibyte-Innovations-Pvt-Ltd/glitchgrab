@@ -53,8 +53,14 @@ export function OrgSidebar({ ctx }: { ctx: OrgContext }) {
     <aside className="hidden md:flex md:w-64 md:flex-col border-r border-border bg-card relative z-20">
       {/* Brand */}
       <div className="h-14 flex items-center gap-3 px-4 border-b border-border/60 shrink-0">
-        <div className="w-7 h-7 rounded bg-linear-to-br from-primary to-primary/60 flex items-center justify-center shadow-[0_0_12px_rgba(34,211,238,0.2)] shrink-0">
-          <Image src="/logo.png" alt="Glitchgrab" width={18} height={18} className="rounded-sm" />
+        <div className="w-7 h-7 rounded border border-border shrink-0 overflow-hidden">
+          <Image
+            src={`https://github.com/${ctx.orgSlug}.png`}
+            alt={ctx.orgName}
+            width={28}
+            height={28}
+            className="w-full h-full object-cover"
+          />
         </div>
         <div className="flex-1 min-w-0">
           <div className="font-mono text-[11px] font-bold tracking-[0.18em] text-foreground leading-tight truncate uppercase">
