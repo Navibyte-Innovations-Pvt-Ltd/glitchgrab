@@ -4,31 +4,19 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { processReport } from "@/lib/pipeline";
-import { getCollabSession } from "@/lib/collab-auth";
 import sharp from "sharp";
 
 export async function GET() {
   try {
     const session = await auth();
-    const collabSession = await getCollabSession();
     const userId = session?.user?.id;
 
-    if (!userId && !collabSession) {
+    if (!userId) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    const repoIds: string[] = [];
-    if (userId) {
-      const repos = await prisma.repo.findMany({ where: { userId }, select: { id: true } });
-      repoIds.push(...repos.map((r) => r.id));
-    }
-    if (collabSession) {
-      const collabRepos = await prisma.collaboratorRepo.findMany({
-        where: { collaborator: { id: collabSession.collaboratorId, status: "ACCEPTED" } },
-        select: { repoId: true },
-      });
-      repoIds.push(...collabRepos.map((r) => r.repoId));
-    }
+    const repos = await prisma.repo.findMany({ where: { userId }, select: { id: true } });
+    const repoIds = repos.map((r) => r.id);
 
     if (repoIds.length === 0) {
       return NextResponse.json({ success: true, data: [] });
@@ -117,9 +105,8 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const session = await auth();
-    const collabSession = await getCollabSession();
 
-    if (!session?.user?.id && !collabSession) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
         { status: 401 }
@@ -146,31 +133,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verify repo access — check own repos first, then shared repos
-    let repo;
-    let collaboratorEmail: string | null = null;
-
-    if (session?.user?.id) {
-      repo = await prisma.repo.findFirst({
-        where: { id: repoId, userId: session.user.id },
-      });
-    }
-
-    // If not found as own repo, check shared repos via collab session
-    if (!repo && collabSession) {
-      const collabRepo = await prisma.collaboratorRepo.findFirst({
-        where: {
-          repoId,
-          collaborator: {
-            id: collabSession.collaboratorId,
-            status: "ACCEPTED",
-          },
-        },
-        include: { repo: true },
-      });
-      repo = collabRepo?.repo ?? null;
-      collaboratorEmail = collabSession.email;
-    }
+    const repo = await prisma.repo.findFirst({
+      where: { id: repoId, userId: session.user.id },
+    });
 
     if (!repo) {
       return NextResponse.json(
@@ -201,22 +166,18 @@ export async function POST(request: Request) {
     if (screenshotDataUrls.length > 1) {
       metadata.extraScreenshots = screenshotDataUrls.slice(1);
     }
-    if (collaboratorEmail) {
-      metadata.collaboratorEmail = collaboratorEmail;
-    }
 
     // Create the report
     const report = await prisma.report.create({
       data: {
         repoId: repo.id,
-        collaboratorId: collabSession?.collaboratorId ?? null,
-        source: collaboratorEmail ? "COLLABORATOR" : "DASHBOARD_UPLOAD",
+        source: "DASHBOARD_UPLOAD",
         status: "PENDING",
         rawInput: description || null,
         screenshot: primaryScreenshot,
-        reporterPrimaryKey: session?.user?.id ?? collabSession?.collaboratorId ?? "unknown",
-        reporterName: session?.user?.name ?? collaboratorEmail ?? "Unknown",
-        reporterEmail: session?.user?.email ?? collaboratorEmail ?? null,
+        reporterPrimaryKey: session.user.id,
+        reporterName: session.user.name ?? "Unknown",
+        reporterEmail: session.user.email ?? null,
         metadata: Object.keys(metadata).length > 0
           ? JSON.parse(JSON.stringify(metadata))
           : undefined,
