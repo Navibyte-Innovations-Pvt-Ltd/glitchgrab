@@ -48,14 +48,14 @@ export const metadata: Metadata = {
     title: "Glitchgrab — Grab the glitch. Ship the fix.",
     description:
       "Turn messy bug reports into structured GitHub issues with AI. SDK auto-capture, screenshots, user reports — all become clean issues.",
-    images: [{ url: `${BASE_URL}/og-image.png`, width: 1200, height: 630 }],
+    images: [{ url: `${BASE_URL}/og-image.jpg`, width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Glitchgrab — Grab the glitch. Ship the fix.",
     description:
       "Turn messy bug reports into structured GitHub issues with AI.",
-    images: [`${BASE_URL}/og-image.png`],
+    images: [`${BASE_URL}/og-image.jpg`],
   },
 };
 
@@ -67,9 +67,14 @@ export default function RootLayout({
   return (
     <html lang="en" data-scroll-behavior="smooth">
       <head>
-        <link rel="icon" href="/favicon.ico" sizes="32x32" />
+        <link rel="icon" href="/favicon.ico" sizes="16x16 48x48" />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="icon" href="/favicon-16x16.png" type="image/png" sizes="16x16" />
+        <link rel="icon" href="/favicon-32x32.png" type="image/png" sizes="32x32" />
+        <link rel="icon" href="/favicon-96x96.png" type="image/png" sizes="96x96" />
         <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
+        <link rel="manifest" href="/site.webmanifest" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"
