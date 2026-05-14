@@ -1,0 +1,1 @@
+ALTER TABLE "GscProperty" ADD COLUMN IF NOT EXISTS "seoHealthSnoozedUntil" TIMESTAMP(3);
