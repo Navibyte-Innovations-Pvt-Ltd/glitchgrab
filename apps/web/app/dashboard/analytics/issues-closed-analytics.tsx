@@ -3,13 +3,11 @@
 import { useState, useMemo, useCallback, memo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   CheckCircle2,
   TrendingUp,
   Calendar,
-  ExternalLink,
   BarChart3,
   Zap,
 } from "lucide-react";
@@ -79,8 +77,8 @@ const BarList = memo(function BarList({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      {/* mt-8 reserves space above tallest bar for CSS tooltip */}
-      <div className="flex items-end gap-0.5 h-[148px] pb-1 w-full mt-8">
+      {/* mt-16 reserves space above tallest bar for CSS tooltip */}
+      <div className="flex items-end gap-0.5 h-[120px] pb-1 w-full mt-16">
         {barData.map((bucket) => {
           const heightPct = maxCount > 0 ? (bucket.count / maxCount) * 100 : 0;
           return (
@@ -123,7 +121,7 @@ const BarList = memo(function BarList({
           return (
             <div key={bucket.date} className="relative flex-1 min-w-0">
               {showTick && (
-                <span className="absolute left-0 top-0 text-[9px] font-mono text-muted-foreground/70 whitespace-nowrap -rotate-45 origin-top-left">
+                <span className="absolute left-0 top-0 text-[9px] font-mono text-muted-foreground whitespace-nowrap -rotate-45 origin-top-left bg-card border border-border px-1 py-0.5 rounded-sm leading-none">
                   {formatDate(bucket.date)}
                 </span>
               )}
@@ -134,6 +132,46 @@ const BarList = memo(function BarList({
     </div>
   );
 });
+
+function HoverOverlay({ hoveredDay }: { hoveredDay: DayBucket }) {
+  const repoCounts = hoveredDay.issues.reduce<Record<string, number>>(
+    (acc, issue) => {
+      acc[issue.repoFullName] = (acc[issue.repoFullName] ?? 0) + 1;
+      return acc;
+    },
+    {},
+  );
+  return (
+    <div className="absolute left-3 top-3 z-20 pointer-events-none bg-card/95 backdrop-blur-sm border border-border rounded-md px-3 py-2 flex flex-col gap-1 shadow-md">
+      <div className="flex items-center gap-2">
+        <CheckCircle2 className="h-3 w-3 text-green-400 shrink-0" />
+        <span className="text-[11px] font-mono text-primary">
+          {formatDateFull(hoveredDay.date)}
+        </span>
+        <span className="ml-2 text-[10px] font-mono text-muted-foreground">
+          {hoveredDay.count} closed
+        </span>
+      </div>
+      <div className="flex flex-col gap-0.5">
+        {Object.entries(repoCounts).map(([repo, count]) => (
+          <div key={repo} className="flex items-center gap-2">
+            <span className="text-[10px] font-mono text-muted-foreground/70 truncate max-w-[180px]">
+              {repo.split("/")[1]}
+            </span>
+            <span className="text-[10px] font-mono text-primary/80 ml-auto shrink-0">
+              {count}
+            </span>
+          </div>
+        ))}
+        {hoveredDay.count > hoveredDay.issues.length && (
+          <span className="text-[9px] font-mono text-muted-foreground/50">
+            +{hoveredDay.count - hoveredDay.issues.length} more
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function IssuesClosedAnalytics() {
   const [days, setDays] = useState<7 | 30 | 90>(30);
@@ -171,7 +209,7 @@ export function IssuesClosedAnalytics() {
   const activeDays = data?.daily.filter((d) => d.count > 0).length ?? 0;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 min-h-full">
       {/* Terminal header + range toggle */}
       <div className="flex items-center justify-between text-xs font-mono text-muted-foreground border-b border-border pb-2.5">
         <div className="flex items-center gap-2 min-w-0">
@@ -198,7 +236,7 @@ export function IssuesClosedAnalytics() {
       </div>
 
       {/* Main: 2×2 stats left + chart right */}
-      <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-3 lg:h-[240px]">
+      <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-3 lg:h-[284px]">
         {/* 2×2 stat grid */}
         <div className="grid grid-cols-2 grid-rows-2 gap-2 h-full">
           <StatCard
@@ -284,58 +322,19 @@ export function IssuesClosedAnalytics() {
               />
             )}
           </CardContent>
+
+          {/* Hover overlay — compact, pointer-events-none so bars keep receiving hover events */}
+          {hoveredDay && hoveredDay.count > 0 && (
+            <HoverOverlay hoveredDay={hoveredDay} />
+          )}
         </Card>
       </div>
 
-      {/* Hovered day issue list */}
-      {hoveredDay && hoveredDay.issues.length > 0 && (
-        <Card className="rounded">
-          <CardContent className="p-3 space-y-2">
-            <h3 className="text-sm font-medium text-foreground">
-              Closed on{" "}
-              <span className="text-primary font-mono">
-                {formatDateFull(hoveredDay.date)}
-              </span>
-              <span className="ml-2 text-muted-foreground font-mono text-xs">
-                {hoveredDay.count} issue{hoveredDay.count === 1 ? "" : "s"}
-              </span>
-            </h3>
-            <ul className="space-y-1.5">
-              {hoveredDay.issues.map((issue) => (
-                <li key={`${issue.repoFullName}-${issue.number}`}>
-                  <Link
-                    href={issue.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 group text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-green-400" />
-                    <span className="font-mono text-[11px] text-muted-foreground/60 shrink-0">
-                      #{issue.number}
-                    </span>
-                    <span className="truncate flex-1">{issue.title}</span>
-                    <span className="text-[10px] font-mono text-muted-foreground/50 shrink-0">
-                      {issue.repoFullName}
-                    </span>
-                    <ExternalLink className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </Link>
-                </li>
-              ))}
-              {hoveredDay.count > hoveredDay.issues.length && (
-                <li className="text-[11px] font-mono text-muted-foreground/60 pl-5">
-                  +{hoveredDay.count - hoveredDay.issues.length} more issues
-                </li>
-              )}
-            </ul>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Daily breakdown table */}
       {!isLoading && data && data.total > 0 && (
-        <Card className="rounded">
-          <CardContent className="p-0">
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
+        <Card className="rounded flex-1 flex flex-col min-h-0">
+          <CardContent className="p-0 flex flex-col flex-1 min-h-0">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border shrink-0">
               <h3 className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
                 Daily breakdown
               </h3>
@@ -343,7 +342,7 @@ export function IssuesClosedAnalytics() {
                 {data.daily.filter((d) => d.count > 0).length} active days
               </span>
             </div>
-            <div className="divide-y divide-border max-h-64 overflow-y-auto">
+            <div className="divide-y divide-border flex-1 overflow-y-auto min-h-0">
               {[...data.daily]
                 .filter((d) => d.count > 0)
                 .sort((a, b) => b.date.localeCompare(a.date))
