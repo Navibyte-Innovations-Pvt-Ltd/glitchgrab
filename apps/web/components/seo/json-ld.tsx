@@ -1,42 +1,58 @@
-import Script from "next/script";
-
 const BASE_URL = "https://glitchgrab.dev";
 const ORG_NAME = "Glitchgrab";
 
 export function OrganizationJsonLd() {
   const schema = {
     "@context": "https://schema.org",
-    "@type": ["Organization", "SoftwareApplication"],
+    "@type": "Organization",
     name: ORG_NAME,
     url: BASE_URL,
-    logo: `${BASE_URL}/logo.png`,
-    applicationCategory: "DeveloperApplication",
-    operatingSystem: "Web",
+    logo: {
+      "@type": "ImageObject",
+      url: `${BASE_URL}/logo.png`,
+      width: 192,
+      height: 192,
+    },
     description:
       "Convert screenshots, production errors, and user complaints into well-structured GitHub issues. Powered by AI. Open source.",
-    offers: {
-      "@type": "Offer",
-      price: "0",
-      priceCurrency: "INR",
-      description: "Free tier — 1 GitHub repo, unlimited reports",
-    },
-    author: {
-      "@type": "Organization",
-      name: "Navibyte Innovations Pvt. Ltd.",
-    },
+    foundingDate: "2026",
     contactPoint: {
       "@type": "ContactPoint",
       contactType: "customer support",
+      email: "bhosalenaresh73@gmail.com",
       url: `${BASE_URL}/contact`,
       availableLanguage: ["English"],
     },
     sameAs: [
       "https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab",
+      "https://www.npmjs.com/package/glitchgrab",
     ],
   };
   return (
-    <Script
-      id="org-json-ld"
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
+}
+
+export function WebSiteJsonLd() {
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: ORG_NAME,
+    url: BASE_URL,
+    potentialAction: {
+      "@type": "SearchAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: `${BASE_URL}/docs?q={search_term_string}`,
+      },
+      "query-input": "required name=search_term_string",
+    },
+  };
+  return (
+    <script
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
     />
@@ -59,8 +75,61 @@ export function BreadcrumbJsonLd({
     })),
   };
   return (
-    <Script
-      id="breadcrumb-json-ld"
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
+}
+
+export function FAQJsonLd({
+  faqs,
+}: {
+  faqs: { question: string; answer: string }[];
+}) {
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map((faq) => ({
+      "@type": "Question",
+      name: faq.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: faq.answer,
+      },
+    })),
+  };
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
+}
+
+export function HowToJsonLd({
+  name,
+  description,
+  steps,
+}: {
+  name: string;
+  description: string;
+  steps: { name: string; text: string }[];
+}) {
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    name,
+    description,
+    step: steps.map((step, i) => ({
+      "@type": "HowToStep",
+      position: i + 1,
+      name: step.name,
+      text: step.text,
+    })),
+  };
+  return (
+    <script
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
     />
