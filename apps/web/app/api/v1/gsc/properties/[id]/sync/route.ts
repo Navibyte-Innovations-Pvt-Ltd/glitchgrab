@@ -76,6 +76,7 @@ export async function POST(
       indexedCount: indexed,
       notIndexedCount: notIndexed,
       lastSyncAt: new Date(),
+      cachedNotIndexedPages: notIndexedPages,
     },
   });
 
