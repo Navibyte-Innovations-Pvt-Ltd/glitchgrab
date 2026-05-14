@@ -129,8 +129,10 @@ export function GscPropertyDetail({
 
   const [copiedFavicon, setCopiedFavicon] = useState(false);
   const [copiedOg, setCopiedOg] = useState(false);
+  const [copiedIndexing, setCopiedIndexing] = useState(false);
   const [faviconIssueUrl, setFaviconIssueUrl] = useState<string | null>(null);
   const [ogIssueUrl, setOgIssueUrl] = useState<string | null>(null);
+  const [indexingIssueUrl, setIndexingIssueUrl] = useState<string | null>(null);
 
   const { mutate: createFaviconIssue, isPending: isCreatingFaviconIssue } = useMutation({
     mutationFn: async () => {
@@ -173,6 +175,37 @@ export function GscPropertyDetail({
     onSuccess: (result) => {
       if (result.issueUrl) {
         setOgIssueUrl(result.issueUrl);
+        toast.success("GitHub issue created");
+      } else {
+        toast.success("Report submitted");
+      }
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to create issue"),
+  });
+
+  const { mutate: createIndexingIssue, isPending: isCreatingIndexingIssue } = useMutation({
+    mutationFn: async () => {
+      if (!syncResult || syncResult.notIndexedPages.length === 0) throw new Error("No not-indexed pages");
+      if (!selectedRepoId) throw new Error("No repo linked");
+      const grouped = syncResult.notIndexedPages.reduce<Record<string, string[]>>((acc, p) => {
+        const key = p.reason ?? "Unknown";
+        (acc[key] ??= []).push(p.url);
+        return acc;
+      }, {});
+      const lines = Object.entries(grouped).map(([reason, urls]) =>
+        `### ${reason} (${urls.length})\n${urls.map((u) => `- ${u}`).join("\n")}`
+      ).join("\n\n");
+      const description = `Fix indexing issues for ${property.siteUrl}\n\n${syncResult.notIndexedPages.length} pages are not indexed by Google.\n\n${lines}\n\nInvestigate and fix each category. For redirects: check permanent vs temporary redirects and update them. For unknown URLs: ensure pages are accessible and add to sitemap. For canonical issues: verify canonical tags point to the correct URL.`;
+      const form = new FormData();
+      form.append("repoId", selectedRepoId);
+      form.append("description", description);
+      const { data } = await axios.post("/api/v1/reports", form);
+      if (!data.success) throw new Error(data.error ?? "Failed to create issue");
+      return data.data as { issueUrl?: string };
+    },
+    onSuccess: (result) => {
+      if (result.issueUrl) {
+        setIndexingIssueUrl(result.issueUrl);
         toast.success("GitHub issue created");
       } else {
         toast.success("Report submitted");
@@ -358,11 +391,51 @@ export function GscPropertyDetail({
 
             return (
               <div className="border border-border rounded bg-card/40 overflow-hidden">
-                <div className="flex items-center gap-2 px-4 py-3 border-b border-border/60">
-                  <AlertCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />
-                  <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-widest">
-                    Not Indexed — {syncResult.notIndexedPages.length} pages
-                  </span>
+                <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border/60">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />
+                    <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-widest">
+                      Not Indexed — {syncResult.notIndexedPages.length} pages
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const grouped = syncResult.notIndexedPages.reduce<Record<string, string[]>>((acc, p) => {
+                          const key = p.reason ?? "Unknown";
+                          (acc[key] ??= []).push(p.url);
+                          return acc;
+                        }, {});
+                        const lines = Object.entries(grouped).map(([reason, urls]) =>
+                          `### ${reason} (${urls.length})\n${urls.map((u) => `- ${u}`).join("\n")}`
+                        ).join("\n\n");
+                        const prompt = `Fix indexing issues for ${property.siteUrl}.\n\n${syncResult.notIndexedPages.length} pages are not indexed by Google:\n\n${lines}\n\nInvestigate and fix each category. For redirects: update to permanent 301s or fix the redirect chain. For unknown URLs: ensure pages are accessible and add to sitemap. For canonical issues: verify canonical tags point to the correct URL.`;
+                        navigator.clipboard.writeText(prompt).then(() => { setCopiedIndexing(true); setTimeout(() => setCopiedIndexing(false), 2000); });
+                      }}
+                      className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {copiedIndexing ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+                      {copiedIndexing ? "Copied!" : "Copy prompt"}
+                    </button>
+                    {indexingIssueUrl ? (
+                      <a href={indexingIssueUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-green-400 hover:underline">
+                        <GitPullRequest className="h-3 w-3" />
+                        View Issue
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => createIndexingIssue()}
+                        disabled={!selectedRepoId || isCreatingIndexingIssue}
+                        title={!selectedRepoId ? "Link a repo first" : "Create GitHub issue"}
+                        className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {isCreatingIndexingIssue ? <Loader2 className="h-3 w-3 animate-spin" /> : <GitPullRequest className="h-3 w-3" />}
+                        {isCreatingIndexingIssue ? "Creating…" : "Create Issue"}
+                      </button>
+                    )}
+                  </div>
                 </div>
                 {/* Reason tabs */}
                 {tabs.length > 2 && (
