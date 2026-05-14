@@ -55,7 +55,6 @@ interface SidebarProps {
     email?: string | null;
     image?: string | null;
   };
-  userType?: "owner" | "collaborator";
   planBadge?: PlanBadgeType;
   trialDaysLeft?: number;
 }
@@ -75,7 +74,6 @@ const TONE_CLASS: Record<BadgeTone, string> = {
 
 export function Sidebar({
   user,
-  userType = "owner",
   planBadge = "none",
   trialDaysLeft = 0,
 }: SidebarProps) {
@@ -102,7 +100,7 @@ export function Sidebar({
       return data.data ?? [];
     },
     staleTime: 60_000,
-    enabled: userType === "owner",
+    enabled: true,
   });
   const { data: analytics } = useQuery<{ failed: number }>({
     queryKey: ["reports-analytics"],
@@ -111,7 +109,7 @@ export function Sidebar({
       return data.data;
     },
     staleTime: 60_000,
-    enabled: userType === "owner",
+    enabled: true,
   });
 
   const issueCount = issues?.length ?? 0;
@@ -154,7 +152,6 @@ export function Sidebar({
       label: "Config",
       items: [
         { href: "/dashboard/tokens", label: "API Tokens", icon: KeyIcon, ownerOnly: true },
-        { href: "/dashboard/collaborators", label: "Collaborators", icon: UsersIcon, ownerOnly: true },
         {
           href: "/dashboard/billing",
           label: "Billing",
@@ -185,7 +182,7 @@ export function Sidebar({
             GLITCHGRAB
           </div>
           <div className="font-mono text-[9px] text-muted-foreground/80 tracking-widest uppercase truncate mt-0.5">
-            {userType === "owner" ? "workspace" : "collaborator"}
+            workspace
           </div>
         </div>
       </div>
@@ -193,7 +190,7 @@ export function Sidebar({
       {/* Nav body */}
       <nav className="flex-1 overflow-y-auto px-2 py-4 flex flex-col gap-5">
         {navGroups.map((group) => {
-          const visible = group.items.filter((i) => !i.ownerOnly || userType === "owner");
+          const visible = group.items.filter((i) => !i.ownerOnly || true);
           if (visible.length === 0) return null;
 
           return (
