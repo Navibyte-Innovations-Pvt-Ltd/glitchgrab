@@ -71,7 +71,7 @@ export async function POST(request: Request) {
 
   // Sync all org repos
   const githubRepos = await getOrgRepos(account.access_token, orgInfo.login);
-  const userId = session.user!.id as string;
+  const userId = session.user.id;
   if (githubRepos.length > 0) {
     await Promise.all(
       githubRepos.map((r) =>
