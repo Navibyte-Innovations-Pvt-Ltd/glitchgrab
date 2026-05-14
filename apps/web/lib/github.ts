@@ -303,6 +303,27 @@ export async function listWorkflowRuns(
   });
 }
 
+// ─── Check If Issue Is Still Open ────────────────────
+
+export async function checkIssueIsOpen(
+  accessToken: string,
+  issueUrl: string
+): Promise<boolean> {
+  const match = issueUrl.match(/github\.com\/([^/]+)\/([^/]+)\/issues\/(\d+)/);
+  if (!match) return false;
+  const [, owner, repo, number] = match;
+  try {
+    const res = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/issues/${number}`, {
+      headers: headers(accessToken),
+    });
+    if (!res.ok) return false;
+    const data = (await res.json()) as { state: string };
+    return data.state === "open";
+  } catch {
+    return false;
+  }
+}
+
 // ─── Fetch Repo Description ──────────────────────────
 
 export async function fetchRepoDescription(
