@@ -90,6 +90,7 @@ export function GscPropertyDetail({
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
   const [selectedRepoId, setSelectedRepoId] = useState(initialProperty.repoId ?? "");
   const [repoPickerOpen, setRepoPickerOpen] = useState(false);
+  const [activeReasonTab, setActiveReasonTab] = useState<string>("all");
 
   const domain = (() => {
     if (property.siteUrl.startsWith("sc-domain:")) return property.siteUrl.replace("sc-domain:", "");
@@ -344,29 +345,66 @@ export function GscPropertyDetail({
             </div>
           )}
 
-          {syncResult && syncResult.notIndexedPages.length > 0 && (
-            <div className="border border-border rounded bg-card/40 overflow-hidden">
-              <div className="flex items-center gap-2 px-4 py-3 border-b border-border/60">
-                <AlertCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />
-                <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-widest">
-                  Not Indexed — {syncResult.notIndexedPages.length} pages
-                </span>
-              </div>
-              <div className="divide-y divide-border/40 max-h-[420px] overflow-y-auto">
-                {syncResult.notIndexedPages.map(({ url, reason }) => (
-                  <div key={url} className="flex items-start justify-between gap-3 px-4 py-2.5">
-                    <div className="min-w-0">
-                      <p className="font-mono text-[11px] text-foreground break-all">{url}</p>
-                      {reason && <p className="font-mono text-[10px] text-red-400/80 mt-0.5">{reason}</p>}
-                    </div>
-                    <a href={url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-muted-foreground hover:text-primary transition-colors mt-0.5">
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
+          {syncResult && syncResult.notIndexedPages.length > 0 && (() => {
+            const reasonGroups = syncResult.notIndexedPages.reduce<Record<string, typeof syncResult.notIndexedPages>>((acc, page) => {
+              const key = page.reason ?? "Unknown";
+              (acc[key] ??= []).push(page);
+              return acc;
+            }, {});
+            const tabs = ["all", ...Object.keys(reasonGroups)];
+            const visiblePages = activeReasonTab === "all"
+              ? syncResult.notIndexedPages
+              : (reasonGroups[activeReasonTab] ?? []);
+
+            return (
+              <div className="border border-border rounded bg-card/40 overflow-hidden">
+                <div className="flex items-center gap-2 px-4 py-3 border-b border-border/60">
+                  <AlertCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />
+                  <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-widest">
+                    Not Indexed — {syncResult.notIndexedPages.length} pages
+                  </span>
+                </div>
+                {/* Reason tabs */}
+                {tabs.length > 2 && (
+                  <div className="flex gap-0 border-b border-border/60 overflow-x-auto">
+                    {tabs.map((tab) => {
+                      const count = tab === "all" ? syncResult.notIndexedPages.length : (reasonGroups[tab]?.length ?? 0);
+                      return (
+                        <button
+                          key={tab}
+                          type="button"
+                          onClick={() => setActiveReasonTab(tab)}
+                          className={cn(
+                            "shrink-0 px-3 py-2 font-mono text-[10px] uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap",
+                            activeReasonTab === tab
+                              ? "border-primary text-foreground"
+                              : "border-transparent text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          {tab === "all" ? "All" : tab} ({count})
+                        </button>
+                      );
+                    })}
                   </div>
-                ))}
+                )}
+                <div className="divide-y divide-border/40 max-h-[420px] overflow-y-auto">
+                  {visiblePages.map(({ url, reason }) => (
+                    <div key={url} className="flex items-start justify-between gap-3 px-4 py-2.5">
+                      <div className="min-w-0">
+                        <p className="font-mono text-[11px] text-foreground break-all">{url}</p>
+                        {reason && activeReasonTab === "all" && (
+                          <p className="font-mono text-[10px] text-red-400/80 mt-0.5">{reason}</p>
+                        )}
+                      </div>
+                      <a href={url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-muted-foreground hover:text-primary transition-colors mt-0.5">
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {!syncResult && !isSyncing && (
             <div className="border border-dashed border-border rounded p-8 text-center">
