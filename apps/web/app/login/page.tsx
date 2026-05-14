@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
@@ -153,7 +154,9 @@ export default async function LoginPage() {
               </div>
 
               <div className="opacity-60 hover:opacity-100 transition-opacity duration-300">
-                <GitHubSignInButton />
+                <Suspense fallback={null}>
+                  <GitHubSignInButton />
+                </Suspense>
               </div>
             </div>
 
