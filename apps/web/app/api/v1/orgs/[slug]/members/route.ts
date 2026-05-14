@@ -41,6 +41,25 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
     },
   });
 
+  // For DB members with null githubLogin, look up from Account table and backfill
+  for (const m of dbMembers) {
+    if (!m.user.githubLogin) {
+      const acc = await prisma.account.findFirst({
+        where: { userId: m.user.id, provider: "github" },
+        select: { access_token: true },
+      });
+      if (acc?.access_token) {
+        const { getGitHubUserLogin } = await import("@/lib/github");
+        const login = await getGitHubUserLogin(acc.access_token);
+        if (login) {
+          // Backfill into DB so next call is instant
+          await prisma.user.update({ where: { id: m.user.id }, data: { githubLogin: login } });
+          m.user.githubLogin = login;
+        }
+      }
+    }
+  }
+
   // Build a map: githubLogin → dbMember
   const dbByLogin = new Map(
     dbMembers
@@ -49,12 +68,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   );
 
   // Merge: all GitHub members, annotated with DB state
+  const githubLogins = new Set(githubMembers.map((m) => m.login));
   const merged = githubMembers.map((ghm) => {
     const db = dbByLogin.get(ghm.login);
     return {
       githubLogin: ghm.login,
       avatarUrl: ghm.avatarUrl,
-      // DB fields if they've signed in
       orgMemberId: db?.id ?? null,
       name: db?.user.name ?? null,
       email: db?.user.email ?? null,
@@ -64,8 +83,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
     };
   });
 
-  // Add any DB members whose githubLogin isn't in the GitHub list (edge case)
-  const githubLogins = new Set(githubMembers.map((m) => m.login));
+  // Add DB members whose githubLogin still isn't in GitHub list (edge case only)
   for (const db of dbMembers) {
     if (!db.user.githubLogin || !githubLogins.has(db.user.githubLogin)) {
       merged.push({
