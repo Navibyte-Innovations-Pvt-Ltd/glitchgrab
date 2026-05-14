@@ -2,18 +2,36 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import { Loader2, Building2, GitFork, CheckCircle2 } from "lucide-react";
+import { Loader2, Building2, GitFork, CheckCircle2, Check } from "lucide-react";
+import Image from "next/image";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+
+interface GitHubOrg {
+  id: number;
+  login: string;
+  description: string | null;
+  avatarUrl: string | null;
+}
 
 export function OrgSetupClient() {
-  const [orgLogin, setOrgLogin] = useState("");
+  const [selected, setSelected] = useState<string>("");
   const router = useRouter();
+
+  const { data: orgs, isLoading: orgsLoading } = useQuery<GitHubOrg[]>({
+    queryKey: ["my-github-orgs"],
+    queryFn: async () => {
+      const { data } = await axios.get("/api/v1/orgs/my-github-orgs");
+      return data.data as GitHubOrg[];
+    },
+    staleTime: 60_000,
+  });
 
   const { mutate, isPending, isSuccess } = useMutation({
     mutationFn: async () => {
-      const { data } = await axios.post("/api/v1/orgs", { githubOrgLogin: orgLogin.trim() });
+      const { data } = await axios.post("/api/v1/orgs", { githubOrgLogin: selected.trim() });
       return data.data as { org: { githubOrgLogin: string }; repoCount: number };
     },
     onSuccess: (data) => {
@@ -36,31 +54,69 @@ export function OrgSetupClient() {
           </div>
           <h1 className="text-2xl font-bold text-foreground">Connect your GitHub Org</h1>
           <p className="text-sm text-muted-foreground">
-            All repos in the org will be automatically synced. Team members who log in with GitHub will be detected.
+            All repos synced automatically. Team members auto-detected on login.
           </p>
         </div>
 
         {/* Card */}
         <div className="rounded-xl border border-border bg-card p-6 space-y-5">
+
+          {/* Org picker */}
           <div className="space-y-2">
-            <label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
-              GitHub Org Login
-            </label>
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 focus-within:border-primary/50 transition-colors">
-              <span className="text-muted-foreground font-mono text-sm">github.com/</span>
-              <input
-                type="text"
-                value={orgLogin}
-                onChange={(e) => setOrgLogin(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && orgLogin.trim() && mutate()}
-                placeholder="your-org"
-                className="flex-1 bg-transparent text-foreground font-mono text-sm outline-none placeholder:text-muted-foreground/40"
-                autoFocus
-              />
-            </div>
-            <p className="text-[11px] text-muted-foreground/70 font-mono">
-              Must be an org you have access to on GitHub
+            <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
+              Your GitHub Orgs
             </p>
+
+            {orgsLoading ? (
+              <div className="flex items-center gap-2 py-4 justify-center text-muted-foreground">
+                <Loader2 size={14} className="animate-spin" />
+                <span className="text-sm font-mono">Loading orgs…</span>
+              </div>
+            ) : !orgs || orgs.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-2">
+                No GitHub orgs found. You need to be a member of at least one org.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {orgs.map((org) => (
+                  <li key={org.id}>
+                    <button
+                      type="button"
+                      onClick={() => setSelected(org.login)}
+                      className={cn(
+                        "w-full flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors text-left",
+                        selected === org.login
+                          ? "border-primary/60 bg-primary/10"
+                          : "border-border bg-background hover:border-primary/30 hover:bg-muted"
+                      )}
+                    >
+                      {org.avatarUrl ? (
+                        <Image
+                          src={org.avatarUrl}
+                          alt={org.login}
+                          width={28}
+                          height={28}
+                          className="rounded-md border border-border shrink-0"
+                        />
+                      ) : (
+                        <div className="w-7 h-7 rounded-md bg-muted flex items-center justify-center shrink-0">
+                          <Building2 size={14} className="text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-mono font-medium text-foreground">{org.login}</div>
+                        {org.description && (
+                          <div className="text-[11px] text-muted-foreground truncate mt-0.5">{org.description}</div>
+                        )}
+                      </div>
+                      {selected === org.login && (
+                        <Check size={14} className="text-primary shrink-0" />
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           {/* What happens */}
@@ -81,7 +137,7 @@ export function OrgSetupClient() {
           <button
             type="button"
             onClick={() => mutate()}
-            disabled={isPending || !orgLogin.trim() || isSuccess}
+            disabled={isPending || !selected || isSuccess}
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-background font-mono font-semibold text-sm disabled:opacity-60 hover:bg-primary/90 transition-colors"
           >
             {isPending ? (
@@ -92,7 +148,7 @@ export function OrgSetupClient() {
             ) : (
               <>
                 <GitFork size={14} />
-                Connect Org
+                {selected ? `Connect ${selected}` : "Select an org above"}
               </>
             )}
           </button>
