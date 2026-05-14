@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { version } from "../package.json";
 import { softwareApplicationSchema } from "@/lib/schema";
 import { BreadcrumbJsonLd, FAQJsonLd } from "@/components/seo/json-ld";
 
@@ -29,6 +30,7 @@ import {
   Plug,
   MessageSquare,
   ImageIcon,
+  GitFork,
 } from "lucide-react";
 
 const FAQS = [
@@ -265,6 +267,9 @@ export default function LandingPage() {
             <span className="font-mono text-sm font-bold tracking-tight text-foreground lowercase">
               glitchgrab
             </span>
+            <span className="font-mono text-[10px] text-muted-foreground border border-border px-1 py-0.5 rounded-sm">
+              v{version}
+            </span>
           </Link>
 
           <div className="hidden md:flex items-center gap-8 h-full border-x border-border px-8">
@@ -306,7 +311,7 @@ export default function LandingPage() {
                 <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-60 animate-ping" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
               </span>
-              open source · beta
+              open source · beta · v{version}
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight leading-[1.05] text-foreground lowercase">
@@ -381,6 +386,303 @@ export default function LandingPage() {
               <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />
               free tier · unlimited reports
             </span>
+          </div>
+        </div>
+      </section>
+
+      {/* Product screenshot */}
+      <section className="border-b border-border bg-background">
+        <div className="max-w-360 mx-auto border-x border-border px-4 sm:px-6 py-12 lg:py-16">
+          <div className="text-center mb-8">
+            <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground mb-2">
+              <span className="text-primary">//</span> dashboard preview
+            </p>
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground lowercase">
+              organize your work and org
+            </h2>
+            <p className="font-mono text-xs text-muted-foreground mt-2 max-w-md mx-auto leading-relaxed">
+              one place for every bug, issue, and team member — no context switching
+            </p>
+          </div>
+
+          {/* Browser chrome frame */}
+          <div className="relative mx-auto max-w-5xl">
+            <div className="rounded-t-lg border border-border border-b-0 bg-card px-4 py-2.5 flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-red-500/70" />
+              <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/70" />
+              <span className="h-2.5 w-2.5 rounded-full bg-green-500/70" />
+              <div className="ml-3 flex-1 bg-background border border-border rounded-sm px-3 py-0.5 font-mono text-[10px] text-muted-foreground">
+                glitchgrab.dev/dashboard
+              </div>
+            </div>
+            <div className="border border-border rounded-b-lg overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.4)]">
+              <Image
+                src="/meta/dashboard.webp"
+                alt="Glitchgrab dashboard — bug reports, issues, and team overview"
+                width={1215}
+                height={762}
+                className="w-full h-auto block"
+                priority
+              />
+            </div>
+            {/* Glow */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -inset-px rounded-lg"
+              style={{ boxShadow: "0 0 60px 10px color-mix(in srgb, var(--primary) 8%, transparent)" }}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Chat → Issue section */}
+      <section className="border-b border-border bg-card/20">
+        <div className="max-w-360 mx-auto border-x border-border">
+          <div className="grid lg:grid-cols-2 gap-0">
+            {/* Left — copy */}
+            <div className="flex flex-col justify-center gap-6 px-6 sm:px-10 py-12 lg:py-16 border-b lg:border-b-0 lg:border-r border-border">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-primary flex items-center gap-2">
+                <MessageSquare className="h-3.5 w-3.5" />
+                chat → github issue
+              </div>
+
+              <h2 className="text-2xl sm:text-3xl font-bold text-foreground lowercase leading-tight">
+                describe the bug.
+                <br />
+                <span className="text-muted-foreground">we write the issue.</span>
+              </h2>
+
+              <p className="font-mono text-xs text-muted-foreground leading-relaxed max-w-sm border-l border-border pl-4">
+                Drop a screenshot or type what's broken. AI turns it into a
+                structured GitHub issue — title, steps to reproduce, severity,
+                labels — in seconds.
+              </p>
+
+              <ul className="flex flex-col gap-3 font-mono text-xs text-muted-foreground">
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>paste a screenshot or describe in plain text — no templates</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>AI writes the full issue body — you just review and confirm</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>pushed directly to GitHub — no context switching, no copy-paste</span>
+                </li>
+              </ul>
+
+              <div className="flex items-center gap-3 pt-2">
+                <a
+                  href="#waitlist"
+                  className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-primary border border-primary/40 px-4 py-2 hover:bg-primary/5 transition-colors"
+                >
+                  <ChevronsRight className="h-3.5 w-3.5" />
+                  try it free
+                </a>
+                <span className="font-mono text-[10px] text-muted-foreground">
+                  no credit card · free tier
+                </span>
+              </div>
+            </div>
+
+            {/* Right — screenshot */}
+            <div className="flex items-center justify-center px-6 sm:px-10 py-12 lg:py-16 bg-background/30">
+              <div className="relative w-full max-w-lg">
+                <div className="rounded-t-lg border border-border border-b-0 bg-card px-4 py-2.5 flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-red-500/70" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/70" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-green-500/70" />
+                  <div className="ml-3 flex-1 bg-background border border-border rounded-sm px-3 py-0.5 font-mono text-[10px] text-muted-foreground">
+                    glitchgrab.dev/chat
+                  </div>
+                </div>
+                <div className="border border-border rounded-b-lg overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.4)]">
+                  <Image
+                    src="/meta/chat.webp"
+                    alt="Glitchgrab chat — describe a bug and AI creates the GitHub issue"
+                    width={1217}
+                    height={759}
+                    className="w-full h-auto block"
+                  />
+                </div>
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -inset-px rounded-lg"
+                  style={{ boxShadow: "0 0 50px 8px color-mix(in srgb, var(--primary) 6%, transparent)" }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Report button section */}
+      <section className="border-b border-border bg-background">
+        <div className="max-w-360 mx-auto border-x border-border">
+          <div className="grid lg:grid-cols-2 gap-0">
+            {/* Left — screenshot */}
+            <div className="flex items-center justify-center px-6 sm:px-10 py-12 lg:py-16 bg-card/20 border-b lg:border-b-0 lg:border-r border-border order-2 lg:order-1">
+              <div className="relative w-full max-w-lg">
+                <div className="rounded-t-lg border border-border border-b-0 bg-card px-4 py-2.5 flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-red-500/70" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/70" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-green-500/70" />
+                  <div className="ml-3 flex-1 bg-background border border-border rounded-sm px-3 py-0.5 font-mono text-[10px] text-muted-foreground">
+                    your-app.com → report bug
+                  </div>
+                </div>
+                <div className="border border-border rounded-b-lg overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.4)]">
+                  <Image
+                    src="/meta/bug-report.webp"
+                    alt="Glitchgrab report button — one click to file a GitHub issue with screenshot"
+                    width={1217}
+                    height={759}
+                    className="w-full h-auto block"
+                  />
+                </div>
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -inset-px rounded-lg"
+                  style={{ boxShadow: "0 0 50px 8px color-mix(in srgb, var(--primary) 6%, transparent)" }}
+                />
+              </div>
+            </div>
+
+            {/* Right — copy */}
+            <div className="flex flex-col justify-center gap-6 px-6 sm:px-10 py-12 lg:py-16 order-1 lg:order-2">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-primary flex items-center gap-2">
+                <Scan className="h-3.5 w-3.5" />
+                report button · sdk
+              </div>
+
+              <h2 className="text-2xl sm:text-3xl font-bold text-foreground lowercase leading-tight">
+                one click.
+                <br />
+                <span className="text-muted-foreground">straight to github.</span>
+              </h2>
+
+              <p className="font-mono text-xs text-muted-foreground leading-relaxed max-w-sm border-l border-border pl-4">
+                Hit the report button or press{" "}
+                <kbd className="font-mono text-[10px] py-0.5 px-1.5 border border-border bg-card rounded-sm text-foreground">
+                  ⌘ Shift G
+                </kbd>{" "}
+                /{" "}
+                <kbd className="font-mono text-[10px] py-0.5 px-1.5 border border-border bg-card rounded-sm text-foreground">
+                  Ctrl Shift G
+                </kbd>
+                . Screenshot captured, issue filed. No digging through code, no copy-pasting context.
+              </p>
+
+              <ul className="flex flex-col gap-3 font-mono text-xs text-muted-foreground">
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>report from anywhere in your app — button or keyboard shortcut</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>screenshot auto-attached — no need to explain what you're seeing</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>lands as a GitHub issue instantly — AI already has all the context</span>
+                </li>
+              </ul>
+
+              <div className="font-mono text-[10px] text-muted-foreground border border-border bg-card/50 px-3 py-2 rounded-sm flex items-center gap-2">
+                <span className="text-primary">$</span>
+                <span>bun add glitchgrab</span>
+                <span className="ml-auto text-muted-foreground/50">drop-in · zero config</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Repos section */}
+      <section className="border-b border-border bg-card/20">
+        <div className="max-w-360 mx-auto border-x border-border">
+          <div className="grid lg:grid-cols-2 gap-0">
+            {/* Left — copy */}
+            <div className="flex flex-col justify-center gap-6 px-6 sm:px-10 py-12 lg:py-16 border-b lg:border-b-0 lg:border-r border-border">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-primary flex items-center gap-2">
+                <GitFork className="h-3.5 w-3.5" />
+                repos · org management
+              </div>
+
+              <h2 className="text-2xl sm:text-3xl font-bold text-foreground lowercase leading-tight">
+                all your repos. 🗂️
+                <br />
+                <span className="text-muted-foreground">one plan. forever.</span>
+              </h2>
+
+              <p className="font-mono text-xs text-muted-foreground leading-relaxed max-w-sm border-l border-border pl-4">
+                Track personal repos, org repos — no limits, no per-seat pricing.
+                Buy once, your whole team just logs in. 🚀
+              </p>
+
+              <ul className="flex flex-col gap-3 font-mono text-xs text-muted-foreground">
+                <li className="flex items-start gap-2.5">
+                  <span className="mt-0.5 shrink-0">🗂️</span>
+                  <span>personal + org repos all in one place — tracked, synced, ready</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="mt-0.5 shrink-0">👥</span>
+                  <span>team members just login — no extra seats, no extra cost</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="mt-0.5 shrink-0">♾️</span>
+                  <span>unlimited repos, unlimited members — one flat plan</span>
+                </li>
+              </ul>
+
+              {/* Lifetime deal banner */}
+              <div className="border border-primary/40 bg-primary/5 px-4 py-3 flex flex-col gap-1.5">
+                <div className="flex items-center gap-2 font-mono text-xs text-primary uppercase tracking-widest">
+                  <span>🎉</span>
+                  early access — first 50 customers
+                </div>
+                <p className="font-mono text-[11px] text-muted-foreground leading-relaxed">
+                  Lock in <span className="text-foreground font-semibold">lifetime unlimited access</span> — unlimited repos, unlimited members, forever. No renewals, no future price hikes. 🔒
+                </p>
+                <a
+                  href="#waitlist"
+                  className="mt-1 inline-flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-primary hover:underline"
+                >
+                  <ChevronsRight className="h-3.5 w-3.5" />
+                  claim your spot →
+                </a>
+              </div>
+            </div>
+
+            {/* Right — screenshot */}
+            <div className="flex items-center justify-center px-6 sm:px-10 py-12 lg:py-16 bg-background/30">
+              <div className="relative w-full max-w-lg">
+                <div className="rounded-t-lg border border-border border-b-0 bg-card px-4 py-2.5 flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-red-500/70" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/70" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-green-500/70" />
+                  <div className="ml-3 flex-1 bg-background border border-border rounded-sm px-3 py-0.5 font-mono text-[10px] text-muted-foreground">
+                    glitchgrab.dev/repos
+                  </div>
+                </div>
+                <div className="border border-border rounded-b-lg overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.4)]">
+                  <Image
+                    src="/meta/repos.webp"
+                    alt="Glitchgrab repos — manage all personal and org repos in one place"
+                    width={1217}
+                    height={758}
+                    className="w-full h-auto block"
+                  />
+                </div>
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -inset-px rounded-lg"
+                  style={{ boxShadow: "0 0 50px 8px color-mix(in srgb, var(--primary) 6%, transparent)" }}
+                />
+              </div>
+            </div>
           </div>
         </div>
       </section>
