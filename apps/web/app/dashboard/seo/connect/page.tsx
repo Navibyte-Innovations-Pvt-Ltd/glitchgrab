@@ -13,7 +13,10 @@ export default async function GscConnectPage({
   searchParams: Promise<{ session?: string }>;
 }) {
   const session = await auth();
-  if (!session?.user?.id) redirect("/login");
+  if (!session?.user?.id) {
+    const { session: sid } = await searchParams;
+    redirect(`/login?callbackUrl=${encodeURIComponent(`/dashboard/seo/connect?session=${sid ?? ""}`)}`);
+  }
 
   const { session: sessionId } = await searchParams;
   if (!sessionId) redirect("/dashboard/seo");
