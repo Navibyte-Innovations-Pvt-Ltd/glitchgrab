@@ -11,7 +11,6 @@ import {
   ClipboardList,
   Activity,
   Key,
-  Users,
   CreditCard,
   Settings,
   LogOut,
@@ -34,7 +33,6 @@ const OWNER_NAV = [
 const OWNER_CONFIG = [
   { href: "/members", label: "Members", icon: UserCog },
   { href: "/tokens", label: "API Tokens", icon: Key },
-  { href: "/collaborators", label: "Collaborators", icon: Users },
   { href: "/billing", label: "Billing", icon: CreditCard },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
