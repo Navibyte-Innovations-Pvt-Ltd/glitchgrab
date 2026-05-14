@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { BottomNav } from "@/components/dashboard/bottom-nav";
 import { getCollabSession } from "@/lib/collab-auth";
@@ -7,6 +8,7 @@ import { getUserPlan, getTrialStatus } from "@/lib/billing";
 import type { PlanBadgeType } from "@/components/dashboard/plan-badge";
 import { PaywallGuard } from "@/components/dashboard/paywall-guard";
 import { DashboardStatusBar } from "@/components/dashboard/dashboard-status-bar";
+import { prisma } from "@/lib/db";
 
 type UserType = "owner" | "collaborator";
 
@@ -19,6 +21,21 @@ export default async function DashboardLayout({
   const collabSession = await getCollabSession();
 
   if (!session?.user && !collabSession) redirect("/login");
+
+  // Fallback org redirect for sessions created before orgSlug was cached in JWT
+  // (proxy.ts handles the fast path; this catches users who haven't re-logged-in)
+  if (session?.user?.id) {
+    const membership = await prisma.orgMember.findFirst({
+      where: { userId: session.user.id },
+      select: { org: { select: { githubOrgLogin: true } } },
+    });
+    if (membership) {
+      const headersList = await headers();
+      const currentPath = headersList.get("x-pathname") ?? "/dashboard";
+      const subPath = currentPath.slice("/dashboard".length);
+      redirect(`/org/${membership.org.githubOrgLogin}${subPath}`);
+    }
+  }
 
   const userType: UserType = session?.user ? "owner" : "collaborator";
 
