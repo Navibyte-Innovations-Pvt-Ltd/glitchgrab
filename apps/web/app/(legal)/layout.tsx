@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Footer } from "@/components/footer";
 
 export default function LegalLayout({
   children,
@@ -35,13 +36,7 @@ export default function LegalLayout({
         {children}
       </main>
 
-      <footer className="border-t border-border py-8">
-        <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
-          <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} Navibyte Innovation Pvt. Ltd. All rights reserved.
-          </p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
