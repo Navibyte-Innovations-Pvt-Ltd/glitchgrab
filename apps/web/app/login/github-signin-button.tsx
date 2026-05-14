@@ -1,12 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Github, Loader2 } from "lucide-react";
 
 export function GitHubSignInButton() {
   const [loading, setLoading] = useState(false);
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
 
   return (
     <Button
@@ -14,7 +17,7 @@ export function GitHubSignInButton() {
       className="w-full gap-2"
       onClick={() => {
         setLoading(true);
-        signIn("github", { callbackUrl: "/dashboard" });
+        signIn("github", { callbackUrl });
       }}
       disabled={loading}
     >

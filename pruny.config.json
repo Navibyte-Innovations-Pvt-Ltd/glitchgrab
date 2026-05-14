@@ -4,7 +4,8 @@
       "/api/auth/**",
       "/api/webhooks/**",
       "/api/v1/billing/webhook",
-      "/api/v1/sdk/reports/**"
+      "/api/v1/sdk/reports/**",
+      "/api/mcp"
     ],
     "files": ["**/db-sync.ts", "**/components/ui/**"]
   }

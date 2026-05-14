@@ -21,7 +21,10 @@
         "RAZORPAY_KEY_SECRET",
         "RAZORPAY_WEBHOOK_SECRET",
         "GITHUB_MOBILE_CLIENT_ID",
-        "GITHUB_MOBILE_CLIENT_SECRET"
+        "GITHUB_MOBILE_CLIENT_SECRET",
+        "GOOGLE_CLIENT_ID",
+        "GOOGLE_CLIENT_SECRET",
+        "NEXT_PUBLIC_APP_URL"
       ]
     },
     "dev": {
@@ -43,7 +46,10 @@
         "RAZORPAY_KEY_SECRET",
         "RAZORPAY_WEBHOOK_SECRET",
         "GITHUB_MOBILE_CLIENT_ID",
-        "GITHUB_MOBILE_CLIENT_SECRET"
+        "GITHUB_MOBILE_CLIENT_SECRET",
+        "GOOGLE_CLIENT_ID",
+        "GOOGLE_CLIENT_SECRET",
+        "NEXT_PUBLIC_APP_URL"
       ]
     },
     "lint": {

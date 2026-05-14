@@ -10,6 +10,7 @@ import axios from "axios";
 import {
   ClipboardList,
   Loader2,
+  SearchCheck,
 } from "lucide-react";
 import { BugIcon } from "@/components/ui/bug";
 import { LayoutGridIcon } from "@/components/ui/layout-grid";
@@ -146,6 +147,7 @@ export function Sidebar({
           badge: reportsBadge,
         },
         { href: "/dashboard/analytics", label: "Analytics", icon: ActivityIcon, ownerOnly: false },
+        { href: "/dashboard/seo", label: "SEO", icon: SearchCheck, ownerOnly: true },
       ],
     },
     {
