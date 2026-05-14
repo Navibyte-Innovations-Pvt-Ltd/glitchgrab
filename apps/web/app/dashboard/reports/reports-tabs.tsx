@@ -57,7 +57,6 @@ const SOURCE_LABELS: Record<string, string> = {
   DASHBOARD_UPLOAD: "dashboard",
   HANDWRITTEN_NOTE: "note",
   MCP: "mcp",
-  COLLABORATOR: "collaborator",
 };
 
 function renderSourceIcon(source: string, className = "h-4 w-4") {
