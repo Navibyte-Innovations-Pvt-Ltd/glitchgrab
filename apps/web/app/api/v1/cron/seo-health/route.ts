@@ -180,6 +180,13 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
+      // Snooze: user reindexed recently — give Google time to re-crawl
+      if (property.seoHealthSnoozedUntil && property.seoHealthSnoozedUntil > new Date()) {
+        const daysLeft = Math.ceil((property.seoHealthSnoozedUntil.getTime() - Date.now()) / 86_400_000);
+        results.push({ siteUrl: property.siteUrl, status: `snoozed: ${daysLeft}d remaining` });
+        continue;
+      }
+
       // Dedup: skip if existing open issue
       if (property.seoHealthIssueUrl) {
         const isOpen = await checkIssueIsOpen(githubToken, property.seoHealthIssueUrl);
