@@ -55,8 +55,8 @@ export default function GlitchgrabVsLinearPage() {
             production errors, processes user screenshots and vague complaints,
             and uses AI to generate a structured GitHub issue — automatically,
             without a developer writing anything. The comparison is less
-            "which is better" and more "which layer of the stack does each
-            tool own."
+            &quot;which is better&quot; and more &quot;which layer of the stack does each
+            tool own.&quot;
           </p>
         </section>
 
@@ -156,11 +156,11 @@ export default function GlitchgrabVsLinearPage() {
             How is pricing different?
           </h2>
           <p className="text-muted-foreground leading-relaxed">
-            Glitchgrab's free tier is unlimited — one GitHub repo, unlimited
+            Glitchgrab&apos;s free tier is unlimited — one GitHub repo, unlimited
             reports, forever. The Pro plan is ₹199/month.
           </p>
           <p className="text-muted-foreground leading-relaxed">
-            Linear's free plan is limited to 250 issues. Paid plans start at
+            Linear&apos;s free plan is limited to 250 issues. Paid plans start at
             $8/user/month. For a 5-person team, that is $40/month before
             hitting any limits.
           </p>
