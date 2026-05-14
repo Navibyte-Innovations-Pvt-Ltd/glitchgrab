@@ -13,7 +13,10 @@ export interface GscSite {
 
 export interface GscInspectResult {
   indexed: boolean;
-  reason?: string;
+  reason?: string;       // human-readable coverageState from GSC
+  verdict?: string;      // raw verdict: PASS | FAIL | NEUTRAL | EXCLUDED
+  robotsTxtState?: string;
+  indexingState?: string;
 }
 
 export interface GscIndexingResult {
@@ -91,11 +94,48 @@ export async function listGscSites(accessToken: string): Promise<GscSite[]> {
 }
 
 /**
- * Fetch sitemap index URLs for a GSC property.
+ * Parse <loc> URLs from a sitemap XML string.
+ * Handles both regular sitemaps and sitemap index files.
+ * Returns sitemap URLs found in index files (for recursive fetch) separately.
+ */
+function parseSitemapXml(xml: string): { pageUrls: string[]; childSitemapUrls: string[] } {
+  const pageUrls: string[] = [];
+  const childSitemapUrls: string[] = [];
+
+  // Sitemap index — contains <sitemap><loc>…</loc></sitemap>
+  const isIndex = /<sitemapindex/i.test(xml);
+  if (isIndex) {
+    const matches = xml.matchAll(/<sitemap[^>]*>[\s\S]*?<loc[^>]*>([\s\S]*?)<\/loc>/gi);
+    for (const m of matches) childSitemapUrls.push(m[1].trim());
+  } else {
+    const matches = xml.matchAll(/<url[^>]*>[\s\S]*?<loc[^>]*>([\s\S]*?)<\/loc>/gi);
+    for (const m of matches) pageUrls.push(m[1].trim());
+  }
+
+  return { pageUrls, childSitemapUrls };
+}
+
+async function fetchSitemapXml(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Googlebot/2.1 (+http://www.google.com/bot.html)" },
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!res.ok) return null;
+    return await res.text();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch all page URLs from a site's registered GSC sitemaps.
+ * Resolves sitemap index files one level deep.
  */
 export async function getSitemapUrls(
   accessToken: string,
-  siteUrl: string
+  siteUrl: string,
+  maxUrls = 500
 ): Promise<string[]> {
   const encoded = encodeURIComponent(siteUrl);
   const res = await fetch(
@@ -109,10 +149,43 @@ export async function getSitemapUrls(
   }
 
   const data = (await res.json()) as {
-    sitemap?: Array<{ path: string; contents?: Array<{ type: string; submitted: number }> }>;
+    sitemap?: Array<{ path: string }>;
   };
 
-  return (data.sitemap ?? []).map((s) => s.path);
+  const sitemapPaths = (data.sitemap ?? []).map((s) => s.path);
+  if (sitemapPaths.length === 0) return [];
+
+  const allPageUrls: string[] = [];
+
+  for (const sitemapUrl of sitemapPaths) {
+    if (allPageUrls.length >= maxUrls) break;
+
+    const xml = await fetchSitemapXml(sitemapUrl);
+    if (!xml) continue;
+
+    const { pageUrls, childSitemapUrls } = parseSitemapXml(xml);
+
+    if (pageUrls.length > 0) {
+      allPageUrls.push(...pageUrls);
+    } else {
+      // Sitemap index — fetch child sitemaps
+      for (const childUrl of childSitemapUrls) {
+        if (allPageUrls.length >= maxUrls) break;
+        const childXml = await fetchSitemapXml(childUrl);
+        if (!childXml) continue;
+        const { pageUrls: childPages } = parseSitemapXml(childXml);
+        allPageUrls.push(...childPages);
+      }
+    }
+  }
+
+  // Dedupe and exclude sitemap files themselves
+  const seen = new Set<string>();
+  return allPageUrls.filter((u) => {
+    if (seen.has(u) || /sitemap/i.test(u)) return false;
+    seen.add(u);
+    return true;
+  }).slice(0, maxUrls);
 }
 
 /**
@@ -145,17 +218,23 @@ export async function inspectUrl(
       indexStatusResult?: {
         coverageState?: string;
         verdict?: string;
+        robotsTxtState?: string;
+        indexingState?: string;
       };
     };
   };
 
-  const coverageState = data.inspectionResult?.indexStatusResult?.coverageState ?? "";
-  const verdict = data.inspectionResult?.indexStatusResult?.verdict ?? "";
-
+  const result = data.inspectionResult?.indexStatusResult ?? {};
+  const verdict = result.verdict ?? "";
   const indexed = verdict === "PASS";
-  const reason = indexed ? undefined : coverageState || undefined;
 
-  return { indexed, reason };
+  return {
+    indexed,
+    reason: indexed ? undefined : (result.coverageState || undefined),
+    verdict,
+    robotsTxtState: result.robotsTxtState,
+    indexingState: result.indexingState,
+  };
 }
 
 /**
