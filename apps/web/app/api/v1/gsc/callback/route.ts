@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${appUrl}/dashboard/seo?error=invalid_state`);
   }
 
+  let step = "token_exchange";
   try {
     const redirectUri = `${appUrl}/api/v1/gsc/callback`;
     const tokens = await exchangeGscCode(code, redirectUri);
@@ -57,12 +58,14 @@ export async function GET(request: NextRequest) {
     const refreshToken = tokens.refresh_token;
     const tokenExpiresAt = new Date(Date.now() + tokens.expires_in * 1000);
 
+    step = "list_sites";
     const sites = await listGscSites(accessToken);
 
     if (sites.length === 0) {
       return NextResponse.redirect(`${appUrl}/dashboard/seo?error=no_properties`);
     }
 
+    step = "save_session";
     // Store tokens + sites temporarily — redirect user to pick properties + repos
     const session = await prisma.gscConnectSession.create({
       data: {
@@ -75,9 +78,9 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.redirect(`${appUrl}/dashboard/seo/connect?session=${session.id}`);
+    return NextResponse.redirect(`${appUrl}/connect/gsc?session=${session.id}`);
   } catch (error) {
-    console.error("GSC callback error:", error);
-    return NextResponse.redirect(`${appUrl}/dashboard/seo?error=oauth_failed`);
+    console.error(`GSC callback error at step=${step}:`, error);
+    return NextResponse.redirect(`${appUrl}/dashboard/seo?error=${step}_failed`);
   }
 }
