@@ -3,6 +3,34 @@ import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import type { OrgRole } from "@prisma/client";
 
+const GITHUB_API = "https://api.github.com";
+
+async function fetchUserRepos(accessToken: string): Promise<OrgRepo[]> {
+  const results: OrgRepo[] = [];
+  let page = 1;
+  while (true) {
+    const res = await fetch(
+      `${GITHUB_API}/user/repos?per_page=100&page=${page}&sort=updated&affiliation=owner,collaborator,organization_member`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: "application/vnd.github+json",
+        },
+        cache: "no-store",
+      }
+    );
+    if (!res.ok) break;
+    const data = (await res.json()) as { id: number; full_name: string; owner: { login: string }; name: string }[];
+    if (data.length === 0) break;
+    for (const r of data) {
+      results.push({ id: r.id.toString(), fullName: r.full_name, owner: r.owner.login, name: r.name });
+    }
+    if (data.length < 100) break;
+    page++;
+  }
+  return results;
+}
+
 export interface OrgRepo {
   id: string;
   fullName: string;
@@ -43,11 +71,12 @@ export async function getOrgContext(slug: string): Promise<OrgContext> {
       orderBy: { createdAt: "desc" },
     });
   } else {
-    const assigned = await prisma.orgMemberRepo.findMany({
-      where: { orgMemberId: member.id },
-      include: { repo: { select: { id: true, fullName: true, owner: true, name: true } } },
+    // Fetch live from GitHub — returns all repos the member can access (personal + org)
+    const account = await prisma.account.findFirst({
+      where: { userId: session.user.id, provider: "github" },
+      select: { access_token: true },
     });
-    repos = assigned.map((r) => r.repo);
+    repos = account?.access_token ? await fetchUserRepos(account.access_token) : [];
   }
 
   return {
