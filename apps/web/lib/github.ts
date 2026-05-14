@@ -389,6 +389,24 @@ export async function getUserOrgs(accessToken: string): Promise<GitHubOrg[]> {
   }
 }
 
+// Returns a map of orgLogin → "OWNER" | "MEMBER" based on GitHub membership role
+export async function getUserOrgRoles(accessToken: string): Promise<Map<string, "OWNER" | "MEMBER">> {
+  try {
+    const res = await fetch(`${GITHUB_API}/user/memberships/orgs?per_page=100`, { headers: headers(accessToken) });
+    if (!res.ok) return new Map();
+    const data = (await res.json()) as { state: string; role: string; organization: { login: string } }[];
+    const map = new Map<string, "OWNER" | "MEMBER">();
+    for (const m of data) {
+      if (m.state === "active") {
+        map.set(m.organization.login, m.role === "admin" ? "OWNER" : "MEMBER");
+      }
+    }
+    return map;
+  } catch {
+    return new Map();
+  }
+}
+
 export async function getOrgRepos(accessToken: string, orgLogin: string): Promise<GitHubOrgRepo[]> {
   const results: GitHubOrgRepo[] = [];
   let page = 1;
