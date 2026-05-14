@@ -47,7 +47,6 @@ export async function GET() {
     "| SDK_USER_REPORT | End-user clicked the ReportButton — bypasses AI |",
     "| DASHBOARD_UPLOAD | Developer submitted from the web dashboard |",
     "| MCP | Submitted via Claude Desktop MCP integration |",
-    "| COLLABORATOR | Submitted by a collaborator with limited access |",
     "",
     `Generated: ${new Date().toISOString()}`,
   ].join("\n");
