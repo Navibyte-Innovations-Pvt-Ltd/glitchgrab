@@ -125,7 +125,7 @@ export default function GlitchgrabVsSentryPage() {
           </p>
           <p className="text-muted-foreground leading-relaxed">
             It is also a strong fit for small teams and solo developers who
-            cannot justify Sentry's cost but still need a reliable path from
+            cannot justify Sentry&apos;s cost but still need a reliable path from
             bug report to GitHub issue.
           </p>
         </section>
@@ -138,7 +138,7 @@ export default function GlitchgrabVsSentryPage() {
             Sentry is the right choice when you need observability: error
             rates, traces, performance metrics, session replay, and real-time
             alerting. If you are operating a high-traffic service and need to
-            know about regressions before users report them, Sentry's monitoring
+            know about regressions before users report them, Sentry&apos;s monitoring
             infrastructure is mature and well-supported.
           </p>
           <p className="text-muted-foreground leading-relaxed">
@@ -153,13 +153,13 @@ export default function GlitchgrabVsSentryPage() {
             How is pricing different?
           </h2>
           <p className="text-muted-foreground leading-relaxed">
-            Glitchgrab's free tier includes one GitHub repository and unlimited
+            Glitchgrab&apos;s free tier includes one GitHub repository and unlimited
             reports, forever. The Pro plan is ₹199/month and adds multiple
             repositories and bring-your-own-key support for OpenAI or
             Anthropic.
           </p>
           <p className="text-muted-foreground leading-relaxed">
-            Sentry's free tier is capped by event volume. Production workloads
+            Sentry&apos;s free tier is capped by event volume. Production workloads
             typically require a paid plan starting at $26/month.
           </p>
         </section>
