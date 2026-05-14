@@ -16,6 +16,7 @@ import {
   Settings,
   LogOut,
   UserCog,
+  SearchCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -27,6 +28,7 @@ const OWNER_NAV = [
   { href: "/repos", label: "Repos", icon: GitFork },
   { href: "/reports", label: "Reports", icon: ClipboardList },
   { href: "/analytics", label: "Analytics", icon: Activity },
+  { href: "/seo", label: "SEO", icon: SearchCheck },
 ];
 
 const OWNER_CONFIG = [
