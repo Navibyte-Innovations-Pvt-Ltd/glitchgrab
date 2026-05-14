@@ -115,7 +115,7 @@ const BarList = memo(function BarList({
       </div>
 
       {/* X-axis labels — absolute so rotation doesn't get clipped by flex container */}
-      <div className="flex gap-0.5 w-full h-9 overflow-visible">
+      <div className="flex gap-0.5 w-full h-6 overflow-visible">
         {barData.map((bucket) => {
           const showTick = tickDates.includes(bucket.date);
           return (
@@ -274,7 +274,7 @@ export function IssuesClosedAnalytics() {
             style={{
               backgroundImage:
                 "linear-gradient(to right, var(--border) 1px, transparent 1px), linear-gradient(to bottom, var(--border) 1px, transparent 1px)",
-              backgroundSize: "40px 40px",
+              backgroundSize: "40px 30px",
             }}
           />
           <CardContent className="relative z-10 px-4 pt-4 pb-1 space-y-1 overflow-visible">
