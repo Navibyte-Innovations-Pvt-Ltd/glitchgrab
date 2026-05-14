@@ -21,6 +21,7 @@ import {
   Share2,
   Copy,
   GitPullRequest,
+  CheckCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -255,6 +256,40 @@ export function GscPropertyDetail({
     onError: (err) => toast.error(err instanceof Error ? err.message : "Reindex failed"),
   });
 
+  const { mutate: checkFix, isPending: isCheckingFix } = useMutation({
+    mutationFn: async (urls: string[]) => {
+      const { data } = await axios.post(`/api/v1/gsc/properties/${property.id}/check-fix`, { urls });
+      if (!data.success) throw new Error(data.error ?? "Check failed");
+      return data.data as { nowIndexedCount: number; stillNotIndexedCount: number; nowIndexed: string[]; stillNotIndexed: Array<{ url: string; reason?: string }> };
+    },
+    onSuccess: (result) => {
+      if (result.nowIndexedCount > 0) {
+        toast.success(`${result.nowIndexedCount} page${result.nowIndexedCount > 1 ? "s" : ""} now indexed!`);
+        // Remove newly-indexed URLs from local state
+        setSyncResult((prev) => {
+          if (!prev) return prev;
+          const nowIndexedSet = new Set(result.nowIndexed);
+          const updatedPages = prev.notIndexedPages.filter((p) => !nowIndexedSet.has(p.url));
+          return {
+            ...prev,
+            indexed: prev.indexed + result.nowIndexedCount,
+            notIndexed: updatedPages.length,
+            notIndexedPages: updatedPages,
+          };
+        });
+        setProperty((p) => ({
+          ...p,
+          indexedCount: p.indexedCount + result.nowIndexedCount,
+          notIndexedCount: result.stillNotIndexedCount,
+        }));
+        queryClient.invalidateQueries({ queryKey: ["gsc-properties"] });
+      } else {
+        toast.info(`All ${result.stillNotIndexedCount} checked pages still not indexed`);
+      }
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Check failed"),
+  });
+
   const { mutate: disconnect, isPending: isDisconnecting } = useMutation({
     mutationFn: async () => {
       const { data } = await axios.delete(`/api/v1/gsc/properties/${property.id}`);
@@ -423,6 +458,15 @@ export function GscPropertyDetail({
                     </span>
                   </div>
                   <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => checkFix(visiblePages.map((p) => p.url))}
+                      disabled={isCheckingFix || visiblePages.length === 0}
+                      className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      {isCheckingFix ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCheck className="h-3 w-3" />}
+                      {isCheckingFix ? "Checking…" : "Check Fix"}
+                    </button>
                     <button
                       type="button"
                       onClick={() => {
