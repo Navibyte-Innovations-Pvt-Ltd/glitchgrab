@@ -4,7 +4,7 @@ import { AuthSessionProvider } from "@/components/providers/session-provider";
 import { GlitchgrabSDKProvider } from "@/components/providers/glitchgrab-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { Toaster } from "@/components/ui/sonner";
-import { OrganizationJsonLd } from "@/components/seo/json-ld";
+import { OrganizationJsonLd, WebSiteJsonLd } from "@/components/seo/json-ld";
 
 const BASE_URL = "https://glitchgrab.dev";
 
@@ -81,6 +81,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
         <OrganizationJsonLd />
+        <WebSiteJsonLd />
       </head>
       <body>
         <AuthSessionProvider>
