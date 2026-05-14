@@ -101,7 +101,6 @@ model Repo {
   reports           Report[]
   issues            Issue[]
   collaboratorRepos CollaboratorRepo[]
-  orgMemberRepos    OrgMemberRepo[]
   gscProperties     GscProperty[]
 
   @@unique([userId, githubId])
@@ -319,28 +318,16 @@ model Organization {
 }
 
 model OrgMember {
-  id     String  @id @default(cuid())
-  orgId  String
-  userId String
-  role   OrgRole @default(MEMBER)
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  role      OrgRole  @default(MEMBER)
   createdAt DateTime @default(now())
 
-  org   Organization    @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  user  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  repos OrgMemberRepo[]
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([orgId, userId])
-}
-
-model OrgMemberRepo {
-  id          String @id @default(cuid())
-  orgMemberId String
-  repoId      String
-
-  member OrgMember @relation(fields: [orgMemberId], references: [id], onDelete: Cascade)
-  repo   Repo      @relation(fields: [repoId], references: [id], onDelete: Cascade)
-
-  @@unique([orgMemberId, repoId])
 }
 
 // ─── Webhooks ──────────────────────────────────────────
