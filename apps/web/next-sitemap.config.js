@@ -22,12 +22,7 @@ module.exports = {
     "/login",
     "/collaborate/*",
   ],
-  additionalPaths: async (config) => [
-    await config.transform(config, "/llms.txt"),
-    await config.transform(config, "/llms-full.txt"),
-  ],
   robotsTxtOptions: {
-    additionalSitemaps: ["https://glitchgrab.dev/sitemap.xml"],
     policies: [
       { userAgent: "*", allow: "/", disallow: PRIVATE_PATHS },
       ...AI_BOTS.map((bot) => ({
