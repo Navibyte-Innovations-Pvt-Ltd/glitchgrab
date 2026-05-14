@@ -39,7 +39,8 @@ model User {
   subscription  Subscription?
   webhooks      Webhook[]
   collaborators Collaborator[]
-  gscProperties GscProperty[]
+  gscProperties       GscProperty[]
+  gscConnectSessions  GscConnectSession[]
 }
 
 model Account {
@@ -272,6 +273,21 @@ model GscProperty {
   repo Repo? @relation(fields: [repoId], references: [id], onDelete: SetNull)
 
   @@unique([userId, siteUrl])
+}
+
+// ─── GSC Connect Session (temporary, expires after 10 min) ────────────────
+
+model GscConnectSession {
+  id               String   @id @default(cuid())
+  userId           String
+  encryptedAccess  String
+  encryptedRefresh String?
+  tokenExpiresAt   DateTime
+  sites            Json     // Array of {siteUrl: string, permissionLevel: string}
+  expiresAt        DateTime
+  createdAt        DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 // ─── Webhooks ──────────────────────────────────────────
