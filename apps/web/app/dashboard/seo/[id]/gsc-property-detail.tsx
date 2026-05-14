@@ -76,6 +76,7 @@ interface SyncResult {
   indexed: number;
   notIndexed: number;
   notIndexedPages: NotIndexedPage[];
+  noSitemap?: boolean;
 }
 
 export function GscPropertyDetail({
@@ -501,6 +502,24 @@ export function GscPropertyDetail({
               </div>
             );
           })()}
+
+          {syncResult?.noSitemap && (
+            <div className="border border-amber-500/20 rounded bg-amber-500/5 p-5 space-y-2">
+              <p className="font-mono text-[11px] text-amber-400 font-medium">No sitemap registered in Google Search Console</p>
+              <p className="font-mono text-[11px] text-muted-foreground">
+                Submit your sitemap URL to GSC so we can check indexing status.
+              </p>
+              <a
+                href={`https://search.google.com/search-console/sitemaps?resource_id=${encodeURIComponent(property.siteUrl)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-amber-400 hover:underline pt-1"
+              >
+                <ExternalLink className="h-3 w-3" />
+                Add sitemap in GSC
+              </a>
+            </div>
+          )}
 
           {!syncResult && !isSyncing && (
             <div className="border border-dashed border-border rounded p-8 text-center">
