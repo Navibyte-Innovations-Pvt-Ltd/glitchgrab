@@ -33,7 +33,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
     select: { access_token: true },
   });
 
-  if (!account?.access_token) {
+  const token = account?.access_token;
+  if (!token) {
     return NextResponse.json({ success: true, data: [] });
   }
 
@@ -46,7 +47,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   const results: RepoWorkflowRuns[] = await Promise.all(
     repos.map(async (repo) => {
       try {
-        const runs = await listWorkflowRuns(account.access_token!, repo.owner, repo.name, 20);
+        const runs = await listWorkflowRuns(token, repo.owner, repo.name, 20);
         return { repoId: repo.id, repoFullName: repo.fullName, runs, error: null };
       } catch (err) {
         return {
