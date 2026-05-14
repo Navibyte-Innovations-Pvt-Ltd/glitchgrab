@@ -129,6 +129,7 @@ export function GscPropertyDetail({
   const [copiedFavicon, setCopiedFavicon] = useState(false);
   const [copiedOg, setCopiedOg] = useState(false);
   const [faviconIssueUrl, setFaviconIssueUrl] = useState<string | null>(null);
+  const [ogIssueUrl, setOgIssueUrl] = useState<string | null>(null);
 
   const { mutate: createFaviconIssue, isPending: isCreatingFaviconIssue } = useMutation({
     mutationFn: async () => {
@@ -146,6 +147,31 @@ export function GscPropertyDetail({
     onSuccess: (result) => {
       if (result.issueUrl) {
         setFaviconIssueUrl(result.issueUrl);
+        toast.success("GitHub issue created");
+      } else {
+        toast.success("Report submitted");
+      }
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to create issue"),
+  });
+
+  const { mutate: createOgIssue, isPending: isCreatingOgIssue } = useMutation({
+    mutationFn: async () => {
+      if (!ogData || ogData.issues.length === 0) throw new Error("No issues");
+      if (!selectedRepoId) throw new Error("No repo linked");
+      const lines = ogData.issues.map((i) => `- [${i.severity.toUpperCase()}] ${i.field}: ${i.message}`).join("\n");
+      const tagLines = Object.entries(ogData.tags).filter(([, v]) => v).map(([k, v]) => `  ${k}: ${v}`).join("\n");
+      const description = `Fix Open Graph / social meta tag issues for ${property.siteUrl}\n\nCurrent tags:\n${tagLines}\n\nIssues:\n${lines}\n\nAdd or fix missing/incorrect OG and Twitter meta tags in <head>. Use og:image at least 1200×630px. Set twitter:card to 'summary_large_image'.`;
+      const form = new FormData();
+      form.append("repoId", selectedRepoId);
+      form.append("description", description);
+      const { data } = await axios.post("/api/v1/reports", form);
+      if (!data.success) throw new Error(data.error ?? "Failed to create issue");
+      return data.data as { issueUrl?: string; issueNumber?: number };
+    },
+    onSuccess: (result) => {
+      if (result.issueUrl) {
+        setOgIssueUrl(result.issueUrl);
         toast.success("GitHub issue created");
       } else {
         toast.success("Report submitted");
@@ -422,10 +448,6 @@ export function GscPropertyDetail({
                     <div className="space-y-3">
                       <IssueList issues={faviconData.issues.map((i) => ({ severity: i.status === "Error" ? "error" as const : "warning" as const, message: i.text }))} />
                       <div className="flex flex-wrap gap-x-4 gap-y-2 pt-1">
-                        <a href={`https://realfavicongenerator.net/?site=${encodeURIComponent(domain)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-primary hover:underline">
-                          <ExternalLink className="h-3 w-3" />
-                          Fix with RFG
-                        </a>
                         <CopyPromptButton
                           copied={copiedFavicon}
                           onCopy={() => {
@@ -514,15 +536,41 @@ export function GscPropertyDetail({
                   {ogData.issues.length > 0 && (
                     <div className="space-y-3 pt-1 border-t border-border/40">
                       <IssueList issues={ogData.issues.map((i) => ({ severity: i.severity, message: i.message }))} />
-                      <CopyPromptButton
-                        copied={copiedOg}
-                        onCopy={() => {
-                          const lines = ogData.issues.map((i) => `- [${i.severity.toUpperCase()}] ${i.field}: ${i.message}`).join("\n");
-                          const tagLines = Object.entries(ogData.tags).filter(([, v]) => v).map(([k, v]) => `  ${k}: ${v}`).join("\n");
-                          const prompt = `Fix the Open Graph / social meta tag issues for ${property.siteUrl}.\n\nCurrent tags:\n${tagLines}\n\nIssues:\n${lines}\n\nAdd or fix missing/incorrect OG and Twitter meta tags in <head>. Use og:image at least 1200×630px. Set twitter:card to 'summary_large_image'.`;
-                          navigator.clipboard.writeText(prompt).then(() => { setCopiedOg(true); setTimeout(() => setCopiedOg(false), 2000); });
-                        }}
-                      />
+                      <div className="flex flex-wrap gap-x-4 gap-y-2">
+                        <CopyPromptButton
+                          copied={copiedOg}
+                          onCopy={() => {
+                            const lines = ogData.issues.map((i) => `- [${i.severity.toUpperCase()}] ${i.field}: ${i.message}`).join("\n");
+                            const tagLines = Object.entries(ogData.tags).filter(([, v]) => v).map(([k, v]) => `  ${k}: ${v}`).join("\n");
+                            const prompt = `Fix the Open Graph / social meta tag issues for ${property.siteUrl}.\n\nCurrent tags:\n${tagLines}\n\nIssues:\n${lines}\n\nAdd or fix missing/incorrect OG and Twitter meta tags in <head>. Use og:image at least 1200×630px. Set twitter:card to 'summary_large_image'.`;
+                            navigator.clipboard.writeText(prompt).then(() => { setCopiedOg(true); setTimeout(() => setCopiedOg(false), 2000); });
+                          }}
+                        />
+                        {ogIssueUrl ? (
+                          <a
+                            href={ogIssueUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-green-400 hover:underline"
+                          >
+                            <GitPullRequest className="h-3 w-3" />
+                            View Issue
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => createOgIssue()}
+                            disabled={!selectedRepoId || isCreatingOgIssue}
+                            title={!selectedRepoId ? "Link a repo first" : "Create GitHub issue"}
+                            className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            {isCreatingOgIssue
+                              ? <Loader2 className="h-3 w-3 animate-spin" />
+                              : <GitPullRequest className="h-3 w-3" />}
+                            {isCreatingOgIssue ? "Creating…" : "Create Issue"}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
