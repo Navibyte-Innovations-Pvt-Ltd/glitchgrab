@@ -7,6 +7,20 @@ import { getValidAccessToken } from "@/lib/gsc-tokens";
 import { getSitemapUrls, inspectUrl } from "@/lib/gsc";
 
 const MAX_URLS_PER_SYNC = 100;
+const CONCURRENCY = 10;
+
+async function inspectBatch(
+  accessToken: string,
+  siteUrl: string,
+  urls: string[]
+): Promise<Array<{ url: string; indexed: boolean; reason?: string }>> {
+  const results = await Promise.allSettled(
+    urls.map((url) => inspectUrl(accessToken, siteUrl, url).then((r) => ({ url, ...r })))
+  );
+  return results
+    .filter((r): r is PromiseFulfilledResult<{ url: string; indexed: boolean; reason?: string }> => r.status === "fulfilled")
+    .map((r) => r.value);
+}
 
 export async function POST(
   _request: NextRequest,
@@ -42,21 +56,20 @@ export async function POST(
   let notIndexed = 0;
   const notIndexedPages: Array<{ url: string; reason?: string }> = [];
 
-  for (const url of urlsToCheck) {
-    try {
-      const result = await inspectUrl(accessToken, property.siteUrl, url);
+  // Process in concurrent batches instead of sequentially
+  for (let i = 0; i < urlsToCheck.length; i += CONCURRENCY) {
+    const batch = urlsToCheck.slice(i, i + CONCURRENCY);
+    const batchResults = await inspectBatch(accessToken, property.siteUrl, batch);
+    for (const result of batchResults) {
       if (result.indexed) {
         indexed++;
       } else {
         notIndexed++;
-        notIndexedPages.push({ url, reason: result.reason });
+        notIndexedPages.push({ url: result.url, reason: result.reason });
       }
-    } catch {
-      // Skip individual URL failures
     }
   }
 
-  // Store only the summary counts, not per-page data
   await prisma.gscProperty.update({
     where: { id: propertyId },
     data: {
