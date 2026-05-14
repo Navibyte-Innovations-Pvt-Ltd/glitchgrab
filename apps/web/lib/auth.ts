@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db";
+import { getUserOrgs, getGitHubUserLogin } from "@/lib/github";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
@@ -38,8 +39,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = user.id;
       }
       if (account?.provider === "github" && account.access_token && token.id) {
+        const userId = token.id as string;
+
         await prisma.account.updateMany({
-          where: { userId: token.id as string, provider: "github" },
+          where: { userId, provider: "github" },
           data: {
             access_token: account.access_token,
             token_type: account.token_type,
@@ -48,12 +51,39 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             expires_at: account.expires_at,
           },
         });
+
+        // Store githubLogin on User
+        const githubLogin = await getGitHubUserLogin(account.access_token);
+        if (githubLogin) {
+          await prisma.user.update({ where: { id: userId }, data: { githubLogin } });
+          token.githubLogin = githubLogin;
+        }
+
+        // Auto-detect org membership and upsert OrgMember
+        const userOrgs = await getUserOrgs(account.access_token);
+        if (userOrgs.length > 0) {
+          const orgLogins = userOrgs.map((o) => o.login);
+          const connectedOrgs = await prisma.organization.findMany({
+            where: { githubOrgLogin: { in: orgLogins } },
+          });
+          for (const org of connectedOrgs) {
+            const isOwner = org.ownerId === userId;
+            await prisma.orgMember.upsert({
+              where: { orgId_userId: { orgId: org.id, userId } },
+              create: { orgId: org.id, userId, role: isOwner ? "OWNER" : "MEMBER" },
+              update: {},
+            });
+          }
+        }
       }
       return token;
     },
     session({ session, token }) {
       if (session.user && token.id) {
         session.user.id = token.id as string;
+      }
+      if (session.user && token.githubLogin) {
+        (session.user as { githubLogin?: string }).githubLogin = token.githubLogin as string;
       }
       return session;
     },
