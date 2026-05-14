@@ -77,8 +77,8 @@ const BarList = memo(function BarList({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      {/* mt-16 reserves space above tallest bar for CSS tooltip */}
-      <div className="flex items-end gap-0.5 h-[120px] pb-1 w-full mt-16">
+      {/* mt-28 reserves space above tallest bar for CSS tooltip */}
+      <div className="flex items-end gap-0.5 h-[120px] pb-1 w-full mt-28">
         {barData.map((bucket) => {
           const heightPct = maxCount > 0 ? (bucket.count / maxCount) * 100 : 0;
           return (
@@ -236,7 +236,7 @@ export function IssuesClosedAnalytics() {
       </div>
 
       {/* Main: 2×2 stats left + chart right */}
-      <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-3 lg:h-[284px]">
+      <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-3 lg:h-[332px]">
         {/* 2×2 stat grid */}
         <div className="grid grid-cols-2 grid-rows-2 gap-2 h-full">
           <StatCard
