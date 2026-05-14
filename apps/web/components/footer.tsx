@@ -37,9 +37,9 @@ export function Footer() {
               </Link>
             </li>
             <li>
-              <a href="/#how-it-works" className="text-muted-foreground hover:text-primary transition-colors">
+              <Link href="/#how-it-works" className="text-muted-foreground hover:text-primary transition-colors">
                 How it works
-              </a>
+              </Link>
             </li>
             <li>
               <Link href="/changelog" className="text-muted-foreground hover:text-primary transition-colors">
@@ -47,9 +47,9 @@ export function Footer() {
               </Link>
             </li>
             <li>
-              <a href="/#waitlist" className="text-muted-foreground hover:text-primary transition-colors">
+              <Link href="/#waitlist" className="text-muted-foreground hover:text-primary transition-colors">
                 Join Waitlist
-              </a>
+              </Link>
             </li>
           </ul>
         </div>
