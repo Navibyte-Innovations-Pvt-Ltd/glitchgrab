@@ -2,7 +2,7 @@ import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db";
-import { getUserOrgs, getGitHubUserLogin, getOrgRepos } from "@/lib/github";
+import { getUserOrgs, getUserOrgRoles, getGitHubUserLogin } from "@/lib/github";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
@@ -59,42 +59,40 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.githubLogin = githubLogin;
         }
 
-        // Auto-detect org membership, upsert OrgMember, auto-assign accessible repos
-        const userOrgs = await getUserOrgs(account.access_token);
+        // Auto-detect org membership and upsert OrgMember with real GitHub role
+        const [userOrgs, orgRoles] = await Promise.all([
+          getUserOrgs(account.access_token),
+          getUserOrgRoles(account.access_token),
+        ]);
         if (userOrgs.length > 0) {
           const orgLogins = userOrgs.map((o) => o.login);
           const connectedOrgs = await prisma.organization.findMany({
             where: { githubOrgLogin: { in: orgLogins } },
           });
           for (const org of connectedOrgs) {
-            const isOwner = org.ownerId === userId;
-            const member = await prisma.orgMember.upsert({
+            const role = orgRoles.get(org.githubOrgLogin) ?? "MEMBER";
+            await prisma.orgMember.upsert({
               where: { orgId_userId: { orgId: org.id, userId } },
-              create: { orgId: org.id, userId, role: isOwner ? "OWNER" : "MEMBER" },
-              update: {},
+              create: { orgId: org.id, userId, role },
+              update: { role },
             });
-
-            // For MEMBERs: auto-sync which org repos they can access using their own token
-            if (!isOwner) {
-              const accessibleRepos = await getOrgRepos(account.access_token, org.githubOrgLogin);
-              if (accessibleRepos.length > 0) {
-                const githubIds = accessibleRepos.map((r) => r.id);
-                const dbRepos = await prisma.repo.findMany({
-                  where: { orgId: org.id, githubId: { in: githubIds } },
-                  select: { id: true },
-                });
-                for (const repo of dbRepos) {
-                  await prisma.orgMemberRepo.upsert({
-                    where: { orgMemberId_repoId: { orgMemberId: member.id, repoId: repo.id } },
-                    create: { orgMemberId: member.id, repoId: repo.id },
-                    update: {},
-                  });
-                }
-              }
-            }
           }
+          // Cache first org slug in JWT so proxy can redirect /dashboard → /org/[slug]
+          token.orgSlug = connectedOrgs[0]?.githubOrgLogin ?? null;
+        } else {
+          token.orgSlug = null;
         }
       }
+
+      // Fallback: users who logged in before org feature — do a one-time DB lookup
+      if (token.id && token.orgSlug === undefined) {
+        const membership = await prisma.orgMember.findFirst({
+          where: { userId: token.id as string },
+          select: { org: { select: { githubOrgLogin: true } } },
+        });
+        token.orgSlug = membership?.org.githubOrgLogin ?? null;
+      }
+
       return token;
     },
     session({ session, token }) {
