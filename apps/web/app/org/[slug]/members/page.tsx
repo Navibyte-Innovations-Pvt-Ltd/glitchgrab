@@ -15,16 +15,9 @@ export default async function MembersPage({ params }: { params: Promise<{ slug: 
     where: { orgId: ctx.orgId },
     include: {
       user: { select: { id: true, name: true, email: true, image: true, githubLogin: true } },
-      repos: { include: { repo: { select: { id: true, fullName: true, name: true } } } },
     },
     orderBy: { createdAt: "asc" },
   });
 
-  const orgRepos = await prisma.repo.findMany({
-    where: { orgId: ctx.orgId },
-    select: { id: true, fullName: true, name: true },
-    orderBy: { fullName: "asc" },
-  });
-
-  return <MembersManager members={members} orgRepos={orgRepos} orgSlug={slug} />;
+  return <MembersManager members={members} orgSlug={slug} />;
 }
