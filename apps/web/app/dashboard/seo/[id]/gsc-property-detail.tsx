@@ -189,33 +189,32 @@ export function GscPropertyDetail({
   // Auto-sync on mount so not-indexed pages show immediately
   useEffect(() => { syncNow(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const ogErrors = ogData?.issues.filter((i) => i.severity === "error").length ?? 0;
+  const ogWarnings = ogData?.issues.filter((i) => i.severity === "warning").length ?? 0;
+
   return (
     <div className="space-y-6">
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatCard label="Indexed" value={property.indexedCount} accent="green" />
-        <StatCard label="Not Indexed" value={property.notIndexedCount} accent="red" />
-        <StatCard label="Total Checked" value={total} />
-        <StatCard label="Index Rate" value={total > 0 ? `${indexedPct}%` : "—"} />
+
+      {/* ── Top: stats + progress ── */}
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <StatCard label="Indexed" value={property.indexedCount} accent="green" />
+          <StatCard label="Not Indexed" value={property.notIndexedCount} accent="red" />
+          <StatCard label="Total Checked" value={total} />
+          <StatCard label="Index Rate" value={total > 0 ? `${indexedPct}%` : "—"} />
+        </div>
+        {total > 0 && (
+          <div className="space-y-1">
+            <div className="h-1 bg-border rounded-full overflow-hidden">
+              <div className="h-full bg-green-400 rounded-full transition-all duration-500" style={{ width: `${indexedPct}%` }} />
+            </div>
+            <p className="font-mono text-[10px] text-muted-foreground">{property.indexedCount} of {total} pages indexed</p>
+          </div>
+        )}
       </div>
 
-      {/* Progress bar */}
-      {total > 0 && (
-        <div className="space-y-1.5">
-          <div className="h-1.5 bg-border rounded-full overflow-hidden">
-            <div
-              className="h-full bg-green-400 rounded-full transition-all duration-500"
-              style={{ width: `${indexedPct}%` }}
-            />
-          </div>
-          <p className="font-mono text-[10px] text-muted-foreground">
-            {property.indexedCount} of {total} pages indexed
-          </p>
-        </div>
-      )}
-
-      {/* Actions */}
-      <div className="flex flex-wrap gap-2">
+      {/* ── Action bar ── */}
+      <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-border/40">
         <button
           type="button"
           onClick={() => syncNow()}
@@ -246,319 +245,300 @@ export function GscPropertyDetail({
           {isReindexing ? "Submitting…" : `Reindex ${property.notIndexedCount} pages`}
         </button>
 
-        <AlertDialog>
-          <AlertDialogTrigger
-            disabled={isDisconnecting}
-            className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-4 py-2 rounded border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isDisconnecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-            {isDisconnecting ? "Removing…" : "Disconnect"}
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Disconnect property?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Removes the GSC connection for this property.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <p className="font-mono text-xs break-all text-foreground px-1">{property.siteUrl}</p>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => disconnect()}
-                className="bg-red-600 hover:bg-red-700 text-white"
-              >
-                Disconnect
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <div className="ml-auto">
+          <AlertDialog>
+            <AlertDialogTrigger
+              disabled={isDisconnecting}
+              className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-4 py-2 rounded border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isDisconnecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              {isDisconnecting ? "Removing…" : "Disconnect"}
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Disconnect property?</AlertDialogTitle>
+                <AlertDialogDescription>Removes the GSC connection for this property.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <p className="font-mono text-xs break-all text-foreground px-1">{property.siteUrl}</p>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => disconnect()} className="bg-red-600 hover:bg-red-700 text-white">
+                  Disconnect
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
 
-      {/* Repo link */}
-      <div className="border border-border rounded bg-card/40 p-4 space-y-3">
-        <div className="flex items-center gap-2">
-          <GitFork className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-widest">Linked Repository</span>
-        </div>
-        <Popover open={repoPickerOpen} onOpenChange={setRepoPickerOpen}>
-          <PopoverTrigger
-            disabled={isLinking}
-            className={cn(
-              "w-full flex items-center justify-between gap-2 font-mono text-[11px] bg-background border border-border rounded px-3 py-2 text-left transition-colors disabled:opacity-60",
-              repoPickerOpen ? "border-primary/50" : "hover:border-primary/30"
-            )}
-          >
-            <span className={selectedRepoId ? "text-foreground truncate" : "text-muted-foreground"}>
-              {selectedRepoId
-                ? (repos.find((r) => r.id === selectedRepoId)?.fullName ?? "— none —")
-                : "— none —"}
-            </span>
-            {isLinking
-              ? <Loader2 className="h-3 w-3 animate-spin shrink-0 text-muted-foreground" />
-              : <ChevronsUpDown className="h-3 w-3 shrink-0 text-muted-foreground" />}
-          </PopoverTrigger>
-          <PopoverContent className="w-80 p-0" align="start">
-            <Command>
-              <CommandInput placeholder="Search repos…" className="font-mono text-xs h-8" />
-              <CommandList>
-                <CommandEmpty className="font-mono text-xs text-muted-foreground py-3 text-center">
-                  No repo found.
-                </CommandEmpty>
-                <CommandGroup>
-                  <CommandItem
-                    value="__none__"
-                    onSelect={() => {
-                      setSelectedRepoId("");
-                      linkRepo(null);
-                      setRepoPickerOpen(false);
-                    }}
-                    className="font-mono text-xs text-muted-foreground"
-                  >
-                    <Check className={cn("h-3 w-3 mr-2 shrink-0", selectedRepoId === "" ? "opacity-100" : "opacity-0")} />
-                    — none —
-                  </CommandItem>
-                  {repos.map((r) => (
-                    <CommandItem
-                      key={r.id}
-                      value={r.fullName}
-                      onSelect={() => {
-                        setSelectedRepoId(r.id);
-                        linkRepo(r.id);
-                        setRepoPickerOpen(false);
-                      }}
-                      className="font-mono text-xs"
-                    >
-                      <Check className={cn("h-3 w-3 mr-2 shrink-0", selectedRepoId === r.id ? "opacity-100" : "opacity-0")} />
-                      {r.fullName}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
-      </div>
+      {/* ── Two-column body ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
 
-      {/* Not indexed pages — populated after sync */}
-      {syncResult && syncResult.notIndexedPages.length > 0 && (
-        <div className="border border-border rounded bg-card/40 p-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-3.5 w-3.5 text-red-400" />
-            <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-widest">
-              Not Indexed Pages ({syncResult.notIndexedPages.length})
-            </span>
-          </div>
-          <div className="flex flex-col gap-1 max-h-80 overflow-y-auto">
-            {syncResult.notIndexedPages.map(({ url, reason }) => (
-              <div
-                key={url}
-                className="flex items-start justify-between gap-3 py-1.5 border-b border-border/40 last:border-0"
-              >
-                <div className="min-w-0">
-                  <p className="font-mono text-[11px] text-foreground break-all">{url}</p>
-                  {reason && (
-                    <p className="font-mono text-[10px] text-red-400/80 mt-0.5">{reason}</p>
-                  )}
-                </div>
-                <a
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="shrink-0 text-muted-foreground hover:text-primary transition-colors"
-                >
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+        {/* LEFT — Indexing data */}
+        <div className="space-y-4">
+          <SectionHeader label="Indexing" />
 
-      {syncResult && syncResult.notIndexedPages.length === 0 && syncResult.synced > 0 && (
-        <div className="border border-green-500/20 rounded bg-green-500/5 p-4 flex items-center gap-3">
-          <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
-          <p className="font-mono text-[11px] text-green-400">
-            All {syncResult.synced} checked pages are indexed.
-          </p>
-        </div>
-      )}
-
-      {!syncResult && isSyncing && (
-        <div className="border border-dashed border-border rounded p-6 flex items-center justify-center gap-3">
-          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-          <p className="font-mono text-[11px] text-muted-foreground">Fetching indexing data…</p>
-        </div>
-      )}
-
-      {/* Favicon Health */}
-      <div className="border border-border rounded bg-card/40 p-4 space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <ScanSearch className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-widest">Favicon Health</span>
-          </div>
-          {isFaviconFetching && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
-          {!isFaviconFetching && faviconData && (
-            <span className={cn("font-mono text-[11px]",
-              faviconData.errorCount > 0 ? "text-red-400" :
-              faviconData.warningCount > 0 ? "text-amber-400" : "text-green-400"
-            )}>
-              {faviconData.errorCount > 0
-                ? `${faviconData.errorCount} error${faviconData.errorCount > 1 ? "s" : ""}`
-                : faviconData.warningCount > 0
-                  ? `${faviconData.warningCount} warning${faviconData.warningCount > 1 ? "s" : ""}`
-                  : "All good"}
-            </span>
-          )}
-        </div>
-
-        {isFaviconError && !isFaviconFetching && (
-          <div className="flex items-center gap-2">
-            <p className="font-mono text-[11px] text-red-400">Check failed.</p>
-            <button type="button" onClick={() => recheckFavicon()} className="font-mono text-[11px] text-primary hover:underline">Retry</button>
-          </div>
-        )}
-
-        {faviconData && !isFaviconFetching && (
-          faviconData.issues.length === 0
-            ? <p className="font-mono text-[11px] text-green-400">No favicon issues found.</p>
-            : (
-              <div className="space-y-3">
-                <ul className="space-y-1.5">
-                  {faviconData.issues.map((issue) => (
-                    <li key={issue.id} className="flex items-start gap-2">
-                      {issue.status === "Error"
-                        ? <ShieldAlert className="h-3.5 w-3.5 text-red-400 shrink-0 mt-px" />
-                        : <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-px" />}
-                      <span className="font-mono text-[11px] text-foreground/80">{issue.text}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="flex items-center gap-4 flex-wrap">
-                  <a
-                    href={`https://realfavicongenerator.net/?site=${encodeURIComponent(domain)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-primary hover:underline"
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                    Fix with RealFaviconGenerator
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const lines = faviconData.issues.map((i) => `- [${i.status}] ${i.text}`).join("\n");
-                      const prompt = `Fix the favicon issues for ${property.siteUrl}.\n\nIssues detected by RealFaviconGenerator:\n${lines}\n\nGenerate and add all missing favicon files and the correct <link> tags in the <head>. Follow best practices: include ICO, PNG (16x16, 32x32, 96x96, 180x180), SVG, and a web manifest if missing.`;
-                      navigator.clipboard.writeText(prompt).then(() => { setCopiedFavicon(true); setTimeout(() => setCopiedFavicon(false), 2000); });
-                    }}
-                    className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {copiedFavicon ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
-                    {copiedFavicon ? "Copied!" : "Copy fix prompt"}
-                  </button>
-                </div>
-              </div>
-            )
-        )}
-      </div>
-
-      {/* Social / OG Preview */}
-      <div className="border border-border rounded bg-card/40 p-4 space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Share2 className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-widest">Social / OG Tags</span>
-          </div>
-          {isOgFetching && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
-          {!isOgFetching && ogData && (
-            <span className={cn("font-mono text-[11px]",
-              ogData.issues.some((i) => i.severity === "error") ? "text-red-400" :
-              ogData.issues.length > 0 ? "text-amber-400" : "text-green-400"
-            )}>
-              {ogData.issues.filter((i) => i.severity === "error").length > 0
-                ? `${ogData.issues.filter((i) => i.severity === "error").length} error${ogData.issues.filter((i) => i.severity === "error").length > 1 ? "s" : ""}`
-                : ogData.issues.length > 0
-                  ? `${ogData.issues.length} warning${ogData.issues.length > 1 ? "s" : ""}`
-                  : "All good"}
-            </span>
-          )}
-        </div>
-
-        {isOgError && !isOgFetching && (
-          <div className="flex items-center gap-2">
-            <p className="font-mono text-[11px] text-red-400">Check failed.</p>
-            <button type="button" onClick={() => recheckOg()} className="font-mono text-[11px] text-primary hover:underline">Retry</button>
-          </div>
-        )}
-
-        {ogData && !isOgFetching && (
-          <div className="space-y-4">
-            {/* Tag table */}
-            <div className="grid gap-2">
-              {(([
-                ["og:title", ogData.tags.ogTitle],
-                ["og:description", ogData.tags.ogDescription],
-                ["og:image", ogData.tags.ogImage],
-                ["og:url", ogData.tags.ogUrl],
-                ["twitter:card", ogData.tags.twitterCard],
-              ]) as [string, string | null][]).map(([key, val]) => (
-                <div key={key} className="flex items-start gap-3">
-                  <span className="font-mono text-[10px] text-muted-foreground shrink-0 w-36 pt-px">{key}</span>
-                  {val
-                    ? <span className="font-mono text-[11px] text-foreground break-all">{val.length > 90 ? `${val.slice(0, 90)}…` : val}</span>
-                    : <span className="font-mono text-[11px] text-red-400/70">missing</span>}
-                </div>
-              ))}
+          {isSyncing && !syncResult && (
+            <div className="border border-dashed border-border rounded p-8 flex items-center justify-center gap-3">
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              <p className="font-mono text-[11px] text-muted-foreground">Fetching indexing data…</p>
             </div>
+          )}
 
-            {/* OG image preview card */}
-            {ogData.tags.ogImage && (
-              <div className="border border-border rounded overflow-hidden max-w-sm">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={ogData.tags.ogImage} alt="og:image" className="w-full h-auto object-cover max-h-48" />
-                <div className="px-3 py-2 bg-muted/30 space-y-0.5">
-                  <p className="font-mono text-[11px] text-foreground truncate">{ogData.tags.ogTitle ?? domain}</p>
-                  {ogData.tags.ogDescription && (
-                    <p className="font-mono text-[10px] text-muted-foreground truncate">{ogData.tags.ogDescription}</p>
+          {syncResult && syncResult.notIndexedPages.length === 0 && syncResult.synced > 0 && (
+            <div className="border border-green-500/20 rounded bg-green-500/5 p-4 flex items-center gap-3">
+              <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
+              <p className="font-mono text-[11px] text-green-400">All {syncResult.synced} checked pages are indexed.</p>
+            </div>
+          )}
+
+          {syncResult && syncResult.notIndexedPages.length > 0 && (
+            <div className="border border-border rounded bg-card/40 overflow-hidden">
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-border/60">
+                <AlertCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />
+                <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-widest">
+                  Not Indexed — {syncResult.notIndexedPages.length} pages
+                </span>
+              </div>
+              <div className="divide-y divide-border/40 max-h-[420px] overflow-y-auto">
+                {syncResult.notIndexedPages.map(({ url, reason }) => (
+                  <div key={url} className="flex items-start justify-between gap-3 px-4 py-2.5">
+                    <div className="min-w-0">
+                      <p className="font-mono text-[11px] text-foreground break-all">{url}</p>
+                      {reason && <p className="font-mono text-[10px] text-red-400/80 mt-0.5">{reason}</p>}
+                    </div>
+                    <a href={url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-muted-foreground hover:text-primary transition-colors mt-0.5">
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!syncResult && !isSyncing && (
+            <div className="border border-dashed border-border rounded p-8 text-center">
+              <p className="font-mono text-[11px] text-muted-foreground">
+                Run <span className="text-foreground">Sync Now</span> to see not-indexed pages
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* RIGHT — Config + Health */}
+        <div className="space-y-4">
+
+          {/* Linked repo */}
+          <div className="border border-border rounded bg-card/40 overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-border/60">
+              <GitFork className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-widest">Linked Repository</span>
+            </div>
+            <div className="p-3">
+              <Popover open={repoPickerOpen} onOpenChange={setRepoPickerOpen}>
+                <PopoverTrigger
+                  disabled={isLinking}
+                  className={cn(
+                    "w-full flex items-center justify-between gap-2 font-mono text-[11px] bg-background border border-border rounded px-3 py-2 text-left transition-colors disabled:opacity-60",
+                    repoPickerOpen ? "border-primary/50" : "hover:border-primary/30"
                   )}
-                  <p className="font-mono text-[10px] text-muted-foreground/60 truncate">{domain}</p>
-                </div>
-              </div>
-            )}
-
-            {/* Issues + copy prompt */}
-            {ogData.issues.length > 0 && (
-              <div className="space-y-3">
-                <ul className="space-y-1.5">
-                  {ogData.issues.map((issue, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      {issue.severity === "error"
-                        ? <ShieldAlert className="h-3.5 w-3.5 text-red-400 shrink-0 mt-px" />
-                        : <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-px" />}
-                      <span className="font-mono text-[11px] text-foreground/80">{issue.message}</span>
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const lines = ogData.issues.map((i) => `- [${i.severity.toUpperCase()}] ${i.field}: ${i.message}`).join("\n");
-                    const tagLines = Object.entries(ogData.tags).filter(([, v]) => v).map(([k, v]) => `  ${k}: ${v}`).join("\n");
-                    const prompt = `Fix the Open Graph / social meta tag issues for ${property.siteUrl}.\n\nCurrent tags:\n${tagLines}\n\nIssues:\n${lines}\n\nAdd or fix the missing/incorrect OG and Twitter meta tags in the <head>. Use og:image dimensions of at least 1200x630px. Set twitter:card to 'summary_large_image'.`;
-                    navigator.clipboard.writeText(prompt).then(() => { setCopiedOg(true); setTimeout(() => setCopiedOg(false), 2000); });
-                  }}
-                  className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  {copiedOg ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
-                  {copiedOg ? "Copied!" : "Copy fix prompt"}
-                </button>
-              </div>
-            )}
+                  <span className={selectedRepoId ? "text-foreground truncate" : "text-muted-foreground"}>
+                    {selectedRepoId ? (repos.find((r) => r.id === selectedRepoId)?.fullName ?? "— none —") : "— none —"}
+                  </span>
+                  {isLinking
+                    ? <Loader2 className="h-3 w-3 animate-spin shrink-0 text-muted-foreground" />
+                    : <ChevronsUpDown className="h-3 w-3 shrink-0 text-muted-foreground" />}
+                </PopoverTrigger>
+                <PopoverContent className="w-72 p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search repos…" className="font-mono text-xs h-8" />
+                    <CommandList>
+                      <CommandEmpty className="font-mono text-xs text-muted-foreground py-3 text-center">No repo found.</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem value="__none__" onSelect={() => { setSelectedRepoId(""); linkRepo(null); setRepoPickerOpen(false); }} className="font-mono text-xs text-muted-foreground">
+                          <Check className={cn("h-3 w-3 mr-2 shrink-0", selectedRepoId === "" ? "opacity-100" : "opacity-0")} />
+                          — none —
+                        </CommandItem>
+                        {repos.map((r) => (
+                          <CommandItem key={r.id} value={r.fullName} onSelect={() => { setSelectedRepoId(r.id); linkRepo(r.id); setRepoPickerOpen(false); }} className="font-mono text-xs">
+                            <Check className={cn("h-3 w-3 mr-2 shrink-0", selectedRepoId === r.id ? "opacity-100" : "opacity-0")} />
+                            {r.fullName}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
-        )}
+
+          {/* Favicon health */}
+          <div className="border border-border rounded bg-card/40 overflow-hidden">
+            <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border/60">
+              <div className="flex items-center gap-2">
+                <ScanSearch className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-widest">Favicon Health</span>
+              </div>
+              {isFaviconFetching && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+              {!isFaviconFetching && faviconData && (
+                <StatusBadge errors={faviconData.errorCount} warnings={faviconData.warningCount} />
+              )}
+            </div>
+            <div className="p-4 space-y-3">
+              {isFaviconError && !isFaviconFetching && <RetryRow onRetry={recheckFavicon} />}
+              {isFaviconFetching && <LoadingRow label="Checking favicon…" />}
+              {faviconData && !isFaviconFetching && (
+                faviconData.issues.length === 0
+                  ? <p className="font-mono text-[11px] text-green-400">No issues found.</p>
+                  : (
+                    <div className="space-y-3">
+                      <IssueList issues={faviconData.issues.map((i) => ({ severity: i.status === "Error" ? "error" as const : "warning" as const, message: i.text }))} />
+                      <div className="flex flex-wrap gap-x-4 gap-y-2 pt-1">
+                        <a href={`https://realfavicongenerator.net/?site=${encodeURIComponent(domain)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-primary hover:underline">
+                          <ExternalLink className="h-3 w-3" />
+                          Fix with RFG
+                        </a>
+                        <CopyPromptButton
+                          copied={copiedFavicon}
+                          onCopy={() => {
+                            const lines = faviconData.issues.map((i) => `- [${i.status}] ${i.text}`).join("\n");
+                            const prompt = `Fix the favicon issues for ${property.siteUrl}.\n\nIssues detected by RealFaviconGenerator:\n${lines}\n\nGenerate and add all missing favicon files and correct <link> tags in <head>. Include ICO, PNG (16×16, 32×32, 96×96, 180×180), SVG, and web manifest.`;
+                            navigator.clipboard.writeText(prompt).then(() => { setCopiedFavicon(true); setTimeout(() => setCopiedFavicon(false), 2000); });
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )
+              )}
+            </div>
+          </div>
+
+          {/* Social / OG */}
+          <div className="border border-border rounded bg-card/40 overflow-hidden">
+            <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border/60">
+              <div className="flex items-center gap-2">
+                <Share2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-widest">Social / OG Tags</span>
+              </div>
+              {isOgFetching && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+              {!isOgFetching && ogData && <StatusBadge errors={ogErrors} warnings={ogWarnings} />}
+            </div>
+            <div className="p-4 space-y-4">
+              {isOgError && !isOgFetching && <RetryRow onRetry={recheckOg} />}
+              {isOgFetching && <LoadingRow label="Fetching OG tags…" />}
+              {ogData && !isOgFetching && (
+                <div className="space-y-4">
+                  {/* OG image preview */}
+                  {ogData.tags.ogImage && (
+                    <div className="border border-border rounded overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={ogData.tags.ogImage} alt="og:image" className="w-full object-cover max-h-36" />
+                      <div className="px-3 py-2 bg-muted/20 space-y-0.5">
+                        <p className="font-mono text-[11px] text-foreground truncate">{ogData.tags.ogTitle ?? domain}</p>
+                        {ogData.tags.ogDescription && <p className="font-mono text-[10px] text-muted-foreground truncate">{ogData.tags.ogDescription}</p>}
+                        <p className="font-mono text-[10px] text-muted-foreground/50">{domain}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tag rows */}
+                  <div className="space-y-1.5">
+                    {(([
+                      ["og:title", ogData.tags.ogTitle],
+                      ["og:description", ogData.tags.ogDescription],
+                      ["og:image", ogData.tags.ogImage],
+                      ["og:url", ogData.tags.ogUrl],
+                      ["twitter:card", ogData.tags.twitterCard],
+                    ]) as [string, string | null][]).map(([key, val]) => (
+                      <div key={key} className="flex items-start gap-2">
+                        <span className="font-mono text-[10px] text-muted-foreground shrink-0 w-28 pt-px">{key}</span>
+                        {val
+                          ? <span className="font-mono text-[11px] text-foreground break-all leading-relaxed">{val.length > 60 ? `${val.slice(0, 60)}…` : val}</span>
+                          : <span className="font-mono text-[11px] text-red-400/70">missing</span>}
+                      </div>
+                    ))}
+                  </div>
+
+                  {ogData.issues.length > 0 && (
+                    <div className="space-y-3 pt-1 border-t border-border/40">
+                      <IssueList issues={ogData.issues.map((i) => ({ severity: i.severity, message: i.message }))} />
+                      <CopyPromptButton
+                        copied={copiedOg}
+                        onCopy={() => {
+                          const lines = ogData.issues.map((i) => `- [${i.severity.toUpperCase()}] ${i.field}: ${i.message}`).join("\n");
+                          const tagLines = Object.entries(ogData.tags).filter(([, v]) => v).map(([k, v]) => `  ${k}: ${v}`).join("\n");
+                          const prompt = `Fix the Open Graph / social meta tag issues for ${property.siteUrl}.\n\nCurrent tags:\n${tagLines}\n\nIssues:\n${lines}\n\nAdd or fix missing/incorrect OG and Twitter meta tags in <head>. Use og:image at least 1200×630px. Set twitter:card to 'summary_large_image'.`;
+                          navigator.clipboard.writeText(prompt).then(() => { setCopiedOg(true); setTimeout(() => setCopiedOg(false), 2000); });
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+        </div>
       </div>
     </div>
+  );
+}
+
+function SectionHeader({ label }: { label: string }) {
+  return <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest">{label}</p>;
+}
+
+function StatusBadge({ errors, warnings }: { errors: number; warnings: number }) {
+  if (errors > 0) return <span className="font-mono text-[10px] text-red-400">{errors} error{errors > 1 ? "s" : ""}</span>;
+  if (warnings > 0) return <span className="font-mono text-[10px] text-amber-400">{warnings} warning{warnings > 1 ? "s" : ""}</span>;
+  return <span className="font-mono text-[10px] text-green-400">ok</span>;
+}
+
+function LoadingRow({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+      <p className="font-mono text-[11px] text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
+function RetryRow({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="flex items-center gap-2">
+      <p className="font-mono text-[11px] text-red-400">Check failed.</p>
+      <button type="button" onClick={onRetry} className="font-mono text-[11px] text-primary hover:underline">Retry</button>
+    </div>
+  );
+}
+
+function IssueList({ issues }: { issues: { severity: "error" | "warning"; message: string }[] }) {
+  return (
+    <ul className="space-y-1.5">
+      {issues.map((issue, i) => (
+        <li key={i} className="flex items-start gap-2">
+          {issue.severity === "error"
+            ? <ShieldAlert className="h-3.5 w-3.5 text-red-400 shrink-0 mt-px" />
+            : <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-px" />}
+          <span className="font-mono text-[11px] text-foreground/80">{issue.message}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function CopyPromptButton({ copied, onCopy }: { copied: boolean; onCopy: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onCopy}
+      className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
+    >
+      {copied ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+      {copied ? "Copied!" : "Copy fix prompt"}
+    </button>
   );
 }
 
