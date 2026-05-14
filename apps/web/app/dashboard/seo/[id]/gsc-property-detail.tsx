@@ -484,7 +484,7 @@ export function GscPropertyDetail({
                     })}
                   </div>
                 )}
-                <div className="divide-y divide-border/40 max-h-[420px] overflow-y-auto">
+                <div className="divide-y divide-border/40 max-h-105 overflow-y-auto">
                   {visiblePages.map(({ url, reason }) => (
                     <div key={url} className="flex items-start justify-between gap-3 px-4 py-2.5">
                       <div className="min-w-0">
