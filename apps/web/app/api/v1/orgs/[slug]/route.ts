@@ -18,7 +18,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
       members: {
         include: {
           user: { select: { id: true, name: true, email: true, image: true, githubLogin: true } },
-          repos: { include: { repo: { select: { id: true, fullName: true, name: true } } } },
         },
       },
       repos: {
@@ -31,7 +30,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   if (!org) return NextResponse.json({ success: false, error: "Org not found" }, { status: 404 });
 
   // Verify requester is a member
-  const isMember = org.members.some((m) => m.userId === session.user!.id);
+  const userId = session.user?.id as string;
+  const isMember = org.members.some((m) => m.userId === userId);
   if (!isMember) return NextResponse.json({ success: false, error: "Not a member" }, { status: 403 });
 
   return NextResponse.json({ success: true, data: org });
