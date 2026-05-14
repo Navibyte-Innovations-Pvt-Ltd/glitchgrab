@@ -33,7 +33,10 @@ export default async function DashboardLayout({
       const headersList = await headers();
       const currentPath = headersList.get("x-pathname") ?? "/dashboard";
       const subPath = currentPath.slice("/dashboard".length);
-      redirect(`/org/${membership.org.githubOrgLogin}${subPath}`);
+      const CONFIG_PATHS = ["/settings", "/tokens", "/collaborators", "/billing", "/members"];
+      if (!CONFIG_PATHS.some((p) => subPath.startsWith(p))) {
+        redirect(`/org/${membership.org.githubOrgLogin}${subPath}`);
+      }
     }
   }
 
