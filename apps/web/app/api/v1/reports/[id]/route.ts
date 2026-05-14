@@ -3,24 +3,16 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { getCollabSession } from "@/lib/collab-auth";
 
-/**
- * GET /api/v1/reports/[id]
- *
- * Fetch a single report with full GitHub issue body + all comments.
- * Auth: session (dashboard owner) or collab session
- */
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
-    const collabSession = await getCollabSession();
     const userId = session?.user?.id;
 
-    if (!userId && !collabSession) {
+    if (!userId) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
         { status: 401 }
@@ -34,29 +26,7 @@ export async function GET(
       include: { repo: true, issue: true },
     });
 
-    if (!report) {
-      return NextResponse.json(
-        { success: false, error: "Report not found" },
-        { status: 404 }
-      );
-    }
-
-    // Verify access: owner session or authorized collaborator
-    let authorized = false;
-    if (userId && report.repo.userId === userId) {
-      authorized = true;
-    }
-    if (!authorized && collabSession) {
-      const collabRepo = await prisma.collaboratorRepo.findFirst({
-        where: {
-          repoId: report.repoId,
-          collaborator: { id: collabSession.collaboratorId, status: "ACCEPTED" },
-        },
-      });
-      if (collabRepo) authorized = true;
-    }
-
-    if (!authorized) {
+    if (!report || report.repo.userId !== userId) {
       return NextResponse.json(
         { success: false, error: "Report not found" },
         { status: 404 }
