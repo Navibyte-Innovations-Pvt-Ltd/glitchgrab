@@ -31,6 +31,8 @@ import {
   MessageSquare,
   ImageIcon,
   GitFork,
+  BarChart3,
+  Search,
 } from "lucide-react";
 
 const FAQS = [
@@ -748,6 +750,142 @@ export default function LandingPage() {
                 <li className="flex items-start gap-2.5">
                   <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
                   <span>know your product health at a glance — no context switching</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Analytics section */}
+      <section className="border-b border-border bg-background">
+        <div className="max-w-360 mx-auto border-x border-border">
+          <div className="grid lg:grid-cols-2 gap-0">
+            {/* Left — copy */}
+            <div className="flex flex-col justify-center gap-6 px-6 sm:px-10 py-12 lg:py-16">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-primary flex items-center gap-2">
+                <BarChart3 className="h-3.5 w-3.5" />
+                analytics · insights
+              </div>
+
+              <h2 className="text-2xl sm:text-3xl font-bold text-foreground lowercase leading-tight">
+                understand your team.
+                <br />
+                <span className="text-muted-foreground">issues closed, not just opened.</span>
+              </h2>
+
+              <p className="font-mono text-xs text-muted-foreground leading-relaxed max-w-sm border-l border-border pl-4">
+                See exactly how fast your team resolves bugs — across every repo, every org member. Spot slowdowns before they pile up.
+              </p>
+
+              <ul className="flex flex-col gap-3 font-mono text-xs text-muted-foreground">
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>issues closed per day — bar chart, hover to inspect by repo</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>best day, avg velocity, active days — all in one view</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>switch between 7d, 30d, 90d — no config needed</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Right — screenshot */}
+            <div className="flex items-center justify-center px-6 sm:px-10 py-12 lg:py-16 bg-background/30 border-t lg:border-t-0 lg:border-l border-border">
+              <div className="relative w-full max-w-lg">
+                <div className="rounded-t-lg border border-border border-b-0 bg-card px-4 py-2.5 flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-red-500/70" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/70" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-green-500/70" />
+                  <div className="ml-3 flex-1 bg-background border border-border rounded-sm px-3 py-0.5 font-mono text-[10px] text-muted-foreground">
+                    glitchgrab.dev/analytics
+                  </div>
+                </div>
+                <div className="border border-border rounded-b-lg overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.4)]">
+                  <Image
+                    src="/meta/analytics.webp"
+                    alt="Glitchgrab analytics — issues closed per day, velocity, best day breakdown"
+                    width={1278}
+                    height={802}
+                    className="w-full h-auto block"
+                  />
+                </div>
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -inset-px rounded-lg"
+                  style={{ boxShadow: "0 0 50px 8px color-mix(in srgb, var(--primary) 6%, transparent)" }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* SEO section */}
+      <section className="border-b border-border bg-card/20">
+        <div className="max-w-360 mx-auto border-x border-border">
+          <div className="grid lg:grid-cols-2 gap-0">
+            {/* Left — screenshot */}
+            <div className="flex items-center justify-center px-6 sm:px-10 py-12 lg:py-16 bg-background/30 border-b lg:border-b-0 lg:border-r border-border order-2 lg:order-1">
+              <div className="relative w-full max-w-lg">
+                <div className="rounded-t-lg border border-border border-b-0 bg-card px-4 py-2.5 flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-red-500/70" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/70" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-green-500/70" />
+                  <div className="ml-3 flex-1 bg-background border border-border rounded-sm px-3 py-0.5 font-mono text-[10px] text-muted-foreground">
+                    glitchgrab.dev/seo
+                  </div>
+                </div>
+                <div className="border border-border rounded-b-lg overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.4)]">
+                  <Image
+                    src="/meta/seo.webp"
+                    alt="Glitchgrab SEO — manage SEO for all your domains in one place"
+                    width={1281}
+                    height={796}
+                    className="w-full h-auto block"
+                  />
+                </div>
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -inset-px rounded-lg"
+                  style={{ boxShadow: "0 0 50px 8px color-mix(in srgb, var(--primary) 6%, transparent)" }}
+                />
+              </div>
+            </div>
+
+            {/* Right — copy */}
+            <div className="flex flex-col justify-center gap-6 px-6 sm:px-10 py-12 lg:py-16 order-1 lg:order-2">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-primary flex items-center gap-2">
+                <Search className="h-3.5 w-3.5" />
+                seo · all domains
+              </div>
+
+              <h2 className="text-2xl sm:text-3xl font-bold text-foreground lowercase leading-tight">
+                one place for all your seo.
+                <br />
+                <span className="text-muted-foreground">every domain. every org.</span>
+              </h2>
+
+              <p className="font-mono text-xs text-muted-foreground leading-relaxed max-w-sm border-l border-border pl-4">
+                Manage SEO across all your projects and domains from a single dashboard — meta tags, sitemaps, structured data, and more. No more jumping between tools.
+              </p>
+
+              <ul className="flex flex-col gap-3 font-mono text-xs text-muted-foreground">
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>all domains in one view — personal projects + org repos</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>meta tags, OG images, sitemaps — managed without touching code</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>structured data auto-generated — schema.org out of the box</span>
                 </li>
               </ul>
             </div>
