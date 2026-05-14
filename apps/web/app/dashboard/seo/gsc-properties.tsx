@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Globe,
   Loader2,
@@ -71,16 +71,24 @@ interface Repo {
 interface GscPropertiesClientProps {
   initialProperties: GscPropertyWithStats[];
   repos: Repo[];
+  flashMessage?: { type: "success" | "error"; text: string };
 }
 
 export function GscPropertiesClient({
   initialProperties,
   repos,
+  flashMessage,
 }: GscPropertiesClientProps) {
   const queryClient = useQueryClient();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    if (!flashMessage) return;
+    if (flashMessage.type === "success") toast.success(flashMessage.text);
+    else toast.error(flashMessage.text);
+  }, []);
 
   const { data: properties } = useQuery<GscPropertyWithStats[]>({
     queryKey: ["gsc-properties"],
