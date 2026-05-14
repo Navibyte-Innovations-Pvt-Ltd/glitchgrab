@@ -420,3 +420,21 @@ export async function getGitHubOrgInfo(accessToken: string, orgLogin: string): P
   }
 }
 
+export interface GitHubOrgMember {
+  login: string;
+  avatarUrl: string;
+}
+
+export async function getGitHubOrgMembers(accessToken: string, orgLogin: string): Promise<GitHubOrgMember[]> {
+  try {
+    const res = await fetch(`${GITHUB_API}/orgs/${orgLogin}/members?per_page=100`, {
+      headers: headers(accessToken),
+    });
+    if (!res.ok) return [];
+    const data = (await res.json()) as { login: string; avatar_url: string }[];
+    return data.map((m) => ({ login: m.login, avatarUrl: m.avatar_url }));
+  } catch {
+    return [];
+  }
+}
+
