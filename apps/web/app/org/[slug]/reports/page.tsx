@@ -14,7 +14,7 @@ export default async function OrgReportsPage({ params }: { params: Promise<{ slu
     <div className="space-y-6">
       <InnerPageHeader
         title="reports"
-        subtitle="Bug reports captured via SDK, dashboard & collaborators"
+        subtitle="Bug reports captured via SDK and dashboard"
         meta="owner view · product issues + my reports"
       />
       <ReportsList />
