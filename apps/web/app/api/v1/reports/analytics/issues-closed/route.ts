@@ -3,7 +3,6 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { getCollabSession } from "@/lib/collab-auth";
 
 interface GithubIssue {
   number: number;
@@ -16,28 +15,17 @@ interface GithubIssue {
 export async function GET(request: Request) {
   try {
     const session = await auth();
-    const collabSession = await getCollabSession();
     const userId = session?.user?.id;
 
-    if (!userId && !collabSession) {
+    if (!userId) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
     const days = Math.min(90, Math.max(7, parseInt(searchParams.get("days") ?? "30", 10)));
 
-    const repoIds: string[] = [];
-    if (userId) {
-      const repos = await prisma.repo.findMany({ where: { userId }, select: { id: true } });
-      repoIds.push(...repos.map((r) => r.id));
-    }
-    if (collabSession) {
-      const collabRepos = await prisma.collaboratorRepo.findMany({
-        where: { collaborator: { id: collabSession.collaboratorId, status: "ACCEPTED" } },
-        select: { repoId: true },
-      });
-      repoIds.push(...collabRepos.map((r) => r.repoId));
-    }
+    const repos = await prisma.repo.findMany({ where: { userId }, select: { id: true } });
+    const repoIds = repos.map((r) => r.id);
 
     const today = new Date();
     today.setUTCHours(23, 59, 59, 999);
