@@ -262,8 +262,9 @@ model GscProperty {
   indexedCount          Int       @default(0)
   notIndexedCount       Int       @default(0)
   lastSyncAt            DateTime?
-  cachedNotIndexedPages Json?
-  seoHealthIssueUrl     String?
+  cachedNotIndexedPages   Json?
+  seoHealthIssueUrl       String?
+  seoHealthSnoozedUntil   DateTime?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
