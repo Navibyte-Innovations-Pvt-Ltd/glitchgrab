@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
+import Link from "next/link";
 import { useState } from "react";
 import {
   Globe,
@@ -462,7 +463,12 @@ function PropertyRow({ property, repos, selected, onToggleSelect, onMutated }: P
               className="h-3.5 w-3.5 shrink-0 rounded accent-primary cursor-pointer"
             />
             <SiteFavicon siteUrl={property.siteUrl} />
-            <span className="font-mono text-sm text-foreground truncate">{property.siteUrl}</span>
+            <Link
+              href={`/dashboard/seo/${property.id}`}
+              className="font-mono text-sm text-foreground truncate hover:text-primary transition-colors"
+            >
+              {property.siteUrl}
+            </Link>
           </div>
           <div className="flex items-center gap-2 mt-1 font-mono text-[11px] text-muted-foreground flex-wrap">
             <Clock className="h-3 w-3 shrink-0" />
