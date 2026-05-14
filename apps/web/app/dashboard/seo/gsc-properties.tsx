@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Globe,
   Loader2,
@@ -83,12 +83,14 @@ export function GscPropertiesClient({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const flashShown = useRef(false);
 
   useEffect(() => {
-    if (!flashMessage) return;
+    if (!flashMessage || flashShown.current) return;
+    flashShown.current = true;
     if (flashMessage.type === "success") toast.success(flashMessage.text);
     else toast.error(flashMessage.text);
-  }, []);
+  }, [flashMessage]);
 
   const { data: properties } = useQuery<GscPropertyWithStats[]>({
     queryKey: ["gsc-properties"],
@@ -126,7 +128,7 @@ export function GscPropertiesClient({
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   };
@@ -499,7 +501,7 @@ function PropertyRow({ property, repos, selected, onToggleSelect, onMutated }: P
       "relative border rounded bg-card/40 p-4 space-y-4 transition-colors",
       selected ? "border-primary/50 bg-primary/5" : "border-border"
     )}>
-      <div className="absolute inset-y-3 left-[2px] w-[2px] rounded-r bg-primary shadow-[0_0_8px_rgba(34,211,238,0.4)]" />
+      <div className="absolute inset-y-3 left-0.5 w-0.5 rounded-r bg-primary shadow-[0_0_8px_rgba(34,211,238,0.4)]" />
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start gap-3">
