@@ -29,6 +29,7 @@ model User {
   email         String    @unique
   emailVerified DateTime?
   image         String?
+  githubLogin   String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -41,6 +42,8 @@ model User {
   collaborators Collaborator[]
   gscProperties       GscProperty[]
   gscConnectSessions  GscConnectSession[]
+  ownedOrgs     Organization[]
+  orgMemberships OrgMember[]
 }
 
 model Account {
@@ -84,6 +87,7 @@ model VerificationToken {
 model Repo {
   id        String   @id @default(cuid())
   userId    String
+  orgId     String?
   githubId  Int
   fullName  String
   owner     String
@@ -92,14 +96,17 @@ model Repo {
   createdAt DateTime @default(now())
 
   user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org               Organization?      @relation(fields: [orgId], references: [id], onDelete: SetNull)
   tokens            ApiToken[]
   reports           Report[]
   issues            Issue[]
   collaboratorRepos CollaboratorRepo[]
+  orgMemberRepos    OrgMemberRepo[]
   gscProperties     GscProperty[]
 
   @@unique([userId, githubId])
   @@index([githubId])
+  @@index([orgId])
 }
 
 model ApiToken {
@@ -288,6 +295,52 @@ model GscConnectSession {
   createdAt        DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── Organizations ────────────────────────────────────
+
+enum OrgRole {
+  OWNER
+  MEMBER
+}
+
+model Organization {
+  id             String   @id @default(cuid())
+  githubOrgLogin String   @unique
+  githubOrgId    Int      @unique
+  name           String
+  ownerId        String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  owner   User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  members OrgMember[]
+  repos   Repo[]
+}
+
+model OrgMember {
+  id     String  @id @default(cuid())
+  orgId  String
+  userId String
+  role   OrgRole @default(MEMBER)
+  createdAt DateTime @default(now())
+
+  org   Organization    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repos OrgMemberRepo[]
+
+  @@unique([orgId, userId])
+}
+
+model OrgMemberRepo {
+  id          String @id @default(cuid())
+  orgMemberId String
+  repoId      String
+
+  member OrgMember @relation(fields: [orgMemberId], references: [id], onDelete: Cascade)
+  repo   Repo      @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  @@unique([orgMemberId, repoId])
 }
 
 // ─── Webhooks ──────────────────────────────────────────
