@@ -1,9 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { decrypt } from "@/lib/encrypt";
 
 interface Selection {
   siteUrl: string;
@@ -11,11 +9,6 @@ interface Selection {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-  }
-
   const body = (await request.json()) as { sessionId: string; selections: Selection[] };
   const { sessionId, selections } = body;
 
@@ -24,7 +17,7 @@ export async function POST(request: NextRequest) {
   }
 
   const connectSession = await prisma.gscConnectSession.findFirst({
-    where: { id: sessionId, userId: session.user.id },
+    where: { id: sessionId },
   });
 
   if (!connectSession) {
@@ -36,6 +29,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: "Session expired — please reconnect GSC" }, { status: 410 });
   }
 
+  const userId = connectSession.userId;
   const availableSiteUrls = (connectSession.sites as Array<{ siteUrl: string }>).map((s) => s.siteUrl);
 
   // Validate all selected siteUrls are from this session
@@ -48,14 +42,11 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const accessToken = decrypt(connectSession.encryptedAccess);
-  const refreshToken = connectSession.encryptedRefresh ? decrypt(connectSession.encryptedRefresh) : null;
-
   for (const { siteUrl, repoId } of selections) {
     await prisma.gscProperty.upsert({
-      where: { userId_siteUrl: { userId: session.user.id, siteUrl } },
+      where: { userId_siteUrl: { userId, siteUrl } },
       create: {
-        userId: session.user.id,
+        userId,
         siteUrl,
         repoId,
         encryptedAccessToken: connectSession.encryptedAccess,
@@ -73,10 +64,6 @@ export async function POST(request: NextRequest) {
 
   // Clean up session
   await prisma.gscConnectSession.delete({ where: { id: sessionId } });
-
-  // Suppress unused variable warnings
-  void accessToken;
-  void refreshToken;
 
   return NextResponse.json({ success: true, data: { connected: selections.length } });
 }
