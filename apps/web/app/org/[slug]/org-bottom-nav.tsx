@@ -8,6 +8,7 @@ import {
   GitFork,
   ClipboardList,
   Activity,
+  SearchCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { OrgContext } from "./lib/get-org-context";
@@ -24,6 +25,7 @@ export function OrgBottomNav({ ctx }: { ctx: OrgContext }) {
         { href: "/repos", label: "Repos", icon: GitFork },
         { href: "/reports", label: "Reports", icon: ClipboardList },
         { href: "/analytics", label: "Analytics", icon: Activity },
+        { href: "/seo", label: "SEO", icon: SearchCheck },
       ]
     : [{ href: "/chat", label: "Chat", icon: MessageSquare }];
 
