@@ -1,25 +1,25 @@
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 
-export interface GscTokenResponse {
+interface GscTokenResponse {
   access_token: string;
   refresh_token?: string;
   expires_in: number;
 }
 
-export interface GscSite {
+interface GscSite {
   siteUrl: string;
   permissionLevel: string;
 }
 
-export interface GscInspectResult {
+interface GscInspectResult {
   indexed: boolean;
-  reason?: string;       // human-readable coverageState from GSC
-  verdict?: string;      // raw verdict: PASS | FAIL | NEUTRAL | EXCLUDED
+  reason?: string;
+  verdict?: string;
   robotsTxtState?: string;
   indexingState?: string;
 }
 
-export interface GscIndexingResult {
+interface GscIndexingResult {
   notifyTime: string;
 }
 
