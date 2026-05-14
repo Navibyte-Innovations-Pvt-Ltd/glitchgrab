@@ -33,13 +33,11 @@ async function checkFavicon(domain: string): Promise<FaviconIssue[] | null> {
 interface OgIssue { severity: "error" | "warning"; field: string; message: string }
 
 function getMeta(html: string, name: string): string | null {
-  const patterns = [
-    new RegExp(`<meta[^>]+property=["']${name}["'][^>]+content=["']([^"']*)["']`, "i"),
-    new RegExp(`<meta[^>]+content=["']([^"']*)["'][^>]+property=["']${name}["']`, "i"),
-  ];
-  for (const re of patterns) {
-    const m = html.match(re);
-    if (m?.[1]) return m[1].trim();
+  const tags = html.match(/<meta[^>]+>/gi) ?? [];
+  for (const tag of tags) {
+    const prop = tag.match(/property=["']([^"']*)["']/i)?.[1];
+    const content = tag.match(/content=["']([^"']*)["']/i)?.[1];
+    if (prop === name && content !== undefined) return content.trim();
   }
   return null;
 }
