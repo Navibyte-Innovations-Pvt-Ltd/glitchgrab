@@ -55,29 +55,27 @@ export async function GET(request: NextRequest) {
 
     const accessToken = tokens.access_token;
     const refreshToken = tokens.refresh_token;
-    const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
+    const tokenExpiresAt = new Date(Date.now() + tokens.expires_in * 1000);
 
     const sites = await listGscSites(accessToken);
 
-    for (const site of sites) {
-      await prisma.gscProperty.upsert({
-        where: { userId_siteUrl: { userId, siteUrl: site.siteUrl } },
-        create: {
-          userId,
-          siteUrl: site.siteUrl,
-          encryptedAccessToken: encrypt(accessToken),
-          encryptedRefreshToken: refreshToken ? encrypt(refreshToken) : null,
-          tokenExpiresAt: expiresAt,
-        },
-        update: {
-          encryptedAccessToken: encrypt(accessToken),
-          ...(refreshToken ? { encryptedRefreshToken: encrypt(refreshToken) } : {}),
-          tokenExpiresAt: expiresAt,
-        },
-      });
+    if (sites.length === 0) {
+      return NextResponse.redirect(`${appUrl}/dashboard/seo?error=no_properties`);
     }
 
-    return NextResponse.redirect(`${appUrl}/dashboard/seo?connected=true`);
+    // Store tokens + sites temporarily — redirect user to pick properties + repos
+    const session = await prisma.gscConnectSession.create({
+      data: {
+        userId,
+        encryptedAccess: encrypt(accessToken),
+        encryptedRefresh: refreshToken ? encrypt(refreshToken) : null,
+        tokenExpiresAt,
+        sites,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 min
+      },
+    });
+
+    return NextResponse.redirect(`${appUrl}/dashboard/seo/connect?session=${session.id}`);
   } catch (error) {
     console.error("GSC callback error:", error);
     return NextResponse.redirect(`${appUrl}/dashboard/seo?error=oauth_failed`);
