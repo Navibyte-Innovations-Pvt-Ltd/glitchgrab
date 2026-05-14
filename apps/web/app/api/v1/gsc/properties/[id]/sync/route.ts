@@ -50,6 +50,14 @@ export async function POST(
   }
 
   const sitemapUrls = await getSitemapUrls(accessToken, property.siteUrl);
+
+  if (sitemapUrls.length === 0) {
+    return NextResponse.json({
+      success: true,
+      data: { synced: 0, indexed: 0, notIndexed: 0, notIndexedPages: [], noSitemap: true },
+    });
+  }
+
   const urlsToCheck = sitemapUrls.slice(0, MAX_URLS_PER_SYNC);
 
   let indexed = 0;
