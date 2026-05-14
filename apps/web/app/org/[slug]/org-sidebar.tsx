@@ -41,6 +41,7 @@ const OWNER_CONFIG = [
 
 const MEMBER_NAV = [
   { href: "/chat", label: "Chat", icon: MessageSquare },
+  { href: "/repos", label: "Repos", icon: GitFork },
 ];
 
 export function OrgSidebar({ ctx }: { ctx: OrgContext }) {
