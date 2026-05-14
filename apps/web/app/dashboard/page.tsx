@@ -22,10 +22,10 @@ export default async function DashboardPage() {
     }
   }
 
-  const { repos, hasOwnerSession, hasCollabOnly } = await getDashboardContext();
+  const { repos, hasOwnerSession } = await getDashboardContext();
 
   if (repos.length === 0) {
-    return <NoReposState canConnect={hasOwnerSession} collaboratorOnly={hasCollabOnly} />;
+    return <NoReposState canConnect={hasOwnerSession} />;
   }
 
   return <DashboardAnalytics />;
