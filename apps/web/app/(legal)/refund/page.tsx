@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Refund Policy — Glitchgrab",
+  title: "Refund Policy",
   description:
     "Glitchgrab refund policy and money-back guarantee details.",
+  alternates: {
+    canonical: "https://glitchgrab.dev/refund",
+  },
 };
 
 export default function RefundPolicyPage() {
