@@ -61,5 +61,12 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ success: true, data: { submitted, checked: urlsToCheck.length } });
+  // Snooze SEO health issue creation for 7 days — Google needs time to re-crawl
+  const snoozedUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await prisma.gscProperty.update({
+    where: { id: propertyId },
+    data: { seoHealthSnoozedUntil: snoozedUntil },
+  });
+
+  return NextResponse.json({ success: true, data: { submitted, checked: urlsToCheck.length, snoozedUntil: snoozedUntil.toISOString() } });
 }
