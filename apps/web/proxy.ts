@@ -41,7 +41,7 @@ export async function proxy(request: NextRequest) {
 
     // Fast path: JWT already has orgSlug cached → redirect immediately
     // Config paths are user-level (not org-scoped) — skip redirect to avoid loops
-    const CONFIG_PATHS = ["/settings", "/tokens", "/collaborators", "/billing", "/members"];
+    const CONFIG_PATHS = ["/settings", "/tokens", "/billing", "/members"];
     const orgSlug = token.orgSlug as string | null | undefined;
     if (orgSlug) {
       const subPath = path.slice("/dashboard".length);
