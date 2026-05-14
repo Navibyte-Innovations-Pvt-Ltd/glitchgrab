@@ -52,12 +52,13 @@ export async function POST(request: NextRequest) {
   }
 
   let submitted = 0;
+  let firstError: string | null = null;
   for (const url of notIndexedUrls) {
     try {
       await requestIndexing(accessToken, url);
       submitted++;
-    } catch {
-      // Skip per-URL failures
+    } catch (err) {
+      if (!firstError) firstError = err instanceof Error ? err.message : String(err);
     }
   }
 
@@ -68,5 +69,5 @@ export async function POST(request: NextRequest) {
     data: { seoHealthSnoozedUntil: snoozedUntil },
   });
 
-  return NextResponse.json({ success: true, data: { submitted, checked: urlsToCheck.length, snoozedUntil: snoozedUntil.toISOString() } });
+  return NextResponse.json({ success: true, data: { submitted, failed: notIndexedUrls.length - submitted, checked: urlsToCheck.length, snoozedUntil: snoozedUntil.toISOString(), ...(firstError ? { indexingApiError: firstError } : {}) } });
 }
