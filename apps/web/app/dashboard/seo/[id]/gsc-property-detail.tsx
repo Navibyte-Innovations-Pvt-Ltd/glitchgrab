@@ -58,6 +58,7 @@ interface GscPropertyData {
   notIndexedCount: number;
   lastSyncAt: string | null;
   createdAt: string;
+  cachedNotIndexedPages: Array<{ url: string; reason?: string }> | null;
 }
 
 interface Repo {
@@ -87,7 +88,16 @@ export function GscPropertyDetail({
   const router = useRouter();
   const queryClient = useQueryClient();
   const [property, setProperty] = useState(initialProperty);
-  const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
+  const [syncResult, setSyncResult] = useState<SyncResult | null>(() => {
+    const cached = initialProperty.cachedNotIndexedPages;
+    if (!cached) return null;
+    return {
+      synced: initialProperty.indexedCount + cached.length,
+      indexed: initialProperty.indexedCount,
+      notIndexed: cached.length,
+      notIndexedPages: cached,
+    };
+  });
   const [selectedRepoId, setSelectedRepoId] = useState(initialProperty.repoId ?? "");
   const [repoPickerOpen, setRepoPickerOpen] = useState(false);
   const [activeReasonTab, setActiveReasonTab] = useState<string>("all");
@@ -272,8 +282,10 @@ export function GscPropertyDetail({
     onError: (err) => toast.error(err instanceof Error ? err.message : "Update failed"),
   });
 
-  // Auto-sync on mount so not-indexed pages show immediately
-  useEffect(() => { syncNow(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // First-time sync: if never synced before, auto-run on mount
+  useEffect(() => {
+    if (!initialProperty.lastSyncAt) syncNow();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const ogErrors = ogData?.issues.filter((i) => i.severity === "error").length ?? 0;
   const ogWarnings = ogData?.issues.filter((i) => i.severity === "warning").length ?? 0;
@@ -315,6 +327,17 @@ export function GscPropertyDetail({
           {isSyncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
           {isSyncing ? "Syncing…" : "Sync Now"}
         </button>
+        {property.lastSyncAt && !isSyncing && (
+          <span className="font-mono text-[10px] text-muted-foreground/60">
+            cached {(() => {
+              const diff = Date.now() - new Date(property.lastSyncAt).getTime();
+              const h = Math.floor(diff / 3_600_000);
+              if (h < 1) return "< 1h ago";
+              if (h < 24) return `${h}h ago`;
+              return `${Math.floor(h / 24)}d ago`;
+            })()}
+          </span>
+        )}
 
         <button
           type="button"
