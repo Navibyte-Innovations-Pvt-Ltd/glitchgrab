@@ -61,6 +61,7 @@ export default async function GscPropertyPage({
           notIndexedCount: property.notIndexedCount,
           lastSyncAt: property.lastSyncAt?.toISOString() ?? null,
           createdAt: property.createdAt.toISOString(),
+          cachedNotIndexedPages: (property.cachedNotIndexedPages as { url: string; reason?: string }[] | null) ?? null,
         }}
         repos={repos}
       />
