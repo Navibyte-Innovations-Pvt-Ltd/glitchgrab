@@ -20,6 +20,7 @@ import {
   ScanSearch,
   Share2,
   Copy,
+  GitPullRequest,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -127,6 +128,31 @@ export function GscPropertyDetail({
 
   const [copiedFavicon, setCopiedFavicon] = useState(false);
   const [copiedOg, setCopiedOg] = useState(false);
+  const [faviconIssueUrl, setFaviconIssueUrl] = useState<string | null>(null);
+
+  const { mutate: createFaviconIssue, isPending: isCreatingFaviconIssue } = useMutation({
+    mutationFn: async () => {
+      if (!faviconData || faviconData.issues.length === 0) throw new Error("No issues");
+      if (!selectedRepoId) throw new Error("No repo linked");
+      const lines = faviconData.issues.map((i) => `- [${i.status}] ${i.text}`).join("\n");
+      const description = `Fix favicon issues for ${property.siteUrl}\n\nIssues detected by RealFaviconGenerator:\n${lines}\n\nGenerate and add all missing favicon files and correct <link> tags in <head>. Include ICO, PNG (16×16, 32×32, 96×96, 180×180), SVG, and web manifest.`;
+      const form = new FormData();
+      form.append("repoId", selectedRepoId);
+      form.append("description", description);
+      const { data } = await axios.post("/api/v1/reports", form);
+      if (!data.success) throw new Error(data.error ?? "Failed to create issue");
+      return data.data as { issueUrl?: string; issueNumber?: number };
+    },
+    onSuccess: (result) => {
+      if (result.issueUrl) {
+        setFaviconIssueUrl(result.issueUrl);
+        toast.success("GitHub issue created");
+      } else {
+        toast.success("Report submitted");
+      }
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to create issue"),
+  });
 
   const { mutate: syncNow, isPending: isSyncing } = useMutation({
     mutationFn: async () => {
@@ -408,6 +434,30 @@ export function GscPropertyDetail({
                             navigator.clipboard.writeText(prompt).then(() => { setCopiedFavicon(true); setTimeout(() => setCopiedFavicon(false), 2000); });
                           }}
                         />
+                        {faviconIssueUrl ? (
+                          <a
+                            href={faviconIssueUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-green-400 hover:underline"
+                          >
+                            <GitPullRequest className="h-3 w-3" />
+                            View Issue
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => createFaviconIssue()}
+                            disabled={!selectedRepoId || isCreatingFaviconIssue}
+                            title={!selectedRepoId ? "Link a repo first" : "Create GitHub issue"}
+                            className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            {isCreatingFaviconIssue
+                              ? <Loader2 className="h-3 w-3 animate-spin" />
+                              : <GitPullRequest className="h-3 w-3" />}
+                            {isCreatingFaviconIssue ? "Creating…" : "Create Issue"}
+                          </button>
+                        )}
                       </div>
                     </div>
                   )
