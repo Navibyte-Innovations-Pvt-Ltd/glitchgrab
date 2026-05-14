@@ -1,6 +1,6 @@
 /** @type {import('next-sitemap').IConfig} */
 
-const PRIVATE_PATHS = ["/dashboard", "/api", "/login", "/collaborate"];
+const PRIVATE_PATHS = ["/dashboard", "/api", "/login"];
 
 const AI_BOTS = [
   "GPTBot", "ChatGPT-User", "OAI-SearchBot",
@@ -20,7 +20,6 @@ module.exports = {
     "/dashboard/*",
     "/api/*",
     "/login",
-    "/collaborate/*",
   ],
   robotsTxtOptions: {
     policies: [
