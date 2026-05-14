@@ -163,6 +163,7 @@ export function Sidebar({
           badge: billingBadge,
         },
         { href: "/dashboard/settings", label: "Settings", icon: SettingsIcon, ownerOnly: true },
+        { href: "/org/setup", label: "Create Org", icon: UsersIcon, ownerOnly: true },
       ],
     },
   ];
