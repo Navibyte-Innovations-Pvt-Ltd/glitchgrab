@@ -37,7 +37,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
     where: { orgId: org.id },
     include: {
       user: { select: { id: true, name: true, email: true, image: true, githubLogin: true } },
-      repos: { include: { repo: { select: { id: true, fullName: true, name: true } } } },
     },
   });
 
@@ -64,7 +63,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   const dbByLogin = new Map(
     dbMembers
       .filter((m) => m.user.githubLogin)
-      .map((m) => [m.user.githubLogin!, m])
+      .map((m) => [m.user.githubLogin as string, m])
   );
 
   // Merge: all GitHub members, annotated with DB state
@@ -74,11 +73,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
     return {
       githubLogin: ghm.login,
       avatarUrl: ghm.avatarUrl,
-      orgMemberId: db?.id ?? null,
       name: db?.user.name ?? null,
       email: db?.user.email ?? null,
       role: db?.role ?? null,
-      repos: db?.repos ?? [],
       joined: !!db,
     };
   });
@@ -89,11 +86,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
       merged.push({
         githubLogin: db.user.githubLogin ?? "",
         avatarUrl: db.user.image ?? "",
-        orgMemberId: db.id,
         name: db.user.name,
         email: db.user.email,
         role: db.role,
-        repos: db.repos,
         joined: true,
       });
     }
