@@ -310,8 +310,9 @@ export default function LandingPage() {
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight leading-[1.05] text-foreground lowercase">
-              <span className="block">Grab the glitch.</span>
-              <span className="block text-muted-foreground">Ship the fix.</span>
+              <span className="block">AI bug tracker</span>
+              <span className="block">for Next.js</span>
+              <span className="block text-muted-foreground">auto-create GitHub issues</span>
             </h1>
 
             <p className="font-mono text-sm text-muted-foreground max-w-md leading-relaxed border-l border-border pl-4">
@@ -342,6 +343,44 @@ export default function LandingPage() {
             <div className="w-full max-w-xl">
               <HeroTerminal />
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Trust bar */}
+      <section className="border-b border-border bg-background">
+        <div className="max-w-360 mx-auto border-x border-border/50 px-4 sm:px-6 py-4">
+          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 font-mono text-[11px] text-muted-foreground">
+            <a
+              href="https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 hover:text-primary transition-colors"
+            >
+              <Github className="h-3.5 w-3.5" />
+              open source · MIT
+            </a>
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />
+              Next.js 13 · 14 · 15
+            </span>
+            <a
+              href="https://www.npmjs.com/package/glitchgrab"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 hover:text-primary transition-colors"
+            >
+              <FileCode className="h-3.5 w-3.5" />
+              npm install glitchgrab
+            </a>
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />
+              zero runtime deps
+            </span>
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />
+              free tier · unlimited reports
+            </span>
           </div>
         </div>
       </section>
