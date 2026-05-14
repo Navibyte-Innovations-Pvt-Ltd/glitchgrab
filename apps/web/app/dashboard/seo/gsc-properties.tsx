@@ -22,6 +22,8 @@ import {
   ScanSearch,
   ChevronDown,
   ChevronUp,
+  Search,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -78,6 +80,7 @@ export function GscPropertiesClient({
   const queryClient = useQueryClient();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [search, setSearch] = useState("");
 
   const { data: properties } = useQuery<GscPropertyWithStats[]>({
     queryKey: ["gsc-properties"],
@@ -121,11 +124,14 @@ export function GscPropertiesClient({
   };
 
   const toggleAll = () => {
-    if (!properties) return;
-    if (selectedIds.size === properties.length) {
-      setSelectedIds(new Set());
+    if (allSelected) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        filteredProperties.forEach((p) => next.delete(p.id));
+        return next;
+      });
     } else {
-      setSelectedIds(new Set(properties.map((p) => p.id)));
+      setSelectedIds((prev) => new Set([...prev, ...filteredProperties.map((p) => p.id)]));
     }
   };
 
@@ -145,12 +151,38 @@ export function GscPropertiesClient({
     );
   }
 
-  const allSelected = properties.length > 0 && selectedIds.size === properties.length;
-  const someSelected = selectedIds.size > 0 && !allSelected;
+  const q = search.trim().toLowerCase();
+  const filteredProperties = q
+    ? properties.filter((p) => p.siteUrl.toLowerCase().includes(q) || (p.repo?.fullName ?? "").toLowerCase().includes(q))
+    : properties;
+
+  const allSelected = filteredProperties.length > 0 && filteredProperties.every((p) => selectedIds.has(p.id));
+  const someSelected = filteredProperties.some((p) => selectedIds.has(p.id)) && !allSelected;
   const selectedProperties = properties.filter((p) => selectedIds.has(p.id));
 
   return (
     <div className="space-y-4">
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by domain or repo…"
+          className="w-full bg-background border border-border rounded px-9 py-2 font-mono text-[11px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors"
+        />
+        {search && (
+          <button
+            type="button"
+            onClick={() => setSearch("")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -162,7 +194,11 @@ export function GscPropertiesClient({
             className="h-3.5 w-3.5 rounded accent-primary cursor-pointer"
           />
           <span className="font-mono text-[11px] text-muted-foreground">
-            {selectedIds.size > 0 ? `${selectedIds.size} selected` : "select all"}
+            {selectedIds.size > 0
+              ? `${selectedIds.size} selected`
+              : q
+              ? `${filteredProperties.length} of ${properties.length}`
+              : "select all"}
           </span>
         </label>
 
@@ -209,8 +245,13 @@ export function GscPropertiesClient({
       </div>
 
       {/* Rows */}
+      {filteredProperties.length === 0 && (
+        <p className="font-mono text-[11px] text-muted-foreground py-6 text-center">
+          No properties match &ldquo;{search}&rdquo;
+        </p>
+      )}
       <div className="flex flex-col gap-3">
-        {properties.map((property) => (
+        {filteredProperties.map((property) => (
           <PropertyRow
             key={property.id}
             property={property}
