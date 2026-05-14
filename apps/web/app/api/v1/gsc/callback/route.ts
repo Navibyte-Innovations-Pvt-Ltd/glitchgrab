@@ -73,7 +73,8 @@ export async function GET(request: NextRequest) {
         encryptedAccess: encrypt(accessToken),
         encryptedRefresh: refreshToken ? encrypt(refreshToken) : null,
         tokenExpiresAt,
-        sites,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        sites: sites as any,
         expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 min — enough to log in and return
       },
     });
