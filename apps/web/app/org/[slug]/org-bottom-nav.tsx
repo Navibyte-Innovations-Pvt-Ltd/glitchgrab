@@ -27,7 +27,10 @@ export function OrgBottomNav({ ctx }: { ctx: OrgContext }) {
         { href: "/analytics", label: "Analytics", icon: Activity },
         { href: "/seo", label: "SEO", icon: SearchCheck },
       ]
-    : [{ href: "/chat", label: "Chat", icon: MessageSquare }];
+    : [
+        { href: "/chat", label: "Chat", icon: MessageSquare },
+        { href: "/repos", label: "Repos", icon: GitFork },
+      ];
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur-sm">
