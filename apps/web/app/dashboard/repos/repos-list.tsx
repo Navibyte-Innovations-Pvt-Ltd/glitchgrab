@@ -167,7 +167,7 @@ function RepoCard({ repo, kind }: { repo: Repo; kind: "own" | "shared" }) {
 
   return (
     <div className="group relative flex flex-col gap-3 p-4 rounded-lg bg-card border border-border hover:border-primary/40 transition-colors cursor-pointer">
-      <div className="absolute inset-y-3 left-[3px] w-[2px] rounded-full bg-primary shadow-[0_0_8px_rgba(34,211,238,0.4)]" />
+      <div className="absolute inset-y-3 left-0.75 w-0.5 rounded-full bg-primary shadow-[0_0_8px_rgba(34,211,238,0.4)]" />
 
       <div className="flex items-start justify-between gap-2">
         <div className="w-9 h-9 rounded border border-border bg-background flex items-center justify-center text-muted-foreground shrink-0">
