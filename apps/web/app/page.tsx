@@ -7,12 +7,6 @@ import { BreadcrumbJsonLd, FAQJsonLd } from "@/components/seo/json-ld";
 
 import { WaitlistForm } from "./waitlist-form";
 import { ContactForm } from "./contact-form";
-import {
-  DashboardChatAnim,
-  AutoCaptureAnim,
-  ReportButtonAnim,
-  DedupAnim,
-} from "./flow-animations";
 import { HeroVideo } from "./hero-video";
 import { HeroTerminal } from "./hero-terminal";
 import { HeroWaitlist } from "./hero-waitlist";
@@ -25,11 +19,8 @@ import {
   Brain,
   Layers,
   FileCode,
-  GitMerge,
   Scan,
-  Plug,
   MessageSquare,
-  ImageIcon,
   GitFork,
   BarChart3,
   Search,
@@ -70,11 +61,11 @@ const FAQS = [
 ];
 
 const PIPELINE = [
-  { n: "01", label: "Normalize", desc: "Strip PII & format", icon: Funnel },
-  { n: "02", label: "Enrich", desc: "Map to codebase", icon: Brain },
-  { n: "03", label: "Dedup", desc: "Semantic match", icon: Layers },
-  { n: "04", label: "Generate", desc: "Draft markdown", icon: FileCode },
-  { n: "05", label: "Push", desc: "Create GitHub issue", icon: Github },
+  { n: "01", label: "Capture", desc: "Screenshot + URL", icon: Scan },
+  { n: "02", label: "Analyze", desc: "AI reads intent", icon: Brain },
+  { n: "03", label: "Research", desc: "Compare to your site", icon: Search },
+  { n: "04", label: "Draft", desc: "SEO action plan", icon: FileCode },
+  { n: "05", label: "Ship", desc: "GitHub issue ready", icon: Github },
 ];
 
 function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
@@ -88,151 +79,6 @@ function NavLink({ href, children }: { href: string; children: React.ReactNode }
   );
 }
 
-type FeatureTone = "primary" | "warn" | "neutral";
-
-function FeatureCard({
-  mode,
-  meta,
-  icon: Icon,
-  tone,
-  title,
-  desc,
-  children,
-  borderRight,
-  borderBottom,
-}: {
-  mode: string;
-  meta: string;
-  icon: typeof Plug;
-  tone: FeatureTone;
-  title: string;
-  desc: string;
-  children: React.ReactNode;
-  borderRight?: boolean;
-  borderBottom?: boolean;
-}) {
-  const toneText =
-    tone === "primary"
-      ? "text-primary"
-      : tone === "warn"
-      ? "text-yellow-400"
-      : "text-foreground";
-  const stripColor =
-    tone === "primary"
-      ? "group-hover:bg-primary"
-      : tone === "warn"
-      ? "group-hover:bg-yellow-400"
-      : "group-hover:bg-foreground";
-
-  return (
-    <div
-      className={`group relative p-6 sm:p-8 transition-colors hover:bg-muted/20 flex flex-col gap-5 min-h-[360px] border-b md:border-b-0 border-border ${
-        borderRight ? "md:border-r" : ""
-      } ${borderBottom ? "md:border-b" : ""}`}
-    >
-      <span
-        aria-hidden
-        className={`absolute left-0 top-0 bottom-0 w-[3px] bg-transparent transition-colors ${stripColor}`}
-      />
-
-      <div className="flex justify-between items-start gap-3">
-        <div
-          className={`flex items-center gap-2 font-mono text-xs uppercase tracking-widest ${toneText}`}
-        >
-          <Icon className="h-3.5 w-3.5" />
-          [MODE: {mode}]
-        </div>
-        <div className="font-mono text-[10px] text-muted-foreground border border-border px-1.5 py-0.5 shrink-0">
-          {meta}
-        </div>
-      </div>
-
-      <div>
-        <h3 className="text-lg text-foreground mb-2 font-semibold">{title}</h3>
-        <p className="font-mono text-xs text-muted-foreground leading-relaxed">
-          {desc}
-        </p>
-      </div>
-
-      <div className="mt-auto">{children}</div>
-    </div>
-  );
-}
-
-function CodeSnippet() {
-  return (
-    <div className="bg-background border border-border p-3 font-mono text-[10px] text-muted-foreground overflow-hidden relative group/code hover:border-primary/30 transition-colors">
-      <div className="absolute right-2 top-2 w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse group-hover/code:bg-green-400 transition-colors" />
-      <code className="block whitespace-pre-wrap leading-relaxed">
-        <span className="text-primary">&gt;</span> import {"{ GlitchgrabProvider }"} from{" "}
-        <span className="text-green-400">&apos;glitchgrab&apos;</span>;
-        {"\n"}
-        {"\n"}
-        <span className="text-primary">&gt;</span> export default function RootLayout() {"{"}
-        {"\n"}
-        {"  "}return &lt;GlitchgrabProvider token=
-        <span className="text-green-400">&quot;gg_...&quot;</span>/&gt;;
-        {"\n"}
-        {"}"}
-      </code>
-    </div>
-  );
-}
-
-function ChatBubbles() {
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="bg-muted/50 border border-border/60 p-2 font-mono text-[10px] text-muted-foreground max-w-[85%]">
-        <span className="text-primary/70">user@dev &gt;</span> &quot;The checkout button is spinning forever on production&quot;
-      </div>
-      <div className="bg-background border border-primary/30 border-l-2 border-l-primary p-2 font-mono text-[10px] max-w-[85%] self-end relative">
-        <CheckCircle2 className="h-3 w-3 text-primary absolute -left-1.5 -top-1.5 bg-background rounded-full" />
-        <span className="text-primary">[agent/sys] &gt;</span>{" "}
-        <span className="text-foreground">
-          Drafted issue &quot;Infinite loader on /checkout&quot;. Requesting repro steps...
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function VisionPreview() {
-  return (
-    <div className="relative h-20 bg-background border border-border overflow-hidden flex items-center justify-center p-2 group/vis">
-      <div className="font-mono text-[8px] text-border break-all leading-none group-hover/vis:opacity-20 transition-opacity duration-500">
-        data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAlgAAAH0CAYAAADkvqMgAAAAB3RJTUUH5QUUEwA5
-        K5TXXQAAAAlwSFlzAAAOxAAADsQBlSsOGwAAAAJiS0dEAP+Hj8y/AAA...
-      </div>
-      <div className="absolute inset-0 flex items-center justify-center backdrop-blur-[2px] opacity-0 group-hover/vis:opacity-100 transition-opacity duration-500">
-        <div className="flex items-center gap-2 border border-primary bg-card px-3 py-1 font-mono text-xs text-primary">
-          <Scan className="h-3.5 w-3.5" />
-          CheckoutModal.tsx
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function DedupVisual() {
-  return (
-    <div className="flex flex-col gap-1 font-mono text-[10px]">
-      <div className="flex items-center justify-between gap-2 p-1.5 border border-border bg-background">
-        <span className="text-muted-foreground truncate">Report A: &quot;Site down&quot;</span>
-        <span className="text-border">→</span>
-        <span className="text-primary">hash: 8f2b</span>
-      </div>
-      <div className="flex items-center justify-between gap-2 p-1.5 border border-border bg-background">
-        <span className="text-muted-foreground truncate">Report B: &quot;502 gateway&quot;</span>
-        <span className="text-border">→</span>
-        <span className="text-primary">hash: 8f2b</span>
-      </div>
-      <div className="text-center text-yellow-400 mt-1.5 uppercase tracking-widest border-t border-dashed border-border pt-1.5 group-hover:text-green-400 transition-colors flex items-center justify-center gap-1.5">
-        <GitMerge className="h-3 w-3" />
-        merged into issue #42
-      </div>
-    </div>
-  );
-}
 
 export const metadata: Metadata = {
   alternates: {
@@ -962,77 +808,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Features — log entries grid */}
-      <section id="features" className="border-y border-border bg-card/30">
-        <div className="max-w-360 mx-auto border-x border-border">
-          <div className="border-b border-border p-4 flex items-center justify-between bg-background/40">
-            <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
-              <span className="text-primary">/</span> sys.capture_methods
-            </div>
-            <div className="font-mono text-[10px] text-muted-foreground/70">
-              4 modes active
-            </div>
-          </div>
-
-          <div className="grid md:grid-cols-2">
-            <FeatureCard
-              mode="AUTO_CAPTURE"
-              meta="ts-node // edge"
-              icon={Plug}
-              tone="primary"
-              title="Drop-in SDK intercept"
-              desc="Runs at the edge or client side. Automatically grabs stack traces, DOM state, and recent network requests the millisecond a throw occurs."
-              borderRight
-              borderBottom
-            >
-              <CodeSnippet />
-            </FeatureCard>
-
-            <FeatureCard
-              mode="REPL_CHAT"
-              meta="cli // web"
-              icon={MessageSquare}
-              tone="neutral"
-              title="Conversational triage"
-              desc="Paste a massive dumped log or vague Slack message into the command center. The AI parses the mess and extracts actionable repro steps."
-              borderBottom
-            >
-              <ChatBubbles />
-            </FeatureCard>
-
-            <FeatureCard
-              mode="VISION_PARSE"
-              meta="base64 // blob"
-              icon={ImageIcon}
-              tone="neutral"
-              title="Vision-based reverse engineering"
-              desc="Users drop a screenshot of a broken UI component. Models analyze the DOM context and map the visual bug to the exact React component."
-              borderRight
-            >
-              <VisionPreview />
-            </FeatureCard>
-
-            <FeatureCard
-              mode="VECTOR_DEDUP"
-              meta="pinecone // semantic"
-              icon={GitMerge}
-              tone="warn"
-              title="Semantic issue collapsing"
-              desc="Before opening a new issue, every report is converted to embeddings. 50 users reporting the same downtime in different words — all map to a single tracking issue."
-            >
-              <DedupVisual />
-            </FeatureCard>
-
-            {/* Hidden — keep animations available but not used; see DashboardChatAnim etc */}
-            <div className="hidden">
-              <DashboardChatAnim />
-              <AutoCaptureAnim />
-              <ReportButtonAnim />
-              <DedupAnim />
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* How it works — CLI transcript (left) + demo video (right) */}
       <section id="how-it-works" className="bg-card/30 border-b border-border">
@@ -1128,14 +903,14 @@ export default function LandingPage() {
           <div className="px-4 sm:px-6 mb-10 flex items-end justify-between flex-wrap gap-3">
             <div>
               <div className="font-mono text-[10px] text-muted-foreground tracking-widest uppercase mb-1">
-                Architecture
+                Workflow
               </div>
               <h2 className="text-lg sm:text-xl font-bold text-foreground uppercase tracking-tight">
-                Processing Pipeline
+                From Screenshot to Shipped
               </h2>
             </div>
             <span className="font-mono text-[10px] px-2 py-0.5 border border-green-400/40 text-green-400 bg-green-400/10 uppercase tracking-widest">
-              Status: Operational
+              Fully Automated
             </span>
           </div>
 
