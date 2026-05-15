@@ -49,14 +49,14 @@ export const metadata: Metadata = {
     title: "Glitchgrab — Grab the glitch. Ship the fix.",
     description:
       "Turn messy bug reports into structured GitHub issues with AI. SDK auto-capture, screenshots, user reports — all become clean issues.",
-    images: [{ url: `${BASE_URL}/og-image.jpg`, width: 1200, height: 630 }],
+    images: [{ url: `${BASE_URL}/og-image.png`, width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Glitchgrab — Grab the glitch. Ship the fix.",
     description:
       "Turn messy bug reports into structured GitHub issues with AI.",
-    images: [`${BASE_URL}/og-image.jpg`],
+    images: [`${BASE_URL}/og-image.png`],
   },
 };
 
@@ -92,7 +92,7 @@ export default function RootLayout({
       <body>
         <AuthSessionProvider>
           <QueryProvider>
-            <TooltipProvider delayDuration={300}>
+            <TooltipProvider delay={300}>
               <GlitchgrabSDKProvider>
                 {children}
               </GlitchgrabSDKProvider>
