@@ -32,11 +32,19 @@ function formatTooltipDate(iso: string) {
   return `${MONTHS[d.getUTCMonth()]} ${ordinal(d.getUTCDate())}`;
 }
 
-export function GithubContributions() {
+export function GithubContributions({
+  apiPath = "/api/v1/github/contributions",
+  queryKey = ["github-contributions"],
+  emptyMessage = "Couldn't load GitHub contributions. Make sure GitHub is connected.",
+}: {
+  apiPath?: string;
+  queryKey?: string[];
+  emptyMessage?: string;
+} = {}) {
   const { data, isLoading } = useQuery<ContribData>({
-    queryKey: ["github-contributions"],
+    queryKey,
     queryFn: async () => {
-      const { data } = await axios.get("/api/v1/github/contributions");
+      const { data } = await axios.get(apiPath);
       return data.data;
     },
     staleTime: 5 * 60_000,
@@ -72,7 +80,7 @@ export function GithubContributions() {
   if (!data || data.weeks.length === 0) {
     return (
       <div className="text-xs font-mono text-muted-foreground text-center py-10 border border-dashed border-border rounded">
-        Couldn&apos;t load GitHub contributions. Make sure GitHub is connected.
+        {emptyMessage}
       </div>
     );
   }

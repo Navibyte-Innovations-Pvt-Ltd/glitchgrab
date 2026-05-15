@@ -19,7 +19,7 @@ export function InnerPageHeader({
     <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 pb-6 border-b border-border">
       <div className="flex flex-col sm:flex-row sm:items-end gap-4 sm:gap-6 min-w-0">
         <div className="min-w-0">
-          <h1 className="text-2xl sm:text-3xl font-medium tracking-tight text-foreground leading-none lowercase">
+          <h1 className="text-2xl sm:text-3xl font-medium tracking-tight text-foreground leading-none lowercase truncate">
             {title}
           </h1>
         </div>

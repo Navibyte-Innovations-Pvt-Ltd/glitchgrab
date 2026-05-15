@@ -1,17 +1,12 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import Link from "next/link";
+import { version } from "../package.json";
 import { softwareApplicationSchema } from "@/lib/schema";
-import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
+import { BreadcrumbJsonLd, FAQJsonLd } from "@/components/seo/json-ld";
+import { PublicNav } from "@/components/public-nav";
 
 import { WaitlistForm } from "./waitlist-form";
 import { ContactForm } from "./contact-form";
-import {
-  DashboardChatAnim,
-  AutoCaptureAnim,
-  ReportButtonAnim,
-  DedupAnim,
-} from "./flow-animations";
 import { HeroVideo } from "./hero-video";
 import { HeroTerminal } from "./hero-terminal";
 import { HeroWaitlist } from "./hero-waitlist";
@@ -20,181 +15,51 @@ import {
   Github,
   ChevronsRight,
   CheckCircle2,
-  Funnel,
   Brain,
   Layers,
   FileCode,
-  GitMerge,
   Scan,
-  Plug,
   MessageSquare,
-  ImageIcon,
+  GitFork,
+  BarChart3,
+  Search,
+  ScanSearch,
 } from "lucide-react";
 
-const PIPELINE = [
-  { n: "01", label: "Normalize", desc: "Strip PII & format", icon: Funnel },
-  { n: "02", label: "Enrich", desc: "Map to codebase", icon: Brain },
-  { n: "03", label: "Dedup", desc: "Semantic match", icon: Layers },
-  { n: "04", label: "Generate", desc: "Draft markdown", icon: FileCode },
-  { n: "05", label: "Push", desc: "Create GitHub issue", icon: Github },
+const FAQS = [
+  {
+    question: "What is Glitchgrab?",
+    answer:
+      "Glitchgrab is an open-source Next.js SDK that automatically converts production errors, user-submitted screenshots, and vague bug reports into well-structured GitHub issues using AI.",
+  },
+  {
+    question: "Which versions of Next.js does Glitchgrab support?",
+    answer:
+      "Glitchgrab supports Next.js 13, 14, and 15 with full App Router compatibility.",
+  },
+  {
+    question: "Is Glitchgrab free to use?",
+    answer:
+      "Yes. The free tier includes unlimited reports and one GitHub repository. The Pro plan at ₹199/month unlocks multiple repositories and bring-your-own-key (BYOK) support for OpenAI or Anthropic.",
+  },
+  {
+    question: "How does AI deduplication work?",
+    answer:
+      "Every incoming report is converted to a vector embedding and compared against existing open issues. Semantically similar reports — like '502 gateway error' and 'site down' — are collapsed into a single tracking issue rather than creating duplicates.",
+  },
+  {
+    question: "Is Glitchgrab open source?",
+    answer:
+      "Yes. Glitchgrab is MIT-licensed and the full source code is available on GitHub at github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab.",
+  },
+  {
+    question: "How do I get started?",
+    answer:
+      "Install via bun install glitchgrab, wrap your root layout with GlitchgrabProvider using your token, and you're done. Full documentation is available at glitchgrab.dev/docs.",
+  },
 ];
 
-function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
-  return (
-    <a
-      href={href}
-      className="font-mono text-xs uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors"
-    >
-      {children}
-    </a>
-  );
-}
 
-type FeatureTone = "primary" | "warn" | "neutral";
-
-function FeatureCard({
-  mode,
-  meta,
-  icon: Icon,
-  tone,
-  title,
-  desc,
-  children,
-  borderRight,
-  borderBottom,
-}: {
-  mode: string;
-  meta: string;
-  icon: typeof Plug;
-  tone: FeatureTone;
-  title: string;
-  desc: string;
-  children: React.ReactNode;
-  borderRight?: boolean;
-  borderBottom?: boolean;
-}) {
-  const toneText =
-    tone === "primary"
-      ? "text-primary"
-      : tone === "warn"
-      ? "text-yellow-400"
-      : "text-foreground";
-  const stripColor =
-    tone === "primary"
-      ? "group-hover:bg-primary"
-      : tone === "warn"
-      ? "group-hover:bg-yellow-400"
-      : "group-hover:bg-foreground";
-
-  return (
-    <div
-      className={`group relative p-6 sm:p-8 transition-colors hover:bg-muted/20 flex flex-col gap-5 min-h-[360px] border-b md:border-b-0 border-border ${
-        borderRight ? "md:border-r" : ""
-      } ${borderBottom ? "md:border-b" : ""}`}
-    >
-      <span
-        aria-hidden
-        className={`absolute left-0 top-0 bottom-0 w-[3px] bg-transparent transition-colors ${stripColor}`}
-      />
-
-      <div className="flex justify-between items-start gap-3">
-        <div
-          className={`flex items-center gap-2 font-mono text-xs uppercase tracking-widest ${toneText}`}
-        >
-          <Icon className="h-3.5 w-3.5" />
-          [MODE: {mode}]
-        </div>
-        <div className="font-mono text-[10px] text-muted-foreground border border-border px-1.5 py-0.5 shrink-0">
-          {meta}
-        </div>
-      </div>
-
-      <div>
-        <h3 className="text-lg text-foreground mb-2 font-semibold">{title}</h3>
-        <p className="font-mono text-xs text-muted-foreground leading-relaxed">
-          {desc}
-        </p>
-      </div>
-
-      <div className="mt-auto">{children}</div>
-    </div>
-  );
-}
-
-function CodeSnippet() {
-  return (
-    <div className="bg-background border border-border p-3 font-mono text-[10px] text-muted-foreground overflow-hidden relative group/code hover:border-primary/30 transition-colors">
-      <div className="absolute right-2 top-2 w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse group-hover/code:bg-green-400 transition-colors" />
-      <code className="block whitespace-pre-wrap leading-relaxed">
-        <span className="text-primary">&gt;</span> import {"{ GlitchgrabProvider }"} from{" "}
-        <span className="text-green-400">&apos;glitchgrab&apos;</span>;
-        {"\n"}
-        {"\n"}
-        <span className="text-primary">&gt;</span> export default function RootLayout() {"{"}
-        {"\n"}
-        {"  "}return &lt;GlitchgrabProvider token=
-        <span className="text-green-400">&quot;gg_...&quot;</span>/&gt;;
-        {"\n"}
-        {"}"}
-      </code>
-    </div>
-  );
-}
-
-function ChatBubbles() {
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="bg-muted/50 border border-border/60 p-2 font-mono text-[10px] text-muted-foreground max-w-[85%]">
-        <span className="text-primary/70">user@dev &gt;</span> &quot;The checkout button is spinning forever on production&quot;
-      </div>
-      <div className="bg-background border border-primary/30 border-l-2 border-l-primary p-2 font-mono text-[10px] max-w-[85%] self-end relative">
-        <CheckCircle2 className="h-3 w-3 text-primary absolute -left-1.5 -top-1.5 bg-background rounded-full" />
-        <span className="text-primary">[agent/sys] &gt;</span>{" "}
-        <span className="text-foreground">
-          Drafted issue &quot;Infinite loader on /checkout&quot;. Requesting repro steps...
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function VisionPreview() {
-  return (
-    <div className="relative h-20 bg-background border border-border overflow-hidden flex items-center justify-center p-2 group/vis">
-      <div className="font-mono text-[8px] text-border break-all leading-none group-hover/vis:opacity-20 transition-opacity duration-500">
-        data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAlgAAAH0CAYAAADkvqMgAAAAB3RJTUUH5QUUEwA5
-        K5TXXQAAAAlwSFlzAAAOxAAADsQBlSsOGwAAAAJiS0dEAP+Hj8y/AAA...
-      </div>
-      <div className="absolute inset-0 flex items-center justify-center backdrop-blur-[2px] opacity-0 group-hover/vis:opacity-100 transition-opacity duration-500">
-        <div className="flex items-center gap-2 border border-primary bg-card px-3 py-1 font-mono text-xs text-primary">
-          <Scan className="h-3.5 w-3.5" />
-          CheckoutModal.tsx
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function DedupVisual() {
-  return (
-    <div className="flex flex-col gap-1 font-mono text-[10px]">
-      <div className="flex items-center justify-between gap-2 p-1.5 border border-border bg-background">
-        <span className="text-muted-foreground truncate">Report A: &quot;Site down&quot;</span>
-        <span className="text-border">→</span>
-        <span className="text-primary">hash: 8f2b</span>
-      </div>
-      <div className="flex items-center justify-between gap-2 p-1.5 border border-border bg-background">
-        <span className="text-muted-foreground truncate">Report B: &quot;502 gateway&quot;</span>
-        <span className="text-border">→</span>
-        <span className="text-primary">hash: 8f2b</span>
-      </div>
-      <div className="text-center text-yellow-400 mt-1.5 uppercase tracking-widest border-t border-dashed border-border pt-1.5 group-hover:text-green-400 transition-colors flex items-center justify-center gap-1.5">
-        <GitMerge className="h-3 w-3" />
-        merged into issue #42
-      </div>
-    </div>
-  );
-}
 
 export const metadata: Metadata = {
   alternates: {
@@ -210,6 +75,7 @@ export default function LandingPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareApplicationSchema()) }}
       />
       <BreadcrumbJsonLd items={[{ name: "Home", url: "https://glitchgrab.dev" }]} />
+      <FAQJsonLd faqs={FAQS} />
       {/* Global grid background */}
       <div
         aria-hidden
@@ -221,47 +87,7 @@ export default function LandingPage() {
         }}
       />
 
-      {/* Top nav */}
-      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-360 items-center justify-between px-4 sm:px-6 h-14">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-linear-to-br from-primary to-primary/60 flex items-center justify-center shadow-[0_0_10px_rgba(34,211,238,0.25)]">
-              <Image src="/logo.png" alt="" width={16} height={16} className="rounded-sm" />
-            </div>
-            <span className="font-mono text-sm font-bold tracking-tight text-foreground lowercase">
-              glitchgrab
-            </span>
-          </Link>
-
-          <div className="hidden md:flex items-center gap-8 h-full border-x border-border px-8">
-            <NavLink href="#features">/features</NavLink>
-            <NavLink href="#pipeline">/pipeline</NavLink>
-            <NavLink href="/docs">/docs</NavLink>
-            <a
-              href="https://github.com/webnaresh/glitchgrab"
-              target="_blank"
-              rel="noopener"
-              className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors"
-            >
-              <Github className="h-3.5 w-3.5" />
-              repo
-            </a>
-          </div>
-
-          <a
-            href="#waitlist"
-            className="group flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors"
-          >
-            <span className="text-border group-hover:text-primary transition-colors">[</span>
-            <kbd className="font-mono text-[10px] py-0.5 px-1.5 border border-border bg-card rounded-sm">
-              ⌘ K
-            </kbd>
-            <span className="hidden sm:inline">Join Waitlist</span>
-            <span className="sm:hidden">Waitlist</span>
-            <span className="text-border group-hover:text-primary transition-colors">]</span>
-          </a>
-        </div>
-      </nav>
+      <PublicNav />
 
       {/* Hero */}
       <section className="relative max-w-360 mx-auto border-x border-border pt-14">
@@ -272,12 +98,13 @@ export default function LandingPage() {
                 <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-60 animate-ping" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
               </span>
-              open source · beta
+              open source · beta · v{version}
             </div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight leading-[1.05] text-foreground lowercase">
-              <span className="block">Grab the glitch.</span>
-              <span className="block text-muted-foreground">Ship the fix.</span>
+              <span className="block">AI bug tracker</span>
+              <span className="block">for Next.js</span>
+              <span className="block text-muted-foreground">auto-create GitHub issues</span>
             </h1>
 
             <p className="font-mono text-sm text-muted-foreground max-w-md leading-relaxed border-l border-border pl-4">
@@ -312,77 +139,613 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Features — log entries grid */}
-      <section id="features" className="border-y border-border bg-card/30">
-        <div className="max-w-360 mx-auto border-x border-border">
-          <div className="border-b border-border p-4 flex items-center justify-between bg-background/40">
-            <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
-              <span className="text-primary">/</span> sys.capture_methods
-            </div>
-            <div className="font-mono text-[10px] text-muted-foreground/70">
-              4 modes active
-            </div>
+      {/* Trust bar */}
+      <section className="border-b border-border bg-background">
+        <div className="max-w-360 mx-auto border-x border-border/50 px-4 sm:px-6 py-4">
+          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 font-mono text-[11px] text-muted-foreground">
+            <a
+              href="https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 hover:text-primary transition-colors"
+            >
+              <Github className="h-3.5 w-3.5" />
+              open source · MIT
+            </a>
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />
+              Next.js 13 · 14 · 15
+            </span>
+            <a
+              href="https://www.npmjs.com/package/glitchgrab"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 hover:text-primary transition-colors"
+            >
+              <FileCode className="h-3.5 w-3.5" />
+              npm install glitchgrab
+            </a>
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />
+              zero runtime deps
+            </span>
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />
+              free tier · unlimited reports
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {/* Product screenshot */}
+      <section className="border-b border-border bg-background">
+        <div className="max-w-360 mx-auto border-x border-border px-4 sm:px-6 py-12 lg:py-16">
+          <div className="text-center mb-8">
+            <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground mb-2">
+              <span className="text-primary">{"//"}</span> dashboard preview
+            </p>
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground lowercase">
+              organize your work and org
+            </h2>
+            <p className="font-mono text-xs text-muted-foreground mt-2 max-w-md mx-auto leading-relaxed">
+              one place for every bug, issue, and team member — no context switching
+            </p>
           </div>
 
-          <div className="grid md:grid-cols-2">
-            <FeatureCard
-              mode="AUTO_CAPTURE"
-              meta="ts-node // edge"
-              icon={Plug}
-              tone="primary"
-              title="Drop-in SDK intercept"
-              desc="Runs at the edge or client side. Automatically grabs stack traces, DOM state, and recent network requests the millisecond a throw occurs."
-              borderRight
-              borderBottom
-            >
-              <CodeSnippet />
-            </FeatureCard>
+          {/* Browser chrome frame */}
+          <div className="relative mx-auto max-w-5xl">
+            <div className="rounded-t-lg border border-border border-b-0 bg-card px-4 py-2.5 flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-red-500/70" />
+              <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/70" />
+              <span className="h-2.5 w-2.5 rounded-full bg-green-500/70" />
+              <div className="ml-3 flex-1 bg-background border border-border rounded-sm px-3 py-0.5 font-mono text-[10px] text-muted-foreground">
+                glitchgrab.dev/dashboard
+              </div>
+            </div>
+            <div className="border border-border rounded-b-lg overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.4)]">
+              <Image
+                src="/meta/dashboard.webp"
+                alt="Glitchgrab dashboard — bug reports, issues, and team overview"
+                width={1215}
+                height={762}
+                className="w-full h-auto block"
+                priority
+              />
+            </div>
+            {/* Glow */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -inset-px rounded-lg"
+              style={{ boxShadow: "0 0 60px 10px color-mix(in srgb, var(--primary) 8%, transparent)" }}
+            />
+          </div>
+        </div>
+      </section>
 
-            <FeatureCard
-              mode="REPL_CHAT"
-              meta="cli // web"
-              icon={MessageSquare}
-              tone="neutral"
-              title="Conversational triage"
-              desc="Paste a massive dumped log or vague Slack message into the command center. The AI parses the mess and extracts actionable repro steps."
-              borderBottom
-            >
-              <ChatBubbles />
-            </FeatureCard>
+      {/* Chat → Issue section */}
+      <section className="border-b border-border bg-card/20">
+        <div className="max-w-360 mx-auto border-x border-border">
+          <div className="grid lg:grid-cols-2 gap-0">
+            {/* Left — copy */}
+            <div className="flex flex-col justify-center gap-6 px-6 sm:px-10 py-12 lg:py-16 border-b lg:border-b-0 lg:border-r border-border">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-primary flex items-center gap-2">
+                <MessageSquare className="h-3.5 w-3.5" />
+                chat → github issue
+              </div>
 
-            <FeatureCard
-              mode="VISION_PARSE"
-              meta="base64 // blob"
-              icon={ImageIcon}
-              tone="neutral"
-              title="Vision-based reverse engineering"
-              desc="Users drop a screenshot of a broken UI component. Models analyze the DOM context and map the visual bug to the exact React component."
-              borderRight
-            >
-              <VisionPreview />
-            </FeatureCard>
+              <h2 className="text-2xl sm:text-3xl font-bold text-foreground lowercase leading-tight">
+                describe the bug.
+                <br />
+                <span className="text-muted-foreground">we write the issue.</span>
+              </h2>
 
-            <FeatureCard
-              mode="VECTOR_DEDUP"
-              meta="pinecone // semantic"
-              icon={GitMerge}
-              tone="warn"
-              title="Semantic issue collapsing"
-              desc="Before opening a new issue, every report is converted to embeddings. 50 users reporting the same downtime in different words — all map to a single tracking issue."
-            >
-              <DedupVisual />
-            </FeatureCard>
+              <p className="font-mono text-xs text-muted-foreground leading-relaxed max-w-sm border-l border-border pl-4">
+                Drop a screenshot or type what&apos;s broken. AI turns it into a
+                structured GitHub issue — title, steps to reproduce, severity,
+                labels — in seconds.
+              </p>
 
-            {/* Hidden — keep animations available but not used; see DashboardChatAnim etc */}
-            <div className="hidden">
-              <DashboardChatAnim />
-              <AutoCaptureAnim />
-              <ReportButtonAnim />
-              <DedupAnim />
+              <ul className="flex flex-col gap-3 font-mono text-xs text-muted-foreground">
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>paste a screenshot or describe in plain text — no templates</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>AI writes the full issue body — you just review and confirm</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>pushed directly to GitHub — no context switching, no copy-paste</span>
+                </li>
+              </ul>
+
+              <div className="flex items-center gap-3 pt-2">
+                <a
+                  href="#waitlist"
+                  className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-primary border border-primary/40 px-4 py-2 hover:bg-primary/5 transition-colors"
+                >
+                  <ChevronsRight className="h-3.5 w-3.5" />
+                  try it free
+                </a>
+                <span className="font-mono text-[10px] text-muted-foreground">
+                  no credit card · free tier
+                </span>
+              </div>
+            </div>
+
+            {/* Right — screenshot */}
+            <div className="flex items-center justify-center px-6 sm:px-10 py-12 lg:py-16 bg-background/30">
+              <div className="relative w-full max-w-lg">
+                <div className="rounded-t-lg border border-border border-b-0 bg-card px-4 py-2.5 flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-red-500/70" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/70" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-green-500/70" />
+                  <div className="ml-3 flex-1 bg-background border border-border rounded-sm px-3 py-0.5 font-mono text-[10px] text-muted-foreground">
+                    glitchgrab.dev/chat
+                  </div>
+                </div>
+                <div className="border border-border rounded-b-lg overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.4)]">
+                  <Image
+                    src="/meta/chat.webp"
+                    alt="Glitchgrab chat — describe a bug and AI creates the GitHub issue"
+                    width={1217}
+                    height={759}
+                    className="w-full h-auto block"
+                  />
+                </div>
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -inset-px rounded-lg"
+                  style={{ boxShadow: "0 0 50px 8px color-mix(in srgb, var(--primary) 6%, transparent)" }}
+                />
+              </div>
             </div>
           </div>
         </div>
       </section>
+
+      {/* Report button section */}
+      <section className="border-b border-border bg-background">
+        <div className="max-w-360 mx-auto border-x border-border">
+          <div className="grid lg:grid-cols-2 gap-0">
+            {/* Left — screenshot */}
+            <div className="flex items-center justify-center px-6 sm:px-10 py-12 lg:py-16 bg-card/20 border-b lg:border-b-0 lg:border-r border-border order-2 lg:order-1">
+              <div className="relative w-full max-w-lg">
+                <div className="rounded-t-lg border border-border border-b-0 bg-card px-4 py-2.5 flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-red-500/70" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/70" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-green-500/70" />
+                  <div className="ml-3 flex-1 bg-background border border-border rounded-sm px-3 py-0.5 font-mono text-[10px] text-muted-foreground">
+                    your-app.com → report bug
+                  </div>
+                </div>
+                <div className="border border-border rounded-b-lg overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.4)]">
+                  <Image
+                    src="/meta/bug-report.webp"
+                    alt="Glitchgrab report button — one click to file a GitHub issue with screenshot"
+                    width={1217}
+                    height={759}
+                    className="w-full h-auto block"
+                  />
+                </div>
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -inset-px rounded-lg"
+                  style={{ boxShadow: "0 0 50px 8px color-mix(in srgb, var(--primary) 6%, transparent)" }}
+                />
+              </div>
+            </div>
+
+            {/* Right — copy */}
+            <div className="flex flex-col justify-center gap-6 px-6 sm:px-10 py-12 lg:py-16 order-1 lg:order-2">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-primary flex items-center gap-2">
+                <Scan className="h-3.5 w-3.5" />
+                report button · sdk
+              </div>
+
+              <h2 className="text-2xl sm:text-3xl font-bold text-foreground lowercase leading-tight">
+                one click.
+                <br />
+                <span className="text-muted-foreground">straight to github.</span>
+              </h2>
+
+              <p className="font-mono text-xs text-muted-foreground leading-relaxed max-w-sm border-l border-border pl-4">
+                Hit the report button or press{" "}
+                <kbd className="font-mono text-[10px] py-0.5 px-1.5 border border-border bg-card rounded-sm text-foreground">
+                  ⌘ Shift G
+                </kbd>{" "}
+                /{" "}
+                <kbd className="font-mono text-[10px] py-0.5 px-1.5 border border-border bg-card rounded-sm text-foreground">
+                  Ctrl Shift G
+                </kbd>
+                . Screenshot captured, issue filed. No digging through code, no copy-pasting context.
+              </p>
+
+              <ul className="flex flex-col gap-3 font-mono text-xs text-muted-foreground">
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>report from anywhere in your app — button or keyboard shortcut</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>screenshot auto-attached — no need to explain what you&apos;re seeing</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>lands as a GitHub issue instantly — AI already has all the context</span>
+                </li>
+              </ul>
+
+              <div className="font-mono text-[10px] text-muted-foreground border border-border bg-card/50 px-3 py-2 rounded-sm flex items-center gap-2">
+                <span className="text-primary">$</span>
+                <span>bun add glitchgrab</span>
+                <span className="ml-auto text-muted-foreground/50">drop-in · zero config</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Repos section */}
+      <section className="border-b border-border bg-card/20">
+        <div className="max-w-360 mx-auto border-x border-border">
+          <div className="grid lg:grid-cols-2 gap-0">
+            {/* Left — copy */}
+            <div className="flex flex-col justify-center gap-6 px-6 sm:px-10 py-12 lg:py-16 border-b lg:border-b-0 lg:border-r border-border">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-primary flex items-center gap-2">
+                <GitFork className="h-3.5 w-3.5" />
+                repos · org management
+              </div>
+
+              <h2 className="text-2xl sm:text-3xl font-bold text-foreground lowercase leading-tight">
+                all your repos. 🗂️
+                <br />
+                <span className="text-muted-foreground">one plan. forever.</span>
+              </h2>
+
+              <p className="font-mono text-xs text-muted-foreground leading-relaxed max-w-sm border-l border-border pl-4">
+                Track personal repos, org repos — no limits, no per-seat pricing.
+                Buy once, your whole team just logs in. 🚀
+              </p>
+
+              <ul className="flex flex-col gap-3 font-mono text-xs text-muted-foreground">
+                <li className="flex items-start gap-2.5">
+                  <span className="mt-0.5 shrink-0">🗂️</span>
+                  <span>personal + org repos all in one place — tracked, synced, ready</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="mt-0.5 shrink-0">👥</span>
+                  <span>team members just login — no extra seats, no extra cost</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="mt-0.5 shrink-0">♾️</span>
+                  <span>unlimited repos, unlimited members — one flat plan</span>
+                </li>
+              </ul>
+
+              {/* Lifetime deal banner */}
+              <div className="border border-primary/40 bg-primary/5 px-4 py-3 flex flex-col gap-1.5">
+                <div className="flex items-center gap-2 font-mono text-xs text-primary uppercase tracking-widest">
+                  <span>🎉</span>
+                  early access — first 50 customers
+                </div>
+                <p className="font-mono text-[11px] text-muted-foreground leading-relaxed">
+                  Lock in <span className="text-foreground font-semibold">lifetime unlimited access</span> — unlimited repos, unlimited members, forever. No renewals, no future price hikes. 🔒
+                </p>
+                <a
+                  href="#waitlist"
+                  className="mt-1 inline-flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-primary hover:underline"
+                >
+                  <ChevronsRight className="h-3.5 w-3.5" />
+                  claim your spot →
+                </a>
+              </div>
+            </div>
+
+            {/* Right — screenshot */}
+            <div className="flex items-center justify-center px-6 sm:px-10 py-12 lg:py-16 bg-background/30">
+              <div className="relative w-full max-w-lg">
+                <div className="rounded-t-lg border border-border border-b-0 bg-card px-4 py-2.5 flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-red-500/70" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/70" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-green-500/70" />
+                  <div className="ml-3 flex-1 bg-background border border-border rounded-sm px-3 py-0.5 font-mono text-[10px] text-muted-foreground">
+                    glitchgrab.dev/repos
+                  </div>
+                </div>
+                <div className="border border-border rounded-b-lg overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.4)]">
+                  <Image
+                    src="/meta/repos.webp"
+                    alt="Glitchgrab repos — manage all personal and org repos in one place"
+                    width={1217}
+                    height={758}
+                    className="w-full h-auto block"
+                  />
+                </div>
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -inset-px rounded-lg"
+                  style={{ boxShadow: "0 0 50px 8px color-mix(in srgb, var(--primary) 6%, transparent)" }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Issue reports section */}
+      <section className="border-b border-border bg-card/20">
+        <div className="max-w-360 mx-auto border-x border-border">
+          <div className="grid lg:grid-cols-2 gap-0">
+            {/* Left — screenshot */}
+            <div className="flex items-center justify-center px-6 sm:px-10 py-12 lg:py-16 bg-background/30 border-b lg:border-b-0 lg:border-r border-border order-2 lg:order-1">
+              <div className="relative w-full max-w-lg">
+                <div className="rounded-t-lg border border-border border-b-0 bg-card px-4 py-2.5 flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-red-500/70" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/70" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-green-500/70" />
+                  <div className="ml-3 flex-1 bg-background border border-border rounded-sm px-3 py-0.5 font-mono text-[10px] text-muted-foreground">
+                    glitchgrab.dev/reports
+                  </div>
+                </div>
+                <div className="border border-border rounded-b-lg overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.4)]">
+                  <Image
+                    src="/meta/issue-reports.webp"
+                    alt="Glitchgrab issue reports — track every bug and see product health at a glance"
+                    width={1217}
+                    height={757}
+                    className="w-full h-auto block"
+                  />
+                </div>
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -inset-px rounded-lg"
+                  style={{ boxShadow: "0 0 50px 8px color-mix(in srgb, var(--primary) 6%, transparent)" }}
+                />
+              </div>
+            </div>
+
+            {/* Right — copy */}
+            <div className="flex flex-col justify-center gap-6 px-6 sm:px-10 py-12 lg:py-16 order-1 lg:order-2">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-primary flex items-center gap-2">
+                <Layers className="h-3.5 w-3.5" />
+                reports · issue tracking
+              </div>
+
+              <h2 className="text-2xl sm:text-3xl font-bold text-foreground lowercase leading-tight">
+                see what&apos;s broken.
+                <br />
+                <span className="text-muted-foreground">before your users do.</span>
+              </h2>
+
+              <p className="font-mono text-xs text-muted-foreground leading-relaxed max-w-sm border-l border-border pl-4">
+                Every report, every issue — tracked in one place. Understand exactly how your product is behaving in production without digging through logs.
+              </p>
+
+              <ul className="flex flex-col gap-3 font-mono text-xs text-muted-foreground">
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>every bug report linked to its GitHub issue — full traceability</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>see patterns — which pages break most, which errors repeat</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>know your product health at a glance — no context switching</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Analytics section */}
+      <section className="border-b border-border bg-background">
+        <div className="max-w-360 mx-auto border-x border-border">
+          <div className="grid lg:grid-cols-2 gap-0">
+            {/* Left — copy */}
+            <div className="flex flex-col justify-center gap-6 px-6 sm:px-10 py-12 lg:py-16">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-primary flex items-center gap-2">
+                <BarChart3 className="h-3.5 w-3.5" />
+                analytics · insights
+              </div>
+
+              <h2 className="text-2xl sm:text-3xl font-bold text-foreground lowercase leading-tight">
+                understand your team.
+                <br />
+                <span className="text-muted-foreground">issues closed, not just opened.</span>
+              </h2>
+
+              <p className="font-mono text-xs text-muted-foreground leading-relaxed max-w-sm border-l border-border pl-4">
+                See exactly how fast your team resolves bugs — across every repo, every org member. Spot slowdowns before they pile up.
+              </p>
+
+              <ul className="flex flex-col gap-3 font-mono text-xs text-muted-foreground">
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>issues closed per day — bar chart, hover to inspect by repo</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>best day, avg velocity, active days — all in one view</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>switch between 7d, 30d, 90d — no config needed</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Right — screenshot */}
+            <div className="flex items-center justify-center px-6 sm:px-10 py-12 lg:py-16 bg-background/30 border-t lg:border-t-0 lg:border-l border-border">
+              <div className="relative w-full max-w-lg">
+                <div className="rounded-t-lg border border-border border-b-0 bg-card px-4 py-2.5 flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-red-500/70" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/70" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-green-500/70" />
+                  <div className="ml-3 flex-1 bg-background border border-border rounded-sm px-3 py-0.5 font-mono text-[10px] text-muted-foreground">
+                    glitchgrab.dev/analytics
+                  </div>
+                </div>
+                <div className="border border-border rounded-b-lg overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.4)]">
+                  <Image
+                    src="/meta/analytics.webp"
+                    alt="Glitchgrab analytics — issues closed per day, velocity, best day breakdown"
+                    width={1278}
+                    height={802}
+                    className="w-full h-auto block"
+                  />
+                </div>
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -inset-px rounded-lg"
+                  style={{ boxShadow: "0 0 50px 8px color-mix(in srgb, var(--primary) 6%, transparent)" }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* SEO section */}
+      <section className="border-b border-border bg-card/20">
+        <div className="max-w-360 mx-auto border-x border-border">
+          <div className="grid lg:grid-cols-2 gap-0">
+            {/* Left — screenshot */}
+            <div className="flex items-center justify-center px-6 sm:px-10 py-12 lg:py-16 bg-background/30 border-b lg:border-b-0 lg:border-r border-border order-2 lg:order-1">
+              <div className="relative w-full max-w-lg">
+                <div className="rounded-t-lg border border-border border-b-0 bg-card px-4 py-2.5 flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-red-500/70" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/70" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-green-500/70" />
+                  <div className="ml-3 flex-1 bg-background border border-border rounded-sm px-3 py-0.5 font-mono text-[10px] text-muted-foreground">
+                    glitchgrab.dev/seo
+                  </div>
+                </div>
+                <div className="border border-border rounded-b-lg overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.4)]">
+                  <Image
+                    src="/meta/seo.webp"
+                    alt="Glitchgrab SEO — manage SEO for all your domains in one place"
+                    width={1281}
+                    height={796}
+                    className="w-full h-auto block"
+                  />
+                </div>
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -inset-px rounded-lg"
+                  style={{ boxShadow: "0 0 50px 8px color-mix(in srgb, var(--primary) 6%, transparent)" }}
+                />
+              </div>
+            </div>
+
+            {/* Right — copy */}
+            <div className="flex flex-col justify-center gap-6 px-6 sm:px-10 py-12 lg:py-16 order-1 lg:order-2">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-primary flex items-center gap-2">
+                <Search className="h-3.5 w-3.5" />
+                seo · all domains
+              </div>
+
+              <h2 className="text-2xl sm:text-3xl font-bold text-foreground lowercase leading-tight">
+                one place for all your seo.
+                <br />
+                <span className="text-muted-foreground">every domain. every org.</span>
+              </h2>
+
+              <p className="font-mono text-xs text-muted-foreground leading-relaxed max-w-sm border-l border-border pl-4">
+                Manage SEO across all your projects and domains from a single dashboard — meta tags, sitemaps, structured data, and more. No more jumping between tools.
+              </p>
+
+              <ul className="flex flex-col gap-3 font-mono text-xs text-muted-foreground">
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>all domains in one view — personal projects + org repos</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>meta tags, OG images, sitemaps — managed without touching code</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>structured data auto-generated — schema.org out of the box</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Google Search Console section */}
+      <section className="border-b border-border bg-background/40">
+        <div className="max-w-360 mx-auto border-x border-border">
+          <div className="grid lg:grid-cols-2 gap-0">
+            {/* Left — copy */}
+            <div className="flex flex-col justify-center gap-6 px-6 sm:px-10 py-12 lg:py-16 order-1">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-primary flex items-center gap-2">
+                <ScanSearch className="h-3.5 w-3.5" />
+                gsc · indexing health
+              </div>
+
+              <h2 className="text-2xl sm:text-3xl font-bold text-foreground lowercase leading-tight">
+                see exactly what google sees.
+                <br />
+                <span className="text-muted-foreground">fix it before it costs you.</span>
+              </h2>
+
+              <p className="font-mono text-xs text-muted-foreground leading-relaxed max-w-sm border-l border-border pl-4">
+                Connect Google Search Console and get a full indexing report — which pages Google crawled, which it skipped, and why. Reindex with one click.
+              </p>
+
+              <ul className="flex flex-col gap-3 font-mono text-xs text-muted-foreground">
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>indexed vs not-indexed — grouped by crawl reason</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>favicon health + OG tag audit — auto-checked on every sync</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>one-click reindex — submit pages directly to Google</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Right — screenshot */}
+            <div className="flex items-center justify-center px-6 sm:px-10 py-12 lg:py-16 bg-background/30 border-t lg:border-t-0 lg:border-l border-border order-2">
+              <div className="relative w-full max-w-lg">
+                <div className="rounded-t-lg border border-border border-b-0 bg-card px-4 py-2.5 flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-red-500/70" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/70" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-green-500/70" />
+                  <div className="ml-3 flex-1 bg-background border border-border rounded-sm px-3 py-0.5 font-mono text-[10px] text-muted-foreground">
+                    glitchgrab.dev/seo/property
+                  </div>
+                </div>
+                <div className="border border-border rounded-b-lg overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.4)]">
+                  <Image
+                    src="/meta/google-seo.webp"
+                    alt="Glitchgrab GSC — Google Search Console indexing health, favicon check, OG tags"
+                    width={1218}
+                    height={756}
+                    className="w-full h-auto block"
+                  />
+                </div>
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -inset-px rounded-lg"
+                  style={{ boxShadow: "0 0 50px 8px color-mix(in srgb, var(--primary) 6%, transparent)" }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
 
       {/* How it works — CLI transcript (left) + demo video (right) */}
       <section id="how-it-works" className="bg-card/30 border-b border-border">
@@ -478,71 +841,110 @@ export default function LandingPage() {
           <div className="px-4 sm:px-6 mb-10 flex items-end justify-between flex-wrap gap-3">
             <div>
               <div className="font-mono text-[10px] text-muted-foreground tracking-widest uppercase mb-1">
-                Architecture
+                Workflow
               </div>
               <h2 className="text-lg sm:text-xl font-bold text-foreground uppercase tracking-tight">
-                Processing Pipeline
+                From Screenshot to Shipped
               </h2>
+              <p className="font-mono text-[10px] text-primary/70 mt-1.5">
+                <span className="text-primary/40">{"//"}</span> &ldquo;once a developer, always a developer&rdquo; — even on vacation, you&apos;re shipping.
+              </p>
             </div>
             <span className="font-mono text-[10px] px-2 py-0.5 border border-green-400/40 text-green-400 bg-green-400/10 uppercase tracking-widest">
-              Status: Operational
+              Fully Automated
             </span>
           </div>
 
-          <div className="px-4 sm:px-6 pb-8 overflow-x-auto pipeline-scroll">
-            <div className="flex items-stretch gap-1.5 min-w-max pb-2">
-              <div className="flex flex-col gap-2 w-36 xl:w-40 shrink-0">
-                <div className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest">
-                  Input
+          <div className="px-4 sm:px-6 pb-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-border">
+
+              {/* Day 1 — vacation */}
+              <div className="bg-background p-6 flex flex-col gap-4 border-l-4 border-l-muted-foreground group hover:bg-card transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest">Day 1 · on vacation</span>
+                  <Scan className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                 </div>
-                <div className="border border-border bg-background p-3 border-l-4 border-l-muted-foreground text-xs h-28 flex items-center">
-                  <ul className="text-muted-foreground space-y-1 font-mono text-[11px]">
-                    <li>- Stack traces</li>
-                    <li>- Screenshots</li>
-                    <li>- User reports</li>
-                  </ul>
+                <div>
+                  <p className="font-bold text-foreground uppercase tracking-tight text-sm mb-2">Spot. Snap. Drop.</p>
+                  <p className="font-mono text-[11px] text-muted-foreground leading-relaxed">
+                    You&apos;re on a beach. A competitor&apos;s page ranks for something you care about. Screenshot it. Jot a quick thought. Drop it in Glitchgrab. That&apos;s it — go enjoy your vacation.
+                  </p>
+                </div>
+                <div className="mt-auto font-mono text-[10px] text-muted-foreground/50 border-t border-border pt-3 italic">
+                  &ldquo;this ranking pattern — why does it work?&rdquo;
                 </div>
               </div>
 
-              {PIPELINE.map((step) => {
-                const StepIcon = step.icon;
-                return (
-                  <div key={step.n} className="flex items-center">
-                    <div className="w-5 xl:w-6 flex items-center justify-center text-border shrink-0">
-                      <ChevronsRight className="h-4 w-4" />
-                    </div>
-                    <div className="flex flex-col gap-2 w-28 xl:w-32 shrink-0">
-                      <div className="font-mono text-[10px] text-primary uppercase tracking-widest text-center truncate">
-                        {step.n}. {step.label}
-                      </div>
-                      <div className="border border-primary/30 bg-card p-2 text-xs h-28 flex flex-col items-center justify-center text-center gap-1.5 hover:border-primary transition-colors group/step">
-                        <StepIcon className="h-5 w-5 text-foreground group-hover/step:text-primary transition-colors" />
-                        <span className="font-mono text-[10px] text-foreground leading-tight">
-                          {step.desc}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+              {/* While you sleep — AI */}
+              <div className="bg-background p-6 flex flex-col gap-4 group hover:bg-card transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest">While you sleep</span>
+                  <Brain className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                </div>
+                <div>
+                  <p className="font-bold text-foreground uppercase tracking-tight text-sm mb-2">AI handles it.</p>
+                  <p className="font-mono text-[11px] text-muted-foreground leading-relaxed">
+                    Glitchgrab reads your screenshot and note, researches context against your repo, and files a structured GitHub issue — title, steps, priority, labels. Zero input needed from you.
+                  </p>
+                </div>
+                <div className="mt-auto font-mono text-[10px] text-green-400/70 border-t border-border pt-3">
+                  ✓ Issue #42 created · no input needed
+                </div>
+              </div>
 
-              <div className="w-5 xl:w-6 flex items-center justify-center text-border shrink-0">
-                <ChevronsRight className="h-4 w-4" />
-              </div>
-              <div className="flex flex-col gap-2 w-36 xl:w-40 shrink-0">
-                <div className="font-mono text-[10px] text-foreground uppercase tracking-widest">
-                  Output
+              {/* Day 3 — ship it */}
+              <div className="bg-background p-6 flex flex-col gap-4 border-r-4 border-r-primary group hover:bg-card transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[10px] text-primary/70 uppercase tracking-widest">Day 3 · back at desk</span>
+                  <Github className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                 </div>
-                <div className="border border-border bg-card p-3 border-r-4 border-r-primary text-xs h-28 flex flex-col justify-center">
-                  <div className="font-bold text-foreground mb-1">
-                    Structured issue
-                  </div>
-                  <div className="font-mono text-[10px] text-muted-foreground leading-tight">
-                    Labels · Context · Repro
-                  </div>
+                <div>
+                  <p className="font-bold text-foreground uppercase tracking-tight text-sm mb-2">Open. Work. Ship.</p>
+                  <p className="font-mono text-[11px] text-muted-foreground leading-relaxed">
+                    Open Claude Code. Check your Glitchgrab dashboard. The issue is waiting — structured, prioritized, ready to implement. Vacation well spent.
+                  </p>
+                </div>
+                <div className="mt-auto font-mono text-[10px] text-primary/60 border-t border-border pt-3">
+                  PR merged · 3 days, zero context-switching
                 </div>
               </div>
+
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section id="faq" className="border-y border-border bg-card/30">
+        <div className="max-w-360 mx-auto border-x border-border">
+          <div className="border-b border-border p-4 flex items-center justify-between bg-background/40">
+            <div className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+              <span className="text-primary">/</span> sys.faq
+            </div>
+            <div className="font-mono text-[10px] text-muted-foreground/70">
+              {FAQS.length} entries
+            </div>
+          </div>
+          <div className="divide-y divide-border">
+            {FAQS.map((faq, i) => (
+              <details key={i} className="group px-6 sm:px-8 py-5 hover:bg-muted/10 transition-colors">
+                <summary className="list-none cursor-pointer flex items-start justify-between gap-4">
+                  <h3 className="font-mono text-sm text-foreground group-open:text-primary transition-colors">
+                    <span className="text-primary mr-2 select-none">&gt;</span>
+                    {faq.question}
+                  </h3>
+                  <span
+                    aria-hidden
+                    className="font-mono text-muted-foreground text-xs shrink-0 mt-0.5 group-open:text-primary transition-colors select-none"
+                  >
+                    [<span className="group-open:hidden">+</span><span className="hidden group-open:inline">−</span>]
+                  </span>
+                </summary>
+                <p className="mt-3 ml-5 font-mono text-xs text-muted-foreground leading-relaxed border-l border-border pl-4">
+                  {faq.answer}
+                </p>
+              </details>
+            ))}
           </div>
         </div>
       </section>

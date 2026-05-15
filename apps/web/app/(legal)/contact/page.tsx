@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Contact Us — Glitchgrab",
+  title: "Contact",
   description:
     "Get in touch with the Glitchgrab team.",
   alternates: {

@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { prisma } from "@/lib/db";
 import { GitHubSignInButton } from "./github-signin-button";
 import {
   CodeRainBg,
@@ -15,7 +16,19 @@ import { ArrowLeft, Mail, ShieldAlert } from "lucide-react";
 
 export default async function LoginPage() {
   const session = await auth();
-  if (session?.user) redirect("/dashboard");
+  if (session?.user?.id) {
+    const membership = await prisma.orgMember.findFirst({
+      where: { userId: session.user.id },
+      include: { org: true },
+    });
+    if (membership) {
+      const dest = membership.role === "MEMBER"
+        ? `/org/${membership.org.githubOrgLogin}/chat`
+        : `/org/${membership.org.githubOrgLogin}`;
+      redirect(dest);
+    }
+    redirect("/dashboard");
+  }
 
   return (
     <div className="relative flex min-h-screen bg-background overflow-hidden">

@@ -4,7 +4,8 @@ import { AuthSessionProvider } from "@/components/providers/session-provider";
 import { GlitchgrabSDKProvider } from "@/components/providers/glitchgrab-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { Toaster } from "@/components/ui/sonner";
-import { OrganizationJsonLd } from "@/components/seo/json-ld";
+import { OrganizationJsonLd, WebSiteJsonLd } from "@/components/seo/json-ld";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const BASE_URL = "https://glitchgrab.dev";
 
@@ -67,9 +68,14 @@ export default function RootLayout({
   return (
     <html lang="en" data-scroll-behavior="smooth">
       <head>
-        <link rel="icon" href="/favicon.ico" sizes="32x32" />
+        <link rel="icon" href="/favicon.ico" sizes="16x16 48x48" />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="icon" href="/favicon-16x16.png" type="image/png" sizes="16x16" />
+        <link rel="icon" href="/favicon-32x32.png" type="image/png" sizes="32x32" />
+        <link rel="icon" href="/favicon-96x96.png" type="image/png" sizes="96x96" />
         <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
+        <link rel="manifest" href="/site.webmanifest" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"
@@ -81,13 +87,16 @@ export default function RootLayout({
           rel="stylesheet"
         />
         <OrganizationJsonLd />
+        <WebSiteJsonLd />
       </head>
       <body>
         <AuthSessionProvider>
           <QueryProvider>
-            <GlitchgrabSDKProvider>
-              {children}
-            </GlitchgrabSDKProvider>
+            <TooltipProvider delay={300}>
+              <GlitchgrabSDKProvider>
+                {children}
+              </GlitchgrabSDKProvider>
+            </TooltipProvider>
           </QueryProvider>
           <Toaster />
         </AuthSessionProvider>

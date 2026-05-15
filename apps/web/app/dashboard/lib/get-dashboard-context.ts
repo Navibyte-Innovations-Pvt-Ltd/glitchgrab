@@ -1,6 +1,5 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { getCollabSession } from "@/lib/collab-auth";
 
 interface DashboardRepo {
   id: string;
@@ -13,19 +12,14 @@ interface DashboardContext {
   userName: string;
   repos: DashboardRepo[];
   hasOwnerSession: boolean;
-  hasCollabOnly: boolean;
 }
 
 export async function getDashboardContext(): Promise<DashboardContext> {
   const session = await auth();
-  const collabSession = await getCollabSession();
 
-  const userName =
-    session?.user?.name?.split(" ")[0] ??
-    collabSession?.email.split("@")[0] ??
-    "there";
+  const userName = session?.user?.name?.split(" ")[0] ?? "there";
 
-  const ownRepos = session?.user?.id
+  const repos = session?.user?.id
     ? await prisma.repo.findMany({
         where: { userId: session.user.id },
         select: { id: true, fullName: true, owner: true, name: true },
@@ -33,30 +27,9 @@ export async function getDashboardContext(): Promise<DashboardContext> {
       })
     : [];
 
-  const sharedRepos = collabSession
-    ? await prisma.collaboratorRepo.findMany({
-        where: {
-          collaborator: {
-            id: collabSession.collaboratorId,
-            status: "ACCEPTED",
-          },
-        },
-        include: {
-          repo: { select: { id: true, fullName: true, owner: true, name: true } },
-        },
-      })
-    : [];
-
-  const seenIds = new Set(ownRepos.map((r) => r.id));
-  const repos: DashboardRepo[] = [
-    ...ownRepos,
-    ...sharedRepos.map((cr) => cr.repo).filter((r) => !seenIds.has(r.id)),
-  ];
-
   return {
     userName,
     repos,
     hasOwnerSession: !!session?.user?.id,
-    hasCollabOnly: !!collabSession && !session?.user?.id,
   };
 }

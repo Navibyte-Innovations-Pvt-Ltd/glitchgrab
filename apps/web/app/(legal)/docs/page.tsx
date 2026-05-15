@@ -1,9 +1,33 @@
 import type { Metadata } from "next";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { HowToJsonLd } from "@/components/seo/json-ld";
+
+const HOW_TO_STEPS = [
+  {
+    name: "Install the Glitchgrab SDK",
+    text: "Run `bun install glitchgrab` (or `npm install glitchgrab`) in your Next.js project.",
+  },
+  {
+    name: "Add GlitchgrabProvider to your root layout",
+    text: "Wrap your root layout with `<GlitchgrabProvider token='gg_...'></GlitchgrabProvider>` using the token from your Glitchgrab dashboard.",
+  },
+  {
+    name: "Configure session tracking",
+    text: "Pass a session prop with userId and name to GlitchgrabProvider so bug reports are attributed to the correct user.",
+  },
+  {
+    name: "Add a Report Button (optional)",
+    text: "Import ReportButton from glitchgrab and place it in your UI. Users can click it to submit screenshots and descriptions directly as GitHub issues.",
+  },
+  {
+    name: "Enable auto-capture in production",
+    text: "Auto-capture is enabled by default in production. It intercepts unhandled errors and automatically creates structured GitHub issues with full context.",
+  },
+];
 
 export const metadata: Metadata = {
-  title: "Documentation — Glitchgrab",
+  title: "SDK Documentation",
   description:
     "Learn how to install, configure, and use the Glitchgrab SDK to turn bugs into GitHub issues.",
   alternates: {
@@ -199,6 +223,11 @@ export default async function DocsPage() {
 
   return (
     <article className="space-y-8">
+      <HowToJsonLd
+        name="How to Install and Configure Glitchgrab"
+        description="Step-by-step guide to integrating the Glitchgrab SDK into a Next.js application for automatic bug capture and GitHub issue creation."
+        steps={HOW_TO_STEPS}
+      />
       <header>
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
           Documentation

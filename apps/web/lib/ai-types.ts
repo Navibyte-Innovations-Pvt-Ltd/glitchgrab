@@ -4,6 +4,12 @@ export interface AiInput {
   errorStack?: string | null;
   pageUrl?: string | null;
   userAgent?: string | null;
+  sessionInfo?: {
+    userId: string;
+    name: string;
+    email?: string | null;
+    phone?: string | null;
+  } | null;
   openIssues?: { number: number; title: string; state: string; body: string }[];
   chatHistory?: { role: "user" | "assistant"; content: string }[];
   repoReadme?: string | null;

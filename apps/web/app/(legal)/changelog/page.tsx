@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 export const metadata: Metadata = {
-  title: "Changelog — Glitchgrab",
+  title: "Changelog",
   description: "See what's new in Glitchgrab — features, fixes, and improvements.",
   alternates: {
     canonical: "https://glitchgrab.dev/changelog",

@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { LayoutDashboard, GitFork, Menu, Key, CreditCard, Settings, LogOut, Users, ClipboardList, MessageSquare, SearchCheck } from "lucide-react";
+import { LayoutDashboard, GitFork, Menu, Key, CreditCard, Settings, LogOut, ClipboardList, MessageSquare, SearchCheck } from "lucide-react";
 import { ReportButton } from "glitchgrab";
 import { Bug, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -21,7 +21,6 @@ const SHEET_NAV_ITEMS = [
   { href: "/dashboard/reports", label: "Reports", icon: ClipboardList, ownerOnly: false },
   { href: "/dashboard/seo", label: "SEO", icon: SearchCheck, ownerOnly: true },
   { href: "/dashboard/tokens", label: "API Tokens", icon: Key, ownerOnly: true },
-  { href: "/dashboard/collaborators", label: "Collaborators", icon: Users, ownerOnly: true },
   { href: "/dashboard/billing", label: "Billing", icon: CreditCard, ownerOnly: true },
   { href: "/dashboard/settings", label: "Settings", icon: Settings, ownerOnly: true },
 ];
@@ -32,12 +31,11 @@ interface BottomNavProps {
     email?: string | null;
     image?: string | null;
   };
-  userType?: "owner" | "collaborator";
   planBadge?: PlanBadgeType;
   trialDaysLeft?: number;
 }
 
-export function BottomNav({ user, userType = "owner", planBadge = "none", trialDaysLeft = 0 }: BottomNavProps) {
+export function BottomNav({ user, planBadge = "none", trialDaysLeft = 0 }: BottomNavProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -81,7 +79,7 @@ export function BottomNav({ user, userType = "owner", planBadge = "none", trialD
         })}
 
         {/* Profile tab with avatar + badge */}
-        {userType === "owner" && (
+        {true && (
           <Link
             href="/dashboard/settings"
             prefetch
@@ -136,7 +134,7 @@ export function BottomNav({ user, userType = "owner", planBadge = "none", trialD
             </div>
 
             <nav className="flex-1 px-3 py-4 space-y-1">
-              {SHEET_NAV_ITEMS.filter((item) => !item.ownerOnly || userType === "owner").map((item) => {
+              {SHEET_NAV_ITEMS.filter((item) => !item.ownerOnly || true).map((item) => {
                 const isActive =
                   item.href === "/dashboard"
                     ? pathname === "/dashboard"

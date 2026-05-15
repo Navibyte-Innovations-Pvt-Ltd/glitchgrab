@@ -4,32 +4,20 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { getCollabSession } from "@/lib/collab-auth";
 
 const DAYS = 365;
 
 export async function GET() {
   try {
     const session = await auth();
-    const collabSession = await getCollabSession();
     const userId = session?.user?.id;
 
-    if (!userId && !collabSession) {
+    if (!userId) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    const repoIds: string[] = [];
-    if (userId) {
-      const repos = await prisma.repo.findMany({ where: { userId }, select: { id: true } });
-      repoIds.push(...repos.map((r) => r.id));
-    }
-    if (collabSession) {
-      const collabRepos = await prisma.collaboratorRepo.findMany({
-        where: { collaborator: { id: collabSession.collaboratorId, status: "ACCEPTED" } },
-        select: { repoId: true },
-      });
-      repoIds.push(...collabRepos.map((r) => r.repoId));
-    }
+    const repos = await prisma.repo.findMany({ where: { userId }, select: { id: true } });
+    const repoIds = repos.map((r) => r.id);
 
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);

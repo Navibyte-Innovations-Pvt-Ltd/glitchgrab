@@ -7,13 +7,11 @@ import {
   AlertTriangle,
   Bug,
   ChevronRight,
-  CircleDot,
   ClipboardList,
   Clock,
   ExternalLink,
   EyeOff,
   FileText,
-  Filter,
   GitPullRequest,
   Loader2,
   MessageSquare,
@@ -59,7 +57,6 @@ const SOURCE_LABELS: Record<string, string> = {
   DASHBOARD_UPLOAD: "dashboard",
   HANDWRITTEN_NOTE: "note",
   MCP: "mcp",
-  COLLABORATOR: "collaborator",
 };
 
 function renderSourceIcon(source: string, className = "h-4 w-4") {
@@ -214,73 +211,69 @@ export function ReportsTabs({
         />
       </div>
 
-      {/* Filter/search strip — shown when we have reports */}
+      {/* Filter bar */}
       {reports.length > 0 && (
-        <div className="flex flex-col gap-3 pb-3 border-b border-border/50">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="flex items-center gap-2 max-w-sm flex-1 border border-border rounded px-2 py-1 focus-within:border-primary transition-colors">
-              <span className="font-mono text-[11px] text-primary shrink-0">~ /</span>
-              <input
-                type="text"
-                placeholder="grep reports..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full bg-transparent font-mono text-[12px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
-              />
-            </div>
-            {uniqueRepos.length > 1 && (
-              <>
-                <div className="hidden sm:block w-px h-4 bg-border" />
-                <div className="flex items-center gap-2">
-                  <Filter className="h-3 w-3 text-muted-foreground shrink-0" />
-                  <select
-                    value={repoFilter ?? ""}
-                    onChange={(e) => setRepoFilter(e.target.value || null)}
-                    className="font-mono text-[11px] border border-border bg-card text-muted-foreground px-2 py-1 rounded focus:outline-none focus:border-primary transition-colors hover:text-foreground"
-                  >
-                    <option value="">all_repos</option>
-                    {uniqueRepos.map((repo) => (
-                      <option key={repo} value={repo}>
-                        {repo}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </>
-            )}
-            <div className="font-mono text-[11px] text-muted-foreground flex items-center gap-2 sm:ml-auto shrink-0">
-              <span>{filtered.length} result{filtered.length === 1 ? "" : "s"}</span>
-            </div>
+        <div className="flex flex-wrap items-center gap-2 pb-3 border-b border-border/50">
+          {/* Search */}
+          <div className="flex items-center gap-1.5 border border-border rounded px-2 py-1.5 focus-within:border-primary transition-colors w-48">
+            <span className="font-mono text-[11px] text-primary shrink-0">~/</span>
+            <input
+              type="text"
+              placeholder="grep reports..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-transparent font-mono text-[12px] text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+            />
           </div>
 
-          {/* Date filter pills */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <Clock className="h-3 w-3 text-muted-foreground shrink-0" />
+          {/* Repo select */}
+          {uniqueRepos.length > 1 && (
+            <select
+              value={repoFilter ?? ""}
+              onChange={(e) => setRepoFilter(e.target.value || null)}
+              className="font-mono text-[11px] border border-border bg-card text-muted-foreground px-2 py-1.5 rounded focus:outline-none focus:border-primary transition-colors hover:text-foreground max-w-35"
+            >
+              <option value="">all repos</option>
+              {uniqueRepos.map((repo) => (
+                <option key={repo} value={repo}>
+                  {repo.split("/")[1] ?? repo}
+                </option>
+              ))}
+            </select>
+          )}
+
+          <div className="w-px h-4 bg-border hidden sm:block" />
+
+          {/* Date group */}
+          <div className="flex items-center gap-1">
+            <span className="font-mono text-[9px] text-muted-foreground/50 uppercase tracking-widest mr-1">time</span>
             {(["ALL", "TODAY", "LAST_7_DAYS", "LAST_30_DAYS"] as const).map((d) => (
               <button
                 key={d}
                 onClick={() => handleDateFilterChange(d)}
                 className={cn(
-                  "font-mono text-[10px] border px-2.5 py-1 rounded-full uppercase tracking-wider transition-colors",
+                  "font-mono text-[10px] border px-2 py-0.5 rounded uppercase tracking-wide transition-colors",
                   dateFilter === d
                     ? "bg-primary/10 border-primary/30 text-primary"
                     : "bg-card border-border text-muted-foreground hover:text-foreground"
                 )}
               >
-                {d.toLowerCase().replace(/_/g, "_")}
+                {d === "ALL" ? "all" : d === "TODAY" ? "today" : d === "LAST_7_DAYS" ? "7d" : "30d"}
               </button>
             ))}
           </div>
 
-          {/* Issue state filter pills */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <CircleDot className="h-3 w-3 text-muted-foreground shrink-0" />
+          <div className="w-px h-4 bg-border hidden sm:block" />
+
+          {/* State group */}
+          <div className="flex items-center gap-1">
+            <span className="font-mono text-[9px] text-muted-foreground/50 uppercase tracking-widest mr-1">state</span>
             {(["all", "open", "closed"] as const).map((s) => (
               <button
                 key={s}
                 onClick={() => setIssueStateFilter(s)}
                 className={cn(
-                  "font-mono text-[10px] border px-2.5 py-1 rounded-full uppercase tracking-wider transition-colors",
+                  "font-mono text-[10px] border px-2 py-0.5 rounded uppercase tracking-wide transition-colors",
                   issueStateFilter === s
                     ? "bg-primary/10 border-primary/30 text-primary"
                     : "bg-card border-border text-muted-foreground hover:text-foreground"
@@ -290,6 +283,11 @@ export function ReportsTabs({
               </button>
             ))}
           </div>
+
+          {/* Count */}
+          <span className="font-mono text-[11px] text-muted-foreground ml-auto shrink-0">
+            {filtered.length} result{filtered.length === 1 ? "" : "s"}
+          </span>
         </div>
       )}
 
@@ -315,7 +313,7 @@ export function ReportsTabs({
           </p>
         </div>
       ) : (
-        <div className="flex flex-col gap-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {filtered.map((report) => (
             <ReportRow
               key={report.id}
@@ -384,11 +382,11 @@ function ReportRow({
   const sourceLabel = SOURCE_LABELS[report.source] ?? report.source.toLowerCase();
   const title =
     report.issue?.title ??
-    report.rawInput?.slice(0, 120) ??
+    report.rawInput?.slice(0, 100) ??
     report.failReason ??
     "no description";
   const age = formatAge(report.createdAt);
-  const idPrefix = report.id.slice(0, 8);
+  const repoShort = report.repoFullName?.split("/")[1] ?? report.repoFullName ?? "";
 
   const statusChip = report.issue
     ? {
@@ -402,8 +400,7 @@ function ReportRow({
       }
     : {
         className: getStatusChipClass(report.status),
-        label:
-          report.status === "CREATED" ? "no_issue" : report.status.toLowerCase(),
+        label: report.status === "CREATED" ? "no_issue" : report.status.toLowerCase(),
       };
 
   const dismissMutation = useMutation({
@@ -421,116 +418,105 @@ function ReportRow({
   });
 
   const githubUrl = report.issue?.githubUrl ?? null;
-  const rowClassName = "grid grid-cols-[auto_1fr_auto_40px] items-center gap-3 p-3";
-  const rowContent = (
-    <>
-      <div className={`absolute inset-y-2 left-[2px] w-[2px] rounded-full ${stripClass}`} />
 
-        {/* Source icon box */}
-        <div className="w-8 h-8 rounded border border-border bg-card flex items-center justify-center text-muted-foreground ml-2 shrink-0">
-          {renderSourceIcon(report.source)}
+  const cardContent = (
+    <div className="relative flex flex-col gap-3 p-4 h-full">
+      <div className={`absolute inset-y-3 left-[3px] w-[2px] rounded-full ${stripClass}`} />
+
+      {/* Top: icon + status chip */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="w-8 h-8 rounded border border-border bg-background flex items-center justify-center text-muted-foreground shrink-0">
+          {renderSourceIcon(report.source, "h-3.5 w-3.5")}
         </div>
-
-        {/* Title + mono meta */}
-        <div className="flex flex-col gap-0.5 min-w-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="text-sm font-medium text-foreground truncate">
-              {title}
-            </span>
-            {report.issue && (
-              <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground/60" />
-            )}
-          </div>
-          {report.status === "FAILED" && report.failReason && (
-            <div className="font-mono text-[11px] text-red-500/80 truncate">
-              ↳ {report.failReason}
-            </div>
-          )}
-          <div className="font-mono text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
-            <span className="truncate">rpt_{idPrefix}</span>
-            <span className="w-0.75 h-0.75 rounded-full bg-border shrink-0" />
-            <span className="truncate">{sourceLabel}</span>
-            {report.issue && (
-              <>
-                <span className="w-0.75 h-0.75 rounded-full bg-border shrink-0" />
-                <span className="truncate">#{report.issue.githubNumber}</span>
-              </>
-            )}
-            {report.repoFullName && (
-              <>
-                <span className="w-0.75 h-0.75 rounded-full bg-border shrink-0" />
-                <span className="truncate">repo:{report.repoFullName}</span>
-              </>
-            )}
-            <span className="w-0.75 h-0.75 rounded-full bg-border shrink-0" />
-            <span className="flex items-center gap-1 shrink-0">
-              <Clock className="h-2.5 w-2.5" />
-              {age}
-            </span>
-            {report.reporterName && report.reporterName !== "Unknown" && (
-              <>
-                <span className="w-0.75 h-0.75 rounded-full bg-border shrink-0" />
-                <span className="truncate">by {report.reporterName}</span>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Status chip */}
-        <div
-          className={cn(
-            "flex items-center gap-1.5 px-2 py-1 rounded border font-mono text-[10px] uppercase tracking-wider shrink-0",
+        <div className="flex items-center gap-1.5">
+          <div className={cn(
+            "px-1.5 py-0.5 rounded border font-mono text-[9px] uppercase tracking-wide",
             statusChip.className
-          )}
-        >
-          {statusChip.label}
-        </div>
-
-        {/* Hover chevron — only when the row links out */}
-        {githubUrl ? (
-          <div className="flex justify-end pr-2 text-muted-foreground opacity-0 -translate-x-3 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0">
-            <ChevronRight className="h-4 w-4" />
+          )}>
+            {statusChip.label}
           </div>
-        ) : (
-          <div />
+          {githubUrl && (
+            <ExternalLink className="h-3 w-3 text-muted-foreground/50 shrink-0" />
+          )}
+        </div>
+      </div>
+
+      {/* Title */}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-foreground line-clamp-2 leading-snug">
+          {title}
+        </p>
+        {report.status === "FAILED" && report.failReason && (
+          <p className="font-mono text-[10px] text-red-500/80 truncate mt-1">
+            ↳ {report.failReason}
+          </p>
         )}
-    </>
+      </div>
+
+      {/* Footer meta */}
+      <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/40">
+        <div className="font-mono text-[10px] text-muted-foreground flex items-center gap-1.5 min-w-0">
+          <span className="truncate">{sourceLabel}</span>
+          {report.issue && (
+            <>
+              <span className="shrink-0">·</span>
+              <span className="shrink-0">#{report.issue.githubNumber}</span>
+            </>
+          )}
+          {repoShort && (
+            <>
+              <span className="shrink-0">·</span>
+              <span className="truncate">{repoShort}</span>
+            </>
+          )}
+        </div>
+        <div className="font-mono text-[10px] text-muted-foreground flex items-center gap-1 shrink-0">
+          <Clock className="h-2.5 w-2.5" />
+          {age}
+        </div>
+      </div>
+
+      {report.reporterName && report.reporterName !== "Unknown" && (
+        <div className="font-mono text-[10px] text-muted-foreground truncate -mt-1">
+          by {report.reporterName}
+        </div>
+      )}
+
+      {report.status === "FAILED" && !report.dismissed && (
+        <button
+          disabled={dismissMutation.isPending}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dismissMutation.mutate();
+          }}
+          className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wide text-muted-foreground border border-border/50 bg-background px-2 py-1 rounded disabled:opacity-50 hover:text-foreground transition-colors self-start"
+        >
+          {dismissMutation.isPending ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <EyeOff className="h-3 w-3" />
+          )}
+          dismiss
+        </button>
+      )}
+
+      {githubUrl && (
+        <div className="absolute bottom-3 right-3 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
+          <ChevronRight className="h-3.5 w-3.5" />
+        </div>
+      )}
+    </div>
   );
 
   return (
-    <div className="data-row group relative rounded bg-transparent hover:bg-card/60 border border-transparent hover:border-border/50 transition-colors">
+    <div className="group relative rounded-lg bg-card border border-border hover:border-primary/40 transition-colors overflow-hidden">
       {githubUrl ? (
-        <a
-          href={githubUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={rowClassName}
-        >
-          {rowContent}
+        <a href={githubUrl} target="_blank" rel="noopener noreferrer" className="block h-full">
+          {cardContent}
         </a>
       ) : (
-        <div className={rowClassName}>{rowContent}</div>
-      )}
-
-      {/* Dismiss action for failed reports */}
-      {report.status === "FAILED" && !report.dismissed && (
-        <div className="px-3 pb-3 ml-12">
-          <button
-            disabled={dismissMutation.isPending}
-            onClick={(e) => {
-              e.preventDefault();
-              dismissMutation.mutate();
-            }}
-            className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground border border-border/50 bg-card px-2.5 py-1 rounded disabled:opacity-50 hover:bg-muted/50 hover:text-foreground transition-colors"
-          >
-            {dismissMutation.isPending ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              <EyeOff className="h-3 w-3" />
-            )}
-            dismiss
-          </button>
-        </div>
+        cardContent
       )}
     </div>
   );

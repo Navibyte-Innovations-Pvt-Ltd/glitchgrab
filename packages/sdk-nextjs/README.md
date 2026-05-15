@@ -2,7 +2,7 @@
 
 Turn messy bugs into structured GitHub issues with AI. Drop-in SDK for Next.js apps.
 
-## Install
+## How do I install Glitchgrab?
 
 ```bash
 npm install glitchgrab
@@ -10,7 +10,7 @@ npm install glitchgrab
 bun add glitchgrab
 ```
 
-## Quick Start
+## How do I get started?
 
 Wrap your app with `GlitchgrabProvider`:
 
@@ -27,7 +27,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-## Session (User Tracking)
+## How does user session tracking work?
 
 Pass a `session` prop so bug reports include the reporter's identity. This lets you trace which user reported each bug.
 
@@ -73,7 +73,7 @@ interface GlitchgrabSession {
 
 The `userId` is stored with every report. Use it to look up which user reported a bug in your own database.
 
-## Report Button
+## How do I add a report button?
 
 ### Default floating button
 
@@ -102,7 +102,7 @@ import { ReportButton } from "glitchgrab";
 
 The modal handles screenshot capture, preview, upload, retake, and submission. Your custom button just triggers it.
 
-## Programmatic Reporting
+## How do I report bugs programmatically?
 
 Use the `useGlitchgrab` hook to report bugs from code:
 
@@ -146,7 +146,7 @@ function FeedbackWidget() {
 
 Note: `openReportDialog()` requires a `<ReportButton>` to be mounted somewhere in the component tree. It triggers the same modal with screenshot capture.
 
-## Keyboard Shortcuts
+## What keyboard shortcuts are available?
 
 Once `GlitchgrabProvider` is mounted, these shortcuts work globally:
 
@@ -158,7 +158,7 @@ Once `GlitchgrabProvider` is mounted, these shortcuts work globally:
 
 No configuration needed — shortcuts are active as long as the provider is in the tree.
 
-## Fetching Reports by User
+## How do I fetch reports by user?
 
 ### React hook (recommended)
 
@@ -255,7 +255,7 @@ curl -H "Authorization: Bearer gg_your_token" \
 
 | Field | Description |
 |-------|-------------|
-| `id` | Report ID — use this for [managing issues](#managing-issues-approve--reject--close) |
+| `id` | Report ID — use this for [managing issues](#how-do-i-approve-reject-or-close-issues) |
 | `source` | `SDK_AUTO` (crash) or `SDK_USER_REPORT` (user clicked report) |
 | `status` | `PENDING`, `PROCESSING`, `CREATED`, `FAILED` |
 | `reporterPrimaryKey` | The `userId` you passed in the session prop |
@@ -265,7 +265,7 @@ curl -H "Authorization: Bearer gg_your_token" \
 | `issue.severity` | AI-assigned severity |
 ```
 
-## Managing Issues (Approve / Reject / Close)
+## How do I approve, reject, or close issues?
 
 ### React hook
 
@@ -365,7 +365,7 @@ curl -X POST \
 
 ### How to get the report ID
 
-Use the [Fetching Reports API](#fetching-reports-by-user) to list reports. Each report has an `id` field — use that as `REPORT_ID`.
+Use the [Fetching Reports API](#how-do-i-fetch-reports-by-user) to list reports. Each report has an `id` field — use that as `REPORT_ID`.
 
 ### How it works
 
@@ -374,7 +374,7 @@ Use the [Fetching Reports API](#fetching-reports-by-user) to list reports. Each 
 3. Approve/reject/close via API or dashboard buttons
 4. Labels and state sync directly to GitHub — GitHub is the source of truth
 
-## Conversation Thread (Comments)
+## How do I add comments to a report?
 
 Each report has a conversation thread powered by GitHub issue comments. No extra database — comments live on GitHub.
 
@@ -430,7 +430,7 @@ The comment is posted to the GitHub issue with attribution: "Commented by: **Viv
 
 Click any report on the Reports page to see the full conversation thread. Reply directly from the dashboard — comments sync to GitHub.
 
-## Error Boundary
+## How do I add an error boundary?
 
 Wrap components to auto-capture React errors:
 
@@ -442,7 +442,7 @@ import { GlitchgrabErrorBoundary } from "glitchgrab";
 </GlitchgrabErrorBoundary>
 ```
 
-## Configuration
+## What configuration options are available?
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
@@ -455,7 +455,7 @@ import { GlitchgrabErrorBoundary } from "glitchgrab";
 | `onReportSent` | `(result: ReportResult) => void` | - | Called after a report is sent |
 | `fallback` | `ReactNode` | - | Error boundary fallback UI |
 
-## Auto-Capture
+## How does auto-capture work?
 
 In production (`NODE_ENV=production`), the SDK automatically captures:
 - Unhandled JavaScript errors
@@ -466,7 +466,7 @@ In production (`NODE_ENV=production`), the SDK automatically captures:
 
 Auto-capture is **disabled in development** to avoid noisy issues.
 
-## What gets included in each report
+## What data is included in each report?
 
 - Description from the user
 - Screenshot (auto-captured or uploaded)

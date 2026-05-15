@@ -80,6 +80,21 @@ export function Footer() {
               </a>
             </li>
             <li>
+              <Link href="/about" className="text-muted-foreground hover:text-primary transition-colors">
+                About
+              </Link>
+            </li>
+            <li>
+              <Link href="/glitchgrab-vs-sentry" className="text-muted-foreground hover:text-primary transition-colors">
+                vs Sentry
+              </Link>
+            </li>
+            <li>
+              <Link href="/glitchgrab-vs-linear" className="text-muted-foreground hover:text-primary transition-colors">
+                vs Linear
+              </Link>
+            </li>
+            <li>
               <Link href="/contact" className="text-muted-foreground hover:text-primary transition-colors">
                 Contact
               </Link>

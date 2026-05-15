@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { Activity, Loader2, PlayCircle, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import type { WorkflowRun, WorkflowRunStatus } from "@/lib/github";
 
 interface RepoWorkflowRuns {
@@ -52,7 +51,7 @@ function formatElapsed(ms: number): string {
 }
 
 const POLL_INTERVAL_MS = 30_000;
-const QUERY_KEY = ["workflow-runs"] as const;
+const DEFAULT_QUERY_KEY = ["workflow-runs"] as const;
 
 function isLive(status: WorkflowRunStatus): boolean {
   return (
@@ -64,19 +63,24 @@ function isLive(status: WorkflowRunStatus): boolean {
   );
 }
 
-export function ActiveWorkflowsWidget() {
+export function ActiveWorkflowsWidget({
+  apiPath = "/api/v1/repos/workflow-runs",
+  queryKey = DEFAULT_QUERY_KEY,
+}: {
+  apiPath?: string;
+  queryKey?: readonly string[];
+}) {
   const queryClient = useQueryClient();
 
   const { data, isLoading, isFetching, refetch } = useQuery<RepoWorkflowRuns[]>({
-    queryKey: QUERY_KEY,
+    queryKey,
     queryFn: async () => {
-      const { data } = await axios.get("/api/v1/repos/workflow-runs");
+      const { data } = await axios.get(apiPath);
       return data.data ?? [];
     },
     refetchInterval: (query) => {
       const repos = query.state.data as RepoWorkflowRuns[] | undefined;
-      const hasLive =
-        repos?.some((r) => r.runs.some((run) => isLive(run.status))) ?? false;
+      const hasLive = repos?.some((r) => r.runs.some((run) => isLive(run.status))) ?? false;
       return hasLive ? POLL_INTERVAL_MS : false;
     },
     refetchOnWindowFocus: true,
@@ -103,15 +107,15 @@ export function ActiveWorkflowsWidget() {
   }, [data]);
 
   const handleRefresh = () => {
-    void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    void queryClient.invalidateQueries({ queryKey });
     void refetch();
   };
 
   return (
-    <section className="flex flex-col gap-3 h-full">
-      <div className="flex items-center justify-between border-b border-border pb-2">
-        <h2 className="text-sm font-medium text-foreground flex items-center gap-2 min-w-0">
-          <Activity className="h-4 w-4 text-primary shrink-0" />
+    <section className="flex flex-col gap-3 h-full min-h-0 flex-1">
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="text-[10px] font-mono uppercase tracking-[0.15em] text-muted-foreground flex items-center gap-1.5 min-w-0">
+          <Activity className="h-3.5 w-3.5 text-primary shrink-0" />
           <span className="truncate">Active workflows</span>
           {activeRuns.length > 0 && (
             <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded border border-primary/30 bg-primary/10 text-primary shrink-0">
@@ -123,15 +127,14 @@ export function ActiveWorkflowsWidget() {
             </span>
           )}
         </h2>
-        <Button
-          variant="ghost"
-          size="sm"
+        <button
+          type="button"
           onClick={handleRefresh}
           disabled={isFetching}
-          className="h-7 px-2 text-xs font-mono text-muted-foreground hover:text-foreground shrink-0"
+          className="text-muted-foreground/60 hover:text-muted-foreground transition-colors shrink-0 disabled:opacity-40"
         >
-          <RefreshCw className={`h-3 w-3 ${isFetching ? "animate-spin" : ""}`} />
-        </Button>
+          <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
+        </button>
       </div>
 
       <div className="flex-1 min-h-0">

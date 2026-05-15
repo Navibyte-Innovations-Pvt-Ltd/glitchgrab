@@ -64,7 +64,7 @@ export function IssuesClosedPreview() {
       ) : (
         <>
           {/* Mini bar chart */}
-          <div className="flex items-end gap-0.5 h-14 w-full">
+          <div className="flex items-end gap-0.5 h-24 w-full">
             {data.daily.map((bucket) => {
               const heightPct = (bucket.count / maxCount) * 100;
               return (

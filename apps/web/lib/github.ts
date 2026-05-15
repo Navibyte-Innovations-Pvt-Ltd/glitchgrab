@@ -348,3 +348,111 @@ export async function fetchRepoDescription(
   }
 }
 
+// ─── Org Types ──────────────────────────────────────────
+
+interface GitHubOrg {
+  id: number;
+  login: string;
+  description: string | null;
+  avatarUrl: string | null;
+}
+
+interface GitHubOrgRepo {
+  id: number;
+  fullName: string;
+  owner: string;
+  name: string;
+  isPrivate: boolean;
+}
+
+// ─── Org Helpers ────────────────────────────────────────
+
+export async function getGitHubUserLogin(accessToken: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${GITHUB_API}/user`, { headers: headers(accessToken) });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { login: string };
+    return data.login;
+  } catch {
+    return null;
+  }
+}
+
+export async function getUserOrgs(accessToken: string): Promise<GitHubOrg[]> {
+  try {
+    const res = await fetch(`${GITHUB_API}/user/orgs?per_page=100`, { headers: headers(accessToken) });
+    if (!res.ok) return [];
+    const data = (await res.json()) as { id: number; login: string; description: string | null; avatar_url: string }[];
+    return data.map((o) => ({ id: o.id, login: o.login, description: o.description, avatarUrl: o.avatar_url }));
+  } catch {
+    return [];
+  }
+}
+
+// Returns a map of orgLogin → "OWNER" | "MEMBER" based on GitHub membership role
+export async function getUserOrgRoles(accessToken: string): Promise<Map<string, "OWNER" | "MEMBER">> {
+  try {
+    const res = await fetch(`${GITHUB_API}/user/memberships/orgs?per_page=100`, { headers: headers(accessToken) });
+    if (!res.ok) return new Map();
+    const data = (await res.json()) as { state: string; role: string; organization: { login: string } }[];
+    const map = new Map<string, "OWNER" | "MEMBER">();
+    for (const m of data) {
+      if (m.state === "active") {
+        map.set(m.organization.login, m.role === "admin" ? "OWNER" : "MEMBER");
+      }
+    }
+    return map;
+  } catch {
+    return new Map();
+  }
+}
+
+export async function getOrgRepos(accessToken: string, orgLogin: string): Promise<GitHubOrgRepo[]> {
+  const results: GitHubOrgRepo[] = [];
+  let page = 1;
+  while (true) {
+    const res = await fetch(
+      `${GITHUB_API}/orgs/${orgLogin}/repos?per_page=100&page=${page}&type=all`,
+      { headers: headers(accessToken) }
+    );
+    if (!res.ok) break;
+    const data = (await res.json()) as { id: number; full_name: string; owner: { login: string }; name: string; private: boolean }[];
+    if (data.length === 0) break;
+    for (const r of data) {
+      results.push({ id: r.id, fullName: r.full_name, owner: r.owner.login, name: r.name, isPrivate: r.private });
+    }
+    if (data.length < 100) break;
+    page++;
+  }
+  return results;
+}
+
+export async function getGitHubOrgInfo(accessToken: string, orgLogin: string): Promise<{ id: number; login: string; name: string } | null> {
+  try {
+    const res = await fetch(`${GITHUB_API}/orgs/${orgLogin}`, { headers: headers(accessToken) });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { id: number; login: string; name: string | null };
+    return { id: data.id, login: data.login, name: data.name ?? data.login };
+  } catch {
+    return null;
+  }
+}
+
+interface GitHubOrgMember {
+  login: string;
+  avatarUrl: string;
+}
+
+export async function getGitHubOrgMembers(accessToken: string, orgLogin: string): Promise<GitHubOrgMember[]> {
+  try {
+    const res = await fetch(`${GITHUB_API}/orgs/${orgLogin}/members?per_page=100`, {
+      headers: headers(accessToken),
+    });
+    if (!res.ok) return [];
+    const data = (await res.json()) as { login: string; avatar_url: string }[];
+    return data.map((m) => ({ login: m.login, avatarUrl: m.avatar_url }));
+  } catch {
+    return [];
+  }
+}
+

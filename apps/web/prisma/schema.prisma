@@ -29,6 +29,7 @@ model User {
   email         String    @unique
   emailVerified DateTime?
   image         String?
+  githubLogin   String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -38,9 +39,10 @@ model User {
   aiConfig      AiConfig?
   subscription  Subscription?
   webhooks      Webhook[]
-  collaborators Collaborator[]
   gscProperties       GscProperty[]
   gscConnectSessions  GscConnectSession[]
+  ownedOrgs     Organization[]
+  orgMemberships OrgMember[]
 }
 
 model Account {
@@ -84,6 +86,7 @@ model VerificationToken {
 model Repo {
   id        String   @id @default(cuid())
   userId    String
+  orgId     String?
   githubId  Int
   fullName  String
   owner     String
@@ -92,14 +95,15 @@ model Repo {
   createdAt DateTime @default(now())
 
   user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org               Organization?      @relation(fields: [orgId], references: [id], onDelete: SetNull)
   tokens            ApiToken[]
   reports           Report[]
   issues            Issue[]
-  collaboratorRepos CollaboratorRepo[]
   gscProperties     GscProperty[]
 
   @@unique([userId, githubId])
   @@index([githubId])
+  @@index([orgId])
 }
 
 model ApiToken {
@@ -123,7 +127,6 @@ enum ReportSource {
   DASHBOARD_UPLOAD
   HANDWRITTEN_NOTE
   MCP
-  COLLABORATOR
 }
 
 enum ReportStatus {
@@ -138,7 +141,6 @@ model Report {
   id                 String       @id @default(cuid())
   repoId             String
   tokenId            String?
-  collaboratorId     String?
   source             ReportSource
   status             ReportStatus @default(PENDING)
   rawInput           String?
@@ -214,42 +216,6 @@ model AiConfig {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-// ─── Collaboration ──────────────────────────────────────
-
-enum CollaboratorStatus {
-  PENDING
-  ACCEPTED
-  REVOKED
-}
-
-model Collaborator {
-  id           String             @id @default(cuid())
-  email        String
-  invitedById  String
-  tokenHash    String             @unique
-  status       CollaboratorStatus @default(PENDING)
-  expiresAt    DateTime
-  lastActiveAt DateTime?
-  createdAt    DateTime           @default(now())
-
-  invitedBy User               @relation(fields: [invitedById], references: [id], onDelete: Cascade)
-  repos     CollaboratorRepo[]
-
-  @@unique([email, invitedById])
-}
-
-model CollaboratorRepo {
-  id             String   @id @default(cuid())
-  collaboratorId String
-  repoId         String
-  grantedAt      DateTime @default(now())
-
-  collaborator Collaborator @relation(fields: [collaboratorId], references: [id], onDelete: Cascade)
-  repo         Repo         @relation(fields: [repoId], references: [id], onDelete: Cascade)
-
-  @@unique([collaboratorId, repoId])
-}
-
 // ─── Google Search Console ───────────────────────────
 
 model GscProperty {
@@ -288,6 +254,40 @@ model GscConnectSession {
   createdAt        DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── Organizations ────────────────────────────────────
+
+enum OrgRole {
+  OWNER
+  MEMBER
+}
+
+model Organization {
+  id             String   @id @default(cuid())
+  githubOrgLogin String   @unique
+  githubOrgId    Int      @unique
+  name           String
+  ownerId        String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  owner   User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  members OrgMember[]
+  repos   Repo[]
+}
+
+model OrgMember {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  role      OrgRole  @default(MEMBER)
+  createdAt DateTime @default(now())
+
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
 }
 
 // ─── Webhooks ──────────────────────────────────────────

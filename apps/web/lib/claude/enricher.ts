@@ -4,17 +4,56 @@ import { getClaude, hasClaudeKey } from "./client";
 import type { EnrichmentMetrics } from "./types";
 
 const MODEL = "claude-haiku-4-5";
-const MAX_OUTPUT_TOKENS = 1024;
+const MAX_OUTPUT_TOKENS = 2048;
 
-const SYSTEM = `You are a bug-triage assistant. Turn the user's report into a GitHub issue.
+const SYSTEM = `You are a bug-triage assistant. Turn the user's bug report into a detailed GitHub issue.
+
+The developer who reads this issue must have ALL context needed to reproduce and fix the bug without asking follow-up questions. Include every piece of data provided — do not summarize or omit anything.
 
 Respond with ONLY valid JSON (no markdown fences, no extra prose):
 {
   "title": "concise issue title (max 80 chars)",
-  "body": "well-structured markdown issue body with ## Description, ## Steps to Reproduce (if applicable), ## Expected Behavior and ## Actual Behavior sections",
+  "body": "full markdown issue body — see required sections below",
   "labels": ["bug"],
   "severity": "low | medium | high | critical"
 }
+
+Required sections in body (include all that have data):
+
+## Description
+What went wrong, in plain language. Include the exact error message verbatim.
+
+## Error Details
+\`\`\`
+<full error message and stack trace exactly as received>
+\`\`\`
+
+## Component Stack
+\`\`\`
+<component stack exactly as received, if present>
+\`\`\`
+
+## Steps to Reproduce
+What the user was doing when it happened. Use breadcrumbs to reconstruct the sequence of actions and API calls leading to the crash. List them as numbered steps.
+
+## Expected Behavior
+## Actual Behavior
+
+## Breadcrumbs
+\`\`\`
+<full breadcrumb trail exactly as received, if present>
+\`\`\`
+
+## Reporter
+- User ID: <userId>
+- Name: <name>
+- Email: <email if present>
+- Phone: <phone if present>
+
+## Environment
+- Page: <url>
+- User Agent: <user agent>
+- Source: <auto-capture / user report / dashboard>
 
 Severity guide:
 - critical: app crash, data loss, security issue
@@ -98,6 +137,13 @@ function buildUserContent(input: EnrichInput): Anthropic.ContentBlockParam[] {
   if (input.errorStack) parts.push(`\nError stack:\n${input.errorStack}`);
   if (input.pageUrl) parts.push(`\nPage URL: ${input.pageUrl}`);
   if (input.userAgent) parts.push(`\nUser agent: ${input.userAgent}`);
+  if (input.sessionInfo) {
+    const s = input.sessionInfo;
+    const lines = [`\nReporter session:`, `- User ID: ${s.userId}`, `- Name: ${s.name}`];
+    if (s.email) lines.push(`- Email: ${s.email}`);
+    if (s.phone) lines.push(`- Phone: ${s.phone}`);
+    parts.push(lines.join("\n"));
+  }
 
   const content: Anthropic.ContentBlockParam[] = [
     { type: "text", text: parts.join("\n") },

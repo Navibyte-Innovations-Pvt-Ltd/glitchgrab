@@ -1,0 +1,430 @@
+# Glitchgrab — Full LLM Content Index
+
+This file contains the full text content of every public page on glitchgrab.dev for indexing by AI language models and search engines. Updated manually on significant content changes.
+
+Base URL: https://glitchgrab.dev
+Last updated: 2026-05-14
+
+---
+
+## Page: Homepage
+
+URL: https://glitchgrab.dev
+Title: Glitchgrab — AI Bug Tracker for Next.js
+
+### Headline
+
+AI bug tracker for Next.js. Auto-create GitHub issues.
+
+### Subheading
+
+Drop-in Next.js SDK. Converts messy stack traces, fragmented screenshots, and vague user complaints into precisely structured GitHub issues.
+
+### Trust Signals
+
+- Open source under MIT license
+- Supports Next.js 13, 14, and 15
+- Install via npm: `npm install glitchgrab`
+- Zero runtime dependencies
+- Free tier with unlimited reports
+
+### How It Works
+
+1. An unhandled error fires in production, a user clicks "Report Bug", or a developer uploads a screenshot.
+2. The Glitchgrab SDK captures full context: stack trace, page URL, device info, navigation history, last 15 breadcrumbs, and session info.
+3. The AI pipeline normalizes the input, enriches it with repository context, checks for semantic duplicates against open GitHub issues, generates a structured issue (title, body, labels, severity), and pushes it to GitHub via API.
+4. The developer receives a clean, labeled GitHub issue — with no manual triage required.
+
+### Four Capture Modes
+
+**SDK Auto-capture**: GlitchgrabProvider intercepts unhandled JavaScript errors and unhandled promise rejections in production. Captures full context automatically. Disabled in development.
+
+**Report Button**: A headless ReportButton component lets end-users file bug reports from within the app. Captures a screenshot, allows a description, and submits directly as a GitHub issue. No AI pipeline — issues are created immediately.
+
+**Dashboard Chat**: Developers describe a bug or upload a screenshot in the Glitchgrab web dashboard. The AI pipeline processes the input and generates a GitHub issue.
+
+**MCP Server**: Connects to Claude Desktop. Developers can report and query bugs directly from their AI assistant using natural language.
+
+### AI Pipeline Steps
+
+1. **Normalize** — Standardize input (image, error event, or text). Strip PII, unify format.
+2. **Enrich** — Map error to repository context: existing labels, open issues, codebase patterns.
+3. **Dedup** — Semantic comparison against open issues. Duplicate signals are discarded.
+4. **Generate** — Draft issue title, body in markdown, labels, and severity.
+5. **Push** — GitHub API creates the issue. Screenshot is uploaded to S3 and linked.
+
+### Pricing
+
+**Free tier**: Unlimited reports, one connected GitHub repository, platform-provided AI keys. No credit card required. Forever free.
+
+**Pro plan**: ₹199/month. Unlimited repositories, bring-your-own-key (BYOK) for OpenAI or Anthropic, collaborator access.
+
+### FAQ
+
+**What is Glitchgrab?**
+Glitchgrab is an open-source Next.js SDK that automatically converts production errors, user-submitted screenshots, and vague bug reports into well-structured GitHub issues using AI.
+
+**Which versions of Next.js does Glitchgrab support?**
+Glitchgrab supports Next.js 13, 14, and 15 with full App Router compatibility.
+
+**Is Glitchgrab free to use?**
+Yes. The free tier includes unlimited reports and one GitHub repository. The Pro plan at ₹199/month unlocks multiple repositories and BYOK support.
+
+**How does AI deduplication work?**
+Every incoming report is converted to a vector embedding and compared against existing open issues. Semantically similar reports — like "502 gateway error" and "site down" — are collapsed into a single tracking issue rather than creating duplicates.
+
+**Is Glitchgrab open source?**
+Yes. Glitchgrab is MIT-licensed. Full source code is at github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab.
+
+**How do I get started?**
+Install the SDK (`npm install glitchgrab`), sign in at glitchgrab.dev with GitHub, connect a repository, and wrap your app with GlitchgrabProvider. Auto-capture is on by default in production.
+
+---
+
+## Page: SDK Documentation
+
+URL: https://glitchgrab.dev/docs
+Title: SDK Documentation — Glitchgrab
+
+### How do I install Glitchgrab?
+
+```bash
+npm install glitchgrab
+# or
+bun add glitchgrab
+```
+
+### How do I get started?
+
+Wrap your root layout with GlitchgrabProvider:
+
+```tsx
+import { GlitchgrabProvider } from "glitchgrab";
+
+export default function RootLayout({ children }) {
+  return (
+    <GlitchgrabProvider token={process.env.NEXT_PUBLIC_GLITCHGRAB_TOKEN}>
+      {children}
+    </GlitchgrabProvider>
+  );
+}
+```
+
+### How does user session tracking work?
+
+Pass a session prop to GlitchgrabProvider so bug reports include the reporter's identity:
+
+```tsx
+const session = {
+  userId: user.id,    // required — your DB primary key
+  name: user.name,    // required
+  email: user.email,  // optional
+  phone: user.phone,  // optional
+};
+
+<GlitchgrabProvider token="gg_..." session={session}>
+```
+
+### How do I add a report button?
+
+```tsx
+import { ReportButton } from "glitchgrab";
+
+// Default floating button
+<ReportButton position="bottom-right" label="Report Bug" />
+
+// Custom trigger (headless)
+<ReportButton>
+  {({ onClick, capturing }) => (
+    <button onClick={onClick} disabled={capturing}>
+      {capturing ? "Capturing..." : "Report Bug"}
+    </button>
+  )}
+</ReportButton>
+```
+
+### How do I report bugs programmatically?
+
+```tsx
+import { useGlitchgrab } from "glitchgrab";
+
+const { reportBug, report, addBreadcrumb, openReportDialog } = useGlitchgrab();
+
+await reportBug("Button not working on mobile");
+openReportDialog({ description: "Error on /settings" });
+addBreadcrumb("User clicked checkout", { cartSize: "3" });
+```
+
+### What keyboard shortcuts are available?
+
+| Shortcut | Action |
+|---|---|
+| Cmd+Shift+G / Ctrl+Shift+G | Open report dialog |
+| Cmd+V / Ctrl+V (dialog open) | Paste screenshot from clipboard |
+| Escape | Close dialog |
+
+### How do I fetch reports by user?
+
+```tsx
+import { useGlitchgrabReports } from "glitchgrab";
+
+const { reports, isLoading, error } = useGlitchgrabReports({
+  token: process.env.NEXT_PUBLIC_GLITCHGRAB_TOKEN,
+  userId: session.user.id,
+  limit: 20,
+});
+```
+
+REST API: `GET /api/v1/sdk/reports?reporterPrimaryKey=user_123`
+
+### How do I approve, reject, or close issues?
+
+```tsx
+import { useGlitchgrabActions } from "glitchgrab";
+
+const { approve, reject, close } = useGlitchgrabActions({
+  token: process.env.NEXT_PUBLIC_GLITCHGRAB_TOKEN,
+  onSuccess: () => refetch(),
+});
+```
+
+REST: `POST /api/v1/reports/{reportId}/actions` with body `{"action": "label", "label": "approved"}`.
+
+### How do I add comments to a report?
+
+REST: `POST /api/v1/sdk/reports/{reportId}/comments`
+
+Body: `{"message": "Fixing this now", "reporterName": "Dev", "reporterEmail": "dev@example.com"}`
+
+Comments are posted to the GitHub issue with attribution.
+
+### How do I add an error boundary?
+
+```tsx
+import { GlitchgrabErrorBoundary } from "glitchgrab";
+
+<GlitchgrabErrorBoundary fallback={<p>Something went wrong</p>}>
+  <MyComponent />
+</GlitchgrabErrorBoundary>
+```
+
+### What configuration options are available?
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| token | string | required | API token (gg_...) |
+| session | GlitchgrabSession or null | null | Logged-in user info |
+| baseUrl | string | https://www.glitchgrab.dev | API base URL |
+| breadcrumbs | boolean | true | Enable breadcrumb tracking |
+| maxBreadcrumbs | number | 50 | Max breadcrumbs to keep |
+| onError | function | — | Called on unhandled errors |
+| onReportSent | function | — | Called after report sent |
+| fallback | ReactNode | — | Error boundary fallback UI |
+
+### How does auto-capture work?
+
+In production (NODE_ENV=production), the SDK automatically captures: unhandled JavaScript errors, unhandled promise rejections, console errors (as breadcrumbs), navigation events (as breadcrumbs), API calls (as breadcrumbs). Auto-capture is disabled in development.
+
+### What data is included in each report?
+
+- User description
+- Screenshot (auto-captured or uploaded)
+- Page URL and user agent
+- Device info (screen size, viewport, platform, language, color scheme)
+- Page navigation history
+- Last 15 breadcrumbs
+- Session info (userId, name, email, phone)
+
+---
+
+## Page: About
+
+URL: https://glitchgrab.dev/about
+Title: About Glitchgrab
+
+### What is Glitchgrab?
+
+Glitchgrab is a drop-in Next.js SDK that automatically captures production errors, processes user-submitted screenshots and vague bug reports, and creates well-structured GitHub issues using AI. It handles the full pipeline: normalize the input, enrich it with repo context, deduplicate against open issues, generate a markdown issue, and push it to GitHub — all without manual triage.
+
+Supports Next.js 13, 14, and 15. Installation is a single package and one provider component. The free tier is unlimited — one GitHub repository, unlimited reports, forever.
+
+### Who built Glitchgrab?
+
+Glitchgrab is built and maintained by Naresh Bhosale, founder of Navibyte Innovations Pvt. Ltd. — a software company focused on developer tooling and open-source infrastructure. Naresh is a full-stack developer with hands-on experience building production Next.js applications.
+
+Glitchgrab started as an internal tool to solve a real problem: too much developer time was being lost to manual bug triage, duplicate issues, and vague user reports that contained no actionable context.
+
+### Why was Glitchgrab built?
+
+Every engineering team faces the same cycle: a user reports something is broken, the developer asks for more context, the user sends a screenshot of a white screen, and the issue sits unresolved while the developer tries to reproduce it from scratch. Meanwhile, three other users have reported the same error in different words, creating three duplicate issues.
+
+Glitchgrab breaks that cycle by capturing errors automatically with full context — stack trace, DOM state, recent network requests, breadcrumbs — and using AI to generate a properly structured GitHub issue. Semantic deduplication means 50 users hitting the same bug creates one issue, not 50.
+
+### Is Glitchgrab open source?
+
+Yes. Glitchgrab is fully open source under the MIT license. The SDK, web dashboard, mobile app, and MCP server are all public. Source: https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab
+
+---
+
+## Page: Glitchgrab vs Sentry
+
+URL: https://glitchgrab.dev/glitchgrab-vs-sentry
+Title: Glitchgrab vs Sentry — Glitchgrab
+
+### What does each tool do?
+
+Sentry is an observability platform. It captures runtime exceptions, surfaces stack traces in a dashboard, and sends alerts when error rates spike. It is purpose-built for monitoring — not for turning those errors into actionable GitHub issues.
+
+Glitchgrab is a bug capture and triage tool. It takes four kinds of inputs — SDK auto-capture, user-submitted screenshots, developer chat, and handwritten notes — runs them through an AI pipeline, and creates a structured GitHub issue with title, body, labels, severity, and deduplication. The output lands directly in your repo.
+
+### Key Differences
+
+| Feature | Glitchgrab | Sentry |
+|---|---|---|
+| Auto-create GitHub issues | Yes | No |
+| AI-generated issue titles and labels | Yes | No |
+| Semantic deduplication | Yes | No |
+| User-submitted bug reports | Yes | No |
+| Screenshot capture | Yes | Partial |
+| Error rate monitoring | No | Yes |
+| Real-time alerting | No | Yes |
+| Performance tracing | No | Yes |
+| Open source (MIT) | Yes | Partial |
+| Free tier — unlimited reports | Yes | No |
+| Next.js 13/14/15 SDK | Yes | Yes |
+
+### When to use Glitchgrab
+
+Glitchgrab fits teams that manage bugs through GitHub Issues. If your workflow is: something breaks → open a GitHub issue → assign it → fix it, Glitchgrab removes the manual middle step entirely.
+
+It is a strong fit for small teams and solo developers who cannot justify Sentry's cost but still need a reliable path from bug report to GitHub issue.
+
+### When to use Sentry
+
+Sentry is the right choice for observability: error rates, traces, performance metrics, session replay, and real-time alerting. For high-traffic services that need to know about regressions before users report them, Sentry's monitoring infrastructure is mature and well-supported.
+
+### Can you use both?
+
+Yes. Some teams use Sentry for monitoring and Glitchgrab for issue creation — Sentry surfaces the signal, Glitchgrab structures it into a GitHub issue.
+
+### Pricing comparison
+
+Glitchgrab free tier: one GitHub repo, unlimited reports, forever. Pro: ₹199/month.
+Sentry free tier: capped by event volume. Paid plans start at $26/month.
+
+---
+
+## Page: Glitchgrab vs Linear
+
+URL: https://glitchgrab.dev/glitchgrab-vs-linear
+Title: Glitchgrab vs Linear — Glitchgrab
+
+### What does each tool do?
+
+Linear is a modern project management and issue tracking tool. Teams use it to plan sprints, track work, manage priorities, and run cycles. Creating an issue in Linear is a deliberate act — someone writes a title, description, and priority. There is no automatic capture from production.
+
+Glitchgrab is a bug capture tool built specifically for Next.js. It intercepts production errors, processes user screenshots and vague complaints, and uses AI to generate a structured GitHub issue automatically.
+
+### Key Differences
+
+| Feature | Glitchgrab | Linear |
+|---|---|---|
+| Auto-capture production errors | Yes | No |
+| AI-generated issue titles and labels | Yes | No |
+| Semantic deduplication | Yes | No |
+| User-submitted bug reports via SDK | Yes | No |
+| Screenshot capture | Yes | No |
+| GitHub Issues integration | Yes | Partial |
+| Sprint planning and cycles | No | Yes |
+| Roadmap and milestones | No | Yes |
+| Team workload management | No | Yes |
+| Open source (MIT) | Yes | No |
+| Free tier — unlimited reports | Yes | No |
+| Next.js 13/14/15 SDK | Yes | No |
+
+### Can you use both?
+
+Glitchgrab creates GitHub Issues, not Linear issues. Teams that keep bugs in GitHub and use Linear for feature planning can run both side by side. Glitchgrab handles the automatic triage-to-GitHub pipeline; Linear handles sprint and roadmap management.
+
+### Who is Glitchgrab built for?
+
+Glitchgrab is built for Next.js teams that use GitHub as their primary issue tracker. Particularly useful for developers who lose time to manual bug triage: copying stack traces, writing issue titles, deduplicating reports from multiple users.
+
+### Pricing comparison
+
+Glitchgrab free tier: one GitHub repo, unlimited reports, forever. Pro: ₹199/month.
+Linear free tier: limited to 250 issues. Paid plans start at $8/user/month ($40/month for a 5-person team).
+
+---
+
+## Page: Contact
+
+URL: https://glitchgrab.dev/contact
+Title: Contact — Glitchgrab
+
+Contact Glitchgrab via email at bhosalenaresh73@gmail.com or open a GitHub issue at https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/issues.
+
+Response time: within 48 hours for email. GitHub issues are monitored daily.
+
+For bug reports about the SDK or dashboard, include: SDK version, Next.js version, error message or screenshot, and steps to reproduce.
+
+---
+
+## Page: Privacy Policy
+
+URL: https://glitchgrab.dev/privacy
+Title: Privacy Policy — Glitchgrab
+
+Glitchgrab collects: GitHub account data (name, email, avatar, GitHub user ID) obtained through GitHub OAuth; bug report data submitted through the SDK or dashboard (error messages, screenshots, device info, page URL, session info); and usage data (pages visited, features used) for product improvement.
+
+Data is used to: operate the service, generate GitHub issues on the user's behalf, improve AI pipeline accuracy, and send transactional communications.
+
+Third-party services: GitHub (issue creation), AWS S3 (screenshot storage), Neon (database), Razorpay (billing), Anthropic/OpenAI (AI processing). User AI keys are encrypted with AES-256-GCM and never transmitted to Glitchgrab servers when BYOK is enabled.
+
+Data retention: account data is kept while the account is active. Bug report data is retained for 90 days after account deletion. Users can request deletion by emailing bhosalenaresh73@gmail.com.
+
+Governed by Indian law. Company: Navibyte Innovations Pvt. Ltd., India.
+
+---
+
+## Page: Terms of Service
+
+URL: https://glitchgrab.dev/terms
+Title: Terms of Service — Glitchgrab
+
+Glitchgrab is provided by Navibyte Innovations Pvt. Ltd. (India). By using the service, you agree to these terms.
+
+Users must: have a valid GitHub account, use the SDK only in applications they own or have permission to instrument, not use the service for illegal purposes, and not attempt to reverse-engineer or abuse the API.
+
+The service is provided "as is" without warranty. Uptime is not guaranteed. Glitchgrab is not liable for missed bug reports, GitHub API failures, or AI-generated content.
+
+Paid subscriptions are processed via Razorpay. Subscriptions auto-renew monthly and can be cancelled at any time.
+
+---
+
+## Page: Refund Policy
+
+URL: https://glitchgrab.dev/refund
+Title: Refund Policy — Glitchgrab
+
+Refunds are available within 7 days of a subscription charge if the service was materially non-functional during that period. To request a refund, email bhosalenaresh73@gmail.com with your account email and the reason.
+
+Refunds are processed within 5–7 business days to the original payment method. Partial-month refunds are not issued for cancellations mid-cycle.
+
+---
+
+## Canonical Links
+
+- Homepage: https://glitchgrab.dev
+- Docs: https://glitchgrab.dev/docs
+- About: https://glitchgrab.dev/about
+- Changelog: https://glitchgrab.dev/changelog
+- Contact: https://glitchgrab.dev/contact
+- Privacy: https://glitchgrab.dev/privacy
+- Terms: https://glitchgrab.dev/terms
+- Refund: https://glitchgrab.dev/refund
+- Glitchgrab vs Sentry: https://glitchgrab.dev/glitchgrab-vs-sentry
+- Glitchgrab vs Linear: https://glitchgrab.dev/glitchgrab-vs-linear
+- GitHub: https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab
+- npm: https://www.npmjs.com/package/glitchgrab
+- Short summary (llms.txt): https://glitchgrab.dev/llms.txt

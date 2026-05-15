@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — Glitchgrab",
+  title: "Privacy Policy",
   description:
     "How Glitchgrab collects, uses, and protects your data.",
   alternates: {
