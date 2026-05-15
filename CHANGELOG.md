@@ -1,3 +1,9 @@
+## [1.29.1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.29.0...v1.29.1) (2026-05-15)
+
+### Bug Fixes
+
+* **seo:** switch favicon API to gstatic faviconV2 for reliable display ([4b4efaa](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/4b4efaa2ab10666ce751f7034b082add63e417b2))
+
 ## [1.29.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.28.0...v1.29.0) (2026-05-15)
 
 ### Features
