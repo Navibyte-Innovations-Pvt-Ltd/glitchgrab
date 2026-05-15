@@ -231,7 +231,7 @@ export function ReportsTabs({
             <select
               value={repoFilter ?? ""}
               onChange={(e) => setRepoFilter(e.target.value || null)}
-              className="font-mono text-[11px] border border-border bg-card text-muted-foreground px-2 py-1.5 rounded focus:outline-none focus:border-primary transition-colors hover:text-foreground max-w-[140px]"
+              className="font-mono text-[11px] border border-border bg-card text-muted-foreground px-2 py-1.5 rounded focus:outline-none focus:border-primary transition-colors hover:text-foreground max-w-35"
             >
               <option value="">all repos</option>
               {uniqueRepos.map((repo) => (
