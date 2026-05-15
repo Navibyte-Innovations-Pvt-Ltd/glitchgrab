@@ -46,4 +46,7 @@ export function computeReportSignature(params: {
   return hashString(`${msg}|${page}|${frame}`);
 }
 
-export const DEDUP_WINDOW_MS = 60 * 60 * 1000;
+// Suppress same-signature errors within 24h regardless of issue state
+export const DEDUP_WINDOW_MS = 24 * 60 * 60 * 1000;
+// If a GitHub issue was created for this signature in last 7 days, suppress new reports
+export const OPEN_ISSUE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
