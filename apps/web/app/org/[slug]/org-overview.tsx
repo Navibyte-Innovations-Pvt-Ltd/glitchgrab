@@ -8,7 +8,6 @@ import Link from "next/link";
 import {
   GitFork,
   Users,
-  Clock,
   Mail,
   Loader2,
   Check,
@@ -21,10 +20,14 @@ import {
   Folder,
   MessageCircle,
   ArrowRight,
+  GitPullRequest,
+  RefreshCw,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ActiveWorkflowsWidget } from "@/app/dashboard/active-workflows-widget";
 import { GithubContributions } from "@/app/dashboard/github-contributions";
 import type { OrgContext } from "./lib/get-org-context";
@@ -45,8 +48,9 @@ interface MembersData {
   total: number;
 }
 
-interface TodayActivity {
-  [githubLogin: string]: { commits: number; repos: string[] };
+interface RepoStat { name: string; commits: number }
+interface MemberActivity {
+  [githubLogin: string]: { commits: number; repos: RepoStat[] };
 }
 
 interface OrgStats {
@@ -109,6 +113,7 @@ function StatCard({
   critical,
   href,
   decimal,
+  loading,
 }: {
   label: string;
   value: number | string;
@@ -117,6 +122,7 @@ function StatCard({
   critical?: boolean;
   href?: string;
   decimal?: boolean;
+  loading?: boolean;
 }) {
   const toneClasses: Record<PillTone, string> = {
     primary: "text-primary bg-primary/10 border-primary/20",
@@ -137,20 +143,27 @@ function StatCard({
             {icon}
           </span>
         </div>
-        <div className="flex items-baseline gap-2 flex-wrap">
-          <span className={cn("text-2xl font-mono tabular-nums font-medium", critical ? "text-red-400" : "text-foreground")}>
-            {typeof value === "number"
-              ? decimal
-                ? value.toFixed(1)
-                : value < 100
-                  ? String(value).padStart(2, "0")
-                  : value
-              : value}
-          </span>
-          <span className={cn("text-[10px] font-mono px-1.5 py-0.5 rounded border", toneClasses[pill.tone])}>
-            {pill.text}
-          </span>
-        </div>
+        {loading ? (
+          <div className="flex items-baseline gap-2 mt-1">
+            <Skeleton className="h-7 w-10" />
+            <Skeleton className="h-4 w-16" />
+          </div>
+        ) : (
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <span className={cn("text-2xl font-mono tabular-nums font-medium", critical ? "text-red-400" : "text-foreground")}>
+              {typeof value === "number"
+                ? decimal
+                  ? value.toFixed(1)
+                  : value < 100
+                    ? String(value).padStart(2, "0")
+                    : value
+                : value}
+            </span>
+            <span className={cn("text-[10px] font-mono px-1.5 py-0.5 rounded border", toneClasses[pill.tone])}>
+              {pill.text}
+            </span>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -220,8 +233,14 @@ function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-10">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      <div className="flex flex-col gap-2">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="flex items-center gap-2 rounded px-2 py-1.5 border border-border/40">
+            <Skeleton className="h-3 w-3 rounded-full shrink-0" />
+            <Skeleton className="h-3 flex-1" />
+            <Skeleton className="h-2.5 w-12 shrink-0" />
+          </div>
+        ))}
       </div>
     );
   }
@@ -385,8 +404,14 @@ function OrgIssuesClosedPreview({ orgSlug }: { orgSlug: string }) {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-10">
-          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        <div className="flex flex-col gap-2">
+          <div className="flex items-end gap-0.5 h-28 w-full">
+            {Array.from({ length: 14 }).map((_, i) => (
+              <Skeleton key={i} className="flex-1 rounded-t-xs" style={{ height: `${20 + Math.random() * 60}%` }} />
+            ))}
+          </div>
+          <Skeleton className="h-3 w-40" />
+          <Skeleton className="h-3 w-28" />
         </div>
       ) : !data || data.total === 0 ? (
         <p className="text-xs font-mono text-muted-foreground py-4 text-center">
@@ -467,11 +492,11 @@ function TeamPanel({ orgSlug, isOwner }: { orgSlug: string; isOwner: boolean }) 
     staleTime: 30_000,
   });
 
-  const { data: todayActivity } = useQuery<TodayActivity>({
-    queryKey: ["org-today-activity", orgSlug],
+  const { data: memberStats } = useQuery<MemberActivity>({
+    queryKey: ["org-member-stats", orgSlug],
     queryFn: async () => {
-      const { data } = await axios.get(`/api/v1/orgs/${orgSlug}/today-activity`);
-      return data.data as TodayActivity;
+      const { data } = await axios.get(`/api/v1/orgs/${orgSlug}/member-stats`);
+      return data.data as MemberActivity;
     },
     staleTime: 2 * 60_000,
     refetchInterval: 5 * 60_000,
@@ -479,8 +504,17 @@ function TeamPanel({ orgSlug, isOwner }: { orgSlug: string; isOwner: boolean }) 
 
   if (!membersData) {
     return (
-      <div className="flex items-center justify-center py-10">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      <div className="flex flex-col gap-3">
+        <Skeleton className="h-2.5 w-16" />
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="flex items-center gap-2.5 px-1 py-1.5">
+            <Skeleton className="w-7 h-7 rounded-full shrink-0" />
+            <div className="flex-1 flex flex-col gap-1.5">
+              <Skeleton className="h-3 w-28" />
+              <Skeleton className="h-2 w-40" />
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
@@ -497,21 +531,28 @@ function TeamPanel({ orgSlug, isOwner }: { orgSlug: string; isOwner: boolean }) 
           </div>
           <ul className="flex flex-col gap-1.5">
             {joined.map((m) => {
-              const activity = todayActivity?.[m.githubLogin];
+              const stats = memberStats?.[m.githubLogin];
               return (
                 <li key={m.githubLogin} className="flex items-center gap-2.5 px-1 py-1.5 rounded-md hover:bg-card/60 transition-colors">
-                  {m.avatarUrl ? (
-                    <Image src={m.avatarUrl} alt={m.githubLogin} width={28} height={28} className="rounded-full border border-border shrink-0" />
-                  ) : (
-                    <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-xs font-mono font-bold shrink-0">
-                      {(m.name ?? m.githubLogin).charAt(0).toUpperCase()}
-                    </div>
-                  )}
+                  <div className="relative shrink-0">
+                    {m.avatarUrl ? (
+                      <Image src={m.avatarUrl} alt={m.githubLogin} width={28} height={28} className="rounded-full border border-border" />
+                    ) : (
+                      <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-xs font-mono font-bold">
+                        {(m.name ?? m.githubLogin).charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-green-500 border border-background" />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium text-foreground truncate">{m.name ?? m.githubLogin}</div>
-                    {activity ? (
+                    {stats ? (
                       <div className="text-[10px] font-mono text-primary/70 truncate">
-                        ↑ {activity.commits} commit{activity.commits !== 1 ? "s" : ""} today · {activity.repos.slice(0, 2).join(", ")}{activity.repos.length > 2 ? ` +${activity.repos.length - 2}` : ""}
+                        ↑ {stats.commits} commit{stats.commits !== 1 ? "s" : ""} · today · {stats.repos.slice(0, 3).map((r) => `${r.name} (${r.commits})`).join(", ")}{stats.repos.length > 3 ? ` +${stats.repos.length - 3}` : ""}
+                      </div>
+                    ) : memberStats !== undefined ? (
+                      <div className="text-[10px] font-mono text-muted-foreground/50 truncate">
+                        no commits today
                       </div>
                     ) : (
                       <div className="text-[11px] font-mono text-muted-foreground/70">@{m.githubLogin}</div>
@@ -541,7 +582,7 @@ function TeamPanel({ orgSlug, isOwner }: { orgSlug: string; isOwner: boolean }) 
           </div>
           <ul className="flex flex-col gap-1.5">
             {pending.slice(0, 4).map((m) => (
-              <PendingMemberRow key={m.githubLogin} member={m} orgSlug={orgSlug} isOwner={isOwner} />
+              <PendingMemberRow key={m.githubLogin} member={m} orgSlug={orgSlug} isOwner={isOwner} stats={memberStats?.[m.githubLogin]} />
             ))}
             {pending.length > 4 && (
               <li>
@@ -560,7 +601,7 @@ function TeamPanel({ orgSlug, isOwner }: { orgSlug: string; isOwner: boolean }) 
   );
 }
 
-function PendingMemberRow({ member, orgSlug, isOwner }: { member: MergedMember; orgSlug: string; isOwner: boolean }) {
+function PendingMemberRow({ member, orgSlug, isOwner, stats }: { member: MergedMember; orgSlug: string; isOwner: boolean; stats?: { commits: number; repos: RepoStat[] } }) {
   const [showInvite, setShowInvite] = useState(false);
   const [email, setEmail] = useState("");
 
@@ -582,21 +623,25 @@ function PendingMemberRow({ member, orgSlug, isOwner }: { member: MergedMember; 
   return (
     <li className="space-y-1.5">
       <div className="flex items-center gap-2.5 px-1 py-1.5 rounded-md">
-        {member.avatarUrl ? (
-          <Image src={member.avatarUrl} alt={member.githubLogin} width={28} height={28} className="rounded-full border border-border shrink-0 opacity-50 grayscale" />
-        ) : (
-          <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-xs font-mono font-bold shrink-0 opacity-50">
-            {member.githubLogin.charAt(0).toUpperCase()}
-          </div>
-        )}
+        <div className="relative shrink-0">
+          {member.avatarUrl ? (
+            <Image src={member.avatarUrl} alt={member.githubLogin} width={28} height={28} className="rounded-full border border-border" />
+          ) : (
+            <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-xs font-mono font-bold">
+              {member.githubLogin.charAt(0).toUpperCase()}
+            </div>
+          )}
+          <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-yellow-500 border border-background" />
+        </div>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium text-muted-foreground truncate">@{member.githubLogin}</div>
+          {stats ? (
+            <div className="text-[10px] font-mono text-muted-foreground/60 truncate">
+              ↑ {stats.commits} commit{stats.commits !== 1 ? "s" : ""} · today · {stats.repos.slice(0, 3).map((r) => `${r.name} (${r.commits})`).join(", ")}{stats.repos.length > 3 ? ` +${stats.repos.length - 3}` : ""}
+            </div>
+          ) : null}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className="flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 rounded border border-yellow-500/30 bg-yellow-500/10 text-yellow-500/80 uppercase tracking-wide">
-            <Clock size={9} />
-            Pending
-          </span>
           {isOwner && !showInvite && (
             <button
               type="button"
@@ -635,6 +680,183 @@ function PendingMemberRow({ member, orgSlug, isOwner }: { member: MergedMember; 
         </div>
       )}
     </li>
+  );
+}
+
+// ─── PRs / Workflows Tab Panel ────────────────────────────────────────────────
+
+interface PullRequestItem {
+  number: number;
+  title: string;
+  url: string;
+  createdAt: string;
+  updatedAt: string;
+  draft: boolean;
+  author: string;
+  authorAvatar: string | null;
+  headRef: string;
+  baseRef: string;
+  labels: { name: string; color: string }[];
+  reviewers: string[];
+  repoFullName: string;
+}
+
+type PanelTab = "prs" | "workflows";
+const TAB_STORAGE_KEY = "org-panel-tab";
+
+function OrgPRsOrWorkflowsPanel({ orgSlug }: { orgSlug: string }) {
+  const [tab, setTab] = useState<PanelTab>(() => {
+    if (typeof window === "undefined") return "prs";
+    return (localStorage.getItem(TAB_STORAGE_KEY) as PanelTab) ?? "prs";
+  });
+
+  const switchTab = (t: PanelTab) => {
+    setTab(t);
+    localStorage.setItem(TAB_STORAGE_KEY, t);
+  };
+
+  const { data: prs, isLoading: prsLoading, isFetching: prsFetching, refetch: refetchPRs } =
+    useQuery<PullRequestItem[]>({
+      queryKey: ["org-pull-requests", orgSlug],
+      queryFn: async () => {
+        const { data } = await axios.get(`/api/v1/orgs/${orgSlug}/pull-requests`);
+        return data.data ?? [];
+      },
+      staleTime: 60_000,
+      refetchOnWindowFocus: true,
+      refetchInterval: 2 * 60_000,
+    });
+
+  return (
+    <section className="flex flex-col gap-3 h-full min-h-0 flex-1">
+      {/* Tab bar */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1">
+          {(["prs", "workflows"] as PanelTab[]).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => switchTab(t)}
+              className={cn(
+                "flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-[0.12em] px-2 py-1 rounded transition-colors border",
+                tab === t
+                  ? "bg-primary/10 text-primary border-primary/30"
+                  : "text-muted-foreground hover:text-foreground border-transparent"
+              )}
+            >
+              {t === "prs"
+                ? <GitPullRequest className="h-3 w-3 shrink-0" />
+                : <Activity className="h-3 w-3 shrink-0" />}
+              {t === "prs" ? "Open PRs" : "Workflows"}
+              {t === "prs" && !prsLoading && prs !== undefined && (
+                <span className={cn(
+                  "text-[9px] px-1 rounded",
+                  tab === "prs" ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
+                )}>
+                  {prs.length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+        {tab === "prs" && (
+          <button
+            type="button"
+            onClick={() => void refetchPRs()}
+            disabled={prsFetching}
+            className="text-muted-foreground/60 hover:text-muted-foreground transition-colors disabled:opacity-40"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${prsFetching ? "animate-spin" : ""}`} />
+          </button>
+        )}
+      </div>
+
+      {/* Content */}
+      {tab === "workflows" ? (
+        <ActiveWorkflowsWidget
+          apiPath={`/api/v1/orgs/${orgSlug}/workflow-runs`}
+          queryKey={["org-workflow-runs", orgSlug]}
+        />
+      ) : prsLoading ? (
+        <div className="flex flex-col gap-1.5 flex-1">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex items-start gap-2.5 rounded-md border border-border/40 px-2.5 py-2">
+              <Skeleton className="h-6 w-6 rounded shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-2.5 w-1/2" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : !prs || prs.length === 0 ? (
+        <div className="flex items-center gap-3 border border-dashed border-border rounded-md px-3 py-4">
+          <GitPullRequest className="h-4 w-4 text-muted-foreground shrink-0" />
+          <p className="text-xs font-mono text-muted-foreground">No open PRs — all clear.</p>
+        </div>
+      ) : (
+        <>
+          <ul className="flex flex-col gap-1 max-h-60 overflow-y-auto pr-1 flex-1 min-h-0">
+            {prs.map((pr) => (
+              <li key={`${pr.repoFullName}:${pr.number}`}>
+                <a
+                  href={pr.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex items-start gap-2.5 rounded-md border border-border bg-card/40 px-2.5 py-2 hover:border-foreground/30 hover:bg-card transition-colors"
+                >
+                  <span className={cn(
+                    "inline-flex items-center justify-center h-6 w-6 rounded shrink-0 border mt-0.5",
+                    pr.draft
+                      ? "bg-muted/40 border-border/50 text-muted-foreground"
+                      : "bg-primary/10 border-primary/30 text-primary"
+                  )}>
+                    <GitPullRequest className="h-3.5 w-3.5" />
+                  </span>
+                  <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                        {pr.title}
+                      </span>
+                      <span className="text-[10px] font-mono text-muted-foreground shrink-0 tabular-nums">
+                        {timeAgo(pr.updatedAt)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] font-mono text-muted-foreground truncate">
+                        {repoShortName(pr.repoFullName)} #{pr.number}
+                      </span>
+                      {pr.draft && (
+                        <span className="text-[9px] font-mono px-1 py-0 rounded border border-border text-muted-foreground/60 uppercase tracking-wide">
+                          draft
+                        </span>
+                      )}
+                      {pr.labels.slice(0, 2).map((l) => (
+                        <span
+                          key={l.name}
+                          className="text-[9px] font-mono px-1 py-0 rounded border uppercase tracking-wide"
+                          style={{ borderColor: `#${l.color}40`, color: `#${l.color}`, backgroundColor: `#${l.color}15` }}
+                        >
+                          {l.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </a>
+              </li>
+            ))}
+          </ul>
+          <a
+            href={`https://github.com/orgs/${orgSlug}/repositories`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-mono text-muted-foreground hover:text-primary transition-colors w-max mt-auto"
+          >
+            Open on GitHub →
+          </a>
+        </>
+      )}
+    </section>
   );
 }
 
@@ -713,12 +935,14 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
             icon={<Users className="h-4 w-4" />}
             pill={{ text: `${membersData?.members.filter((m) => m.joined).length ?? 0} joined`, tone: "primary" }}
             href={`/org/${ctx.orgSlug}/members`}
+            loading={!membersData}
           />
           <StatCard
             label="Open issues"
             value={openIssues}
             icon={<AlertCircle className="h-4 w-4" />}
             pill={openIssues > 0 ? { text: "Triage", tone: "primary" } : { text: "Clear", tone: "muted" }}
+            loading={!issues}
           />
           <StatCard
             label="New reports today"
@@ -726,6 +950,7 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
             icon={<Bug className="h-4 w-4" />}
             pill={{ text: `avg ${stats?.avgPerDay ?? 0}/day`, tone: "muted" }}
             href={`/org/${ctx.orgSlug}/reports`}
+            loading={!stats}
           />
           <StatCard
             label="Failed retries"
@@ -738,6 +963,7 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
                 : { text: "None", tone: "muted" }
             }
             href={(stats?.failed ?? 0) > 0 ? `/org/${ctx.orgSlug}/reports` : undefined}
+            loading={!stats}
           />
           <StatCard
             label="Avg closed / day"
@@ -745,16 +971,14 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
             icon={<TrendingUp className="h-4 w-4" />}
             pill={{ text: "14-day avg", tone: "muted" }}
             decimal
+            loading={!closedData}
           />
         </section>
 
-        {/* Active workflows panel */}
+        {/* Open PRs → fallback to active workflows */}
         <Card className="lg:col-span-1 flex flex-col py-0 rounded-md">
           <CardContent className="px-3 py-2.5 flex-1 flex flex-col min-h-0">
-            <ActiveWorkflowsWidget
-              apiPath={`/api/v1/orgs/${ctx.orgSlug}/workflow-runs`}
-              queryKey={["org-workflow-runs", ctx.orgSlug]}
-            />
+            <OrgPRsOrWorkflowsPanel orgSlug={ctx.orgSlug} />
           </CardContent>
         </Card>
       </div>
