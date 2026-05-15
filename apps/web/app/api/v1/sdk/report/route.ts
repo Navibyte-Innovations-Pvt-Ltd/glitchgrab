@@ -9,7 +9,7 @@ import { createGitHubIssue } from "@/lib/github";
 import { uploadScreenshotToS3 } from "@/lib/s3";
 import { dispatchWebhook } from "@/lib/webhooks";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { computeReportSignature, DEDUP_WINDOW_MS } from "@/lib/signature";
+import { computeReportSignature, DEDUP_WINDOW_MS, OPEN_ISSUE_WINDOW_MS } from "@/lib/signature";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -137,27 +137,57 @@ export async function POST(request: Request) {
         : null;
 
     if (body.source === "SDK_AUTO" && signature) {
-      const existing = await prisma.report.findFirst({
+      // Tier 1: same signature within 24h — always suppress
+      const recentDuplicate = await prisma.report.findFirst({
         where: {
           repoId: apiToken.repoId,
           signature,
           createdAt: { gte: new Date(Date.now() - DEDUP_WINDOW_MS) },
-          status: { in: ["CREATED", "PROCESSING", "PENDING"] },
+          status: { in: ["CREATED", "PROCESSING", "PENDING", "DUPLICATE"] },
         },
         orderBy: { createdAt: "desc" },
         include: { issue: true },
       });
 
-      if (existing) {
+      if (recentDuplicate) {
         return NextResponse.json(
           {
             success: true,
             data: {
-              reportId: existing.id,
+              reportId: recentDuplicate.id,
               status: "DUPLICATE",
-              issueUrl: existing.issue?.githubUrl ?? null,
-              issueNumber: existing.issue?.githubNumber ?? null,
+              issueUrl: recentDuplicate.issue?.githubUrl ?? null,
+              issueNumber: recentDuplicate.issue?.githubNumber ?? null,
               message: "Duplicate of recent report — skipped",
+            },
+          },
+          { headers: rateLimitHeaders }
+        );
+      }
+
+      // Tier 2: same signature already has a GitHub issue in last 7 days — suppress
+      const openIssueDuplicate = await prisma.report.findFirst({
+        where: {
+          repoId: apiToken.repoId,
+          signature,
+          createdAt: { gte: new Date(Date.now() - OPEN_ISSUE_WINDOW_MS) },
+          status: "CREATED",
+          issue: { isNot: null },
+        },
+        orderBy: { createdAt: "desc" },
+        include: { issue: true },
+      });
+
+      if (openIssueDuplicate) {
+        return NextResponse.json(
+          {
+            success: true,
+            data: {
+              reportId: openIssueDuplicate.id,
+              status: "DUPLICATE",
+              issueUrl: openIssueDuplicate.issue?.githubUrl ?? null,
+              issueNumber: openIssueDuplicate.issue?.githubNumber ?? null,
+              message: "GitHub issue already exists for this error — skipped",
             },
           },
           { headers: rateLimitHeaders }
