@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import Link from "next/link";
 import { version } from "../package.json";
 import { softwareApplicationSchema } from "@/lib/schema";
 import { BreadcrumbJsonLd, FAQJsonLd } from "@/components/seo/json-ld";
+import { PublicNav } from "@/components/public-nav";
 
 import { WaitlistForm } from "./waitlist-form";
 import { ContactForm } from "./contact-form";
@@ -59,22 +59,6 @@ const FAQS = [
   },
 ];
 
-const PIPELINE = [
-  { n: "01", label: "Capture", desc: "Screenshot + thought", icon: Scan },
-  { n: "02", label: "AI handles it", desc: "GitHub issue created", icon: Brain },
-  { n: "03", label: "Open & ship", desc: "Dashboard → code → done", icon: Github },
-];
-
-function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
-  return (
-    <a
-      href={href}
-      className="font-mono text-xs uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors"
-    >
-      {children}
-    </a>
-  );
-}
 
 
 export const metadata: Metadata = {
@@ -103,50 +87,7 @@ export default function LandingPage() {
         }}
       />
 
-      {/* Top nav */}
-      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-360 items-center justify-between px-4 sm:px-6 h-14">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-linear-to-br from-primary to-primary/60 flex items-center justify-center shadow-[0_0_10px_rgba(34,211,238,0.25)]">
-              <Image src="/logo.png" alt="" width={16} height={16} className="rounded-sm" />
-            </div>
-            <span className="font-mono text-sm font-bold tracking-tight text-foreground lowercase">
-              glitchgrab
-            </span>
-            <span className="font-mono text-[10px] text-muted-foreground border border-border px-1 py-0.5 rounded-sm">
-              v{version}
-            </span>
-          </Link>
-
-          <div className="hidden md:flex items-center gap-8 h-full border-x border-border px-8">
-            <NavLink href="#how-it-works">/features</NavLink>
-            <NavLink href="#pipeline">/pipeline</NavLink>
-            <NavLink href="/docs">/docs</NavLink>
-            <a
-              href="https://github.com/webnaresh/glitchgrab"
-              target="_blank"
-              rel="noopener"
-              className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors"
-            >
-              <Github className="h-3.5 w-3.5" />
-              repo
-            </a>
-          </div>
-
-          <a
-            href="#waitlist"
-            className="group flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors"
-          >
-            <span className="text-border group-hover:text-primary transition-colors">[</span>
-            <kbd className="font-mono text-[10px] py-0.5 px-1.5 border border-border bg-card rounded-sm">
-              ⌘ K
-            </kbd>
-            <span className="hidden sm:inline">Join Waitlist</span>
-            <span className="sm:hidden">Waitlist</span>
-            <span className="text-border group-hover:text-primary transition-colors">]</span>
-          </a>
-        </div>
-      </nav>
+      <PublicNav />
 
       {/* Hero */}
       <section className="relative max-w-360 mx-auto border-x border-border pt-14">
@@ -906,7 +847,7 @@ export default function LandingPage() {
                 From Screenshot to Shipped
               </h2>
               <p className="font-mono text-[10px] text-primary/70 mt-1.5">
-                <span className="text-primary/40">//</span> &ldquo;once a developer, always a developer&rdquo; — even on vacation, you&apos;re shipping.
+                <span className="text-primary/40">{"//"}</span> &ldquo;once a developer, always a developer&rdquo; — even on vacation, you&apos;re shipping.
               </p>
             </div>
             <span className="font-mono text-[10px] px-2 py-0.5 border border-green-400/40 text-green-400 bg-green-400/10 uppercase tracking-widest">
@@ -914,58 +855,60 @@ export default function LandingPage() {
             </span>
           </div>
 
-          <div className="px-4 sm:px-6 pb-8 overflow-x-auto pipeline-scroll">
-            <div className="flex items-stretch gap-1.5 min-w-max pb-2">
-              <div className="flex flex-col gap-2 w-36 xl:w-40 shrink-0">
-                <div className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest">
-                  Input
+          <div className="px-4 sm:px-6 pb-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-border">
+
+              {/* Day 1 — vacation */}
+              <div className="bg-background p-6 flex flex-col gap-4 border-l-4 border-l-muted-foreground group hover:bg-card transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest">Day 1 · on vacation</span>
+                  <Scan className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                 </div>
-                <div className="border border-border bg-background p-3 border-l-4 border-l-muted-foreground text-xs h-28 flex items-center">
-                  <ul className="text-muted-foreground space-y-1 font-mono text-[11px]">
-                    <li>- On vacation</li>
-                    <li>- Spotted something</li>
-                  </ul>
+                <div>
+                  <p className="font-bold text-foreground uppercase tracking-tight text-sm mb-2">Spot. Snap. Drop.</p>
+                  <p className="font-mono text-[11px] text-muted-foreground leading-relaxed">
+                    You&apos;re on a beach. A competitor&apos;s page ranks for something you care about. Screenshot it. Jot a quick thought. Drop it in Glitchgrab. That&apos;s it — go enjoy your vacation.
+                  </p>
+                </div>
+                <div className="mt-auto font-mono text-[10px] text-muted-foreground/50 border-t border-border pt-3 italic">
+                  &ldquo;this ranking pattern — why does it work?&rdquo;
                 </div>
               </div>
 
-              {PIPELINE.map((step) => {
-                const StepIcon = step.icon;
-                return (
-                  <div key={step.n} className="flex items-center">
-                    <div className="w-5 xl:w-6 flex items-center justify-center text-border shrink-0">
-                      <ChevronsRight className="h-4 w-4" />
-                    </div>
-                    <div className="flex flex-col gap-2 w-28 xl:w-32 shrink-0">
-                      <div className="font-mono text-[10px] text-primary uppercase tracking-widest text-center truncate">
-                        {step.n}. {step.label}
-                      </div>
-                      <div className="border border-primary/30 bg-card p-2 text-xs h-28 flex flex-col items-center justify-center text-center gap-1.5 hover:border-primary transition-colors group/step">
-                        <StepIcon className="h-5 w-5 text-foreground group-hover/step:text-primary transition-colors" />
-                        <span className="font-mono text-[10px] text-foreground leading-tight">
-                          {step.desc}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+              {/* While you sleep — AI */}
+              <div className="bg-background p-6 flex flex-col gap-4 group hover:bg-card transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest">While you sleep</span>
+                  <Brain className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                </div>
+                <div>
+                  <p className="font-bold text-foreground uppercase tracking-tight text-sm mb-2">AI handles it.</p>
+                  <p className="font-mono text-[11px] text-muted-foreground leading-relaxed">
+                    Glitchgrab reads your screenshot and note, researches context against your repo, and files a structured GitHub issue — title, steps, priority, labels. Zero input needed from you.
+                  </p>
+                </div>
+                <div className="mt-auto font-mono text-[10px] text-green-400/70 border-t border-border pt-3">
+                  ✓ Issue #42 created · no input needed
+                </div>
+              </div>
 
-              <div className="w-5 xl:w-6 flex items-center justify-center text-border shrink-0">
-                <ChevronsRight className="h-4 w-4" />
-              </div>
-              <div className="flex flex-col gap-2 w-36 xl:w-40 shrink-0">
-                <div className="font-mono text-[10px] text-foreground uppercase tracking-widest">
-                  Output
+              {/* Day 3 — ship it */}
+              <div className="bg-background p-6 flex flex-col gap-4 border-r-4 border-r-primary group hover:bg-card transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[10px] text-primary/70 uppercase tracking-widest">Day 3 · back at desk</span>
+                  <Github className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                 </div>
-                <div className="border border-border bg-card p-3 border-r-4 border-r-primary text-xs h-28 flex flex-col justify-center">
-                  <div className="font-bold text-foreground mb-1">
-                    3 days later
-                  </div>
-                  <div className="font-mono text-[10px] text-muted-foreground leading-tight">
-                    Open Claude Code · ship it
-                  </div>
+                <div>
+                  <p className="font-bold text-foreground uppercase tracking-tight text-sm mb-2">Open. Work. Ship.</p>
+                  <p className="font-mono text-[11px] text-muted-foreground leading-relaxed">
+                    Open Claude Code. Check your Glitchgrab dashboard. The issue is waiting — structured, prioritized, ready to implement. Vacation well spent.
+                  </p>
+                </div>
+                <div className="mt-auto font-mono text-[10px] text-primary/60 border-t border-border pt-3">
+                  PR merged · 3 days, zero context-switching
                 </div>
               </div>
+
             </div>
           </div>
         </div>
