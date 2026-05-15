@@ -78,7 +78,7 @@ const BarList = memo(function BarList({
   return (
     <div className="flex flex-col gap-1">
       {/* mt-28 reserves space above tallest bar for CSS tooltip */}
-      <div className="flex items-end gap-0.5 h-[120px] pb-1 w-full mt-28">
+      <div className="flex items-end gap-0.5 h-30 pb-1 w-full mt-28">
         {barData.map((bucket) => {
           const heightPct = maxCount > 0 ? (bucket.count / maxCount) * 100 : 0;
           return (
@@ -155,7 +155,7 @@ function HoverOverlay({ hoveredDay }: { hoveredDay: DayBucket }) {
       <div className="flex flex-col gap-0.5">
         {Object.entries(repoCounts).map(([repo, count]) => (
           <div key={repo} className="flex items-center gap-2">
-            <span className="text-[10px] font-mono text-muted-foreground/70 truncate max-w-[180px]">
+            <span className="text-[10px] font-mono text-muted-foreground/70 truncate max-w-45">
               {repo.split("/")[1]}
             </span>
             <span className="text-[10px] font-mono text-primary/80 ml-auto shrink-0">
@@ -236,7 +236,7 @@ export function IssuesClosedAnalytics() {
       </div>
 
       {/* Main: 2×2 stats left + chart right */}
-      <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-3 lg:h-[332px]">
+      <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-3 lg:h-83">
         {/* 2×2 stat grid */}
         <div className="grid grid-cols-2 grid-rows-2 gap-2 h-full">
           <StatCard
@@ -290,7 +290,7 @@ export function IssuesClosedAnalytics() {
 
             {isLoading ? (
               <div className="flex flex-col gap-1">
-                <div className="flex items-end gap-0.5 h-[148px] pb-1 w-full mt-5">
+                <div className="flex items-end gap-0.5 h-37 pb-1 w-full mt-5">
                   {[
                     35, 55, 20, 70, 45, 60, 30, 80, 50, 40, 65, 25, 75, 45, 55,
                     30, 70, 40, 60, 35, 50, 25, 65, 45, 30, 70, 55, 40, 60, 35,
