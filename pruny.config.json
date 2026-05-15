@@ -5,7 +5,8 @@
       "/api/webhooks/**",
       "/api/v1/billing/webhook",
       "/api/v1/sdk/reports/**",
-      "/api/mcp"
+      "/api/mcp",
+      "/api/v1/orgs/**/today-activity"
     ],
     "files": ["**/db-sync.ts", "**/components/ui/**", "**/public/favicon-48x48.png"]
   }

@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import { Activity, Loader2, PlayCircle, RefreshCw } from "lucide-react";
+import { Activity, PlayCircle, RefreshCw } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { WorkflowRun, WorkflowRunStatus } from "@/lib/github";
 
 interface RepoWorkflowRuns {
@@ -139,8 +140,16 @@ export function ActiveWorkflowsWidget({
 
       <div className="flex-1 min-h-0">
         {isLoading ? (
-          <div className="flex items-center justify-center py-10 border border-dashed border-border rounded-md">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          <div className="flex flex-col gap-1.5">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-start gap-2.5 rounded-md border border-border/40 px-2.5 py-2">
+                <Skeleton className="h-5 w-5 rounded shrink-0 mt-0.5" />
+                <div className="flex-1 flex flex-col gap-1.5">
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-2 w-1/2" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : activeRuns.length === 0 ? (
           <div className="flex items-center gap-3 border border-dashed border-border rounded-md px-3 py-4">

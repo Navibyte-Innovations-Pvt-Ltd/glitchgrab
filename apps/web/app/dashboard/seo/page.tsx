@@ -74,6 +74,7 @@ export default async function SeoPage({
             createdAt: p.createdAt.toISOString(),
           }))}
           repos={repos}
+          detailHrefPrefix="/dashboard/seo"
           flashMessage={flashMessage}
         />
       </section>
