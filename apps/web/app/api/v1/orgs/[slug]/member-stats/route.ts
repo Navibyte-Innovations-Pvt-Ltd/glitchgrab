@@ -5,8 +5,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getGitHubOrgMembers } from "@/lib/github";
 
-export interface RepoStat { name: string; commits: number }
-export interface MemberStat { commits: number; repos: RepoStat[] }
+interface RepoStat { name: string; commits: number }
+interface MemberStat { commits: number; repos: RepoStat[] }
 
 export async function GET(_req: Request, { params }: { params: Promise<{ slug: string }> }) {
   const session = await auth();
