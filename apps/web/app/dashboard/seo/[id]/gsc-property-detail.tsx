@@ -54,6 +54,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface GscPropertyData {
   id: string;
@@ -429,9 +430,17 @@ export function GscPropertyDetail({
           <SectionHeader label="Indexing" />
 
           {isSyncing && !syncResult && (
-            <div className="border border-dashed border-border rounded p-8 flex items-center justify-center gap-3">
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-              <p className="font-mono text-[11px] text-muted-foreground">Fetching indexing data…</p>
+            <div className="border border-border rounded bg-card/40 overflow-hidden">
+              <div className="px-4 py-3 border-b border-border/60 flex items-center gap-2">
+                <Skeleton className="h-3.5 w-3.5 rounded-full" />
+                <Skeleton className="h-3 w-40" />
+              </div>
+              <div className="p-4 space-y-2.5">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-5/6" />
+                <Skeleton className="h-4 w-4/5" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
             </div>
           )}
 
@@ -636,7 +645,7 @@ export function GscPropertyDetail({
                 <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-widest">Favicon Health</span>
               </div>
               <div className="flex items-center gap-1">
-                {isFaviconFetching && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                {isFaviconFetching && <Skeleton className="h-3 w-14" />}
                 {!isFaviconFetching && faviconData && faviconData.issues.length > 0 && (
                   <>
                     <Tooltip>
@@ -690,7 +699,12 @@ export function GscPropertyDetail({
             </div>
             <div className="p-4">
               {isFaviconError && !isFaviconFetching && <RetryRow onRetry={recheckFavicon} />}
-              {isFaviconFetching && <LoadingRow label="Checking favicon…" />}
+              {isFaviconFetching && (
+                <div className="space-y-2.5">
+                  <div className="flex items-center gap-2"><Skeleton className="h-3.5 w-3.5 rounded-full" /><Skeleton className="h-3.5 w-48" /></div>
+                  <div className="flex items-center gap-2"><Skeleton className="h-3.5 w-3.5 rounded-full" /><Skeleton className="h-3.5 w-36" /></div>
+                </div>
+              )}
               {faviconData && !isFaviconFetching && (
                 faviconData.issues.length === 0
                   ? <p className="font-mono text-[11px] text-green-400">No issues found.</p>
@@ -707,7 +721,7 @@ export function GscPropertyDetail({
                 <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-widest">Social / OG Tags</span>
               </div>
               <div className="flex items-center gap-1">
-                {isOgFetching && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                {isOgFetching && <Skeleton className="h-3 w-14" />}
                 {!isOgFetching && ogData && ogData.issues.length > 0 && (
                   <>
                     <Tooltip>
@@ -762,7 +776,18 @@ export function GscPropertyDetail({
             </div>
             <div className="p-4 space-y-4">
               {isOgError && !isOgFetching && <RetryRow onRetry={recheckOg} />}
-              {isOgFetching && <LoadingRow label="Fetching OG tags…" />}
+              {isOgFetching && (
+                <div className="space-y-4">
+                  <Skeleton className="h-36 w-full rounded" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-4/5" />
+                    <Skeleton className="h-3 w-3/4" />
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-2/3" />
+                  </div>
+                </div>
+              )}
               {ogData && !isOgFetching && (
                 <div className="space-y-4">
                   {/* OG image preview */}
@@ -814,15 +839,6 @@ export function GscPropertyDetail({
 
 function SectionHeader({ label }: { label: string }) {
   return <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest">{label}</p>;
-}
-
-function LoadingRow({ label }: { label: string }) {
-  return (
-    <div className="flex items-center gap-2">
-      <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-      <p className="font-mono text-[11px] text-muted-foreground">{label}</p>
-    </div>
-  );
 }
 
 function RetryRow({ onRetry }: { onRetry: () => void }) {
