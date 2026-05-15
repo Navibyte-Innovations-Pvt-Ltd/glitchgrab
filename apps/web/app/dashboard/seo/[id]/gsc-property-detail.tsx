@@ -610,46 +610,44 @@ export function GscPropertyDetail({
                         {isCheckingFix ? "Checking…" : "Check Fix"}
                       </button>
                       <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const grouped = syncResult.notIndexedPages.reduce<Record<string, string[]>>((acc, p) => {
-                                const key = p.reason ?? "Unknown";
-                                (acc[key] ??= []).push(p.url);
-                                return acc;
-                              }, {});
-                              const lines = Object.entries(grouped).map(([reason, urls]) => `### ${reason} (${urls.length})\n${urls.map((u) => `- ${u}`).join("\n")}`).join("\n\n");
-                              const prompt = `Fix indexing issues for ${property.siteUrl}.\n\n${syncResult.notIndexedPages.length} pages are not indexed by Google:\n\n${lines}\n\nInvestigate and fix each category. For redirects: update to permanent 301s or fix the redirect chain. For unknown URLs: ensure pages are accessible and add to sitemap. For canonical issues: verify canonical tags point to the correct URL.`;
-                              navigator.clipboard.writeText(prompt).then(() => { setCopiedIndexing(true); setTimeout(() => setCopiedIndexing(false), 2000); toast.success("Copied to clipboard"); });
-                            }}
-                            className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-                          >
-                            {copiedIndexing ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
-                          </button>
+                        <TooltipTrigger
+                          type="button"
+                          onClick={() => {
+                            const grouped = syncResult.notIndexedPages.reduce<Record<string, string[]>>((acc, p) => {
+                              const key = p.reason ?? "Unknown";
+                              (acc[key] ??= []).push(p.url);
+                              return acc;
+                            }, {});
+                            const lines = Object.entries(grouped).map(([reason, urls]) => `### ${reason} (${urls.length})\n${urls.map((u) => `- ${u}`).join("\n")}`).join("\n\n");
+                            const prompt = `Fix indexing issues for ${property.siteUrl}.\n\n${syncResult.notIndexedPages.length} pages are not indexed by Google:\n\n${lines}\n\nInvestigate and fix each category. For redirects: update to permanent 301s or fix the redirect chain. For unknown URLs: ensure pages are accessible and add to sitemap. For canonical issues: verify canonical tags point to the correct URL.`;
+                            navigator.clipboard.writeText(prompt).then(() => { setCopiedIndexing(true); setTimeout(() => setCopiedIndexing(false), 2000); toast.success("Copied to clipboard"); });
+                          }}
+                          className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {copiedIndexing ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
                         </TooltipTrigger>
                         <TooltipContent>Copy fix prompt</TooltipContent>
                       </Tooltip>
                       {indexingIssueUrl ? (
                         <Tooltip>
-                          <TooltipTrigger asChild>
-                            <a href={indexingIssueUrl} target="_blank" rel="noopener noreferrer" className="p-1 text-green-400 hover:text-green-300 transition-colors">
-                              <GitPullRequest className="h-3.5 w-3.5" />
-                            </a>
+                          <TooltipTrigger
+                            type="button"
+                            onClick={() => window.open(indexingIssueUrl, "_blank", "noopener,noreferrer")}
+                            className="p-1 text-green-400 hover:text-green-300 transition-colors"
+                          >
+                            <GitPullRequest className="h-3.5 w-3.5" />
                           </TooltipTrigger>
                           <TooltipContent>View GitHub issue</TooltipContent>
                         </Tooltip>
                       ) : (
                         <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              type="button"
-                              onClick={() => createIndexingIssue()}
-                              disabled={!selectedRepoId || isCreatingIndexingIssue}
-                              className="p-1 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                            >
-                              {isCreatingIndexingIssue ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <GitPullRequest className="h-3.5 w-3.5" />}
-                            </button>
+                          <TooltipTrigger
+                            type="button"
+                            onClick={() => createIndexingIssue()}
+                            disabled={!selectedRepoId || isCreatingIndexingIssue}
+                            className="p-1 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            {isCreatingIndexingIssue ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <GitPullRequest className="h-3.5 w-3.5" />}
                           </TooltipTrigger>
                           <TooltipContent>{!selectedRepoId ? "Link a repo first" : "Create GitHub issue"}</TooltipContent>
                         </Tooltip>
