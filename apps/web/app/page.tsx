@@ -61,10 +61,10 @@ const FAQS = [
 
 const PIPELINE = [
   { n: "01", label: "Capture", desc: "Screenshot + URL", icon: Scan },
-  { n: "02", label: "Analyze", desc: "AI reads intent", icon: Brain },
-  { n: "03", label: "Research", desc: "Compare to your site", icon: Search },
-  { n: "04", label: "Draft", desc: "SEO action plan", icon: FileCode },
-  { n: "05", label: "Ship", desc: "GitHub issue ready", icon: Github },
+  { n: "02", label: "Note", desc: "You write the why", icon: MessageSquare },
+  { n: "03", label: "Research", desc: "Match to your repo", icon: Search },
+  { n: "04", label: "Draft", desc: "Action plan ready", icon: FileCode },
+  { n: "05", label: "Ship", desc: "GitHub issue created", icon: Github },
 ];
 
 function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
@@ -907,6 +907,9 @@ export default function LandingPage() {
               <h2 className="text-lg sm:text-xl font-bold text-foreground uppercase tracking-tight">
                 From Screenshot to Shipped
               </h2>
+              <p className="font-mono text-[10px] text-primary/70 mt-1.5">
+                <span className="text-primary/40">//</span> &ldquo;once a developer, always a developer&rdquo; — even on vacation, you&apos;re shipping.
+              </p>
             </div>
             <span className="font-mono text-[10px] px-2 py-0.5 border border-green-400/40 text-green-400 bg-green-400/10 uppercase tracking-widest">
               Fully Automated
