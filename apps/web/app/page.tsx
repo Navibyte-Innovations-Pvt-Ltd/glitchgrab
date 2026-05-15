@@ -397,7 +397,7 @@ export default function LandingPage() {
         <div className="max-w-360 mx-auto border-x border-border px-4 sm:px-6 py-12 lg:py-16">
           <div className="text-center mb-8">
             <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground mb-2">
-              <span className="text-primary">//</span> dashboard preview
+              <span className="text-primary">{"//"}</span> dashboard preview
             </p>
             <h2 className="text-2xl sm:text-3xl font-bold text-foreground lowercase">
               organize your work and org
@@ -455,7 +455,7 @@ export default function LandingPage() {
               </h2>
 
               <p className="font-mono text-xs text-muted-foreground leading-relaxed max-w-sm border-l border-border pl-4">
-                Drop a screenshot or type what's broken. AI turns it into a
+                Drop a screenshot or type what&apos;s broken. AI turns it into a
                 structured GitHub issue — title, steps to reproduce, severity,
                 labels — in seconds.
               </p>
@@ -584,7 +584,7 @@ export default function LandingPage() {
                 </li>
                 <li className="flex items-start gap-2.5">
                   <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
-                  <span>screenshot auto-attached — no need to explain what you're seeing</span>
+                  <span>screenshot auto-attached — no need to explain what you&apos;re seeing</span>
                 </li>
                 <li className="flex items-start gap-2.5">
                   <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
