@@ -350,14 +350,14 @@ export async function fetchRepoDescription(
 
 // ─── Org Types ──────────────────────────────────────────
 
-export interface GitHubOrg {
+interface GitHubOrg {
   id: number;
   login: string;
   description: string | null;
   avatarUrl: string | null;
 }
 
-export interface GitHubOrgRepo {
+interface GitHubOrgRepo {
   id: number;
   fullName: string;
   owner: string;
@@ -438,7 +438,7 @@ export async function getGitHubOrgInfo(accessToken: string, orgLogin: string): P
   }
 }
 
-export interface GitHubOrgMember {
+interface GitHubOrgMember {
   login: string;
   avatarUrl: string;
 }
