@@ -846,62 +846,53 @@ export function GscPropertyDetail({
                   faviconData.issues.length > 0 && (
                     <>
                       <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const lines = faviconData.issues
-                                .map((i) => `- [${i.status}] ${i.text}`)
-                                .join("\n");
-                              const prompt = `Fix the favicon issues for ${property.siteUrl}.\n\nIssues detected by RealFaviconGenerator:\n${lines}\n\nGenerate and add all missing favicon files and correct <link> tags in <head>. Include ICO, PNG (16×16, 32×32, 96×96, 180×180), SVG, and web manifest.`;
-                              navigator.clipboard.writeText(prompt).then(() => {
-                                setCopiedFavicon(true);
-                                setTimeout(() => setCopiedFavicon(false), 2000);
-                                toast.success("Copied to clipboard");
-                              });
-                            }}
-                            className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-                          >
-                            {copiedFavicon ? (
-                              <Check className="h-3.5 w-3.5 text-green-400" />
-                            ) : (
-                              <Copy className="h-3.5 w-3.5" />
-                            )}
-                          </button>
+                        <TooltipTrigger
+                          type="button"
+                          onClick={() => {
+                            const lines = faviconData.issues
+                              .map((i) => `- [${i.status}] ${i.text}`)
+                              .join("\n");
+                            const prompt = `Fix the favicon issues for ${property.siteUrl}.\n\nIssues detected by RealFaviconGenerator:\n${lines}\n\nGenerate and add all missing favicon files and correct <link> tags in <head>. Include ICO, PNG (16×16, 32×32, 96×96, 180×180), SVG, and web manifest.`;
+                            navigator.clipboard.writeText(prompt).then(() => {
+                              setCopiedFavicon(true);
+                              setTimeout(() => setCopiedFavicon(false), 2000);
+                              toast.success("Copied to clipboard");
+                            });
+                          }}
+                          className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {copiedFavicon ? (
+                            <Check className="h-3.5 w-3.5 text-green-400" />
+                          ) : (
+                            <Copy className="h-3.5 w-3.5" />
+                          )}
                         </TooltipTrigger>
                         <TooltipContent>Copy fix prompt</TooltipContent>
                       </Tooltip>
                       {faviconIssueUrl ? (
                         <Tooltip>
-                          <TooltipTrigger asChild>
-                            <a
-                              href={faviconIssueUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="p-1 text-green-400 hover:text-green-300 transition-colors"
-                            >
-                              <GitPullRequest className="h-3.5 w-3.5" />
-                            </a>
+                          <TooltipTrigger
+                            type="button"
+                            onClick={() => window.open(faviconIssueUrl, "_blank", "noopener,noreferrer")}
+                            className="p-1 text-green-400 hover:text-green-300 transition-colors"
+                          >
+                            <GitPullRequest className="h-3.5 w-3.5" />
                           </TooltipTrigger>
                           <TooltipContent>View GitHub issue</TooltipContent>
                         </Tooltip>
                       ) : (
                         <Tooltip>
-                          <TooltipTrigger asChild>
-                            <button
-                              type="button"
-                              onClick={() => createFaviconIssue()}
-                              disabled={
-                                !selectedRepoId || isCreatingFaviconIssue
-                              }
-                              className="p-1 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                            >
-                              {isCreatingFaviconIssue ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <GitPullRequest className="h-3.5 w-3.5" />
-                              )}
-                            </button>
+                          <TooltipTrigger
+                            type="button"
+                            onClick={() => createFaviconIssue()}
+                            disabled={!selectedRepoId || isCreatingFaviconIssue}
+                            className="p-1 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            {isCreatingFaviconIssue ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <GitPullRequest className="h-3.5 w-3.5" />
+                            )}
                           </TooltipTrigger>
                           <TooltipContent>
                             {!selectedRepoId
@@ -964,67 +955,60 @@ export function GscPropertyDetail({
                 {!isOgFetching && ogData && ogData.issues.length > 0 && (
                   <>
                     <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const lines = ogData.issues
-                              .map(
-                                (i) =>
-                                  `- [${i.severity.toUpperCase()}] ${i.field}: ${i.message}`,
-                              )
-                              .join("\n");
-                            const tagLines = Object.entries(ogData.tags)
-                              .filter(([, v]) => v)
-                              .map(([k, v]) => `  ${k}: ${v}`)
-                              .join("\n");
-                            const prompt = `Fix the Open Graph / social meta tag issues for ${property.siteUrl}.\n\nCurrent tags:\n${tagLines}\n\nIssues:\n${lines}\n\nAdd or fix missing/incorrect OG and Twitter meta tags in <head>. Use og:image at least 1200×630px. Set twitter:card to 'summary_large_image'.`;
-                            navigator.clipboard.writeText(prompt).then(() => {
-                              setCopiedOg(true);
-                              setTimeout(() => setCopiedOg(false), 2000);
-                              toast.success("Copied to clipboard");
-                            });
-                          }}
-                          className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          {copiedOg ? (
-                            <Check className="h-3.5 w-3.5 text-green-400" />
-                          ) : (
-                            <Copy className="h-3.5 w-3.5" />
-                          )}
-                        </button>
+                      <TooltipTrigger
+                        type="button"
+                        onClick={() => {
+                          const lines = ogData.issues
+                            .map(
+                              (i) =>
+                                `- [${i.severity.toUpperCase()}] ${i.field}: ${i.message}`,
+                            )
+                            .join("\n");
+                          const tagLines = Object.entries(ogData.tags)
+                            .filter(([, v]) => v)
+                            .map(([k, v]) => `  ${k}: ${v}`)
+                            .join("\n");
+                          const prompt = `Fix the Open Graph / social meta tag issues for ${property.siteUrl}.\n\nCurrent tags:\n${tagLines}\n\nIssues:\n${lines}\n\nAdd or fix missing/incorrect OG and Twitter meta tags in <head>. Use og:image at least 1200×630px. Set twitter:card to 'summary_large_image'.`;
+                          navigator.clipboard.writeText(prompt).then(() => {
+                            setCopiedOg(true);
+                            setTimeout(() => setCopiedOg(false), 2000);
+                            toast.success("Copied to clipboard");
+                          });
+                        }}
+                        className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {copiedOg ? (
+                          <Check className="h-3.5 w-3.5 text-green-400" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" />
+                        )}
                       </TooltipTrigger>
                       <TooltipContent>Copy fix prompt</TooltipContent>
                     </Tooltip>
                     {ogIssueUrl ? (
                       <Tooltip>
-                        <TooltipTrigger asChild>
-                          <a
-                            href={ogIssueUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-1 text-green-400 hover:text-green-300 transition-colors"
-                          >
-                            <GitPullRequest className="h-3.5 w-3.5" />
-                          </a>
+                        <TooltipTrigger
+                          type="button"
+                          onClick={() => window.open(ogIssueUrl, "_blank", "noopener,noreferrer")}
+                          className="p-1 text-green-400 hover:text-green-300 transition-colors"
+                        >
+                          <GitPullRequest className="h-3.5 w-3.5" />
                         </TooltipTrigger>
                         <TooltipContent>View GitHub issue</TooltipContent>
                       </Tooltip>
                     ) : (
                       <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            type="button"
-                            onClick={() => createOgIssue()}
-                            disabled={!selectedRepoId || isCreatingOgIssue}
-                            className="p-1 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                          >
-                            {isCreatingOgIssue ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <GitPullRequest className="h-3.5 w-3.5" />
-                            )}
-                          </button>
+                        <TooltipTrigger
+                          type="button"
+                          onClick={() => createOgIssue()}
+                          disabled={!selectedRepoId || isCreatingOgIssue}
+                          className="p-1 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          {isCreatingOgIssue ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <GitPullRequest className="h-3.5 w-3.5" />
+                          )}
                         </TooltipTrigger>
                         <TooltipContent>
                           {!selectedRepoId
