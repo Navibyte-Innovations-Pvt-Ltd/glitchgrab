@@ -71,12 +71,14 @@ interface Repo {
 interface GscPropertiesClientProps {
   initialProperties: GscPropertyWithStats[];
   repos: Repo[];
+  detailHrefPrefix: string;
   flashMessage?: { type: "success" | "error"; text: string };
 }
 
 export function GscPropertiesClient({
   initialProperties,
   repos,
+  detailHrefPrefix,
   flashMessage,
 }: GscPropertiesClientProps) {
   const queryClient = useQueryClient();
@@ -266,6 +268,7 @@ export function GscPropertiesClient({
             key={property.id}
             property={property}
             repos={repos}
+            detailHrefPrefix={detailHrefPrefix}
             selected={selectedIds.has(property.id)}
             onToggleSelect={() => toggleSelect(property.id)}
             onMutated={() => {
@@ -385,6 +388,7 @@ function ConnectButtons() {
 interface PropertyRowProps {
   property: GscPropertyWithStats;
   repos: Repo[];
+  detailHrefPrefix: string;
   selected: boolean;
   onToggleSelect: () => void;
   onMutated: () => void;
@@ -404,7 +408,7 @@ interface FaviconCheckData {
   warningCount: number;
 }
 
-function PropertyRow({ property, repos, selected, onToggleSelect, onMutated }: PropertyRowProps) {
+function PropertyRow({ property, repos, detailHrefPrefix, selected, onToggleSelect, onMutated }: PropertyRowProps) {
   const [selectedRepoId, setSelectedRepoId] = useState(property.repoId ?? "");
   const [repoPickerOpen, setRepoPickerOpen] = useState(false);
   const [faviconOpen, setFaviconOpen] = useState(false);
@@ -515,7 +519,7 @@ function PropertyRow({ property, repos, selected, onToggleSelect, onMutated }: P
             />
             <SiteFavicon siteUrl={property.siteUrl} />
             <Link
-              href={`/dashboard/seo/${property.id}`}
+              href={`${detailHrefPrefix}/${property.id}`}
               className="font-mono text-sm text-foreground truncate hover:text-primary transition-colors"
             >
               {property.siteUrl}
