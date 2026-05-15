@@ -47,9 +47,12 @@
   },
   "ignoreDependencies": [
     "@semantic-release/changelog",
-    "@semantic-release/git"
+    "@semantic-release/git",
+    "@tailwindcss/postcss",
+    "tailwindcss",
+    "shadcn",
+    "tw-animate-css"
   ],
   "ignoreBinaries": ["prisma", "expo", "adb", "semantic-release"],
-  "ignore": ["apps/scripts/**"],
   "ignoreExportsUsedInFile": true
 }
