@@ -5,6 +5,7 @@ import { GlitchgrabSDKProvider } from "@/components/providers/glitchgrab-provide
 import { QueryProvider } from "@/components/providers/query-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { OrganizationJsonLd, WebSiteJsonLd } from "@/components/seo/json-ld";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const BASE_URL = "https://glitchgrab.dev";
 
@@ -91,9 +92,11 @@ export default function RootLayout({
       <body>
         <AuthSessionProvider>
           <QueryProvider>
-            <GlitchgrabSDKProvider>
-              {children}
-            </GlitchgrabSDKProvider>
+            <TooltipProvider delayDuration={300}>
+              <GlitchgrabSDKProvider>
+                {children}
+              </GlitchgrabSDKProvider>
+            </TooltipProvider>
           </QueryProvider>
           <Toaster />
         </AuthSessionProvider>
