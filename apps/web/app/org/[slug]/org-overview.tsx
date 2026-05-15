@@ -406,8 +406,8 @@ function OrgIssuesClosedPreview({ orgSlug }: { orgSlug: string }) {
       {isLoading ? (
         <div className="flex flex-col gap-2">
           <div className="flex items-end gap-0.5 h-28 w-full">
-            {Array.from({ length: 14 }).map((_, i) => (
-              <Skeleton key={i} className="flex-1 rounded-t-xs" style={{ height: `${20 + Math.random() * 60}%` }} />
+            {[45, 72, 30, 88, 55, 40, 65, 80, 35, 70, 50, 60, 78, 42].map((h, i) => (
+              <Skeleton key={i} className="flex-1 rounded-t-xs" style={{ height: `${h}%` }} />
             ))}
           </div>
           <Skeleton className="h-3 w-40" />
