@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const days = Math.min(90, Math.max(7, parseInt(searchParams.get("days") ?? "30", 10)));
 
-    const repos = await prisma.repo.findMany({ where: { userId }, select: { id: true } });
+    const repos = await prisma.repo.findMany({ where: { userId }, select: { id: true, fullName: true } });
     const repoIds = repos.map((r) => r.id);
 
     const today = new Date();
@@ -56,11 +56,6 @@ export async function GET(request: Request) {
       });
       accessToken = account?.access_token ?? null;
     }
-
-    const repos = await prisma.repo.findMany({
-      where: { id: { in: repoIds } },
-      select: { fullName: true },
-    });
 
     const since = startDate.toISOString();
 
