@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import { Loader2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useMemo } from "react";
 
 interface ContribDay {
@@ -71,8 +71,21 @@ export function GithubContributions({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      <div className="flex gap-2">
+        <div className="flex flex-col gap-1 w-6 shrink-0">
+          {Array.from({ length: 7 }).map((_, i) => (
+            <Skeleton key={i} className="h-3.25 w-4" />
+          ))}
+        </div>
+        <div className="flex flex-1 gap-1">
+          {Array.from({ length: 52 }).map((_, wi) => (
+            <div key={wi} className="flex-1 flex flex-col gap-1">
+              {Array.from({ length: 7 }).map((_, di) => (
+                <Skeleton key={di} className="aspect-square w-full rounded-[2px]" />
+              ))}
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
