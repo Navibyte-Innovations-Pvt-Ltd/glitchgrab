@@ -630,56 +630,54 @@ export function GscPropertyDetail({
                 <ScanSearch className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-widest">Favicon Health</span>
               </div>
-              {isFaviconFetching && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
-              {!isFaviconFetching && faviconData && (
-                <StatusBadge errors={faviconData.errorCount} warnings={faviconData.warningCount} />
-              )}
+              <div className="flex items-center gap-1">
+                {isFaviconFetching && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                {!isFaviconFetching && faviconData && faviconData.issues.length > 0 && (
+                  <>
+                    <button
+                      type="button"
+                      title="Copy fix prompt"
+                      onClick={() => {
+                        const lines = faviconData.issues.map((i) => `- [${i.status}] ${i.text}`).join("\n");
+                        const prompt = `Fix the favicon issues for ${property.siteUrl}.\n\nIssues detected by RealFaviconGenerator:\n${lines}\n\nGenerate and add all missing favicon files and correct <link> tags in <head>. Include ICO, PNG (16×16, 32×32, 96×96, 180×180), SVG, and web manifest.`;
+                        navigator.clipboard.writeText(prompt).then(() => { setCopiedFavicon(true); setTimeout(() => setCopiedFavicon(false), 2000); toast.success("Copied to clipboard"); });
+                      }}
+                      className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {copiedFavicon ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+                    </button>
+                    {faviconIssueUrl ? (
+                      <a
+                        href={faviconIssueUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="View GitHub issue"
+                        className="p-1 text-green-400 hover:text-green-300 transition-colors"
+                      >
+                        <GitPullRequest className="h-3.5 w-3.5" />
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => createFaviconIssue()}
+                        disabled={!selectedRepoId || isCreatingFaviconIssue}
+                        title={!selectedRepoId ? "Link a repo first" : "Create GitHub issue"}
+                        className="p-1 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {isCreatingFaviconIssue ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <GitPullRequest className="h-3.5 w-3.5" />}
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
-            <div className="p-4 space-y-3">
+            <div className="p-4">
               {isFaviconError && !isFaviconFetching && <RetryRow onRetry={recheckFavicon} />}
               {isFaviconFetching && <LoadingRow label="Checking favicon…" />}
               {faviconData && !isFaviconFetching && (
                 faviconData.issues.length === 0
                   ? <p className="font-mono text-[11px] text-green-400">No issues found.</p>
-                  : (
-                    <div className="space-y-3">
-                      <IssueList issues={faviconData.issues.map((i) => ({ severity: i.status === "Error" ? "error" as const : "warning" as const, message: i.text }))} />
-                      <div className="flex flex-wrap gap-x-4 gap-y-2 pt-1">
-                        <CopyPromptButton
-                          copied={copiedFavicon}
-                          onCopy={() => {
-                            const lines = faviconData.issues.map((i) => `- [${i.status}] ${i.text}`).join("\n");
-                            const prompt = `Fix the favicon issues for ${property.siteUrl}.\n\nIssues detected by RealFaviconGenerator:\n${lines}\n\nGenerate and add all missing favicon files and correct <link> tags in <head>. Include ICO, PNG (16×16, 32×32, 96×96, 180×180), SVG, and web manifest.`;
-                            navigator.clipboard.writeText(prompt).then(() => { setCopiedFavicon(true); setTimeout(() => setCopiedFavicon(false), 2000); });
-                          }}
-                        />
-                        {faviconIssueUrl ? (
-                          <a
-                            href={faviconIssueUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-green-400 hover:underline"
-                          >
-                            <GitPullRequest className="h-3 w-3" />
-                            View Issue
-                          </a>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => createFaviconIssue()}
-                            disabled={!selectedRepoId || isCreatingFaviconIssue}
-                            title={!selectedRepoId ? "Link a repo first" : "Create GitHub issue"}
-                            className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                          >
-                            {isCreatingFaviconIssue
-                              ? <Loader2 className="h-3 w-3 animate-spin" />
-                              : <GitPullRequest className="h-3 w-3" />}
-                            {isCreatingFaviconIssue ? "Creating…" : "Create Issue"}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )
+                  : <IssueList issues={faviconData.issues.map((i) => ({ severity: i.status === "Error" ? "error" as const : "warning" as const, message: i.text }))} />
               )}
             </div>
           </div>
@@ -691,8 +689,47 @@ export function GscPropertyDetail({
                 <Share2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-widest">Social / OG Tags</span>
               </div>
-              {isOgFetching && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
-              {!isOgFetching && ogData && <StatusBadge errors={ogErrors} warnings={ogWarnings} />}
+              <div className="flex items-center gap-1">
+                {isOgFetching && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                {!isOgFetching && ogData && ogData.issues.length > 0 && (
+                  <>
+                    <button
+                      type="button"
+                      title="Copy fix prompt"
+                      onClick={() => {
+                        const lines = ogData.issues.map((i) => `- [${i.severity.toUpperCase()}] ${i.field}: ${i.message}`).join("\n");
+                        const tagLines = Object.entries(ogData.tags).filter(([, v]) => v).map(([k, v]) => `  ${k}: ${v}`).join("\n");
+                        const prompt = `Fix the Open Graph / social meta tag issues for ${property.siteUrl}.\n\nCurrent tags:\n${tagLines}\n\nIssues:\n${lines}\n\nAdd or fix missing/incorrect OG and Twitter meta tags in <head>. Use og:image at least 1200×630px. Set twitter:card to 'summary_large_image'.`;
+                        navigator.clipboard.writeText(prompt).then(() => { setCopiedOg(true); setTimeout(() => setCopiedOg(false), 2000); toast.success("Copied to clipboard"); });
+                      }}
+                      className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {copiedOg ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+                    </button>
+                    {ogIssueUrl ? (
+                      <a
+                        href={ogIssueUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="View GitHub issue"
+                        className="p-1 text-green-400 hover:text-green-300 transition-colors"
+                      >
+                        <GitPullRequest className="h-3.5 w-3.5" />
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => createOgIssue()}
+                        disabled={!selectedRepoId || isCreatingOgIssue}
+                        title={!selectedRepoId ? "Link a repo first" : "Create GitHub issue"}
+                        className="p-1 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {isCreatingOgIssue ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <GitPullRequest className="h-3.5 w-3.5" />}
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
             <div className="p-4 space-y-4">
               {isOgError && !isOgFetching && <RetryRow onRetry={recheckOg} />}
@@ -731,43 +768,8 @@ export function GscPropertyDetail({
                   </div>
 
                   {ogData.issues.length > 0 && (
-                    <div className="space-y-3 pt-1 border-t border-border/40">
+                    <div className="pt-1 border-t border-border/40">
                       <IssueList issues={ogData.issues.map((i) => ({ severity: i.severity, message: i.message }))} />
-                      <div className="flex flex-wrap gap-x-4 gap-y-2">
-                        <CopyPromptButton
-                          copied={copiedOg}
-                          onCopy={() => {
-                            const lines = ogData.issues.map((i) => `- [${i.severity.toUpperCase()}] ${i.field}: ${i.message}`).join("\n");
-                            const tagLines = Object.entries(ogData.tags).filter(([, v]) => v).map(([k, v]) => `  ${k}: ${v}`).join("\n");
-                            const prompt = `Fix the Open Graph / social meta tag issues for ${property.siteUrl}.\n\nCurrent tags:\n${tagLines}\n\nIssues:\n${lines}\n\nAdd or fix missing/incorrect OG and Twitter meta tags in <head>. Use og:image at least 1200×630px. Set twitter:card to 'summary_large_image'.`;
-                            navigator.clipboard.writeText(prompt).then(() => { setCopiedOg(true); setTimeout(() => setCopiedOg(false), 2000); });
-                          }}
-                        />
-                        {ogIssueUrl ? (
-                          <a
-                            href={ogIssueUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-green-400 hover:underline"
-                          >
-                            <GitPullRequest className="h-3 w-3" />
-                            View Issue
-                          </a>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => createOgIssue()}
-                            disabled={!selectedRepoId || isCreatingOgIssue}
-                            title={!selectedRepoId ? "Link a repo first" : "Create GitHub issue"}
-                            className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                          >
-                            {isCreatingOgIssue
-                              ? <Loader2 className="h-3 w-3 animate-spin" />
-                              : <GitPullRequest className="h-3 w-3" />}
-                            {isCreatingOgIssue ? "Creating…" : "Create Issue"}
-                          </button>
-                        )}
-                      </div>
                     </div>
                   )}
                 </div>
@@ -783,12 +785,6 @@ export function GscPropertyDetail({
 
 function SectionHeader({ label }: { label: string }) {
   return <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest">{label}</p>;
-}
-
-function StatusBadge({ errors, warnings }: { errors: number; warnings: number }) {
-  if (errors > 0) return <span className="font-mono text-[10px] text-red-400">{errors} error{errors > 1 ? "s" : ""}</span>;
-  if (warnings > 0) return <span className="font-mono text-[10px] text-amber-400">{warnings} warning{warnings > 1 ? "s" : ""}</span>;
-  return <span className="font-mono text-[10px] text-green-400">ok</span>;
 }
 
 function LoadingRow({ label }: { label: string }) {
@@ -821,19 +817,6 @@ function IssueList({ issues }: { issues: { severity: "error" | "warning"; messag
         </li>
       ))}
     </ul>
-  );
-}
-
-function CopyPromptButton({ copied, onCopy }: { copied: boolean; onCopy: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onCopy}
-      className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
-    >
-      {copied ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
-      {copied ? "Copied!" : "Copy fix prompt"}
-    </button>
   );
 }
 
