@@ -1,3 +1,28 @@
+## [1.29.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.28.0...v1.29.0) (2026-05-15)
+
+### Features
+
+* **api/orgs:** add GET /orgs/[slug]/pull-requests endpoint ([205df7a](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/205df7a6ee10a006ec20dbb5d15be967b83eba46))
+* **org-overview:** add open PRs tab with workflows fallback and skeleton loading ([7daaeec](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/7daaeec368f4464ead073998094f2922d4f9b163))
+* **org:** add member-stats API — today commits per GitHub org member including pending ([5a0e548](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/5a0e548b5a0034a00ccbb9c93b3af9742c545b7c))
+* **seo:** add skeleton loading for GSC properties list page ([ca55d37](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/ca55d370a9ec14db9cc29d0a271de2857660034b))
+* **seo:** add skeleton loading for org SEO properties list page ([69b7f8f](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/69b7f8f608bd4dfb4ad12a8b0c56cfe53a66a2c8))
+* **seo:** add two-column skeleton loading for GSC property detail page ([075d76d](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/075d76d0fd70acc90357743f5c81367e97a57558))
+* **seo:** add two-column skeleton loading for org GSC property detail page ([8b070bc](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/8b070bcdee566f2dfd69a0729035b9934d290571))
+
+### Bug Fixes
+
+* **active-workflows:** replace spinner with skeleton rows on loading ([b9db3d2](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/b9db3d2179382c2e0d839d4d6099485079d57b13))
+* **github-contributions:** replace spinner with full 52×7 skeleton heatmap grid on loading ([53115f5](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/53115f5700c29bc58890c0f1cb0d2d7451b0d187))
+* **github-contributions:** update skeleton component styling for consistency ([53798c5](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/53798c57a404e080762baa362a2f89940d963fa1))
+* **member-stats:** remove export from internal-only interfaces to satisfy pruny ([3902789](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/3902789b8576290aa680499b7dc5c0c41ae9619f))
+* **org-overview:** shrink PR panel skeleton to prevent layout shift ([3792416](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/37924162eb375725e59dabbaf08cc8ff8487eb00))
+* **overview:** replace Math.random in render with static height array for skeleton bars ([99841db](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/99841dbe22871b811811e88b4dc858be0e11f495))
+* **seo:** pass detailHrefPrefix prop to avoid hardcoded /dashboard/seo link in org context ([a4ed37c](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/a4ed37c1b7923ea1e120eb1135c39e21f0221cbc))
+* **seo:** replace circular spinner with skeleton in dashboard loading fallback ([10a60b6](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/10a60b6ffdb47fcb5eb6ad3f310452cd87c87f8e))
+* **seo:** supply detailHrefPrefix to GscPropertiesClient in dashboard ([462d380](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/462d38087601786d8422f0bdfd43b94092b62ab6))
+* **seo:** supply org-scoped detailHrefPrefix so property links stay within org routing ([bcfd93c](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/bcfd93c201b164fa36a257201ae330b7eb08d1bb))
+
 ## [1.28.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.27.0...v1.28.0) (2026-05-15)
 
 ### Features
