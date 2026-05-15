@@ -33,6 +33,7 @@ import {
   GitFork,
   BarChart3,
   Search,
+  ScanSearch,
 } from "lucide-react";
 
 const FAQS = [
@@ -888,6 +889,74 @@ export default function LandingPage() {
                   <span>structured data auto-generated — schema.org out of the box</span>
                 </li>
               </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Google Search Console section */}
+      <section className="border-b border-border bg-background/40">
+        <div className="max-w-360 mx-auto border-x border-border">
+          <div className="grid lg:grid-cols-2 gap-0">
+            {/* Left — copy */}
+            <div className="flex flex-col justify-center gap-6 px-6 sm:px-10 py-12 lg:py-16 order-1">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-primary flex items-center gap-2">
+                <ScanSearch className="h-3.5 w-3.5" />
+                gsc · indexing health
+              </div>
+
+              <h2 className="text-2xl sm:text-3xl font-bold text-foreground lowercase leading-tight">
+                see exactly what google sees.
+                <br />
+                <span className="text-muted-foreground">fix it before it costs you.</span>
+              </h2>
+
+              <p className="font-mono text-xs text-muted-foreground leading-relaxed max-w-sm border-l border-border pl-4">
+                Connect Google Search Console and get a full indexing report — which pages Google crawled, which it skipped, and why. Reindex with one click.
+              </p>
+
+              <ul className="flex flex-col gap-3 font-mono text-xs text-muted-foreground">
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>indexed vs not-indexed — grouped by crawl reason</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>favicon health + OG tag audit — auto-checked on every sync</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                  <span>one-click reindex — submit pages directly to Google</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Right — screenshot */}
+            <div className="flex items-center justify-center px-6 sm:px-10 py-12 lg:py-16 bg-background/30 border-t lg:border-t-0 lg:border-l border-border order-2">
+              <div className="relative w-full max-w-lg">
+                <div className="rounded-t-lg border border-border border-b-0 bg-card px-4 py-2.5 flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-red-500/70" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/70" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-green-500/70" />
+                  <div className="ml-3 flex-1 bg-background border border-border rounded-sm px-3 py-0.5 font-mono text-[10px] text-muted-foreground">
+                    glitchgrab.dev/seo/property
+                  </div>
+                </div>
+                <div className="border border-border rounded-b-lg overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.4)]">
+                  <Image
+                    src="/meta/google-seo.webp"
+                    alt="Glitchgrab GSC — Google Search Console indexing health, favicon check, OG tags"
+                    width={1218}
+                    height={756}
+                    className="w-full h-auto block"
+                  />
+                </div>
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -inset-px rounded-lg"
+                  style={{ boxShadow: "0 0 50px 8px color-mix(in srgb, var(--primary) 6%, transparent)" }}
+                />
+              </div>
             </div>
           </div>
         </div>
