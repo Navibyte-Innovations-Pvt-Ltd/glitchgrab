@@ -60,11 +60,9 @@ const FAQS = [
 ];
 
 const PIPELINE = [
-  { n: "01", label: "Capture", desc: "Screenshot + URL", icon: Scan },
-  { n: "02", label: "Note", desc: "You write the why", icon: MessageSquare },
-  { n: "03", label: "Research", desc: "Match to your repo", icon: Search },
-  { n: "04", label: "Draft", desc: "Action plan ready", icon: FileCode },
-  { n: "05", label: "Ship", desc: "GitHub issue created", icon: Github },
+  { n: "01", label: "Capture", desc: "Screenshot + thought", icon: Scan },
+  { n: "02", label: "AI handles it", desc: "GitHub issue created", icon: Brain },
+  { n: "03", label: "Open & ship", desc: "Dashboard → code → done", icon: Github },
 ];
 
 function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
@@ -925,8 +923,7 @@ export default function LandingPage() {
                 <div className="border border-border bg-background p-3 border-l-4 border-l-muted-foreground text-xs h-28 flex items-center">
                   <ul className="text-muted-foreground space-y-1 font-mono text-[11px]">
                     <li>- On vacation</li>
-                    <li>- Spot a great site</li>
-                    <li>- Snap screenshot</li>
+                    <li>- Spotted something</li>
                   </ul>
                 </div>
               </div>
@@ -962,10 +959,10 @@ export default function LandingPage() {
                 </div>
                 <div className="border border-border bg-card p-3 border-r-4 border-r-primary text-xs h-28 flex flex-col justify-center">
                   <div className="font-bold text-foreground mb-1">
-                    Ready in 4-5 days
+                    3 days later
                   </div>
                   <div className="font-mono text-[10px] text-muted-foreground leading-tight">
-                    Plan · Issues · Priority
+                    Open Claude Code · ship it
                   </div>
                 </div>
               </div>
