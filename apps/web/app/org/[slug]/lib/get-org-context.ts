@@ -31,7 +31,7 @@ async function fetchUserRepos(accessToken: string): Promise<OrgRepo[]> {
   return results;
 }
 
-export interface OrgRepo {
+interface OrgRepo {
   id: string;
   fullName: string;
   owner: string;
