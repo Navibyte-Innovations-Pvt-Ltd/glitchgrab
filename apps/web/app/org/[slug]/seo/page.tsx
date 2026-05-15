@@ -61,6 +61,7 @@ export default async function OrgSeoPage({
           createdAt: p.createdAt.toISOString(),
         }))}
         repos={repos}
+        detailHrefPrefix={`/org/${slug}/seo`}
         flashMessage={flashMessage}
       />
     </div>
