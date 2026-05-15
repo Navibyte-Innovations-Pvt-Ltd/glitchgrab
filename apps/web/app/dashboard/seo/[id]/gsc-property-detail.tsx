@@ -414,17 +414,36 @@ export function GscPropertyDetail({
     if (!initialProperty.lastSyncAt) syncNow();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const ogErrors =
-    ogData?.issues.filter((i) => i.severity === "error").length ?? 0;
-  const ogWarnings =
-    ogData?.issues.filter((i) => i.severity === "warning").length ?? 0;
 
   const repoAction = (
-    <Popover open={repoPickerOpen} onOpenChange={setRepoPickerOpen}>
+    <div className="flex items-center gap-2">
+      <AlertDialog>
+        <AlertDialogTrigger
+          disabled={isDisconnecting}
+          className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-3 py-1.5 rounded border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isDisconnecting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+          {isDisconnecting ? "Removing…" : "Disconnect"}
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Disconnect property?</AlertDialogTitle>
+            <AlertDialogDescription>Removes the GSC connection for this property.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <p className="font-mono text-xs break-all text-foreground px-1">{property.siteUrl}</p>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => disconnect()} className="bg-red-600 hover:bg-red-700 text-white">
+              Disconnect
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <Popover open={repoPickerOpen} onOpenChange={setRepoPickerOpen}>
       <PopoverTrigger
         disabled={isLinking}
         className={cn(
-          "flex items-center gap-2 font-mono text-[11px] bg-background border border-border rounded px-3 py-1.5 text-left transition-colors disabled:opacity-60 max-w-[200px]",
+          "flex items-center gap-2 font-mono text-[11px] bg-background border border-border rounded px-3 py-1.5 text-left transition-colors disabled:opacity-60 max-w-50",
           repoPickerOpen ? "border-primary/50" : "hover:border-primary/30"
         )}
       >
@@ -457,6 +476,7 @@ export function GscPropertyDetail({
         </Command>
       </PopoverContent>
     </Popover>
+    </div>
   );
 
   return (
@@ -481,129 +501,24 @@ export function GscPropertyDetail({
         action={repoAction}
       />
 
-      {/* ── Top: stats + progress ── */}
+      {/* ── Stats + action cards ── */}
       <div className="space-y-3">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatCard
-            label="Indexed"
-            value={property.indexedCount}
-            accent="green"
-          />
-          <StatCard
-            label="Not Indexed"
-            value={property.notIndexedCount}
-            accent="red"
-          />
+          <StatCard label="Indexed" value={property.indexedCount} accent="green" />
+          <StatCard label="Not Indexed" value={property.notIndexedCount} accent="red" />
           <StatCard label="Total Checked" value={total} />
-          <StatCard
-            label="Index Rate"
-            value={total > 0 ? `${indexedPct}%` : "—"}
-          />
+          <StatCard label="Index Rate" value={total > 0 ? `${indexedPct}%` : "—"} />
         </div>
+
         {total > 0 && (
           <div className="space-y-1">
             <div className="h-1 bg-border rounded-full overflow-hidden">
-              <div
-                className="h-full bg-green-400 rounded-full transition-all duration-500"
-                style={{ width: `${indexedPct}%` }}
-              />
+              <div className="h-full bg-green-400 rounded-full transition-all duration-500" style={{ width: `${indexedPct}%` }} />
             </div>
-            <p className="font-mono text-[10px] text-muted-foreground">
-              {property.indexedCount} of {total} pages indexed
-            </p>
+            <p className="font-mono text-[10px] text-muted-foreground">{property.indexedCount} of {total} pages indexed</p>
           </div>
         )}
-      </div>
 
-      {/* ── Action bar ── */}
-      <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-border/40">
-        <button
-          type="button"
-          onClick={() => syncNow()}
-          disabled={isSyncing || isReindexing}
-          className={cn(
-            "inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-4 py-2 rounded border transition-colors",
-            isSyncing
-              ? "opacity-60 cursor-not-allowed border-border text-muted-foreground"
-              : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5",
-          )}
-        >
-          {isSyncing ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <RefreshCw className="h-3.5 w-3.5" />
-          )}
-          {isSyncing ? "Syncing…" : "Sync Now"}
-        </button>
-        {property.lastSyncAt && !isSyncing && (
-          <span className="font-mono text-[10px] text-muted-foreground/60">
-            cached{" "}
-            {(() => {
-              const diff = Date.now() - new Date(property.lastSyncAt).getTime();
-              const h = Math.floor(diff / 3_600_000);
-              if (h < 1) return "< 1h ago";
-              if (h < 24) return `${h}h ago`;
-              return `${Math.floor(h / 24)}d ago`;
-            })()}
-          </span>
-        )}
-
-        <button
-          type="button"
-          onClick={() => reindex()}
-          disabled={isReindexing || isSyncing || property.notIndexedCount === 0}
-          className={cn(
-            "inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-4 py-2 rounded border transition-colors",
-            isReindexing || property.notIndexedCount === 0
-              ? "opacity-50 cursor-not-allowed border-border text-muted-foreground"
-              : "border-amber-500/40 text-amber-400 hover:bg-amber-500/10",
-          )}
-        >
-          {isReindexing ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <UploadCloud className="h-3.5 w-3.5" />
-          )}
-          {isReindexing
-            ? "Submitting…"
-            : `Reindex ${property.notIndexedCount} pages`}
-        </button>
-
-        <div className="ml-auto">
-          <AlertDialog>
-            <AlertDialogTrigger
-              disabled={isDisconnecting}
-              className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-4 py-2 rounded border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isDisconnecting ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Trash2 className="h-3.5 w-3.5" />
-              )}
-              {isDisconnecting ? "Removing…" : "Disconnect"}
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Disconnect property?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Removes the GSC connection for this property.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <p className="font-mono text-xs break-all text-foreground px-1">
-                {property.siteUrl}
-              </p>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => disconnect()}
-                  className="bg-red-600 hover:bg-red-700 text-white"
-                >
-                  Disconnect
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
       </div>
 
       {/* ── Two-column body ── */}
@@ -664,6 +579,25 @@ export function GscPropertyDetail({
                     <div className="flex flex-wrap items-center gap-3">
                       <button
                         type="button"
+                        onClick={() => syncNow()}
+                        disabled={isSyncing || isReindexing}
+                        className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {isSyncing ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                        {isSyncing ? "Syncing…" : "Sync Now"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => reindex()}
+                        disabled={isReindexing || isSyncing || property.notIndexedCount === 0}
+                        className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-amber-400 hover:text-amber-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {isReindexing ? <Loader2 className="h-3 w-3 animate-spin" /> : <UploadCloud className="h-3 w-3" />}
+                        {isReindexing ? "Submitting…" : `Reindex ${property.notIndexedCount}`}
+                      </button>
+                      <span className="w-px h-3 bg-border/60 shrink-0" />
+                      <button
+                        type="button"
                         onClick={() => checkFix(visiblePages.map((p) => p.url))}
                         disabled={isCheckingFix || visiblePages.length === 0}
                         className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
@@ -675,68 +609,50 @@ export function GscPropertyDetail({
                         )}
                         {isCheckingFix ? "Checking…" : "Check Fix"}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const grouped = syncResult.notIndexedPages.reduce<
-                            Record<string, string[]>
-                          >((acc, p) => {
-                            const key = p.reason ?? "Unknown";
-                            (acc[key] ??= []).push(p.url);
-                            return acc;
-                          }, {});
-                          const lines = Object.entries(grouped)
-                            .map(
-                              ([reason, urls]) =>
-                                `### ${reason} (${urls.length})\n${urls.map((u) => `- ${u}`).join("\n")}`,
-                            )
-                            .join("\n\n");
-                          const prompt = `Fix indexing issues for ${property.siteUrl}.\n\n${syncResult.notIndexedPages.length} pages are not indexed by Google:\n\n${lines}\n\nInvestigate and fix each category. For redirects: update to permanent 301s or fix the redirect chain. For unknown URLs: ensure pages are accessible and add to sitemap. For canonical issues: verify canonical tags point to the correct URL.`;
-                          navigator.clipboard.writeText(prompt).then(() => {
-                            setCopiedIndexing(true);
-                            setTimeout(() => setCopiedIndexing(false), 2000);
-                          });
-                        }}
-                        className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        {copiedIndexing ? (
-                          <Check className="h-3 w-3 text-green-400" />
-                        ) : (
-                          <Copy className="h-3 w-3" />
-                        )}
-                        {copiedIndexing ? "Copied!" : "Copy prompt"}
-                      </button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const grouped = syncResult.notIndexedPages.reduce<Record<string, string[]>>((acc, p) => {
+                                const key = p.reason ?? "Unknown";
+                                (acc[key] ??= []).push(p.url);
+                                return acc;
+                              }, {});
+                              const lines = Object.entries(grouped).map(([reason, urls]) => `### ${reason} (${urls.length})\n${urls.map((u) => `- ${u}`).join("\n")}`).join("\n\n");
+                              const prompt = `Fix indexing issues for ${property.siteUrl}.\n\n${syncResult.notIndexedPages.length} pages are not indexed by Google:\n\n${lines}\n\nInvestigate and fix each category. For redirects: update to permanent 301s or fix the redirect chain. For unknown URLs: ensure pages are accessible and add to sitemap. For canonical issues: verify canonical tags point to the correct URL.`;
+                              navigator.clipboard.writeText(prompt).then(() => { setCopiedIndexing(true); setTimeout(() => setCopiedIndexing(false), 2000); toast.success("Copied to clipboard"); });
+                            }}
+                            className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            {copiedIndexing ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>Copy fix prompt</TooltipContent>
+                      </Tooltip>
                       {indexingIssueUrl ? (
-                        <a
-                          href={indexingIssueUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-green-400 hover:underline"
-                        >
-                          <GitPullRequest className="h-3 w-3" />
-                          View Issue
-                        </a>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <a href={indexingIssueUrl} target="_blank" rel="noopener noreferrer" className="p-1 text-green-400 hover:text-green-300 transition-colors">
+                              <GitPullRequest className="h-3.5 w-3.5" />
+                            </a>
+                          </TooltipTrigger>
+                          <TooltipContent>View GitHub issue</TooltipContent>
+                        </Tooltip>
                       ) : (
-                        <button
-                          type="button"
-                          onClick={() => createIndexingIssue()}
-                          disabled={!selectedRepoId || isCreatingIndexingIssue}
-                          title={
-                            !selectedRepoId
-                              ? "Link a repo first"
-                              : "Create GitHub issue"
-                          }
-                          className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          {isCreatingIndexingIssue ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <GitPullRequest className="h-3 w-3" />
-                          )}
-                          {isCreatingIndexingIssue
-                            ? "Creating…"
-                            : "Create Issue"}
-                        </button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              onClick={() => createIndexingIssue()}
+                              disabled={!selectedRepoId || isCreatingIndexingIssue}
+                              className="p-1 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              {isCreatingIndexingIssue ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <GitPullRequest className="h-3.5 w-3.5" />}
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>{!selectedRepoId ? "Link a repo first" : "Create GitHub issue"}</TooltipContent>
+                        </Tooltip>
                       )}
                     </div>
                   </div>
@@ -766,7 +682,7 @@ export function GscPropertyDetail({
                       })}
                     </div>
                   )}
-                  <div className="divide-y divide-border/40 max-h-105 overflow-y-auto">
+                  <div className="divide-y divide-border/40">
                     {visiblePages.map(({ url, reason }) => (
                       <div
                         key={url}
@@ -825,6 +741,7 @@ export function GscPropertyDetail({
               </p>
             </div>
           )}
+
         </div>
 
         {/* RIGHT — Health */}
