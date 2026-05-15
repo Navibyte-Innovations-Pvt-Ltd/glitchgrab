@@ -15,7 +15,6 @@ import {
   Github,
   ChevronsRight,
   CheckCircle2,
-  Funnel,
   Brain,
   Layers,
   FileCode,
@@ -122,7 +121,7 @@ export default function LandingPage() {
           </Link>
 
           <div className="hidden md:flex items-center gap-8 h-full border-x border-border px-8">
-            <NavLink href="#features">/features</NavLink>
+            <NavLink href="#how-it-works">/features</NavLink>
             <NavLink href="#pipeline">/pipeline</NavLink>
             <NavLink href="/docs">/docs</NavLink>
             <a
@@ -922,9 +921,9 @@ export default function LandingPage() {
                 </div>
                 <div className="border border-border bg-background p-3 border-l-4 border-l-muted-foreground text-xs h-28 flex items-center">
                   <ul className="text-muted-foreground space-y-1 font-mono text-[11px]">
-                    <li>- Stack traces</li>
-                    <li>- Screenshots</li>
-                    <li>- User reports</li>
+                    <li>- On vacation</li>
+                    <li>- Spot a great site</li>
+                    <li>- Snap screenshot</li>
                   </ul>
                 </div>
               </div>
@@ -960,10 +959,10 @@ export default function LandingPage() {
                 </div>
                 <div className="border border-border bg-card p-3 border-r-4 border-r-primary text-xs h-28 flex flex-col justify-center">
                   <div className="font-bold text-foreground mb-1">
-                    Structured issue
+                    Ready in 4-5 days
                   </div>
                   <div className="font-mono text-[10px] text-muted-foreground leading-tight">
-                    Labels · Context · Repro
+                    Plan · Issues · Priority
                   </div>
                 </div>
               </div>
