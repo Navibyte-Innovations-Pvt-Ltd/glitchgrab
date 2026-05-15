@@ -81,7 +81,7 @@ export function GithubContributions({
           {Array.from({ length: 52 }).map((_, wi) => (
             <div key={wi} className="flex-1 flex flex-col gap-1">
               {Array.from({ length: 7 }).map((_, di) => (
-                <Skeleton key={di} className="aspect-square w-full rounded-[2px]" />
+                <Skeleton key={di} className="aspect-square w-full rounded-xs" />
               ))}
             </div>
           ))}
