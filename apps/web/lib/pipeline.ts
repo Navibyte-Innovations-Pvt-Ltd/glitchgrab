@@ -119,6 +119,12 @@ export async function processReport(
         errorStack: report.errorStack,
         pageUrl: report.pageUrl,
         userAgent: report.userAgent,
+        sessionInfo: {
+          userId: report.reporterPrimaryKey,
+          name: report.reporterName,
+          email: report.reporterEmail,
+          phone: report.reporterPhone,
+        },
         openIssues,
         chatHistory,
         repoReadme,
