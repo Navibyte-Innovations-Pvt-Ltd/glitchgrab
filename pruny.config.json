@@ -7,6 +7,6 @@
       "/api/v1/sdk/reports/**",
       "/api/mcp"
     ],
-    "files": ["**/db-sync.ts", "**/components/ui/**"]
+    "files": ["**/db-sync.ts", "**/components/ui/**", "**/public/favicon-48x48.png"]
   }
 }
