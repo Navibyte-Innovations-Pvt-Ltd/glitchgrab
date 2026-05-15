@@ -144,8 +144,8 @@ function StatCard({
           </span>
         </div>
         {loading ? (
-          <div className="flex items-baseline gap-2 mt-1">
-            <Skeleton className="h-7 w-10" />
+          <div className="flex items-baseline gap-2">
+            <Skeleton className="h-8 w-10" />
             <Skeleton className="h-4 w-16" />
           </div>
         ) : (
@@ -778,13 +778,13 @@ function OrgPRsOrWorkflowsPanel({ orgSlug }: { orgSlug: string }) {
           queryKey={["org-workflow-runs", orgSlug]}
         />
       ) : prsLoading ? (
-        <div className="flex flex-col gap-1.5 flex-1">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="flex items-start gap-2.5 rounded-md border border-border/40 px-2.5 py-2">
-              <Skeleton className="h-6 w-6 rounded shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-                <Skeleton className="h-3 w-full" />
-                <Skeleton className="h-2.5 w-1/2" />
+        <div className="flex flex-col gap-1.5">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="flex items-start gap-2 rounded-md border border-border/40 px-2.5 py-1.5">
+              <Skeleton className="h-5 w-5 rounded shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0 flex flex-col gap-1">
+                <Skeleton className="h-2.5 w-full" />
+                <Skeleton className="h-2 w-1/2" />
               </div>
             </div>
           ))}
