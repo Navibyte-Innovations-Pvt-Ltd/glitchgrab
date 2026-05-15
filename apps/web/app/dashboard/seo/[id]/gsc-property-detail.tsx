@@ -22,6 +22,7 @@ import {
   Copy,
   GitPullRequest,
   CheckCheck,
+  ChevronLeft,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -55,6 +56,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
+import Link from "next/link";
+import { InnerPageHeader } from "@/components/dashboard/inner-page-header";
 
 interface GscPropertyData {
   id: string;
@@ -89,9 +92,11 @@ interface SyncResult {
 export function GscPropertyDetail({
   property: initialProperty,
   repos,
+  backHref,
 }: {
   property: GscPropertyData;
   repos: Repo[];
+  backHref: string;
 }) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -106,44 +111,68 @@ export function GscPropertyDetail({
       notIndexedPages: cached,
     };
   });
-  const [selectedRepoId, setSelectedRepoId] = useState(initialProperty.repoId ?? "");
+  const [selectedRepoId, setSelectedRepoId] = useState(
+    initialProperty.repoId ?? "",
+  );
   const [repoPickerOpen, setRepoPickerOpen] = useState(false);
   const [activeReasonTab, setActiveReasonTab] = useState<string>("all");
 
   const domain = (() => {
-    if (property.siteUrl.startsWith("sc-domain:")) return property.siteUrl.replace("sc-domain:", "");
-    try { return new URL(property.siteUrl).hostname; } catch { return property.siteUrl; }
+    if (property.siteUrl.startsWith("sc-domain:"))
+      return property.siteUrl.replace("sc-domain:", "");
+    try {
+      return new URL(property.siteUrl).hostname;
+    } catch {
+      return property.siteUrl;
+    }
   })();
 
   const total = property.indexedCount + property.notIndexedCount;
-  const indexedPct = total > 0 ? Math.round((property.indexedCount / total) * 100) : 0;
+  const indexedPct =
+    total > 0 ? Math.round((property.indexedCount / total) * 100) : 0;
 
-  const { data: faviconData, isFetching: isFaviconFetching, isError: isFaviconError, refetch: recheckFavicon } =
-    useQuery<{ issues: { status: "Error" | "Warning"; id: number; text: string }[]; errorCount: number; warningCount: number }>({
-      queryKey: ["favicon-check", domain],
-      queryFn: async () => {
-        const { data } = await axios.get(`/api/v1/gsc/favicon-check?domain=${encodeURIComponent(domain)}`);
-        if (!data.success) throw new Error(data.error ?? "Favicon check failed");
-        return data.data;
-      },
-      staleTime: 5 * 60_000,
-      retry: false,
-    });
+  const {
+    data: faviconData,
+    isFetching: isFaviconFetching,
+    isError: isFaviconError,
+    refetch: recheckFavicon,
+  } = useQuery<{
+    issues: { status: "Error" | "Warning"; id: number; text: string }[];
+    errorCount: number;
+    warningCount: number;
+  }>({
+    queryKey: ["favicon-check", domain],
+    queryFn: async () => {
+      const { data } = await axios.get(
+        `/api/v1/gsc/favicon-check?domain=${encodeURIComponent(domain)}`,
+      );
+      if (!data.success) throw new Error(data.error ?? "Favicon check failed");
+      return data.data;
+    },
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
 
-  const { data: ogData, isFetching: isOgFetching, isError: isOgError, refetch: recheckOg } =
-    useQuery<{
-      tags: Record<string, string | null>;
-      issues: { severity: "error" | "warning"; field: string; message: string }[];
-    }>({
-      queryKey: ["og-check", domain],
-      queryFn: async () => {
-        const { data } = await axios.get(`/api/v1/gsc/og-check?domain=${encodeURIComponent(domain)}`);
-        if (!data.success) throw new Error(data.error ?? "OG check failed");
-        return data.data;
-      },
-      staleTime: 5 * 60_000,
-      retry: false,
-    });
+  const {
+    data: ogData,
+    isFetching: isOgFetching,
+    isError: isOgError,
+    refetch: recheckOg,
+  } = useQuery<{
+    tags: Record<string, string | null>;
+    issues: { severity: "error" | "warning"; field: string; message: string }[];
+  }>({
+    queryKey: ["og-check", domain],
+    queryFn: async () => {
+      const { data } = await axios.get(
+        `/api/v1/gsc/og-check?domain=${encodeURIComponent(domain)}`,
+      );
+      if (!data.success) throw new Error(data.error ?? "OG check failed");
+      return data.data;
+    },
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
 
   const [copiedFavicon, setCopiedFavicon] = useState(false);
   const [copiedOg, setCopiedOg] = useState(false);
@@ -152,42 +181,56 @@ export function GscPropertyDetail({
   const [ogIssueUrl, setOgIssueUrl] = useState<string | null>(null);
   const [indexingIssueUrl, setIndexingIssueUrl] = useState<string | null>(null);
 
-  const { mutate: createFaviconIssue, isPending: isCreatingFaviconIssue } = useMutation({
-    mutationFn: async () => {
-      if (!faviconData || faviconData.issues.length === 0) throw new Error("No issues");
-      if (!selectedRepoId) throw new Error("No repo linked");
-      const lines = faviconData.issues.map((i) => `- [${i.status}] ${i.text}`).join("\n");
-      const description = `Fix favicon issues for ${property.siteUrl}\n\nIssues detected by RealFaviconGenerator:\n${lines}\n\nGenerate and add all missing favicon files and correct <link> tags in <head>. Include ICO, PNG (16×16, 32×32, 96×96, 180×180), SVG, and web manifest.`;
-      const form = new FormData();
-      form.append("repoId", selectedRepoId);
-      form.append("description", description);
-      const { data } = await axios.post("/api/v1/reports", form);
-      if (!data.success) throw new Error(data.error ?? "Failed to create issue");
-      return data.data as { issueUrl?: string; issueNumber?: number };
-    },
-    onSuccess: (result) => {
-      if (result.issueUrl) {
-        setFaviconIssueUrl(result.issueUrl);
-        toast.success("GitHub issue created");
-      } else {
-        toast.success("Report submitted");
-      }
-    },
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to create issue"),
-  });
+  const { mutate: createFaviconIssue, isPending: isCreatingFaviconIssue } =
+    useMutation({
+      mutationFn: async () => {
+        if (!faviconData || faviconData.issues.length === 0)
+          throw new Error("No issues");
+        if (!selectedRepoId) throw new Error("No repo linked");
+        const lines = faviconData.issues
+          .map((i) => `- [${i.status}] ${i.text}`)
+          .join("\n");
+        const description = `Fix favicon issues for ${property.siteUrl}\n\nIssues detected by RealFaviconGenerator:\n${lines}\n\nGenerate and add all missing favicon files and correct <link> tags in <head>. Include ICO, PNG (16×16, 32×32, 96×96, 180×180), SVG, and web manifest.`;
+        const form = new FormData();
+        form.append("repoId", selectedRepoId);
+        form.append("description", description);
+        const { data } = await axios.post("/api/v1/reports", form);
+        if (!data.success)
+          throw new Error(data.error ?? "Failed to create issue");
+        return data.data as { issueUrl?: string; issueNumber?: number };
+      },
+      onSuccess: (result) => {
+        if (result.issueUrl) {
+          setFaviconIssueUrl(result.issueUrl);
+          toast.success("GitHub issue created");
+        } else {
+          toast.success("Report submitted");
+        }
+      },
+      onError: (err) =>
+        toast.error(
+          err instanceof Error ? err.message : "Failed to create issue",
+        ),
+    });
 
   const { mutate: createOgIssue, isPending: isCreatingOgIssue } = useMutation({
     mutationFn: async () => {
       if (!ogData || ogData.issues.length === 0) throw new Error("No issues");
       if (!selectedRepoId) throw new Error("No repo linked");
-      const lines = ogData.issues.map((i) => `- [${i.severity.toUpperCase()}] ${i.field}: ${i.message}`).join("\n");
-      const tagLines = Object.entries(ogData.tags).filter(([, v]) => v).map(([k, v]) => `  ${k}: ${v}`).join("\n");
+      const lines = ogData.issues
+        .map((i) => `- [${i.severity.toUpperCase()}] ${i.field}: ${i.message}`)
+        .join("\n");
+      const tagLines = Object.entries(ogData.tags)
+        .filter(([, v]) => v)
+        .map(([k, v]) => `  ${k}: ${v}`)
+        .join("\n");
       const description = `Fix Open Graph / social meta tag issues for ${property.siteUrl}\n\nCurrent tags:\n${tagLines}\n\nIssues:\n${lines}\n\nAdd or fix missing/incorrect OG and Twitter meta tags in <head>. Use og:image at least 1200×630px. Set twitter:card to 'summary_large_image'.`;
       const form = new FormData();
       form.append("repoId", selectedRepoId);
       form.append("description", description);
       const { data } = await axios.post("/api/v1/reports", form);
-      if (!data.success) throw new Error(data.error ?? "Failed to create issue");
+      if (!data.success)
+        throw new Error(data.error ?? "Failed to create issue");
       return data.data as { issueUrl?: string; issueNumber?: number };
     },
     onSuccess: (result) => {
@@ -198,43 +241,59 @@ export function GscPropertyDetail({
         toast.success("Report submitted");
       }
     },
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to create issue"),
+    onError: (err) =>
+      toast.error(
+        err instanceof Error ? err.message : "Failed to create issue",
+      ),
   });
 
-  const { mutate: createIndexingIssue, isPending: isCreatingIndexingIssue } = useMutation({
-    mutationFn: async () => {
-      if (!syncResult || syncResult.notIndexedPages.length === 0) throw new Error("No not-indexed pages");
-      if (!selectedRepoId) throw new Error("No repo linked");
-      const grouped = syncResult.notIndexedPages.reduce<Record<string, string[]>>((acc, p) => {
-        const key = p.reason ?? "Unknown";
-        (acc[key] ??= []).push(p.url);
-        return acc;
-      }, {});
-      const lines = Object.entries(grouped).map(([reason, urls]) =>
-        `### ${reason} (${urls.length})\n${urls.map((u) => `- ${u}`).join("\n")}`
-      ).join("\n\n");
-      const description = `Fix indexing issues for ${property.siteUrl}\n\n${syncResult.notIndexedPages.length} pages are not indexed by Google.\n\n${lines}\n\nInvestigate and fix each category. For redirects: check permanent vs temporary redirects and update them. For unknown URLs: ensure pages are accessible and add to sitemap. For canonical issues: verify canonical tags point to the correct URL.`;
-      const form = new FormData();
-      form.append("repoId", selectedRepoId);
-      form.append("description", description);
-      const { data } = await axios.post("/api/v1/reports", form);
-      if (!data.success) throw new Error(data.error ?? "Failed to create issue");
-      return data.data as { issueUrl?: string };
-    },
-    onSuccess: (result) => {
-      if (result.issueUrl) {
-        setIndexingIssueUrl(result.issueUrl);
-        toast.success("GitHub issue created");
-      } else {
-        toast.success("Report submitted");
-      }
-    },
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Failed to create issue"),
-  });
+  const { mutate: createIndexingIssue, isPending: isCreatingIndexingIssue } =
+    useMutation({
+      mutationFn: async () => {
+        if (!syncResult || syncResult.notIndexedPages.length === 0)
+          throw new Error("No not-indexed pages");
+        if (!selectedRepoId) throw new Error("No repo linked");
+        const grouped = syncResult.notIndexedPages.reduce<
+          Record<string, string[]>
+        >((acc, p) => {
+          const key = p.reason ?? "Unknown";
+          (acc[key] ??= []).push(p.url);
+          return acc;
+        }, {});
+        const lines = Object.entries(grouped)
+          .map(
+            ([reason, urls]) =>
+              `### ${reason} (${urls.length})\n${urls.map((u) => `- ${u}`).join("\n")}`,
+          )
+          .join("\n\n");
+        const description = `Fix indexing issues for ${property.siteUrl}\n\n${syncResult.notIndexedPages.length} pages are not indexed by Google.\n\n${lines}\n\nInvestigate and fix each category. For redirects: check permanent vs temporary redirects and update them. For unknown URLs: ensure pages are accessible and add to sitemap. For canonical issues: verify canonical tags point to the correct URL.`;
+        const form = new FormData();
+        form.append("repoId", selectedRepoId);
+        form.append("description", description);
+        const { data } = await axios.post("/api/v1/reports", form);
+        if (!data.success)
+          throw new Error(data.error ?? "Failed to create issue");
+        return data.data as { issueUrl?: string };
+      },
+      onSuccess: (result) => {
+        if (result.issueUrl) {
+          setIndexingIssueUrl(result.issueUrl);
+          toast.success("GitHub issue created");
+        } else {
+          toast.success("Report submitted");
+        }
+      },
+      onError: (err) =>
+        toast.error(
+          err instanceof Error ? err.message : "Failed to create issue",
+        ),
+    });
 
   const { mutate: syncNow, isPending: isSyncing } = useMutation({
     mutationFn: async () => {
-      const { data } = await axios.post(`/api/v1/gsc/properties/${property.id}/sync`);
+      const { data } = await axios.post(
+        `/api/v1/gsc/properties/${property.id}/sync`,
+      );
       if (!data.success) throw new Error(data.error ?? "Sync failed");
       return data.data as SyncResult;
     },
@@ -246,36 +305,55 @@ export function GscPropertyDetail({
         notIndexedCount: result.notIndexed,
         lastSyncAt: new Date().toISOString(),
       }));
-      toast.success(`Synced ${result.synced} URLs — ${result.indexed} indexed, ${result.notIndexed} not indexed`);
+      toast.success(
+        `Synced ${result.synced} URLs — ${result.indexed} indexed, ${result.notIndexed} not indexed`,
+      );
       queryClient.invalidateQueries({ queryKey: ["gsc-properties"] });
     },
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Sync failed"),
+    onError: (err) =>
+      toast.error(err instanceof Error ? err.message : "Sync failed"),
   });
 
   const { mutate: reindex, isPending: isReindexing } = useMutation({
     mutationFn: async () => {
-      const { data } = await axios.post("/api/v1/gsc/reindex", { propertyId: property.id });
+      const { data } = await axios.post("/api/v1/gsc/reindex", {
+        propertyId: property.id,
+      });
       if (!data.success) throw new Error(data.error ?? "Reindex failed");
       return data.data as { submitted: number };
     },
-    onSuccess: (result) => toast.success(`Submitted ${result.submitted} URLs for re-indexing`),
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Reindex failed"),
+    onSuccess: (result) =>
+      toast.success(`Submitted ${result.submitted} URLs for re-indexing`),
+    onError: (err) =>
+      toast.error(err instanceof Error ? err.message : "Reindex failed"),
   });
 
   const { mutate: checkFix, isPending: isCheckingFix } = useMutation({
     mutationFn: async (urls: string[]) => {
-      const { data } = await axios.post(`/api/v1/gsc/properties/${property.id}/check-fix`, { urls });
+      const { data } = await axios.post(
+        `/api/v1/gsc/properties/${property.id}/check-fix`,
+        { urls },
+      );
       if (!data.success) throw new Error(data.error ?? "Check failed");
-      return data.data as { nowIndexedCount: number; stillNotIndexedCount: number; nowIndexed: string[]; stillNotIndexed: Array<{ url: string; reason?: string }> };
+      return data.data as {
+        nowIndexedCount: number;
+        stillNotIndexedCount: number;
+        nowIndexed: string[];
+        stillNotIndexed: Array<{ url: string; reason?: string }>;
+      };
     },
     onSuccess: (result) => {
       if (result.nowIndexedCount > 0) {
-        toast.success(`${result.nowIndexedCount} page${result.nowIndexedCount > 1 ? "s" : ""} now indexed!`);
+        toast.success(
+          `${result.nowIndexedCount} page${result.nowIndexedCount > 1 ? "s" : ""} now indexed!`,
+        );
         // Remove newly-indexed URLs from local state
         setSyncResult((prev) => {
           if (!prev) return prev;
           const nowIndexedSet = new Set(result.nowIndexed);
-          const updatedPages = prev.notIndexedPages.filter((p) => !nowIndexedSet.has(p.url));
+          const updatedPages = prev.notIndexedPages.filter(
+            (p) => !nowIndexedSet.has(p.url),
+          );
           return {
             ...prev,
             indexed: prev.indexed + result.nowIndexedCount,
@@ -290,15 +368,20 @@ export function GscPropertyDetail({
         }));
         queryClient.invalidateQueries({ queryKey: ["gsc-properties"] });
       } else {
-        toast.info(`All ${result.stillNotIndexedCount} checked pages still not indexed`);
+        toast.info(
+          `All ${result.stillNotIndexedCount} checked pages still not indexed`,
+        );
       }
     },
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Check failed"),
+    onError: (err) =>
+      toast.error(err instanceof Error ? err.message : "Check failed"),
   });
 
   const { mutate: disconnect, isPending: isDisconnecting } = useMutation({
     mutationFn: async () => {
-      const { data } = await axios.delete(`/api/v1/gsc/properties/${property.id}`);
+      const { data } = await axios.delete(
+        `/api/v1/gsc/properties/${property.id}`,
+      );
       if (!data.success) throw new Error(data.error ?? "Failed to disconnect");
     },
     onSuccess: () => {
@@ -306,7 +389,8 @@ export function GscPropertyDetail({
       queryClient.invalidateQueries({ queryKey: ["gsc-properties"] });
       router.push("/dashboard/seo");
     },
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Disconnect failed"),
+    onError: (err) =>
+      toast.error(err instanceof Error ? err.message : "Disconnect failed"),
   });
 
   const { mutate: linkRepo, isPending: isLinking } = useMutation({
@@ -321,7 +405,8 @@ export function GscPropertyDetail({
       toast.success("Repo linked");
       queryClient.invalidateQueries({ queryKey: ["gsc-properties"] });
     },
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Update failed"),
+    onError: (err) =>
+      toast.error(err instanceof Error ? err.message : "Update failed"),
   });
 
   // First-time sync: if never synced before, auto-run on mount
@@ -329,26 +414,103 @@ export function GscPropertyDetail({
     if (!initialProperty.lastSyncAt) syncNow();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const ogErrors = ogData?.issues.filter((i) => i.severity === "error").length ?? 0;
-  const ogWarnings = ogData?.issues.filter((i) => i.severity === "warning").length ?? 0;
+  const ogErrors =
+    ogData?.issues.filter((i) => i.severity === "error").length ?? 0;
+  const ogWarnings =
+    ogData?.issues.filter((i) => i.severity === "warning").length ?? 0;
+
+  const repoAction = (
+    <Popover open={repoPickerOpen} onOpenChange={setRepoPickerOpen}>
+      <PopoverTrigger
+        disabled={isLinking}
+        className={cn(
+          "flex items-center gap-2 font-mono text-[11px] bg-background border border-border rounded px-3 py-1.5 text-left transition-colors disabled:opacity-60 max-w-[200px]",
+          repoPickerOpen ? "border-primary/50" : "hover:border-primary/30"
+        )}
+      >
+        <GitFork className="h-3 w-3 text-muted-foreground shrink-0" />
+        <span className={cn("truncate", selectedRepoId ? "text-foreground" : "text-muted-foreground")}>
+          {selectedRepoId ? (repos.find((r) => r.id === selectedRepoId)?.fullName ?? "link repo") : "link repo"}
+        </span>
+        {isLinking
+          ? <Loader2 className="h-3 w-3 animate-spin shrink-0 text-muted-foreground" />
+          : <ChevronsUpDown className="h-3 w-3 shrink-0 text-muted-foreground" />}
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-0" align="end">
+        <Command>
+          <CommandInput placeholder="Search repos…" className="font-mono text-xs h-8" />
+          <CommandList>
+            <CommandEmpty className="font-mono text-xs text-muted-foreground py-3 text-center">No repo found.</CommandEmpty>
+            <CommandGroup>
+              <CommandItem value="__none__" onSelect={() => { setSelectedRepoId(""); linkRepo(null); setRepoPickerOpen(false); }} className="font-mono text-xs text-muted-foreground">
+                <Check className={cn("h-3 w-3 mr-2 shrink-0", selectedRepoId === "" ? "opacity-100" : "opacity-0")} />
+                — none —
+              </CommandItem>
+              {repos.map((r) => (
+                <CommandItem key={r.id} value={r.fullName} onSelect={() => { setSelectedRepoId(r.id); linkRepo(r.id); setRepoPickerOpen(false); }} className="font-mono text-xs">
+                  <Check className={cn("h-3 w-3 mr-2 shrink-0", selectedRepoId === r.id ? "opacity-100" : "opacity-0")} />
+                  {r.fullName}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
 
   return (
     <div className="space-y-6">
 
+      <Link
+        href={backHref}
+        className="inline-flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground hover:text-foreground transition-colors uppercase tracking-widest"
+      >
+        <ChevronLeft className="h-3 w-3" />
+        SEO
+      </Link>
+
+      <InnerPageHeader
+        title={property.siteUrl}
+        subtitle="Google Search Console property"
+        meta={
+          property.lastSyncAt
+            ? `last synced ${new Date(property.lastSyncAt).toLocaleDateString()}`
+            : "never synced"
+        }
+        action={repoAction}
+      />
+
       {/* ── Top: stats + progress ── */}
       <div className="space-y-3">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatCard label="Indexed" value={property.indexedCount} accent="green" />
-          <StatCard label="Not Indexed" value={property.notIndexedCount} accent="red" />
+          <StatCard
+            label="Indexed"
+            value={property.indexedCount}
+            accent="green"
+          />
+          <StatCard
+            label="Not Indexed"
+            value={property.notIndexedCount}
+            accent="red"
+          />
           <StatCard label="Total Checked" value={total} />
-          <StatCard label="Index Rate" value={total > 0 ? `${indexedPct}%` : "—"} />
+          <StatCard
+            label="Index Rate"
+            value={total > 0 ? `${indexedPct}%` : "—"}
+          />
         </div>
         {total > 0 && (
           <div className="space-y-1">
             <div className="h-1 bg-border rounded-full overflow-hidden">
-              <div className="h-full bg-green-400 rounded-full transition-all duration-500" style={{ width: `${indexedPct}%` }} />
+              <div
+                className="h-full bg-green-400 rounded-full transition-all duration-500"
+                style={{ width: `${indexedPct}%` }}
+              />
             </div>
-            <p className="font-mono text-[10px] text-muted-foreground">{property.indexedCount} of {total} pages indexed</p>
+            <p className="font-mono text-[10px] text-muted-foreground">
+              {property.indexedCount} of {total} pages indexed
+            </p>
           </div>
         )}
       </div>
@@ -363,15 +525,20 @@ export function GscPropertyDetail({
             "inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-4 py-2 rounded border transition-colors",
             isSyncing
               ? "opacity-60 cursor-not-allowed border-border text-muted-foreground"
-              : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5"
+              : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5",
           )}
         >
-          {isSyncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+          {isSyncing ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <RefreshCw className="h-3.5 w-3.5" />
+          )}
           {isSyncing ? "Syncing…" : "Sync Now"}
         </button>
         {property.lastSyncAt && !isSyncing && (
           <span className="font-mono text-[10px] text-muted-foreground/60">
-            cached {(() => {
+            cached{" "}
+            {(() => {
               const diff = Date.now() - new Date(property.lastSyncAt).getTime();
               const h = Math.floor(diff / 3_600_000);
               if (h < 1) return "< 1h ago";
@@ -389,11 +556,17 @@ export function GscPropertyDetail({
             "inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-4 py-2 rounded border transition-colors",
             isReindexing || property.notIndexedCount === 0
               ? "opacity-50 cursor-not-allowed border-border text-muted-foreground"
-              : "border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+              : "border-amber-500/40 text-amber-400 hover:bg-amber-500/10",
           )}
         >
-          {isReindexing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UploadCloud className="h-3.5 w-3.5" />}
-          {isReindexing ? "Submitting…" : `Reindex ${property.notIndexedCount} pages`}
+          {isReindexing ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <UploadCloud className="h-3.5 w-3.5" />
+          )}
+          {isReindexing
+            ? "Submitting…"
+            : `Reindex ${property.notIndexedCount} pages`}
         </button>
 
         <div className="ml-auto">
@@ -402,18 +575,29 @@ export function GscPropertyDetail({
               disabled={isDisconnecting}
               className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-4 py-2 rounded border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isDisconnecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              {isDisconnecting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" />
+              )}
               {isDisconnecting ? "Removing…" : "Disconnect"}
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Disconnect property?</AlertDialogTitle>
-                <AlertDialogDescription>Removes the GSC connection for this property.</AlertDialogDescription>
+                <AlertDialogDescription>
+                  Removes the GSC connection for this property.
+                </AlertDialogDescription>
               </AlertDialogHeader>
-              <p className="font-mono text-xs break-all text-foreground px-1">{property.siteUrl}</p>
+              <p className="font-mono text-xs break-all text-foreground px-1">
+                {property.siteUrl}
+              </p>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={() => disconnect()} className="bg-red-600 hover:bg-red-700 text-white">
+                <AlertDialogAction
+                  onClick={() => disconnect()}
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                >
                   Disconnect
                 </AlertDialogAction>
               </AlertDialogFooter>
@@ -424,11 +608,8 @@ export function GscPropertyDetail({
 
       {/* ── Two-column body ── */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start min-w-0">
-
         {/* LEFT — Indexing data */}
         <div className="space-y-4 min-w-0">
-          <SectionHeader label="Indexing" />
-
           {isSyncing && !syncResult && (
             <div className="border border-border rounded bg-card/40 overflow-hidden">
               <div className="px-4 py-3 border-b border-border/60 flex items-center gap-2">
@@ -444,126 +625,183 @@ export function GscPropertyDetail({
             </div>
           )}
 
-          {syncResult && syncResult.notIndexedPages.length === 0 && syncResult.synced > 0 && (
-            <div className="border border-green-500/20 rounded bg-green-500/5 p-4 flex items-center gap-3">
-              <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
-              <p className="font-mono text-[11px] text-green-400">All {syncResult.synced} checked pages are indexed.</p>
-            </div>
-          )}
+          {syncResult &&
+            syncResult.notIndexedPages.length === 0 &&
+            syncResult.synced > 0 && (
+              <div className="border border-green-500/20 rounded bg-green-500/5 p-4 flex items-center gap-3">
+                <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
+                <p className="font-mono text-[11px] text-green-400">
+                  All {syncResult.synced} checked pages are indexed.
+                </p>
+              </div>
+            )}
 
-          {syncResult && syncResult.notIndexedPages.length > 0 && (() => {
-            const reasonGroups = syncResult.notIndexedPages.reduce<Record<string, typeof syncResult.notIndexedPages>>((acc, page) => {
-              const key = page.reason ?? "Unknown";
-              (acc[key] ??= []).push(page);
-              return acc;
-            }, {});
-            const tabs = ["all", ...Object.keys(reasonGroups)];
-            const visiblePages = activeReasonTab === "all"
-              ? syncResult.notIndexedPages
-              : (reasonGroups[activeReasonTab] ?? []);
+          {syncResult &&
+            syncResult.notIndexedPages.length > 0 &&
+            (() => {
+              const reasonGroups = syncResult.notIndexedPages.reduce<
+                Record<string, typeof syncResult.notIndexedPages>
+              >((acc, page) => {
+                const key = page.reason ?? "Unknown";
+                (acc[key] ??= []).push(page);
+                return acc;
+              }, {});
+              const tabs = ["all", ...Object.keys(reasonGroups)];
+              const visiblePages =
+                activeReasonTab === "all"
+                  ? syncResult.notIndexedPages
+                  : (reasonGroups[activeReasonTab] ?? []);
 
-            return (
-              <div className="border border-border rounded bg-card/40 overflow-hidden">
-                <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-border/60">
-                  <div className="flex items-center gap-2 shrink-0">
-                    <AlertCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />
-                    <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-widest">
-                      Not Indexed — {syncResult.notIndexedPages.length} pages
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => checkFix(visiblePages.map((p) => p.url))}
-                      disabled={isCheckingFix || visiblePages.length === 0}
-                      className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      {isCheckingFix ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCheck className="h-3 w-3" />}
-                      {isCheckingFix ? "Checking…" : "Check Fix"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const grouped = syncResult.notIndexedPages.reduce<Record<string, string[]>>((acc, p) => {
-                          const key = p.reason ?? "Unknown";
-                          (acc[key] ??= []).push(p.url);
-                          return acc;
-                        }, {});
-                        const lines = Object.entries(grouped).map(([reason, urls]) =>
-                          `### ${reason} (${urls.length})\n${urls.map((u) => `- ${u}`).join("\n")}`
-                        ).join("\n\n");
-                        const prompt = `Fix indexing issues for ${property.siteUrl}.\n\n${syncResult.notIndexedPages.length} pages are not indexed by Google:\n\n${lines}\n\nInvestigate and fix each category. For redirects: update to permanent 301s or fix the redirect chain. For unknown URLs: ensure pages are accessible and add to sitemap. For canonical issues: verify canonical tags point to the correct URL.`;
-                        navigator.clipboard.writeText(prompt).then(() => { setCopiedIndexing(true); setTimeout(() => setCopiedIndexing(false), 2000); });
-                      }}
-                      className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      {copiedIndexing ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
-                      {copiedIndexing ? "Copied!" : "Copy prompt"}
-                    </button>
-                    {indexingIssueUrl ? (
-                      <a href={indexingIssueUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-green-400 hover:underline">
-                        <GitPullRequest className="h-3 w-3" />
-                        View Issue
-                      </a>
-                    ) : (
+              return (
+                <div className="border border-border rounded bg-card/40 overflow-hidden">
+                  <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-border/60">
+                    <div className="flex items-center gap-2 shrink-0">
+                      <AlertCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />
+                      <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-widest">
+                        Not Indexed — {syncResult.notIndexedPages.length} pages
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
                       <button
                         type="button"
-                        onClick={() => createIndexingIssue()}
-                        disabled={!selectedRepoId || isCreatingIndexingIssue}
-                        title={!selectedRepoId ? "Link a repo first" : "Create GitHub issue"}
+                        onClick={() => checkFix(visiblePages.map((p) => p.url))}
+                        disabled={isCheckingFix || visiblePages.length === 0}
                         className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                       >
-                        {isCreatingIndexingIssue ? <Loader2 className="h-3 w-3 animate-spin" /> : <GitPullRequest className="h-3 w-3" />}
-                        {isCreatingIndexingIssue ? "Creating…" : "Create Issue"}
-                      </button>
-                    )}
-                  </div>
-                </div>
-                {/* Reason tabs */}
-                {tabs.length > 2 && (
-                  <div className="flex gap-0 border-b border-border/60 overflow-x-auto">
-                    {tabs.map((tab) => {
-                      const count = tab === "all" ? syncResult.notIndexedPages.length : (reasonGroups[tab]?.length ?? 0);
-                      return (
-                        <button
-                          key={tab}
-                          type="button"
-                          onClick={() => setActiveReasonTab(tab)}
-                          className={cn(
-                            "shrink-0 px-3 py-2 font-mono text-[10px] uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap",
-                            activeReasonTab === tab
-                              ? "border-primary text-foreground"
-                              : "border-transparent text-muted-foreground hover:text-foreground"
-                          )}
-                        >
-                          {tab === "all" ? "All" : tab} ({count})
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-                <div className="divide-y divide-border/40 max-h-105 overflow-y-auto">
-                  {visiblePages.map(({ url, reason }) => (
-                    <div key={url} className="flex items-start justify-between gap-3 px-4 py-2.5">
-                      <div className="min-w-0">
-                        <p className="font-mono text-[11px] text-foreground break-all">{url}</p>
-                        {reason && activeReasonTab === "all" && (
-                          <p className="font-mono text-[10px] text-red-400/80 mt-0.5">{reason}</p>
+                        {isCheckingFix ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <CheckCheck className="h-3 w-3" />
                         )}
-                      </div>
-                      <a href={url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-muted-foreground hover:text-primary transition-colors mt-0.5">
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
+                        {isCheckingFix ? "Checking…" : "Check Fix"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const grouped = syncResult.notIndexedPages.reduce<
+                            Record<string, string[]>
+                          >((acc, p) => {
+                            const key = p.reason ?? "Unknown";
+                            (acc[key] ??= []).push(p.url);
+                            return acc;
+                          }, {});
+                          const lines = Object.entries(grouped)
+                            .map(
+                              ([reason, urls]) =>
+                                `### ${reason} (${urls.length})\n${urls.map((u) => `- ${u}`).join("\n")}`,
+                            )
+                            .join("\n\n");
+                          const prompt = `Fix indexing issues for ${property.siteUrl}.\n\n${syncResult.notIndexedPages.length} pages are not indexed by Google:\n\n${lines}\n\nInvestigate and fix each category. For redirects: update to permanent 301s or fix the redirect chain. For unknown URLs: ensure pages are accessible and add to sitemap. For canonical issues: verify canonical tags point to the correct URL.`;
+                          navigator.clipboard.writeText(prompt).then(() => {
+                            setCopiedIndexing(true);
+                            setTimeout(() => setCopiedIndexing(false), 2000);
+                          });
+                        }}
+                        className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {copiedIndexing ? (
+                          <Check className="h-3 w-3 text-green-400" />
+                        ) : (
+                          <Copy className="h-3 w-3" />
+                        )}
+                        {copiedIndexing ? "Copied!" : "Copy prompt"}
+                      </button>
+                      {indexingIssueUrl ? (
+                        <a
+                          href={indexingIssueUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-green-400 hover:underline"
+                        >
+                          <GitPullRequest className="h-3 w-3" />
+                          View Issue
+                        </a>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => createIndexingIssue()}
+                          disabled={!selectedRepoId || isCreatingIndexingIssue}
+                          title={
+                            !selectedRepoId
+                              ? "Link a repo first"
+                              : "Create GitHub issue"
+                          }
+                          className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          {isCreatingIndexingIssue ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <GitPullRequest className="h-3 w-3" />
+                          )}
+                          {isCreatingIndexingIssue
+                            ? "Creating…"
+                            : "Create Issue"}
+                        </button>
+                      )}
                     </div>
-                  ))}
+                  </div>
+                  {/* Reason tabs */}
+                  {tabs.length > 2 && (
+                    <div className="flex gap-0 border-b border-border/60 overflow-x-auto">
+                      {tabs.map((tab) => {
+                        const count =
+                          tab === "all"
+                            ? syncResult.notIndexedPages.length
+                            : (reasonGroups[tab]?.length ?? 0);
+                        return (
+                          <button
+                            key={tab}
+                            type="button"
+                            onClick={() => setActiveReasonTab(tab)}
+                            className={cn(
+                              "shrink-0 px-3 py-2 font-mono text-[10px] uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap",
+                              activeReasonTab === tab
+                                ? "border-primary text-foreground"
+                                : "border-transparent text-muted-foreground hover:text-foreground",
+                            )}
+                          >
+                            {tab === "all" ? "All" : tab} ({count})
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div className="divide-y divide-border/40 max-h-105 overflow-y-auto">
+                    {visiblePages.map(({ url, reason }) => (
+                      <div
+                        key={url}
+                        className="flex items-start justify-between gap-3 px-4 py-2.5"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-mono text-[11px] text-foreground break-all">
+                            {url}
+                          </p>
+                          {reason && activeReasonTab === "all" && (
+                            <p className="font-mono text-[10px] text-red-400/80 mt-0.5">
+                              {reason}
+                            </p>
+                          )}
+                        </div>
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="shrink-0 text-muted-foreground hover:text-primary transition-colors mt-0.5"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            );
-          })()}
+              );
+            })()}
 
           {syncResult?.noSitemap && (
             <div className="border border-amber-500/20 rounded bg-amber-500/5 p-5 space-y-2">
-              <p className="font-mono text-[11px] text-amber-400 font-medium">No sitemap registered in Google Search Console</p>
+              <p className="font-mono text-[11px] text-amber-400 font-medium">
+                No sitemap registered in Google Search Console
+              </p>
               <p className="font-mono text-[11px] text-muted-foreground">
                 Submit your sitemap URL to GSC so we can check indexing status.
               </p>
@@ -582,134 +820,133 @@ export function GscPropertyDetail({
           {!syncResult && !isSyncing && (
             <div className="border border-dashed border-border rounded p-8 text-center">
               <p className="font-mono text-[11px] text-muted-foreground">
-                Run <span className="text-foreground">Sync Now</span> to see not-indexed pages
+                Run <span className="text-foreground">Sync Now</span> to see
+                not-indexed pages
               </p>
             </div>
           )}
         </div>
 
-        {/* RIGHT — Config + Health */}
+        {/* RIGHT — Health */}
         <div className="space-y-4">
-
-          {/* Linked repo */}
-          <div className="border border-border rounded bg-card/40 overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-border/60">
-              <GitFork className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-widest">Linked Repository</span>
-            </div>
-            <div className="p-3">
-              <Popover open={repoPickerOpen} onOpenChange={setRepoPickerOpen}>
-                <PopoverTrigger
-                  disabled={isLinking}
-                  className={cn(
-                    "w-full flex items-center justify-between gap-2 font-mono text-[11px] bg-background border border-border rounded px-3 py-2 text-left transition-colors disabled:opacity-60",
-                    repoPickerOpen ? "border-primary/50" : "hover:border-primary/30"
-                  )}
-                >
-                  <span className={selectedRepoId ? "text-foreground truncate" : "text-muted-foreground"}>
-                    {selectedRepoId ? (repos.find((r) => r.id === selectedRepoId)?.fullName ?? "— none —") : "— none —"}
-                  </span>
-                  {isLinking
-                    ? <Loader2 className="h-3 w-3 animate-spin shrink-0 text-muted-foreground" />
-                    : <ChevronsUpDown className="h-3 w-3 shrink-0 text-muted-foreground" />}
-                </PopoverTrigger>
-                <PopoverContent className="w-72 p-0" align="start">
-                  <Command>
-                    <CommandInput placeholder="Search repos…" className="font-mono text-xs h-8" />
-                    <CommandList>
-                      <CommandEmpty className="font-mono text-xs text-muted-foreground py-3 text-center">No repo found.</CommandEmpty>
-                      <CommandGroup>
-                        <CommandItem value="__none__" onSelect={() => { setSelectedRepoId(""); linkRepo(null); setRepoPickerOpen(false); }} className="font-mono text-xs text-muted-foreground">
-                          <Check className={cn("h-3 w-3 mr-2 shrink-0", selectedRepoId === "" ? "opacity-100" : "opacity-0")} />
-                          — none —
-                        </CommandItem>
-                        {repos.map((r) => (
-                          <CommandItem key={r.id} value={r.fullName} onSelect={() => { setSelectedRepoId(r.id); linkRepo(r.id); setRepoPickerOpen(false); }} className="font-mono text-xs">
-                            <Check className={cn("h-3 w-3 mr-2 shrink-0", selectedRepoId === r.id ? "opacity-100" : "opacity-0")} />
-                            {r.fullName}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-          </div>
 
           {/* Favicon health */}
           <div className="border border-border rounded bg-card/40 overflow-hidden">
             <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border/60">
               <div className="flex items-center gap-2">
                 <ScanSearch className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-widest">Favicon Health</span>
+                <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-widest">
+                  Favicon Health
+                </span>
               </div>
               <div className="flex items-center gap-1">
                 {isFaviconFetching && <Skeleton className="h-3 w-14" />}
-                {!isFaviconFetching && faviconData && faviconData.issues.length > 0 && (
-                  <>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const lines = faviconData.issues.map((i) => `- [${i.status}] ${i.text}`).join("\n");
-                            const prompt = `Fix the favicon issues for ${property.siteUrl}.\n\nIssues detected by RealFaviconGenerator:\n${lines}\n\nGenerate and add all missing favicon files and correct <link> tags in <head>. Include ICO, PNG (16×16, 32×32, 96×96, 180×180), SVG, and web manifest.`;
-                            navigator.clipboard.writeText(prompt).then(() => { setCopiedFavicon(true); setTimeout(() => setCopiedFavicon(false), 2000); toast.success("Copied to clipboard"); });
-                          }}
-                          className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          {copiedFavicon ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>Copy fix prompt</TooltipContent>
-                    </Tooltip>
-                    {faviconIssueUrl ? (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <a
-                            href={faviconIssueUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-1 text-green-400 hover:text-green-300 transition-colors"
-                          >
-                            <GitPullRequest className="h-3.5 w-3.5" />
-                          </a>
-                        </TooltipTrigger>
-                        <TooltipContent>View GitHub issue</TooltipContent>
-                      </Tooltip>
-                    ) : (
+                {!isFaviconFetching &&
+                  faviconData &&
+                  faviconData.issues.length > 0 && (
+                    <>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button
                             type="button"
-                            onClick={() => createFaviconIssue()}
-                            disabled={!selectedRepoId || isCreatingFaviconIssue}
-                            className="p-1 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            onClick={() => {
+                              const lines = faviconData.issues
+                                .map((i) => `- [${i.status}] ${i.text}`)
+                                .join("\n");
+                              const prompt = `Fix the favicon issues for ${property.siteUrl}.\n\nIssues detected by RealFaviconGenerator:\n${lines}\n\nGenerate and add all missing favicon files and correct <link> tags in <head>. Include ICO, PNG (16×16, 32×32, 96×96, 180×180), SVG, and web manifest.`;
+                              navigator.clipboard.writeText(prompt).then(() => {
+                                setCopiedFavicon(true);
+                                setTimeout(() => setCopiedFavicon(false), 2000);
+                                toast.success("Copied to clipboard");
+                              });
+                            }}
+                            className="p-1 text-muted-foreground hover:text-foreground transition-colors"
                           >
-                            {isCreatingFaviconIssue ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <GitPullRequest className="h-3.5 w-3.5" />}
+                            {copiedFavicon ? (
+                              <Check className="h-3.5 w-3.5 text-green-400" />
+                            ) : (
+                              <Copy className="h-3.5 w-3.5" />
+                            )}
                           </button>
                         </TooltipTrigger>
-                        <TooltipContent>{!selectedRepoId ? "Link a repo first" : "Create GitHub issue"}</TooltipContent>
+                        <TooltipContent>Copy fix prompt</TooltipContent>
                       </Tooltip>
-                    )}
-                  </>
-                )}
+                      {faviconIssueUrl ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <a
+                              href={faviconIssueUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1 text-green-400 hover:text-green-300 transition-colors"
+                            >
+                              <GitPullRequest className="h-3.5 w-3.5" />
+                            </a>
+                          </TooltipTrigger>
+                          <TooltipContent>View GitHub issue</TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              onClick={() => createFaviconIssue()}
+                              disabled={
+                                !selectedRepoId || isCreatingFaviconIssue
+                              }
+                              className="p-1 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              {isCreatingFaviconIssue ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <GitPullRequest className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {!selectedRepoId
+                              ? "Link a repo first"
+                              : "Create GitHub issue"}
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </>
+                  )}
               </div>
             </div>
             <div className="p-4">
-              {isFaviconError && !isFaviconFetching && <RetryRow onRetry={recheckFavicon} />}
+              {isFaviconError && !isFaviconFetching && (
+                <RetryRow onRetry={recheckFavicon} />
+              )}
               {isFaviconFetching && (
                 <div className="space-y-2.5">
-                  <div className="flex items-center gap-2"><Skeleton className="h-3.5 w-3.5 rounded-full" /><Skeleton className="h-3.5 w-48" /></div>
-                  <div className="flex items-center gap-2"><Skeleton className="h-3.5 w-3.5 rounded-full" /><Skeleton className="h-3.5 w-36" /></div>
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-3.5 w-3.5 rounded-full" />
+                    <Skeleton className="h-3.5 w-48" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-3.5 w-3.5 rounded-full" />
+                    <Skeleton className="h-3.5 w-36" />
+                  </div>
                 </div>
               )}
-              {faviconData && !isFaviconFetching && (
-                faviconData.issues.length === 0
-                  ? <p className="font-mono text-[11px] text-green-400">No issues found.</p>
-                  : <IssueList issues={faviconData.issues.map((i) => ({ severity: i.status === "Error" ? "error" as const : "warning" as const, message: i.text }))} />
-              )}
+              {faviconData &&
+                !isFaviconFetching &&
+                (faviconData.issues.length === 0 ? (
+                  <p className="font-mono text-[11px] text-green-400">
+                    No issues found.
+                  </p>
+                ) : (
+                  <IssueList
+                    issues={faviconData.issues.map((i) => ({
+                      severity:
+                        i.status === "Error"
+                          ? ("error" as const)
+                          : ("warning" as const),
+                      message: i.text,
+                    }))}
+                  />
+                ))}
             </div>
           </div>
 
@@ -718,7 +955,9 @@ export function GscPropertyDetail({
             <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border/60">
               <div className="flex items-center gap-2">
                 <Share2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-widest">Social / OG Tags</span>
+                <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-widest">
+                  Social / OG Tags
+                </span>
               </div>
               <div className="flex items-center gap-1">
                 {isOgFetching && <Skeleton className="h-3 w-14" />}
@@ -729,14 +968,30 @@ export function GscPropertyDetail({
                         <button
                           type="button"
                           onClick={() => {
-                            const lines = ogData.issues.map((i) => `- [${i.severity.toUpperCase()}] ${i.field}: ${i.message}`).join("\n");
-                            const tagLines = Object.entries(ogData.tags).filter(([, v]) => v).map(([k, v]) => `  ${k}: ${v}`).join("\n");
+                            const lines = ogData.issues
+                              .map(
+                                (i) =>
+                                  `- [${i.severity.toUpperCase()}] ${i.field}: ${i.message}`,
+                              )
+                              .join("\n");
+                            const tagLines = Object.entries(ogData.tags)
+                              .filter(([, v]) => v)
+                              .map(([k, v]) => `  ${k}: ${v}`)
+                              .join("\n");
                             const prompt = `Fix the Open Graph / social meta tag issues for ${property.siteUrl}.\n\nCurrent tags:\n${tagLines}\n\nIssues:\n${lines}\n\nAdd or fix missing/incorrect OG and Twitter meta tags in <head>. Use og:image at least 1200×630px. Set twitter:card to 'summary_large_image'.`;
-                            navigator.clipboard.writeText(prompt).then(() => { setCopiedOg(true); setTimeout(() => setCopiedOg(false), 2000); toast.success("Copied to clipboard"); });
+                            navigator.clipboard.writeText(prompt).then(() => {
+                              setCopiedOg(true);
+                              setTimeout(() => setCopiedOg(false), 2000);
+                              toast.success("Copied to clipboard");
+                            });
                           }}
                           className="p-1 text-muted-foreground hover:text-foreground transition-colors"
                         >
-                          {copiedOg ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+                          {copiedOg ? (
+                            <Check className="h-3.5 w-3.5 text-green-400" />
+                          ) : (
+                            <Copy className="h-3.5 w-3.5" />
+                          )}
                         </button>
                       </TooltipTrigger>
                       <TooltipContent>Copy fix prompt</TooltipContent>
@@ -764,10 +1019,18 @@ export function GscPropertyDetail({
                             disabled={!selectedRepoId || isCreatingOgIssue}
                             className="p-1 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                           >
-                            {isCreatingOgIssue ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <GitPullRequest className="h-3.5 w-3.5" />}
+                            {isCreatingOgIssue ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <GitPullRequest className="h-3.5 w-3.5" />
+                            )}
                           </button>
                         </TooltipTrigger>
-                        <TooltipContent>{!selectedRepoId ? "Link a repo first" : "Create GitHub issue"}</TooltipContent>
+                        <TooltipContent>
+                          {!selectedRepoId
+                            ? "Link a repo first"
+                            : "Create GitHub issue"}
+                        </TooltipContent>
                       </Tooltip>
                     )}
                   </>
@@ -794,71 +1057,107 @@ export function GscPropertyDetail({
                   {ogData.tags.ogImage && (
                     <div className="border border-border rounded overflow-hidden">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={ogData.tags.ogImage} alt="og:image" className="w-full object-cover max-h-36" />
+                      <img
+                        src={ogData.tags.ogImage}
+                        alt="og:image"
+                        className="w-full object-cover max-h-36"
+                      />
                       <div className="px-3 py-2 bg-muted/20 space-y-0.5">
-                        <p className="font-mono text-[11px] text-foreground truncate">{ogData.tags.ogTitle ?? domain}</p>
-                        {ogData.tags.ogDescription && <p className="font-mono text-[10px] text-muted-foreground truncate">{ogData.tags.ogDescription}</p>}
-                        <p className="font-mono text-[10px] text-muted-foreground/50">{domain}</p>
+                        <p className="font-mono text-[11px] text-foreground truncate">
+                          {ogData.tags.ogTitle ?? domain}
+                        </p>
+                        {ogData.tags.ogDescription && (
+                          <p className="font-mono text-[10px] text-muted-foreground truncate">
+                            {ogData.tags.ogDescription}
+                          </p>
+                        )}
+                        <p className="font-mono text-[10px] text-muted-foreground/50">
+                          {domain}
+                        </p>
                       </div>
                     </div>
                   )}
 
                   {/* Tag rows */}
                   <div className="space-y-1.5">
-                    {(([
-                      ["og:title", ogData.tags.ogTitle],
-                      ["og:description", ogData.tags.ogDescription],
-                      ["og:image", ogData.tags.ogImage],
-                      ["og:url", ogData.tags.ogUrl],
-                      ["twitter:card", ogData.tags.twitterCard],
-                    ]) as [string, string | null][]).map(([key, val]) => (
+                    {(
+                      [
+                        ["og:title", ogData.tags.ogTitle],
+                        ["og:description", ogData.tags.ogDescription],
+                        ["og:image", ogData.tags.ogImage],
+                        ["og:url", ogData.tags.ogUrl],
+                        ["twitter:card", ogData.tags.twitterCard],
+                      ] as [string, string | null][]
+                    ).map(([key, val]) => (
                       <div key={key} className="flex items-start gap-2">
-                        <span className="font-mono text-[10px] text-muted-foreground shrink-0 w-28 pt-px">{key}</span>
-                        {val
-                          ? <span className="font-mono text-[11px] text-foreground break-all leading-relaxed">{val.length > 60 ? `${val.slice(0, 60)}…` : val}</span>
-                          : <span className="font-mono text-[11px] text-red-400/70">missing</span>}
+                        <span className="font-mono text-[10px] text-muted-foreground shrink-0 w-28 pt-px">
+                          {key}
+                        </span>
+                        {val ? (
+                          <span className="font-mono text-[11px] text-foreground break-all leading-relaxed">
+                            {val.length > 60 ? `${val.slice(0, 60)}…` : val}
+                          </span>
+                        ) : (
+                          <span className="font-mono text-[11px] text-red-400/70">
+                            missing
+                          </span>
+                        )}
                       </div>
                     ))}
                   </div>
 
                   {ogData.issues.length > 0 && (
                     <div className="pt-1 border-t border-border/40">
-                      <IssueList issues={ogData.issues.map((i) => ({ severity: i.severity, message: i.message }))} />
+                      <IssueList
+                        issues={ogData.issues.map((i) => ({
+                          severity: i.severity,
+                          message: i.message,
+                        }))}
+                      />
                     </div>
                   )}
                 </div>
               )}
             </div>
           </div>
-
         </div>
       </div>
     </div>
   );
 }
 
-function SectionHeader({ label }: { label: string }) {
-  return <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest">{label}</p>;
-}
-
 function RetryRow({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="flex items-center gap-2">
       <p className="font-mono text-[11px] text-red-400">Check failed.</p>
-      <button type="button" onClick={onRetry} className="font-mono text-[11px] text-primary hover:underline">Retry</button>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="font-mono text-[11px] text-primary hover:underline"
+      >
+        Retry
+      </button>
     </div>
   );
 }
 
-function IssueList({ issues }: { issues: { severity: "error" | "warning"; message: string }[] }) {
+function IssueList({
+  issues,
+}: {
+  issues: { severity: "error" | "warning"; message: string }[];
+}) {
   return (
     <ul className="space-y-1.5">
       {issues.map((issue, i) => (
         <li key={i} className="flex items-start gap-2">
-          {issue.severity === "error"
-            ? <ShieldAlert className="h-3.5 w-3.5 text-red-400 shrink-0 mt-px" />
-            : <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-px" />}
-          <span className="font-mono text-[11px] text-foreground/80">{issue.message}</span>
+          {issue.severity === "error" ? (
+            <ShieldAlert className="h-3.5 w-3.5 text-red-400 shrink-0 mt-px" />
+          ) : (
+            <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-px" />
+          )}
+          <span className="font-mono text-[11px] text-foreground/80">
+            {issue.message}
+          </span>
         </li>
       ))}
     </ul>
@@ -876,13 +1175,17 @@ function StatCard({
 }) {
   return (
     <div className="border border-border rounded bg-card/40 p-3 space-y-1">
-      <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest">{label}</p>
-      <p className={cn(
-        "font-mono text-xl font-medium",
-        accent === "green" && "text-green-400",
-        accent === "red" && "text-red-400",
-        !accent && "text-foreground"
-      )}>
+      <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest">
+        {label}
+      </p>
+      <p
+        className={cn(
+          "font-mono text-xl font-medium",
+          accent === "green" && "text-green-400",
+          accent === "red" && "text-red-400",
+          !accent && "text-foreground",
+        )}
+      >
         {value}
       </p>
     </div>
