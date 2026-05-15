@@ -139,7 +139,7 @@ function RepoCard({ repo }: { repo: MergedRepo }) {
       )}
     >
       {repo.tracked && (
-        <div className="absolute inset-y-3 left-[3px] w-[2px] rounded-full bg-primary shadow-[0_0_8px_rgba(34,211,238,0.4)]" />
+        <div className="absolute inset-y-3 left-0.75 w-0.5 rounded-full bg-primary shadow-[0_0_8px_rgba(34,211,238,0.4)]" />
       )}
 
       <div className="flex items-start justify-between gap-2">
