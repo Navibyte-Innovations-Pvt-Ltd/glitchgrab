@@ -417,10 +417,10 @@ export function GscPropertyDetail({
       </div>
 
       {/* ── Two-column body ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start min-w-0">
 
         {/* LEFT — Indexing data */}
-        <div className="space-y-4">
+        <div className="space-y-4 min-w-0">
           <SectionHeader label="Indexing" />
 
           {isSyncing && !syncResult && (
@@ -450,14 +450,14 @@ export function GscPropertyDetail({
 
             return (
               <div className="border border-border rounded bg-card/40 overflow-hidden">
-                <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border/60">
-                  <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-border/60">
+                  <div className="flex items-center gap-2 shrink-0">
                     <AlertCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />
                     <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-widest">
                       Not Indexed — {syncResult.notIndexedPages.length} pages
                     </span>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <button
                       type="button"
                       onClick={() => checkFix(visiblePages.map((p) => p.url))}
