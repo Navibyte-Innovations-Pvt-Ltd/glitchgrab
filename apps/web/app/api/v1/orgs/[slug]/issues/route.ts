@@ -15,6 +15,43 @@ interface GithubIssue {
   comments: number;
 }
 
+interface GithubPR {
+  number: number;
+  body: string | null;
+  state: string;
+}
+
+// Matches: closes/close/closed/fix/fixes/fixed/resolve/resolves/resolved #N
+const CLOSING_RE = /(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)/gi;
+
+async function getLinkedIssueNumbers(repoFullName: string, token: string): Promise<Set<number>> {
+  const linked = new Set<number>();
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${repoFullName}/pulls?state=open&per_page=50`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github+json",
+        },
+      }
+    );
+    if (!res.ok) return linked;
+    const prs = (await res.json()) as GithubPR[];
+    for (const pr of prs) {
+      if (!pr.body) continue;
+      let match: RegExpExecArray | null;
+      CLOSING_RE.lastIndex = 0;
+      while ((match = CLOSING_RE.exec(pr.body)) !== null) {
+        linked.add(Number(match[1]));
+      }
+    }
+  } catch {
+    // ignore — don't let PR fetch failure break issues
+  }
+  return linked;
+}
+
 export async function GET(_req: Request, { params }: { params: Promise<{ slug: string }> }) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -40,6 +77,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
     return NextResponse.json({ success: true, data: [] });
   }
 
+  const token = account.access_token;
+
   const repos = await prisma.repo.findMany({
     where: { orgId: org.id },
     select: { fullName: true },
@@ -49,19 +88,22 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
     await Promise.all(
       repos.map(async (repo) => {
         try {
-          const res = await fetch(
-            `https://api.github.com/repos/${repo.fullName}/issues?state=open&sort=created&direction=desc&per_page=10`,
-            {
-              headers: {
-                Authorization: `Bearer ${account.access_token}`,
-                Accept: "application/vnd.github+json",
-              },
-            }
-          );
-          if (!res.ok) return [];
-          const items = (await res.json()) as GithubIssue[];
+          const [issuesRes, linkedNumbers] = await Promise.all([
+            fetch(
+              `https://api.github.com/repos/${repo.fullName}/issues?state=open&sort=created&direction=desc&per_page=10`,
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  Accept: "application/vnd.github+json",
+                },
+              }
+            ),
+            getLinkedIssueNumbers(repo.fullName, token),
+          ]);
+          if (!issuesRes.ok) return [];
+          const items = (await issuesRes.json()) as GithubIssue[];
           return items
-            .filter((i) => !i.pull_request)
+            .filter((i) => !i.pull_request && !linkedNumbers.has(i.number))
             .map((i) => ({
               number: i.number,
               title: i.title,

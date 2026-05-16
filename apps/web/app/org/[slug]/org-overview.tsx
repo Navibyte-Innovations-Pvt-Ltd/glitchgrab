@@ -23,7 +23,13 @@ import {
   GitPullRequest,
   RefreshCw,
   Activity,
+  Copy,
+  ExternalLink,
+  SlidersHorizontal,
+  Search,
+  X,
 } from "lucide-react";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -184,7 +190,7 @@ function ListPanel({
 }: {
   icon: React.ReactNode;
   title: string;
-  meta?: string;
+  meta?: React.ReactNode;
   footer?: { href: string; label: string; external?: boolean };
   children: React.ReactNode;
 }) {
@@ -218,20 +224,171 @@ function ListPanel({
   );
 }
 
-// ─── Issues Triage ───────────────────────────────────────────────────────────
+// ─── Issue Row ───────────────────────────────────────────────────────────────
 
-function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
-  const { data, isLoading } = useQuery<IssueItem[]>({
-    queryKey: ["org-issues", orgSlug],
-    queryFn: async () => {
-      const { data } = await axios.get(`/api/v1/orgs/${orgSlug}/issues`);
-      return data.data ?? [];
-    },
-    staleTime: 60_000,
-    refetchOnWindowFocus: true,
-    refetchInterval: 60_000,
-  });
+function IssueRow({ issue, critical }: { issue: IssueItem; critical: boolean }) {
+  const [copied, setCopied] = useState(false);
 
+  const copyLink = () => {
+    void navigator.clipboard.writeText(issue.url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <a
+      href={issue.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={cn(
+        "group flex items-center gap-2 rounded px-2 py-1.5 transition-colors border text-xs",
+        critical
+          ? "bg-red-500/5 border-red-500/15 hover:border-red-500/40"
+          : "bg-card/30 border-border/60 hover:border-primary/40 hover:bg-card/60"
+      )}
+    >
+      {critical ? (
+        <AlertCircle className="h-3 w-3 text-red-400 shrink-0" />
+      ) : (
+        <Circle className="h-3 w-3 text-primary/50 shrink-0" />
+      )}
+      <span className="flex-1 truncate text-foreground/90 group-hover:text-foreground transition-colors">
+        {issue.title}
+      </span>
+      <span className="font-mono text-[10px] text-muted-foreground/50 shrink-0">
+        #{issue.number} · {timeAgo(issue.createdAt)}
+      </span>
+      {issue.comments > 0 && (
+        <span className="font-mono text-[10px] text-muted-foreground/50 shrink-0 flex items-center gap-0.5">
+          <MessageCircle className="h-2.5 w-2.5" />
+          {issue.comments}
+        </span>
+      )}
+      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+        <button
+          type="button"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); copyLink(); }}
+          className="p-1 rounded hover:bg-muted transition-colors"
+          title="Copy link"
+        >
+          {copied
+            ? <Check className="h-3 w-3 text-green-400" />
+            : <Copy className="h-3 w-3 text-muted-foreground" />}
+        </button>
+        <span className="p-1 rounded" title="View on GitHub">
+          <ExternalLink className="h-3 w-3 text-muted-foreground" />
+        </span>
+      </div>
+    </a>
+  );
+}
+
+// ─── Repo Filter Popover (header button) ─────────────────────────────────────
+
+function RepoFilterPopover({
+  allRepos,
+  selectedRepo,
+  onSelect,
+}: {
+  allRepos: [string, IssueItem[]][];
+  selectedRepo: string | null;
+  onSelect: (repo: string | null) => void;
+}) {
+  const [search, setSearch] = useState("");
+
+  const filteredRepos = allRepos.filter(([repo]) =>
+    repoShortName(repo).toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <Popover>
+      <PopoverTrigger
+        className={cn(
+          "flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded border transition-colors",
+          selectedRepo
+            ? "bg-primary/15 border-primary/50 text-primary"
+            : "border-border text-muted-foreground hover:border-primary/50 hover:text-primary"
+        )}
+      >
+        <SlidersHorizontal className="h-2.5 w-2.5 shrink-0" />
+        {selectedRepo ? repoShortName(selectedRepo) : "Filter"}
+      </PopoverTrigger>
+      <PopoverContent align="end" side="bottom" className="w-56 p-2 flex flex-col gap-1.5">
+        <div className="flex items-center gap-1.5 border border-border rounded px-2 py-1 bg-background">
+          <Search className="h-3 w-3 text-muted-foreground shrink-0" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search repos…"
+            autoFocus
+            className="flex-1 bg-transparent text-xs font-mono text-foreground outline-none placeholder:text-muted-foreground/50"
+          />
+          {search && (
+            <button type="button" onClick={() => setSearch("")}>
+              <X className="h-3 w-3 text-muted-foreground" />
+            </button>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => onSelect(null)}
+          className={cn(
+            "flex items-center justify-between px-2 py-1 rounded text-[11px] font-mono transition-colors",
+            !selectedRepo ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
+        >
+          <span>All repos</span>
+          <span className="text-[10px]">{allRepos.reduce((s, [, its]) => s + its.length, 0)}</span>
+        </button>
+
+        <div className="flex flex-col gap-0.5 max-h-48 overflow-y-auto">
+          {filteredRepos.map(([repo, items]) => {
+            const isSelected = selectedRepo === repo;
+            const hasCritical = items.some((i) => isHighPriority(i.labels));
+            return (
+              <button
+                key={repo}
+                type="button"
+                onClick={() => onSelect(isSelected ? null : repo)}
+                className={cn(
+                  "flex items-center justify-between gap-2 px-2 py-1 rounded text-[11px] font-mono transition-colors",
+                  isSelected ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <span className="flex items-center gap-1.5 min-w-0">
+                  <Folder className="h-2.5 w-2.5 shrink-0" />
+                  <span className="truncate">{repoShortName(repo)}</span>
+                </span>
+                <span className={cn("shrink-0 text-[10px]", hasCritical && !isSelected ? "text-red-400" : "")}>
+                  {items.length}
+                </span>
+              </button>
+            );
+          })}
+          {filteredRepos.length === 0 && (
+            <p className="text-[10px] font-mono text-muted-foreground/50 px-2 py-1">No repos match</p>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// ─── Issues Triage Body ───────────────────────────────────────────────────────
+
+function OrgIssuesTriageBody({
+  data,
+  isLoading,
+  selectedRepo,
+  onSelect,
+}: {
+  data: IssueItem[] | undefined;
+  isLoading: boolean;
+  selectedRepo: string | null;
+  onSelect: (repo: string | null) => void;
+}) {
   if (isLoading) {
     return (
       <div className="flex flex-col gap-2">
@@ -261,46 +418,58 @@ function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
   }, {});
 
   const sortedRepos = Object.entries(grouped).sort(([, a], [, b]) => b.length - a.length);
+  const top2 = sortedRepos.slice(0, 2);
 
-  const topRepos = sortedRepos.slice(0, 5);
+  const visibleRepos = selectedRepo
+    ? sortedRepos.filter(([repo]) => repo === selectedRepo)
+    : sortedRepos;
 
   return (
     <div className="flex flex-col gap-3 max-h-80 overflow-y-auto pr-1">
-      {/* Repo chips — top 5 only */}
-      <div className="flex flex-wrap gap-1.5">
-        {topRepos.map(([repo, items]) => {
+      {/* Top-2 quick-filter chips */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {top2.map(([repo, items]) => {
           const hasCritical = items.some((i) => isHighPriority(i.labels));
+          const isSelected = selectedRepo === repo;
           return (
-            <a
+            <button
               key={repo}
-              href={`https://github.com/${repo}/issues`}
-              target="_blank"
-              rel="noopener noreferrer"
+              type="button"
+              onClick={() => onSelect(isSelected ? null : repo)}
               className={cn(
                 "flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded border transition-colors",
-                hasCritical
-                  ? "bg-red-500/10 border-red-500/30 text-red-400 hover:border-red-500/60"
-                  : "bg-card/60 border-border text-muted-foreground hover:border-primary/50 hover:text-primary"
+                isSelected
+                  ? "bg-primary/15 border-primary/50 text-primary"
+                  : hasCritical
+                    ? "bg-red-500/10 border-red-500/30 text-red-400 hover:border-red-500/60"
+                    : "bg-card/60 border-border text-muted-foreground hover:border-primary/50 hover:text-primary"
               )}
             >
               <Folder className="h-2.5 w-2.5 shrink-0" />
               <span>{repoShortName(repo)}</span>
-              <span className={cn("font-bold px-0.5", hasCritical ? "text-red-300" : "text-foreground")}>
+              <span className={cn("font-bold px-0.5", isSelected ? "text-primary" : hasCritical ? "text-red-300" : "text-foreground")}>
                 {items.length}
               </span>
-            </a>
+            </button>
           );
         })}
-        {sortedRepos.length > 5 && (
-          <span className="text-[10px] font-mono text-muted-foreground/60 self-center">
-            +{sortedRepos.length - 5} more
-          </span>
+        {/* Active filter chip if not a top-2 repo */}
+        {selectedRepo && !top2.some(([r]) => r === selectedRepo) && (
+          <button
+            type="button"
+            onClick={() => onSelect(null)}
+            className="flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded border bg-primary/15 border-primary/50 text-primary"
+          >
+            <Folder className="h-2.5 w-2.5 shrink-0" />
+            {repoShortName(selectedRepo)}
+            <X className="h-2.5 w-2.5" />
+          </button>
         )}
       </div>
 
-      {/* Issue list — 2 per repo, compact rows */}
+      {/* Issue list */}
       <div className="flex flex-col gap-3">
-        {topRepos.map(([repo, items]) => (
+        {visibleRepos.map(([repo, items]) => (
           <div key={repo} className="flex flex-col gap-1">
             <div className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground/60 uppercase tracking-widest">
               <Folder className="h-2.5 w-2.5" />
@@ -308,51 +477,23 @@ function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
               <span className="text-primary/60 ml-auto">{items.length}</span>
             </div>
             <ul className="flex flex-col gap-1">
-              {items.slice(0, 2).map((issue) => {
+              {(selectedRepo ? items : items.slice(0, 2)).map((issue) => {
                 const critical = isHighPriority(issue.labels);
                 return (
                   <li key={`${repo}-${issue.number}`}>
-                    <a
-                      href={issue.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={cn(
-                        "group flex items-center gap-2 rounded px-2 py-1.5 transition-colors border text-xs",
-                        critical
-                          ? "bg-red-500/5 border-red-500/15 hover:border-red-500/40"
-                          : "bg-card/30 border-border/60 hover:border-primary/40 hover:bg-card/60"
-                      )}
-                    >
-                      {critical ? (
-                        <AlertCircle className="h-3 w-3 text-red-400 shrink-0" />
-                      ) : (
-                        <Circle className="h-3 w-3 text-primary/50 shrink-0" />
-                      )}
-                      <span className="flex-1 truncate text-foreground/90 group-hover:text-foreground transition-colors">
-                        {issue.title}
-                      </span>
-                      <span className="font-mono text-[10px] text-muted-foreground/50 shrink-0">
-                        #{issue.number} · {timeAgo(issue.createdAt)}
-                      </span>
-                      {issue.comments > 0 && (
-                        <span className="font-mono text-[10px] text-muted-foreground/50 shrink-0 flex items-center gap-0.5">
-                          <MessageCircle className="h-2.5 w-2.5" />{issue.comments}
-                        </span>
-                      )}
-                    </a>
+                    <IssueRow issue={issue} critical={critical} />
                   </li>
                 );
               })}
-              {items.length > 2 && (
+              {!selectedRepo && items.length > 2 && (
                 <li>
-                  <a
-                    href={`https://github.com/${repo}/issues`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    type="button"
+                    onClick={() => onSelect(repo)}
                     className="text-[10px] font-mono text-muted-foreground/50 hover:text-primary transition-colors pl-1"
                   >
                     +{items.length - 2} more →
-                  </a>
+                  </button>
                 </li>
               )}
             </ul>
@@ -360,6 +501,55 @@ function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
         ))}
       </div>
     </div>
+  );
+}
+
+// ─── Issues Triage Section (holds state + query, exposes filter for header) ──
+
+function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
+  const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
+
+  const { data, isLoading } = useQuery<IssueItem[]>({
+    queryKey: ["org-issues", orgSlug],
+    queryFn: async () => {
+      const { data } = await axios.get(`/api/v1/orgs/${orgSlug}/issues`);
+      return data.data ?? [];
+    },
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+    refetchInterval: 60_000,
+  });
+
+  const grouped = (data ?? []).reduce<Record<string, IssueItem[]>>((acc, issue) => {
+    (acc[issue.repoFullName] ??= []).push(issue);
+    return acc;
+  }, {});
+  const sortedRepos = Object.entries(grouped).sort(([, a], [, b]) => b.length - a.length);
+
+  return (
+    <ListPanel
+      icon={<AlertCircle className="h-4 w-4 text-primary" />}
+      title="Priority issues triage"
+      meta={
+        <RepoFilterPopover
+          allRepos={sortedRepos}
+          selectedRepo={selectedRepo}
+          onSelect={setSelectedRepo}
+        />
+      }
+      footer={{
+        href: `https://github.com/orgs/${orgSlug}/repositories`,
+        label: "Open on GitHub",
+        external: true,
+      }}
+    >
+      <OrgIssuesTriageBody
+        data={data}
+        isLoading={isLoading}
+        selectedRepo={selectedRepo}
+        onSelect={setSelectedRepo}
+      />
+    </ListPanel>
   );
 }
 
@@ -1036,18 +1226,7 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
           <TeamPanel orgSlug={ctx.orgSlug} isOwner={ctx.role === "OWNER"} />
         </ListPanel>
 
-        <ListPanel
-          icon={<AlertCircle className="h-4 w-4 text-primary" />}
-          title="Priority issues triage"
-          meta="Sort: Severity"
-          footer={{
-            href: `https://github.com/orgs/${ctx.orgSlug}/repositories`,
-            label: "Open on GitHub",
-            external: true,
-          }}
-        >
-          <OrgIssuesTriage orgSlug={ctx.orgSlug} />
-        </ListPanel>
+        <OrgIssuesTriage orgSlug={ctx.orgSlug} />
 
         <OrgIssuesClosedPreview orgSlug={ctx.orgSlug} />
       </div>
