@@ -282,6 +282,8 @@ function IssueRow({ issue, critical }: { issue: IssueItem; critical: boolean }) 
 // ─── Issues Triage ───────────────────────────────────────────────────────────
 
 function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
+  const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
+
   const { data, isLoading } = useQuery<IssueItem[]>({
     queryKey: ["org-issues", orgSlug],
     queryFn: async () => {
@@ -322,34 +324,42 @@ function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
   }, {});
 
   const sortedRepos = Object.entries(grouped).sort(([, a], [, b]) => b.length - a.length);
-
   const topRepos = sortedRepos.slice(0, 5);
+
+  const visibleRepos = selectedRepo
+    ? topRepos.filter(([repo]) => repo === selectedRepo)
+    : topRepos;
 
   return (
     <div className="flex flex-col gap-3 max-h-80 overflow-y-auto pr-1">
-      {/* Repo chips — top 5 only */}
+      {/* Repo chips — clickable to filter */}
       <div className="flex flex-wrap gap-1.5">
         {topRepos.map(([repo, items]) => {
           const hasCritical = items.some((i) => isHighPriority(i.labels));
+          const isSelected = selectedRepo === repo;
           return (
-            <a
+            <button
               key={repo}
-              href={`https://github.com/${repo}/issues`}
-              target="_blank"
-              rel="noopener noreferrer"
+              type="button"
+              onClick={() => setSelectedRepo(isSelected ? null : repo)}
               className={cn(
                 "flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded border transition-colors",
-                hasCritical
-                  ? "bg-red-500/10 border-red-500/30 text-red-400 hover:border-red-500/60"
-                  : "bg-card/60 border-border text-muted-foreground hover:border-primary/50 hover:text-primary"
+                isSelected
+                  ? "bg-primary/15 border-primary/50 text-primary"
+                  : hasCritical
+                    ? "bg-red-500/10 border-red-500/30 text-red-400 hover:border-red-500/60"
+                    : "bg-card/60 border-border text-muted-foreground hover:border-primary/50 hover:text-primary"
               )}
             >
               <Folder className="h-2.5 w-2.5 shrink-0" />
               <span>{repoShortName(repo)}</span>
-              <span className={cn("font-bold px-0.5", hasCritical ? "text-red-300" : "text-foreground")}>
+              <span className={cn(
+                "font-bold px-0.5",
+                isSelected ? "text-primary" : hasCritical ? "text-red-300" : "text-foreground"
+              )}>
                 {items.length}
               </span>
-            </a>
+            </button>
           );
         })}
         {sortedRepos.length > 5 && (
@@ -359,9 +369,9 @@ function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
         )}
       </div>
 
-      {/* Issue list — 2 per repo, compact rows */}
+      {/* Issue list — filtered by selected repo */}
       <div className="flex flex-col gap-3">
-        {topRepos.map(([repo, items]) => (
+        {visibleRepos.map(([repo, items]) => (
           <div key={repo} className="flex flex-col gap-1">
             <div className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground/60 uppercase tracking-widest">
               <Folder className="h-2.5 w-2.5" />
@@ -369,7 +379,7 @@ function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
               <span className="text-primary/60 ml-auto">{items.length}</span>
             </div>
             <ul className="flex flex-col gap-1">
-              {items.slice(0, 2).map((issue) => {
+              {(selectedRepo ? items : items.slice(0, 2)).map((issue) => {
                 const critical = isHighPriority(issue.labels);
                 return (
                   <li key={`${repo}-${issue.number}`}>
@@ -377,16 +387,15 @@ function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
                   </li>
                 );
               })}
-              {items.length > 2 && (
+              {!selectedRepo && items.length > 2 && (
                 <li>
-                  <a
-                    href={`https://github.com/${repo}/issues`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRepo(repo)}
                     className="text-[10px] font-mono text-muted-foreground/50 hover:text-primary transition-colors pl-1"
                   >
                     +{items.length - 2} more →
-                  </a>
+                  </button>
                 </li>
               )}
             </ul>
