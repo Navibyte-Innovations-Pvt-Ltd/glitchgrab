@@ -174,23 +174,46 @@ export function GscPropertyDetail({
     retry: false,
   });
 
-  const [copiedFavicon, setCopiedFavicon] = useState(false);
-  const [copiedOg, setCopiedOg] = useState(false);
+  const [copiedHealth, setCopiedHealth] = useState(false);
   const [copiedIndexing, setCopiedIndexing] = useState(false);
-  const [faviconIssueUrl, setFaviconIssueUrl] = useState<string | null>(null);
-  const [ogIssueUrl, setOgIssueUrl] = useState<string | null>(null);
+  const [healthIssueUrl, setHealthIssueUrl] = useState<string | null>(null);
   const [indexingIssueUrl, setIndexingIssueUrl] = useState<string | null>(null);
 
-  const { mutate: createFaviconIssue, isPending: isCreatingFaviconIssue } =
+  function buildFaviconSection() {
+    if (!faviconData || faviconData.issues.length === 0) return null;
+    const lines = faviconData.issues
+      .map((i) => `- [${i.status}] ${i.text}`)
+      .join("\n");
+    return `## Favicon\n\nIssues detected by RealFaviconGenerator:\n${lines}\n\nGenerate and add all missing favicon files and correct <link> tags in <head>. Include ICO, PNG (16×16, 32×32, 96×96, 180×180), SVG, and web manifest.`;
+  }
+
+  function buildOgSection() {
+    if (!ogData || ogData.issues.length === 0) return null;
+    const lines = ogData.issues
+      .map((i) => `- [${i.severity.toUpperCase()}] ${i.field}: ${i.message}`)
+      .join("\n");
+    const tagLines = Object.entries(ogData.tags)
+      .filter(([, v]) => v)
+      .map(([k, v]) => `  ${k}: ${v}`)
+      .join("\n");
+    return `## Open Graph / Social Tags\n\nCurrent tags:\n${tagLines}\n\nIssues:\n${lines}\n\nAdd or fix missing/incorrect OG and Twitter meta tags in <head>. Use og:image at least 1200×630px. Set twitter:card to 'summary_large_image'.`;
+  }
+
+  function buildHealthPrompt() {
+    const parts = [buildFaviconSection(), buildOgSection()].filter(Boolean);
+    if (parts.length === 0) return null;
+    return `Fix SEO health issues for ${property.siteUrl}\n\n${parts.join("\n\n")}`;
+  }
+
+  const hasHealthIssues =
+    (faviconData?.issues.length ?? 0) > 0 || (ogData?.issues.length ?? 0) > 0;
+
+  const { mutate: createHealthIssue, isPending: isCreatingHealthIssue } =
     useMutation({
       mutationFn: async () => {
-        if (!faviconData || faviconData.issues.length === 0)
-          throw new Error("No issues");
+        const description = buildHealthPrompt();
+        if (!description) throw new Error("No issues");
         if (!selectedRepoId) throw new Error("No repo linked");
-        const lines = faviconData.issues
-          .map((i) => `- [${i.status}] ${i.text}`)
-          .join("\n");
-        const description = `Fix favicon issues for ${property.siteUrl}\n\nIssues detected by RealFaviconGenerator:\n${lines}\n\nGenerate and add all missing favicon files and correct <link> tags in <head>. Include ICO, PNG (16×16, 32×32, 96×96, 180×180), SVG, and web manifest.`;
         const form = new FormData();
         form.append("repoId", selectedRepoId);
         form.append("description", description);
@@ -201,7 +224,7 @@ export function GscPropertyDetail({
       },
       onSuccess: (result) => {
         if (result.issueUrl) {
-          setFaviconIssueUrl(result.issueUrl);
+          setHealthIssueUrl(result.issueUrl);
           toast.success("GitHub issue created");
         } else {
           toast.success("Report submitted");
@@ -212,40 +235,6 @@ export function GscPropertyDetail({
           err instanceof Error ? err.message : "Failed to create issue",
         ),
     });
-
-  const { mutate: createOgIssue, isPending: isCreatingOgIssue } = useMutation({
-    mutationFn: async () => {
-      if (!ogData || ogData.issues.length === 0) throw new Error("No issues");
-      if (!selectedRepoId) throw new Error("No repo linked");
-      const lines = ogData.issues
-        .map((i) => `- [${i.severity.toUpperCase()}] ${i.field}: ${i.message}`)
-        .join("\n");
-      const tagLines = Object.entries(ogData.tags)
-        .filter(([, v]) => v)
-        .map(([k, v]) => `  ${k}: ${v}`)
-        .join("\n");
-      const description = `Fix Open Graph / social meta tag issues for ${property.siteUrl}\n\nCurrent tags:\n${tagLines}\n\nIssues:\n${lines}\n\nAdd or fix missing/incorrect OG and Twitter meta tags in <head>. Use og:image at least 1200×630px. Set twitter:card to 'summary_large_image'.`;
-      const form = new FormData();
-      form.append("repoId", selectedRepoId);
-      form.append("description", description);
-      const { data } = await axios.post("/api/v1/reports", form);
-      if (!data.success)
-        throw new Error(data.error ?? "Failed to create issue");
-      return data.data as { issueUrl?: string; issueNumber?: number };
-    },
-    onSuccess: (result) => {
-      if (result.issueUrl) {
-        setOgIssueUrl(result.issueUrl);
-        toast.success("GitHub issue created");
-      } else {
-        toast.success("Report submitted");
-      }
-    },
-    onError: (err) =>
-      toast.error(
-        err instanceof Error ? err.message : "Failed to create issue",
-      ),
-  });
 
   const { mutate: createIndexingIssue, isPending: isCreatingIndexingIssue } =
     useMutation({
@@ -745,82 +734,86 @@ export function GscPropertyDetail({
         {/* RIGHT — Health */}
         <div className="space-y-4">
 
-          {/* Favicon health */}
+          {/* SEO Health — combined Favicon + Social/OG */}
           <div className="border border-border rounded bg-card/40 overflow-hidden">
             <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border/60">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 min-w-0">
                 <ScanSearch className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-widest">
-                  Favicon Health
+                <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-widest truncate">
+                  SEO Health
                 </span>
               </div>
               <div className="flex items-center gap-1">
-                {isFaviconFetching && <Skeleton className="h-3 w-14" />}
-                {!isFaviconFetching &&
-                  faviconData &&
-                  faviconData.issues.length > 0 && (
-                    <>
+                {(isFaviconFetching || isOgFetching) && (
+                  <Skeleton className="h-3 w-14" />
+                )}
+                {hasHealthIssues && (
+                  <>
+                    <Tooltip>
+                      <TooltipTrigger
+                        type="button"
+                        onClick={() => {
+                          const prompt = buildHealthPrompt();
+                          if (!prompt) return;
+                          navigator.clipboard.writeText(prompt).then(() => {
+                            setCopiedHealth(true);
+                            setTimeout(() => setCopiedHealth(false), 2000);
+                            toast.success("Copied to clipboard");
+                          });
+                        }}
+                        className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {copiedHealth ? (
+                          <Check className="h-3.5 w-3.5 text-green-400" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" />
+                        )}
+                      </TooltipTrigger>
+                      <TooltipContent>Copy fix prompt</TooltipContent>
+                    </Tooltip>
+                    {healthIssueUrl ? (
                       <Tooltip>
                         <TooltipTrigger
                           type="button"
-                          onClick={() => {
-                            const lines = faviconData.issues
-                              .map((i) => `- [${i.status}] ${i.text}`)
-                              .join("\n");
-                            const prompt = `Fix the favicon issues for ${property.siteUrl}.\n\nIssues detected by RealFaviconGenerator:\n${lines}\n\nGenerate and add all missing favicon files and correct <link> tags in <head>. Include ICO, PNG (16×16, 32×32, 96×96, 180×180), SVG, and web manifest.`;
-                            navigator.clipboard.writeText(prompt).then(() => {
-                              setCopiedFavicon(true);
-                              setTimeout(() => setCopiedFavicon(false), 2000);
-                              toast.success("Copied to clipboard");
-                            });
-                          }}
-                          className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+                          onClick={() => window.open(healthIssueUrl, "_blank", "noopener,noreferrer")}
+                          className="p-1 text-green-400 hover:text-green-300 transition-colors"
                         >
-                          {copiedFavicon ? (
-                            <Check className="h-3.5 w-3.5 text-green-400" />
+                          <GitPullRequest className="h-3.5 w-3.5" />
+                        </TooltipTrigger>
+                        <TooltipContent>View GitHub issue</TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <Tooltip>
+                        <TooltipTrigger
+                          type="button"
+                          onClick={() => createHealthIssue()}
+                          disabled={!selectedRepoId || isCreatingHealthIssue}
+                          className="p-1 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          {isCreatingHealthIssue ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           ) : (
-                            <Copy className="h-3.5 w-3.5" />
+                            <GitPullRequest className="h-3.5 w-3.5" />
                           )}
                         </TooltipTrigger>
-                        <TooltipContent>Copy fix prompt</TooltipContent>
+                        <TooltipContent>
+                          {!selectedRepoId ? "Link a repo first" : "Create GitHub issue"}
+                        </TooltipContent>
                       </Tooltip>
-                      {faviconIssueUrl ? (
-                        <Tooltip>
-                          <TooltipTrigger
-                            type="button"
-                            onClick={() => window.open(faviconIssueUrl, "_blank", "noopener,noreferrer")}
-                            className="p-1 text-green-400 hover:text-green-300 transition-colors"
-                          >
-                            <GitPullRequest className="h-3.5 w-3.5" />
-                          </TooltipTrigger>
-                          <TooltipContent>View GitHub issue</TooltipContent>
-                        </Tooltip>
-                      ) : (
-                        <Tooltip>
-                          <TooltipTrigger
-                            type="button"
-                            onClick={() => createFaviconIssue()}
-                            disabled={!selectedRepoId || isCreatingFaviconIssue}
-                            className="p-1 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                          >
-                            {isCreatingFaviconIssue ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <GitPullRequest className="h-3.5 w-3.5" />
-                            )}
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {!selectedRepoId
-                              ? "Link a repo first"
-                              : "Create GitHub issue"}
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                    </>
-                  )}
+                    )}
+                  </>
+                )}
               </div>
             </div>
-            <div className="p-4">
+
+            {/* Favicon subsection */}
+            <div className="p-4 border-b border-border/40">
+              <div className="flex items-center gap-2 mb-3">
+                <ScanSearch className="h-3 w-3 text-muted-foreground/70 shrink-0" />
+                <span className="font-mono text-[10px] text-muted-foreground/70 uppercase tracking-widest">
+                  Favicon
+                </span>
+              </div>
               {isFaviconError && !isFaviconFetching && (
                 <RetryRow onRetry={recheckFavicon} />
               )}
@@ -854,89 +847,15 @@ export function GscPropertyDetail({
                   />
                 ))}
             </div>
-          </div>
 
-          {/* Social / OG */}
-          <div className="border border-border rounded bg-card/40 overflow-hidden">
-            <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border/60">
+            {/* Social / OG subsection */}
+            <div className="p-4 space-y-4">
               <div className="flex items-center gap-2">
-                <Share2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-widest">
+                <Share2 className="h-3 w-3 text-muted-foreground/70 shrink-0" />
+                <span className="font-mono text-[10px] text-muted-foreground/70 uppercase tracking-widest">
                   Social / OG Tags
                 </span>
               </div>
-              <div className="flex items-center gap-1">
-                {isOgFetching && <Skeleton className="h-3 w-14" />}
-                {!isOgFetching && ogData && ogData.issues.length > 0 && (
-                  <>
-                    <Tooltip>
-                      <TooltipTrigger
-                        type="button"
-                        onClick={() => {
-                          const lines = ogData.issues
-                            .map(
-                              (i) =>
-                                `- [${i.severity.toUpperCase()}] ${i.field}: ${i.message}`,
-                            )
-                            .join("\n");
-                          const tagLines = Object.entries(ogData.tags)
-                            .filter(([, v]) => v)
-                            .map(([k, v]) => `  ${k}: ${v}`)
-                            .join("\n");
-                          const prompt = `Fix the Open Graph / social meta tag issues for ${property.siteUrl}.\n\nCurrent tags:\n${tagLines}\n\nIssues:\n${lines}\n\nAdd or fix missing/incorrect OG and Twitter meta tags in <head>. Use og:image at least 1200×630px. Set twitter:card to 'summary_large_image'.`;
-                          navigator.clipboard.writeText(prompt).then(() => {
-                            setCopiedOg(true);
-                            setTimeout(() => setCopiedOg(false), 2000);
-                            toast.success("Copied to clipboard");
-                          });
-                        }}
-                        className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        {copiedOg ? (
-                          <Check className="h-3.5 w-3.5 text-green-400" />
-                        ) : (
-                          <Copy className="h-3.5 w-3.5" />
-                        )}
-                      </TooltipTrigger>
-                      <TooltipContent>Copy fix prompt</TooltipContent>
-                    </Tooltip>
-                    {ogIssueUrl ? (
-                      <Tooltip>
-                        <TooltipTrigger
-                          type="button"
-                          onClick={() => window.open(ogIssueUrl, "_blank", "noopener,noreferrer")}
-                          className="p-1 text-green-400 hover:text-green-300 transition-colors"
-                        >
-                          <GitPullRequest className="h-3.5 w-3.5" />
-                        </TooltipTrigger>
-                        <TooltipContent>View GitHub issue</TooltipContent>
-                      </Tooltip>
-                    ) : (
-                      <Tooltip>
-                        <TooltipTrigger
-                          type="button"
-                          onClick={() => createOgIssue()}
-                          disabled={!selectedRepoId || isCreatingOgIssue}
-                          className="p-1 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          {isCreatingOgIssue ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <GitPullRequest className="h-3.5 w-3.5" />
-                          )}
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {!selectedRepoId
-                            ? "Link a repo first"
-                            : "Create GitHub issue"}
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-            <div className="p-4 space-y-4">
               {isOgError && !isOgFetching && <RetryRow onRetry={recheckOg} />}
               {isOgFetching && (
                 <div className="space-y-4">
