@@ -17,7 +17,7 @@ import type {
 } from "./types";
 import { GlitchgrabErrorBoundary } from "./error-boundary";
 import { ReportDialog } from "./report-dialog";
-import { sanitizeUrl, captureContext, sendReport, captureDeviceInfo } from "./utils";
+import { sanitizeUrl, captureContext, sendReport, captureDeviceInfo, enhanceText } from "./utils";
 import { computeSignature, shouldSkipDuplicate } from "./dedup";
 import {
   initBreadcrumbs,
@@ -271,6 +271,17 @@ function GlitchgrabProviderInner({
     []
   );
 
+  const enhance = useCallback(
+    async (text: string): Promise<string> => {
+      try {
+        return await enhanceText(text, token, baseUrl);
+      } catch {
+        return text;
+      }
+    },
+    [token, baseUrl]
+  );
+
   const openReportDialog = useCallback((options?: { description?: string; type?: ReportType }) => {
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("glitchgrab:open-report", { detail: options }));
@@ -303,6 +314,7 @@ function GlitchgrabProviderInner({
         report,
         addBreadcrumb,
         openReportDialog,
+        enhanceText: enhance,
       }}
     >
       <GlitchgrabErrorBoundary
@@ -315,7 +327,7 @@ function GlitchgrabProviderInner({
       >
         {children}
       </GlitchgrabErrorBoundary>
-      <ReportDialog report={report} types={types} showSeverity={showSeverity} />
+      <ReportDialog report={report} enhanceText={enhance} types={types} showSeverity={showSeverity} />
     </GlitchgrabContext.Provider>
   );
 }
