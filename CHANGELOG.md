@@ -1,3 +1,15 @@
+## [1.33.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.32.0...v1.33.0) (2026-05-16)
+
+### Features
+
+* **web:** include CI check state in org PR list endpoint ([3324939](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/3324939037c2862038c043aae03dd094ac334784))
+* **web:** show CI check badge on org overview PR list ([317f7c8](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/317f7c866ba6acd78a3727ec1246d72d328f3afc))
+
+### Bug Fixes
+
+* **web:** allow team panel repo list to wrap instead of truncating ([195fc4d](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/195fc4d656f114259e28f7c955e7a249137806a7))
+* **web:** show all repos in org team panel instead of slicing to 3 ([01bb2ef](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/01bb2ef46082e08121e73f691563326aed7f6fd5))
+
 ## [1.32.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.31.0...v1.32.0) (2026-05-16)
 
 ### ⚠ BREAKING CHANGES
