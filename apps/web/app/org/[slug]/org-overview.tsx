@@ -550,7 +550,7 @@ function TeamPanel({ orgSlug, isOwner }: { orgSlug: string; isOwner: boolean }) 
                     {stats ? (
                       <TooltipProvider delay={150}>
                         <div className="text-[10px] font-mono text-primary/70 truncate">
-                          ↑ {stats.commits} commit{stats.commits !== 1 ? "s" : ""} · today · {stats.repos.slice(0, 3).map((r) => (
+                          ↑ {stats.commits} commit{stats.commits !== 1 ? "s" : ""} · today · {stats.repos.map((r) => (
                             <Tooltip key={r.name}>
                               <TooltipTrigger render={<span className="underline decoration-dotted underline-offset-2 cursor-help" />}>
                                 {r.name} ({r.commits})
@@ -559,7 +559,7 @@ function TeamPanel({ orgSlug, isOwner }: { orgSlug: string; isOwner: boolean }) 
                                 {r.branches?.length ? `branches: ${r.branches.join(", ")}` : "no branch info"}
                               </TooltipContent>
                             </Tooltip>
-                          )).reduce((acc, el, i) => i === 0 ? [el] : [...acc, ", ", el], [] as React.ReactNode[])}{stats.repos.length > 3 ? ` +${stats.repos.length - 3}` : ""}
+                          )).reduce((acc, el, i) => i === 0 ? [el] : [...acc, ", ", el], [] as React.ReactNode[])}
                         </div>
                       </TooltipProvider>
                     ) : memberStats !== undefined ? (
@@ -650,7 +650,7 @@ function PendingMemberRow({ member, orgSlug, isOwner, stats }: { member: MergedM
           {stats ? (
             <TooltipProvider delay={150}>
               <div className="text-[10px] font-mono text-muted-foreground/60 truncate">
-                ↑ {stats.commits} commit{stats.commits !== 1 ? "s" : ""} · today · {stats.repos.slice(0, 3).map((r) => (
+                ↑ {stats.commits} commit{stats.commits !== 1 ? "s" : ""} · today · {stats.repos.map((r) => (
                   <Tooltip key={r.name}>
                     <TooltipTrigger render={<span className="underline decoration-dotted underline-offset-2 cursor-help" />}>
                       {r.name} ({r.commits})
@@ -659,7 +659,7 @@ function PendingMemberRow({ member, orgSlug, isOwner, stats }: { member: MergedM
                       {r.branches?.length ? `branches: ${r.branches.join(", ")}` : "no branch info"}
                     </TooltipContent>
                   </Tooltip>
-                )).reduce((acc, el, i) => i === 0 ? [el] : [...acc, ", ", el], [] as React.ReactNode[])}{stats.repos.length > 3 ? ` +${stats.repos.length - 3}` : ""}
+                )).reduce((acc, el, i) => i === 0 ? [el] : [...acc, ", ", el], [] as React.ReactNode[])}
               </div>
             </TooltipProvider>
           ) : null}
