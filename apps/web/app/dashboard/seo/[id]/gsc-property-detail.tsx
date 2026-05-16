@@ -913,7 +913,7 @@ export function GscPropertyDetail({
                         type="button"
                         onClick={() =>
                           setPreviewImage({
-                            src: ogData.tags.ogImage!,
+                            src: ogData.tags.ogImage as string,
                             alt: "og:image",
                             title: "Social preview (og:image)",
                           })
