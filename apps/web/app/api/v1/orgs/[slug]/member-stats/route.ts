@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getGitHubOrgMembers } from "@/lib/github";
 
-interface RepoStat { name: string; commits: number }
+interface RepoStat { name: string; commits: number; branches: string[] }
 interface MemberStat { commits: number; repos: RepoStat[] }
 
 export async function GET(_req: Request, { params }: { params: Promise<{ slug: string }> }) {
@@ -49,33 +49,59 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
     "X-GitHub-Api-Version": "2022-11-28",
   };
 
-  // login → repoShort → count
-  const perRepo: Record<string, Record<string, number>> = {};
+  // login → repoShort → { shas: SHA set, branches: branch name set }
+  const perRepo: Record<string, Record<string, { shas: Set<string>; branches: Set<string> }>> = {};
+
+  interface Branch { name: string }
+  interface Commit { sha: string; author: { login?: string } | null; commit: { author: { date: string } } }
 
   await Promise.all(
-    githubMembers.flatMap((member) =>
-      repos.map(async (repo) => {
-        try {
-          const url = `https://api.github.com/repos/${repo.fullName}/commits?author=${member.login}&since=${sinceIso}&per_page=100`;
-          const res = await fetch(url, { headers: ghHeaders });
-          if (!res.ok) return;
-          const commits = (await res.json()) as unknown[];
-          if (!Array.isArray(commits) || commits.length === 0) return;
+    repos.map(async (repo) => {
+      try {
+        const branchRes = await fetch(`https://api.github.com/repos/${repo.fullName}/branches?per_page=100`, { headers: ghHeaders });
+        if (!branchRes.ok) return;
+        const branches = (await branchRes.json()) as Branch[];
+        if (!Array.isArray(branches)) return;
 
-          const repoShort = repo.fullName.split("/")[1] ?? repo.fullName;
-          perRepo[member.login] ??= {};
-          perRepo[member.login][repoShort] = (perRepo[member.login][repoShort] ?? 0) + commits.length;
-        } catch {
-          // fail silently
-        }
-      })
-    )
+        const repoShort = repo.fullName.split("/")[1] ?? repo.fullName;
+
+        await Promise.all(
+          branches.flatMap((branch) =>
+            githubMembers.map(async (member) => {
+              try {
+                const url = `https://api.github.com/repos/${repo.fullName}/commits?sha=${encodeURIComponent(branch.name)}&author=${member.login}&since=${sinceIso}&per_page=100`;
+                const res = await fetch(url, { headers: ghHeaders });
+                if (!res.ok) return;
+                const commits = (await res.json()) as Commit[];
+                if (!Array.isArray(commits) || commits.length === 0) return;
+
+                perRepo[member.login] ??= {};
+                perRepo[member.login][repoShort] ??= { shas: new Set(), branches: new Set() };
+                const entry = perRepo[member.login][repoShort];
+                let added = false;
+                for (const c of commits) {
+                  if (!entry.shas.has(c.sha)) {
+                    entry.shas.add(c.sha);
+                    added = true;
+                  }
+                }
+                if (added) entry.branches.add(branch.name);
+              } catch {
+                // fail silently
+              }
+            })
+          )
+        );
+      } catch {
+        // fail silently
+      }
+    })
   );
 
   const data: Record<string, MemberStat> = {};
   for (const [login, repoMap] of Object.entries(perRepo)) {
     const repos = Object.entries(repoMap)
-      .map(([name, commits]) => ({ name, commits }))
+      .map(([name, v]) => ({ name, commits: v.shas.size, branches: Array.from(v.branches).sort() }))
       .sort((a, b) => b.commits - a.commits);
     data[login] = { commits: repos.reduce((s, r) => s + r.commits, 0), repos };
   }
