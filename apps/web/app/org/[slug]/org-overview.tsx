@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { ActiveWorkflowsWidget } from "@/app/dashboard/active-workflows-widget";
 import { GithubContributions } from "@/app/dashboard/github-contributions";
 import type { OrgContext } from "./lib/get-org-context";
@@ -48,7 +49,7 @@ interface MembersData {
   total: number;
 }
 
-interface RepoStat { name: string; commits: number }
+interface RepoStat { name: string; commits: number; branches?: string[] }
 interface MemberActivity {
   [githubLogin: string]: { commits: number; repos: RepoStat[] };
 }
@@ -547,9 +548,20 @@ function TeamPanel({ orgSlug, isOwner }: { orgSlug: string; isOwner: boolean }) 
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium text-foreground truncate">{m.name ?? m.githubLogin}</div>
                     {stats ? (
-                      <div className="text-[10px] font-mono text-primary/70 truncate">
-                        ↑ {stats.commits} commit{stats.commits !== 1 ? "s" : ""} · today · {stats.repos.slice(0, 3).map((r) => `${r.name} (${r.commits})`).join(", ")}{stats.repos.length > 3 ? ` +${stats.repos.length - 3}` : ""}
-                      </div>
+                      <TooltipProvider delay={150}>
+                        <div className="text-[10px] font-mono text-primary/70 truncate">
+                          ↑ {stats.commits} commit{stats.commits !== 1 ? "s" : ""} · today · {stats.repos.slice(0, 3).map((r) => (
+                            <Tooltip key={r.name}>
+                              <TooltipTrigger render={<span className="underline decoration-dotted underline-offset-2 cursor-help" />}>
+                                {r.name} ({r.commits})
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {r.branches?.length ? `branches: ${r.branches.join(", ")}` : "no branch info"}
+                              </TooltipContent>
+                            </Tooltip>
+                          )).reduce((acc, el, i) => i === 0 ? [el] : [...acc, ", ", el], [] as React.ReactNode[])}{stats.repos.length > 3 ? ` +${stats.repos.length - 3}` : ""}
+                        </div>
+                      </TooltipProvider>
                     ) : memberStats !== undefined ? (
                       <div className="text-[10px] font-mono text-muted-foreground/50 truncate">
                         no commits today
@@ -636,9 +648,20 @@ function PendingMemberRow({ member, orgSlug, isOwner, stats }: { member: MergedM
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium text-muted-foreground truncate">@{member.githubLogin}</div>
           {stats ? (
-            <div className="text-[10px] font-mono text-muted-foreground/60 truncate">
-              ↑ {stats.commits} commit{stats.commits !== 1 ? "s" : ""} · today · {stats.repos.slice(0, 3).map((r) => `${r.name} (${r.commits})`).join(", ")}{stats.repos.length > 3 ? ` +${stats.repos.length - 3}` : ""}
-            </div>
+            <TooltipProvider delay={150}>
+              <div className="text-[10px] font-mono text-muted-foreground/60 truncate">
+                ↑ {stats.commits} commit{stats.commits !== 1 ? "s" : ""} · today · {stats.repos.slice(0, 3).map((r) => (
+                  <Tooltip key={r.name}>
+                    <TooltipTrigger render={<span className="underline decoration-dotted underline-offset-2 cursor-help" />}>
+                      {r.name} ({r.commits})
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {r.branches?.length ? `branches: ${r.branches.join(", ")}` : "no branch info"}
+                    </TooltipContent>
+                  </Tooltip>
+                )).reduce((acc, el, i) => i === 0 ? [el] : [...acc, ", ", el], [] as React.ReactNode[])}{stats.repos.length > 3 ? ` +${stats.repos.length - 3}` : ""}
+              </div>
+            </TooltipProvider>
           ) : null}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
