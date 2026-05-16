@@ -3,7 +3,9 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { processReport } from "@/lib/pipeline";
+import { createGitHubIssue } from "@/lib/github";
+import { uploadScreenshotToS3 } from "@/lib/s3";
+import { dispatchWebhook } from "@/lib/webhooks";
 import sharp from "sharp";
 
 export async function GET() {
@@ -102,6 +104,19 @@ export async function GET() {
   }
 }
 
+// ─── Helpers ──────────────────────────────────────────────
+
+/** Derive a concise GitHub issue title from the user's raw text */
+function deriveTitle(text: string): string {
+  const trimmed = text.trim().replace(/\s+/g, " ");
+  if (!trimmed) return "Bug report";
+  // Use first sentence if short, otherwise truncate at word boundary
+  const firstSentence = trimmed.split(/[.!?\n]/)[0].trim();
+  const candidate = firstSentence.length > 0 && firstSentence.length <= 80 ? firstSentence : trimmed;
+  if (candidate.length <= 80) return candidate;
+  return candidate.slice(0, 77).replace(/\s\S*$/, "") + "...";
+}
+
 export async function POST(request: Request) {
   try {
     const session = await auth();
@@ -115,9 +130,8 @@ export async function POST(request: Request) {
 
     const formData = await request.formData();
     const repoId = formData.get("repoId") as string;
-    const description = formData.get("description") as string;
+    const description = ((formData.get("description") as string) || "").trim();
     const screenshotFiles = formData.getAll("screenshot") as File[];
-    const chatHistoryRaw = formData.get("chatHistory") as string | null;
 
     if (!repoId) {
       return NextResponse.json(
@@ -144,7 +158,18 @@ export async function POST(request: Request) {
       );
     }
 
-    // Convert all screenshots to base64 data URLs — resize to max 1024px for AI + storage
+    const account = await prisma.account.findFirst({
+      where: { userId: session.user.id, provider: "github" },
+    });
+
+    if (!account?.access_token) {
+      return NextResponse.json(
+        { success: false, error: "GitHub account not connected" },
+        { status: 400 }
+      );
+    }
+
+    // Resize all screenshots
     const screenshotDataUrls: string[] = [];
     for (const file of screenshotFiles) {
       if (!(file instanceof File) || file.size === 0) continue;
@@ -157,17 +182,13 @@ export async function POST(request: Request) {
       screenshotDataUrls.push(`data:image/jpeg;base64,${base64}`);
     }
 
-    // Store first screenshot in report.screenshot (primary — used by AI and pipeline)
-    // Store all as JSON array in report.metadata for multi-screenshot support
     const primaryScreenshot = screenshotDataUrls[0] ?? null;
-
-    // Build metadata
     const metadata: Record<string, unknown> = {};
     if (screenshotDataUrls.length > 1) {
       metadata.extraScreenshots = screenshotDataUrls.slice(1);
     }
 
-    // Create the report
+    // Create report record (no AI status — direct to CREATED after issue is made)
     const report = await prisma.report.create({
       data: {
         repoId: repo.id,
@@ -184,43 +205,99 @@ export async function POST(request: Request) {
       },
     });
 
-    // Parse chat history if provided (last 5 messages for context)
-    let chatHistory: { role: "user" | "assistant"; content: string }[] | undefined;
-    if (chatHistoryRaw) {
-      try {
-        chatHistory = JSON.parse(chatHistoryRaw);
-      } catch {
-        // Ignore invalid chat history
+    // Build issue body directly from user input (no AI)
+    const title = deriveTitle(description || "Bug report");
+    let issueBody = description || "_(No description provided)_";
+
+    // Upload screenshots to S3 and append to body
+    if (screenshotDataUrls.length > 0) {
+      const refs: string[] = [];
+      for (let i = 0; i < screenshotDataUrls.length; i++) {
+        const url = await uploadScreenshotToS3(
+          screenshotDataUrls[i],
+          `${report.id}${i > 0 ? `-${i + 1}` : ""}`
+        );
+        if (url) {
+          refs.push(`![Screenshot${screenshotDataUrls.length > 1 ? ` ${i + 1}` : ""}](${url})`);
+        }
+      }
+      if (refs.length > 0) {
+        issueBody += `\n\n## Screenshot${refs.length > 1 ? "s" : ""}\n\n${refs.join("\n\n")}`;
       }
     }
 
-    // Process with AI pipeline
-    const result = await processReport(report.id, chatHistory);
+    // Reporter footer
+    const reporterParts: string[] = [];
+    if (session.user.name) reporterParts.push(session.user.name);
+    if (session.user.email) reporterParts.push(`(${session.user.email})`);
+    if (reporterParts.length > 0) {
+      issueBody += `\n\n---\n> **Reported by:** ${reporterParts.join(" ")}\n\n*Reported via [Glitchgrab](https://glitchgrab.dev)*`;
+    } else {
+      issueBody += "\n\n---\n*Reported via [Glitchgrab](https://glitchgrab.dev)*";
+    }
 
-    if (!result.success) {
+    try {
+      const createdIssue = await createGitHubIssue(account.access_token, {
+        owner: repo.owner,
+        repo: repo.name,
+        title,
+        body: issueBody,
+        labels: [],
+      });
+
+      await prisma.issue.create({
+        data: {
+          reportId: report.id,
+          repoId: repo.id,
+          githubNumber: createdIssue.number,
+          githubUrl: createdIssue.url,
+          title,
+          body: issueBody,
+          labels: [],
+          severity: "medium",
+        },
+      });
+
+      await prisma.report.update({
+        where: { id: report.id },
+        data: { status: "CREATED" },
+      });
+
+      dispatchWebhook(repo.userId, "issue.created", {
+        issueUrl: createdIssue.url,
+        issueNumber: createdIssue.number,
+        title,
+        labels: [],
+        severity: "medium",
+        repo: repo.fullName,
+      });
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          reportId: report.id,
+          intent: "create",
+          issueUrl: createdIssue.url,
+          issueNumber: createdIssue.number,
+          title,
+          status: "CREATED",
+        },
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await prisma.report.update({
+        where: { id: report.id },
+        data: { status: "FAILED", failReason: message },
+      });
       return NextResponse.json(
         {
           success: false,
-          error: result.error ?? "Pipeline failed",
+          error: message,
           data: { reportId: report.id, status: "FAILED" },
         },
         { status: 500 }
       );
     }
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        reportId: report.id,
-        intent: result.intent,
-        issueUrl: result.issueUrl,
-        issueNumber: result.issueNumber,
-        title: result.title,
-        message: result.message,
-        clarifyQuestions: result.clarifyQuestions,
-        status: "CREATED",
-      },
-    });
   } catch (error) {
     console.error("Report error:", error);
     return NextResponse.json(
