@@ -466,6 +466,12 @@ function OrgIssuesTriageBody({
             <X className="h-2.5 w-2.5" />
           </button>
         )}
+        {/* +N more repos hint */}
+        {sortedRepos.length > 2 && (
+          <span className="text-[10px] font-mono text-muted-foreground/50 px-1">
+            +{sortedRepos.length - 2} more
+          </span>
+        )}
       </div>
 
       {/* Issue list */}
@@ -758,7 +764,7 @@ function TeamPanel({ orgSlug, isOwner }: { orgSlug: string; isOwner: boolean }) 
                         no commits today
                       </div>
                     ) : (
-                      <div className="text-[11px] font-mono text-muted-foreground/70">@{m.githubLogin}</div>
+                      <Skeleton className="h-2.5 w-36 mt-0.5" />
                     )}
                   </div>
                   {m.role && (
