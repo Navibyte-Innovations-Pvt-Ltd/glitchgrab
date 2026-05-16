@@ -4,8 +4,14 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
-interface GithubCommit {
-  commit: { author: { date: string | null } | null };
+interface GithubSearchCommit {
+  sha: string;
+  repository: { full_name: string };
+}
+
+interface GithubSearchResponse {
+  total_count: number;
+  items: GithubSearchCommit[];
 }
 
 export async function GET(_req: Request, { params }: { params: Promise<{ slug: string }> }) {
@@ -61,35 +67,41 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
     Accept: "application/vnd.github+json",
   };
 
-  // Count today's commits per login across all org repos
-  const counts: Record<string, { commits: number; repos: string[] }> = {};
+  // Count today's commits per login across all org repos — search API covers ALL branches
+  const counts: Record<string, { commits: number; repos: string[]; shas: Set<string> }> = {};
+  const repoFilter = repos.map((r) => `repo:${r.fullName}`).join("+");
 
   await Promise.all(
-    logins.flatMap((login) =>
-      repos.map(async (repo) => {
-        try {
-          const url = `https://api.github.com/repos/${repo.fullName}/commits?author=${login}&since=${sinceIso}&per_page=100`;
-          const res = await fetch(url, { headers });
-          if (!res.ok) return;
-          const commits = (await res.json()) as GithubCommit[];
-          if (!Array.isArray(commits) || commits.length === 0) return;
+    logins.map(async (login) => {
+      try {
+        const q = `author:${login}+author-date:>=${sinceIso}+${repoFilter}`;
+        const url = `https://api.github.com/search/commits?q=${q}&per_page=100`;
+        const res = await fetch(url, { headers });
+        if (!res.ok) return;
+        const json = (await res.json()) as GithubSearchResponse;
+        if (!Array.isArray(json.items) || json.items.length === 0) return;
 
-          const repoShort = repo.fullName.split("/")[1] ?? repo.fullName;
-          counts[login] ??= { commits: 0, repos: [] };
-          counts[login].commits += commits.length;
+        counts[login] ??= { commits: 0, repos: [], shas: new Set() };
+        for (const item of json.items) {
+          if (counts[login].shas.has(item.sha)) continue;
+          counts[login].shas.add(item.sha);
+          counts[login].commits += 1;
+          const repoShort = item.repository.full_name.split("/")[1] ?? item.repository.full_name;
           if (!counts[login].repos.includes(repoShort)) {
             counts[login].repos.push(repoShort);
           }
-        } catch {
-          // fail silently
         }
-      })
-    )
+      } catch {
+        // fail silently
+      }
+    })
   );
 
-  // Remove members with 0 commits
+  // Remove members with 0 commits, strip internal sha set
   const data = Object.fromEntries(
-    Object.entries(counts).filter(([, v]) => v.commits > 0)
+    Object.entries(counts)
+      .filter(([, v]) => v.commits > 0)
+      .map(([k, v]) => [k, { commits: v.commits, repos: v.repos }])
   );
 
   return NextResponse.json({ success: true, data });
