@@ -909,12 +909,25 @@ export function GscPropertyDetail({
                   {/* OG image preview */}
                   {ogData.tags.ogImage && (
                     <div className="border border-border rounded overflow-hidden">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={ogData.tags.ogImage}
-                        alt="og:image"
-                        className="w-full object-cover max-h-36"
-                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPreviewImage({
+                            src: ogData.tags.ogImage!,
+                            alt: "og:image",
+                            title: "Social preview (og:image)",
+                          })
+                        }
+                        className="block w-full cursor-zoom-in"
+                        aria-label="Preview social image"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={ogData.tags.ogImage}
+                          alt="og:image"
+                          className="w-full object-cover max-h-36"
+                        />
+                      </button>
                       <div className="px-3 py-2 bg-muted/20 space-y-0.5">
                         <p className="font-mono text-[11px] text-foreground truncate">
                           {ogData.tags.ogTitle ?? domain}
