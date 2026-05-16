@@ -199,6 +199,7 @@ function isLowQualityText(text: string): string | null {
 
 interface ReportDialogProps {
   report: UseGlitchgrabReturn["report"];
+  enhanceText?: UseGlitchgrabReturn["enhanceText"];
   types?: ReportType[];
   showSeverity?: boolean;
 }
@@ -209,9 +210,11 @@ interface ReportDialogProps {
  */
 export function ReportDialog({
   report,
+  enhanceText,
   types,
   showSeverity = true,
 }: ReportDialogProps) {
+  const [isEnhancing, setIsEnhancing] = useState(false);
   // Prevent hydration mismatch — render nothing until after hydration
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
@@ -636,6 +639,46 @@ export function ReportDialog({
                         <p style={{ color: "#ef4444", fontSize: "12px", marginTop: "6px" }}>
                           {validationError}
                         </p>
+                      )}
+                      {enhanceText && (
+                        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "6px" }}>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!description.trim() || isEnhancing) return;
+                              setIsEnhancing(true);
+                              try {
+                                const polished = await enhanceText(description);
+                                if (polished && polished !== description) {
+                                  setDescription(polished);
+                                  if (validationError) setValidationError(null);
+                                }
+                              } finally {
+                                setIsEnhancing(false);
+                              }
+                            }}
+                            disabled={!description.trim() || isEnhancing}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              background: "none",
+                              border: "none",
+                              padding: "2px 4px",
+                              fontFamily: "inherit",
+                              fontSize: "11px",
+                              color: t.textMuted,
+                              cursor: !description.trim() || isEnhancing ? "default" : "pointer",
+                              opacity: !description.trim() ? 0.5 : 1,
+                            }}
+                            title="Polish grammar — preserves your meaning"
+                          >
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                              <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3zM19 15l.75 2.25L22 18l-2.25.75L19 21l-.75-2.25L16 18l2.25-.75L19 15z" stroke={t.textMuted} strokeWidth="1.5" strokeLinejoin="round" />
+                            </svg>
+                            {isEnhancing ? "Enhancing..." : "AI enhance"}
+                          </button>
+                        </div>
                       )}
                       <button
                         type="button"
