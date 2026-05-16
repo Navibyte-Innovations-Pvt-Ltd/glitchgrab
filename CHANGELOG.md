@@ -1,3 +1,15 @@
+## [1.35.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.34.0...v1.35.0) (2026-05-16)
+
+### Features
+
+* **member-stats:** add PRs-created-today per repo to member activity ([c5a7d61](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/c5a7d615c2ca4bc94badf92190b270bb161fa432))
+* **org-overview:** show PR count with icons in team panel member rows ([1bdd8a5](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/1bdd8a50882f0c4f3bdfc25d65ec1de82e2d93d6))
+
+### Bug Fixes
+
+* **ci:** add legacy-peer-deps to unblock semantic-release npm version step ([c63e0eb](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/c63e0eb616c02faf1356bb3b85d66e855ced6c08))
+* **ci:** replace workspace:* with file: protocol for npm compatibility ([4195dd9](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/4195dd9613a2693229c9407d0462c8fc2acf7c2d))
+
 ## [1.34.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.33.0...v1.34.0) (2026-05-16)
 
 ### Features
