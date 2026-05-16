@@ -722,6 +722,7 @@ interface PullRequestItem {
   labels: { name: string; color: string }[];
   reviewers: string[];
   repoFullName: string;
+  checks?: { state: "passed" | "failed" | "pending" | "none"; passed: number; failed: number; total: number };
 }
 
 type PanelTab = "prs" | "workflows";
@@ -852,6 +853,24 @@ function OrgPRsOrWorkflowsPanel({ orgSlug }: { orgSlug: string }) {
                       {pr.draft && (
                         <span className="text-[9px] font-mono px-1 py-0 rounded border border-border text-muted-foreground/60 uppercase tracking-wide">
                           draft
+                        </span>
+                      )}
+                      {pr.checks && pr.checks.state !== "none" && (
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-0.5 text-[9px] font-mono px-1 py-0 rounded border uppercase tracking-wide",
+                            pr.checks.state === "passed" &&
+                              "border-green-500/30 bg-green-500/10 text-green-500",
+                            pr.checks.state === "failed" &&
+                              "border-red-500/30 bg-red-500/10 text-red-500",
+                            pr.checks.state === "pending" &&
+                              "border-yellow-500/30 bg-yellow-500/10 text-yellow-500"
+                          )}
+                          title={`${pr.checks.passed}/${pr.checks.total} checks passed${pr.checks.failed ? `, ${pr.checks.failed} failed` : ""}`}
+                        >
+                          {pr.checks.state === "passed" && "✓ checks"}
+                          {pr.checks.state === "failed" && `✕ ${pr.checks.failed} failed`}
+                          {pr.checks.state === "pending" && "● running"}
                         </span>
                       )}
                       {pr.labels.slice(0, 2).map((l) => (
