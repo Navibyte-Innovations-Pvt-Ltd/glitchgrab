@@ -232,7 +232,10 @@ function IssueRow({ issue, critical }: { issue: IssueItem; critical: boolean }) 
   };
 
   return (
-    <div
+    <a
+      href={issue.url}
+      target="_blank"
+      rel="noopener noreferrer"
       className={cn(
         "group flex items-center gap-2 rounded px-2 py-1.5 transition-colors border text-xs",
         critical
@@ -245,7 +248,9 @@ function IssueRow({ issue, critical }: { issue: IssueItem; critical: boolean }) 
       ) : (
         <Circle className="h-3 w-3 text-primary/50 shrink-0" />
       )}
-      <span className="flex-1 truncate text-foreground/90">{issue.title}</span>
+      <span className="flex-1 truncate text-foreground/90 group-hover:text-foreground transition-colors">
+        {issue.title}
+      </span>
       <span className="font-mono text-[10px] text-muted-foreground/50 shrink-0">
         #{issue.number} · {timeAgo(issue.createdAt)}
       </span>
@@ -258,7 +263,7 @@ function IssueRow({ issue, critical }: { issue: IssueItem; critical: boolean }) 
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
         <button
           type="button"
-          onClick={copyLink}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); copyLink(); }}
           className="p-1 rounded hover:bg-muted transition-colors"
           title="Copy link"
         >
@@ -266,17 +271,11 @@ function IssueRow({ issue, critical }: { issue: IssueItem; critical: boolean }) 
             ? <Check className="h-3 w-3 text-green-400" />
             : <Copy className="h-3 w-3 text-muted-foreground" />}
         </button>
-        <a
-          href={issue.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="p-1 rounded hover:bg-muted transition-colors"
-          title="View on GitHub"
-        >
+        <span className="p-1 rounded" title="View on GitHub">
           <ExternalLink className="h-3 w-3 text-muted-foreground" />
-        </a>
+        </span>
       </div>
-    </div>
+    </a>
   );
 }
 
