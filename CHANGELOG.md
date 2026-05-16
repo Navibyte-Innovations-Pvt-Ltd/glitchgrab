@@ -1,3 +1,23 @@
+## [1.30.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.29.1...v1.30.0) (2026-05-16)
+
+### Features
+
+* **seo:** add favicon proxy route with apex/www fallback ([f6270cf](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/f6270cf3d9ab237a8b1cba9b81288aec8cd73c4e))
+* **seo:** consolidate favicon and Open Graph issue handling into a unified health prompt ([8f66704](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/8f6670480eb7f9a701bf34edefc0d0195925df82))
+* **ui:** add button for previewing Open Graph image in GscPropertyDetail ([a96d5bc](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/a96d5bcc2fa752431839f0bff98c5c0745e7c6e1))
+* **ui:** add favicon preview functionality with dialog display ([84177bb](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/84177bbc3321045d4483df126b72c1f9c6f04e4f))
+
+### Bug Fixes
+
+* ensure ogImage is correctly typed as string in GscPropertyDetail ([27c1d7b](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/27c1d7b88762d21a5b5d38cfc6cd3a9f6ed15eb6))
+* **seo:** use favicon proxy so 404 fallback to Globe works ([52ba745](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/52ba74511671ff374158013d97e5db91e140fcc4))
+* **web:** add 32x32 size to favicon.ico ([a0edb1f](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/a0edb1fd47b38ad3ed3a355c505bf23ddd9bfee1))
+* **web:** declare 32x32 size on favicon.ico link tag ([c0916ad](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/c0916ad24e44f13b9bc9ec7ac037e4cfd7ebf9b6))
+
+### Performance Improvements
+
+* **web:** compress og-image.png below 300KB for WhatsApp previews ([af7cf4f](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/af7cf4f5902df2324249969642d7b8716b9ce29f))
+
 ## [1.29.1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.29.0...v1.29.1) (2026-05-15)
 
 ### Bug Fixes
