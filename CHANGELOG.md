@@ -1,3 +1,13 @@
+## [1.31.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.30.0...v1.31.0) (2026-05-16)
+
+### Features
+
+* enhance commit counting by utilizing GitHub search API for deduplication ([f69ec0d](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/f69ec0de5301e9d3d59249a8d4bec85886a38802))
+* optimize commit counting by using GitHub search API for deduplication ([275f707](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/275f7071807f000dd6be882f56bb4c4e366611fe))
+* **orgs:** count commits across all branches in member-stats ([35559ed](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/35559ed18390e2e5348dd76b7eee776e32c14374))
+* **orgs:** count today-activity commits across all branches ([34b43a9](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/34b43a94df3ce0370b439cdacd30909b89489478))
+* **org:** show contributing branches in repo tooltip ([e643345](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/e64334509c02f8535645c964894f9f6ab329b408))
+
 ## [1.30.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.29.1...v1.30.0) (2026-05-16)
 
 ### Features
