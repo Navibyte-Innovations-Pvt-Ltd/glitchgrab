@@ -4,6 +4,7 @@
     "@dotenvx/dotenvx": "^1.57.1",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
+    "@semantic-release/npm": "^13.1.5",
     "@tailwindcss/postcss": "^4.3.0",
     "@types/node": "^25.5.0",
     "knip": "^6.0.2",

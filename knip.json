@@ -48,6 +48,7 @@
   "ignoreDependencies": [
     "@semantic-release/changelog",
     "@semantic-release/git",
+    "@semantic-release/npm",
     "@tailwindcss/postcss",
     "tailwindcss",
     "shadcn",
