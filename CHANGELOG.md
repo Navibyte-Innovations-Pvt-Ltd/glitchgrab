@@ -1,3 +1,17 @@
+## [1.34.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.33.0...v1.34.0) (2026-05-16)
+
+### Features
+
+* **web:** add IssueRow component for improved issue display and link copying ([e7fc939](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/e7fc939c51ce792818167ae5e1efc02373720cca))
+* **web:** add repo filtering to OrgIssuesTriage component ([d5e1d9c](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/d5e1d9c3aaddd87dcd54ed7d247f0ca8efd9176e))
+* **web:** enhance issue fetching by linking PRs to issues ([575d409](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/575d409472395fdae8bebc382641e9201a57fa0d))
+* **web:** enhance IssueRow for improved link handling and styling ([8198640](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/8198640dde9056b61907a1ee39543091cfd46aa2))
+* **web:** implement repo filter popover for issue triage ([34e652f](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/34e652f52f6960d601600487d93ec569ce655d53))
+
+### Bug Fixes
+
+* **web:** extract token const to satisfy TypeScript narrowing in issues route ([005ed9c](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/005ed9c1b0e5e29099e7b806e99d5d53df828b92))
+
 ## [1.33.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.32.0...v1.33.0) (2026-05-16)
 
 ### Features
