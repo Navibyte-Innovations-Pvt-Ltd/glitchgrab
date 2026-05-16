@@ -77,6 +77,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
     return NextResponse.json({ success: true, data: [] });
   }
 
+  const token = account.access_token;
+
   const repos = await prisma.repo.findMany({
     where: { orgId: org.id },
     select: { fullName: true },
@@ -91,12 +93,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
               `https://api.github.com/repos/${repo.fullName}/issues?state=open&sort=created&direction=desc&per_page=10`,
               {
                 headers: {
-                  Authorization: `Bearer ${account.access_token}`,
+                  Authorization: `Bearer ${token}`,
                   Accept: "application/vnd.github+json",
                 },
               }
             ),
-            getLinkedIssueNumbers(repo.fullName, account.access_token),
+            getLinkedIssueNumbers(repo.fullName, token),
           ]);
           if (!issuesRes.ok) return [];
           const items = (await issuesRes.json()) as GithubIssue[];
