@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getGitHubOrgMembers } from "@/lib/github";
 
-interface RepoStat { name: string; commits: number; branches: string[] }
+interface RepoStat { name: string; commits: number; branches: string[]; prs: number }
 interface MemberStat { commits: number; repos: RepoStat[] }
 
 export async function GET(_req: Request, { params }: { params: Promise<{ slug: string }> }) {
@@ -98,11 +98,47 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
     })
   );
 
+  // PRs created today per member across org repos
+  const prPerMember: Record<string, Record<string, number>> = {};
+  const todayDate = sinceIso.split("T")[0];
+
+  await Promise.all(
+    githubMembers.map(async (member) => {
+      try {
+        const url = `https://api.github.com/search/issues?q=type:pr+org:${org.githubOrgLogin}+author:${member.login}+created:>=${todayDate}&per_page=100`;
+        const res = await fetch(url, { headers: ghHeaders });
+        if (!res.ok) return;
+        const json = (await res.json()) as { items?: { repository_url: string }[] };
+        if (!Array.isArray(json.items)) return;
+        for (const item of json.items) {
+          const repoShort = item.repository_url.split("/").at(-1) ?? "";
+          prPerMember[member.login] ??= {};
+          prPerMember[member.login][repoShort] = (prPerMember[member.login][repoShort] ?? 0) + 1;
+        }
+      } catch {
+        // fail silently
+      }
+    })
+  );
+
   const data: Record<string, MemberStat> = {};
-  for (const [login, repoMap] of Object.entries(perRepo)) {
-    const repos = Object.entries(repoMap)
-      .map(([name, v]) => ({ name, commits: v.shas.size, branches: Array.from(v.branches).sort() }))
+
+  const allLogins = new Set([...Object.keys(perRepo), ...Object.keys(prPerMember)]);
+
+  for (const login of allLogins) {
+    const repoMap = perRepo[login] ?? {};
+    const prMap = prPerMember[login] ?? {};
+    const allRepoNames = new Set([...Object.keys(repoMap), ...Object.keys(prMap)]);
+
+    const repos = Array.from(allRepoNames)
+      .map((name) => ({
+        name,
+        commits: repoMap[name]?.shas.size ?? 0,
+        branches: Array.from(repoMap[name]?.branches ?? []).sort(),
+        prs: prMap[name] ?? 0,
+      }))
       .sort((a, b) => b.commits - a.commits);
+
     data[login] = { commits: repos.reduce((s, r) => s + r.commits, 0), repos };
   }
 
