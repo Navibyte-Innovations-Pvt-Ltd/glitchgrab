@@ -49,33 +49,36 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
     "X-GitHub-Api-Version": "2022-11-28",
   };
 
-  // login → repoShort → count
-  const perRepo: Record<string, Record<string, number>> = {};
+  // login → repoShort → sha set (search API covers ALL branches; dedupe by SHA)
+  const perRepo: Record<string, Record<string, Set<string>>> = {};
+  const repoFilter = repos.map((r) => `repo:${r.fullName}`).join("+");
 
   await Promise.all(
-    githubMembers.flatMap((member) =>
-      repos.map(async (repo) => {
-        try {
-          const url = `https://api.github.com/repos/${repo.fullName}/commits?author=${member.login}&since=${sinceIso}&per_page=100`;
-          const res = await fetch(url, { headers: ghHeaders });
-          if (!res.ok) return;
-          const commits = (await res.json()) as unknown[];
-          if (!Array.isArray(commits) || commits.length === 0) return;
+    githubMembers.map(async (member) => {
+      try {
+        const q = `author:${member.login}+author-date:>=${sinceIso}+${repoFilter}`;
+        const url = `https://api.github.com/search/commits?q=${q}&per_page=100`;
+        const res = await fetch(url, { headers: ghHeaders });
+        if (!res.ok) return;
+        const json = (await res.json()) as { items?: Array<{ sha: string; repository: { full_name: string } }> };
+        if (!Array.isArray(json.items) || json.items.length === 0) return;
 
-          const repoShort = repo.fullName.split("/")[1] ?? repo.fullName;
-          perRepo[member.login] ??= {};
-          perRepo[member.login][repoShort] = (perRepo[member.login][repoShort] ?? 0) + commits.length;
-        } catch {
-          // fail silently
+        perRepo[member.login] ??= {};
+        for (const item of json.items) {
+          const repoShort = item.repository.full_name.split("/")[1] ?? item.repository.full_name;
+          perRepo[member.login][repoShort] ??= new Set();
+          perRepo[member.login][repoShort].add(item.sha);
         }
-      })
-    )
+      } catch {
+        // fail silently
+      }
+    })
   );
 
   const data: Record<string, MemberStat> = {};
   for (const [login, repoMap] of Object.entries(perRepo)) {
     const repos = Object.entries(repoMap)
-      .map(([name, commits]) => ({ name, commits }))
+      .map(([name, shas]) => ({ name, commits: shas.size }))
       .sort((a, b) => b.commits - a.commits);
     data[login] = { commits: repos.reduce((s, r) => s + r.commits, 0), repos };
   }
