@@ -814,16 +814,12 @@ function SiteFavicon({ siteUrl, className }: { siteUrl: string; className?: stri
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={`https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${domain}&size=32`}
+      src={`/api/v1/gsc/favicon?domain=${encodeURIComponent(domain)}&size=32`}
       alt=""
       width={16}
       height={16}
       className="shrink-0 rounded-sm"
       onError={() => setFailed(true)}
-      onLoad={(e) => {
-        const img = e.currentTarget;
-        if (img.naturalWidth <= 1 || img.naturalHeight <= 1) setFailed(true);
-      }}
     />
   );
 }
