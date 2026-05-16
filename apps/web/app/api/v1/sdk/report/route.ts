@@ -1,10 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { waitUntil } from "@vercel/functions";
 import { prisma } from "@/lib/db";
 import { hashToken } from "@/lib/tokens";
-import { processReport } from "@/lib/pipeline";
 import { createGitHubIssue } from "@/lib/github";
 import { uploadScreenshotToS3 } from "@/lib/s3";
 import { dispatchWebhook } from "@/lib/webhooks";
@@ -21,9 +19,7 @@ const CORS_HEADERS = {
 const LOCALHOST_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/;
 
 function isLocalhostRequest(request: Request, body: SdkReportBody): boolean {
-  // Most reliable: the SDK sends the actual page URL in the body
   if (body.pageUrl && LOCALHOST_RE.test(body.pageUrl)) return true;
-  // Fallback: check headers (may be absent for same-origin requests)
   const origin = request.headers.get("origin") ?? "";
   const referer = request.headers.get("referer") ?? "";
   return LOCALHOST_RE.test(origin) || LOCALHOST_RE.test(referer);
@@ -49,11 +45,8 @@ interface SdkReportBody {
 
 export async function POST(request: Request) {
   try {
-    // 1. Parse body first — needed for localhost detection
     const body = (await request.json()) as SdkReportBody;
 
-    // Development mode: if the request comes from localhost, return a friendly
-    // response without creating an issue. This prevents hanging requests during local testing.
     if (isLocalhostRequest(request, body)) {
       return NextResponse.json(
         {
@@ -66,7 +59,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Validate token from Authorization header
+    // Validate token
     const authHeader = request.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer gg_")) {
       return NextResponse.json(
@@ -90,18 +83,14 @@ export async function POST(request: Request) {
       );
     }
 
-    // 3. Rate limit check
+    // Rate limit check
     const rateLimit = checkRateLimit(tokenHash);
     if (!rateLimit.allowed) {
       const retryAfter = Math.ceil(
         (rateLimit.resetAt.getTime() - Date.now()) / 1000
       );
       return NextResponse.json(
-        {
-          success: false,
-          error: "Rate limit exceeded",
-          retryAfter,
-        },
+        { success: false, error: "Rate limit exceeded", retryAfter },
         {
           status: 429,
           headers: {
@@ -114,7 +103,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // 4. Update last used
     await prisma.apiToken.update({
       where: { id: apiToken.id },
       data: { lastUsed: new Date() },
@@ -126,7 +114,7 @@ export async function POST(request: Request) {
       "X-RateLimit-Reset": rateLimit.resetAt.toISOString(),
     };
 
-    // Signature dedup — only for SDK_AUTO. USER_REPORT is explicit user action, never dedupe.
+    // Signature-based dedup for SDK_AUTO only — based on error fingerprint, NOT AI.
     const signature =
       body.source === "SDK_AUTO"
         ? computeReportSignature({
@@ -137,7 +125,6 @@ export async function POST(request: Request) {
         : null;
 
     if (body.source === "SDK_AUTO" && signature) {
-      // Tier 1: same signature within 24h — always suppress
       const recentDuplicate = await prisma.report.findFirst({
         where: {
           repoId: apiToken.repoId,
@@ -165,7 +152,6 @@ export async function POST(request: Request) {
         );
       }
 
-      // Tier 2: same signature already has a GitHub issue in last 7 days — suppress
       const openIssueDuplicate = await prisma.report.findFirst({
         where: {
           repoId: apiToken.repoId,
@@ -204,7 +190,6 @@ export async function POST(request: Request) {
       .filter(Boolean)
       .join("\n\n");
 
-    // Merge device info + metadata
     const enrichedMetadata = {
       ...body.metadata,
       ...(body.deviceInfo
@@ -215,7 +200,6 @@ export async function POST(request: Request) {
       ...(body.type ? { reportType: body.type } : {}),
     };
 
-    // 5. Create report
     const report = await prisma.report.create({
       data: {
         repoId: apiToken.repoId,
@@ -235,111 +219,110 @@ export async function POST(request: Request) {
       },
     });
 
-    // 6. SDK_USER_REPORT — create GitHub issue directly (no AI)
-    if (body.source === "SDK_USER_REPORT") {
-      const account = await prisma.account.findFirst({
-        where: { userId: apiToken.repo.userId, provider: "github" },
+    const account = await prisma.account.findFirst({
+      where: { userId: apiToken.repo.userId, provider: "github" },
+    });
+
+    if (!account?.access_token) {
+      await prisma.report.update({
+        where: { id: report.id },
+        data: { status: "FAILED", failReason: "GitHub access token not found" },
       });
+      return NextResponse.json(
+        { success: false, error: "GitHub access token not found" },
+        { status: 500, headers: rateLimitHeaders }
+      );
+    }
 
-      if (!account?.access_token) {
-        return NextResponse.json(
-          { success: false, error: "GitHub access token not found" },
-          { status: 500, headers: rateLimitHeaders }
-        );
-      }
+    // Map type → label and title prefix (SDK_USER_REPORT explicitly provides type;
+    // SDK_AUTO defaults to BUG).
+    const reportTypeKey = body.type ?? "BUG";
+    const typeToLabel: Record<string, string> = {
+      BUG: "bug",
+      FEATURE_REQUEST: "enhancement",
+      QUESTION: "question",
+      OTHER: "feedback",
+    };
+    const typeLabel = typeToLabel[reportTypeKey] ?? "bug";
+    const severityValue = body.metadata?.severity;
+    const labels = [typeLabel, ...(severityValue ? [`severity:${severityValue}`] : [])];
 
-      // Map type → label and title prefix
-      const typeToLabel: Record<string, string> = {
-        BUG: "bug",
-        FEATURE_REQUEST: "enhancement",
-        QUESTION: "question",
-        OTHER: "feedback",
-      };
-      const reportTypeKey = body.type ?? "BUG";
-      const typeLabel = typeToLabel[reportTypeKey] ?? "bug";
-      const severityValue = body.metadata?.severity;
-      const labels = [typeLabel, ...(severityValue ? [`severity:${severityValue}`] : [])];
+    const titlePrefix = reportTypeKey === "FEATURE_REQUEST" ? "[Feature] "
+      : reportTypeKey === "QUESTION" ? "[Question] "
+      : reportTypeKey === "OTHER" ? "[Feedback] "
+      : "";
 
-      const titlePrefix = reportTypeKey === "FEATURE_REQUEST" ? "[Feature] "
-        : reportTypeKey === "QUESTION" ? "[Question] "
-        : reportTypeKey === "OTHER" ? "[Feedback] "
-        : "";
+    const rawTitle = body.description
+      ? body.description.slice(0, 80) + (body.description.length > 80 ? "..." : "")
+      : body.errorMessage
+        ? body.errorMessage.slice(0, 80)
+        : "Bug report via SDK";
+    const title = titlePrefix + rawTitle;
 
-      const rawTitle = body.description
-        ? body.description.slice(0, 80) + (body.description.length > 80 ? "..." : "")
-        : body.errorMessage
-          ? body.errorMessage.slice(0, 80)
-          : "Bug report via SDK";
-      const title = titlePrefix + rawTitle;
+    let issueBody = "";
+    if (body.description) issueBody += `## Description\n\n${body.description}\n\n`;
+    if (body.errorMessage) issueBody += `## Error\n\n\`${body.errorMessage}\`\n\n`;
+    if (body.errorStack) issueBody += `## Stack Trace\n\n\`\`\`\n${body.errorStack}\n\`\`\`\n\n`;
 
-      let issueBody = "";
-      if (body.description) issueBody += `## Description\n\n${body.description}\n\n`;
-      if (body.errorMessage) issueBody += `## Error\n\n\`${body.errorMessage}\`\n\n`;
-      if (body.errorStack) issueBody += `## Stack Trace\n\n\`\`\`\n${body.errorStack}\n\`\`\`\n\n`;
+    const envLines: string[] = [];
+    if (body.pageUrl) envLines.push(`**Page:** ${body.pageUrl}`);
+    if (body.userAgent) envLines.push(`**User Agent:** ${body.userAgent}`);
+    if (body.deviceInfo) {
+      const d = body.deviceInfo;
+      if (d.screenWidth && d.screenHeight) envLines.push(`**Screen:** ${d.screenWidth}x${d.screenHeight}`);
+      if (d.viewportWidth && d.viewportHeight) envLines.push(`**Viewport:** ${d.viewportWidth}x${d.viewportHeight}`);
+      if (d.platform) envLines.push(`**Platform:** ${d.platform}`);
+      if (d.language) envLines.push(`**Language:** ${d.language}`);
+      if (d.colorScheme) envLines.push(`**Color Scheme:** ${d.colorScheme}`);
+    }
+    if (envLines.length > 0) issueBody += `## Environment\n\n${envLines.join("\n")}\n\n`;
 
-      // Environment info
-      const envLines: string[] = [];
-      if (body.pageUrl) envLines.push(`**Page:** ${body.pageUrl}`);
-      if (body.userAgent) envLines.push(`**User Agent:** ${body.userAgent}`);
-      if (body.deviceInfo) {
-        const d = body.deviceInfo;
-        if (d.screenWidth && d.screenHeight) envLines.push(`**Screen:** ${d.screenWidth}x${d.screenHeight}`);
-        if (d.viewportWidth && d.viewportHeight) envLines.push(`**Viewport:** ${d.viewportWidth}x${d.viewportHeight}`);
-        if (d.platform) envLines.push(`**Platform:** ${d.platform}`);
-        if (d.language) envLines.push(`**Language:** ${d.language}`);
-        if (d.colorScheme) envLines.push(`**Color Scheme:** ${d.colorScheme}`);
-      }
-      if (envLines.length > 0) issueBody += `## Environment\n\n${envLines.join("\n")}\n\n`;
-
-      // Page navigation history
-      const visitedPages = body.metadata?.visitedPages;
-      if (visitedPages) {
-        try {
-          const pages: string[] = JSON.parse(visitedPages);
-          if (pages.length > 0) {
-            issueBody += `## Page History\n\n${pages.map((p, i) => `${i + 1}. ${p}`).join("\n")}\n\n`;
-          }
-        } catch {
-          // invalid JSON, skip
+    const visitedPages = body.metadata?.visitedPages;
+    if (visitedPages) {
+      try {
+        const pages: string[] = JSON.parse(visitedPages);
+        if (pages.length > 0) {
+          issueBody += `## Page History\n\n${pages.map((p, i) => `${i + 1}. ${p}`).join("\n")}\n\n`;
         }
+      } catch {
+        // invalid JSON, skip
       }
+    }
 
-      // Breadcrumbs (user actions before report)
-      if (body.breadcrumbs && body.breadcrumbs.length > 0) {
-        const crumbs = body.breadcrumbs.slice(-15).map((b) => {
-          const time = new Date(b.timestamp).toLocaleTimeString("en-US", { hour12: false });
-          return `| ${time} | ${b.type} | ${b.message} |`;
-        });
-        issueBody += `## Activity Log\n\n| Time | Type | Event |\n|------|------|-------|\n${crumbs.join("\n")}\n\n`;
+    if (body.breadcrumbs && body.breadcrumbs.length > 0) {
+      const crumbs = body.breadcrumbs.slice(-15).map((b) => {
+        const time = new Date(b.timestamp).toLocaleTimeString("en-US", { hour12: false });
+        return `| ${time} | ${b.type} | ${b.message} |`;
+      });
+      issueBody += `## Activity Log\n\n| Time | Type | Event |\n|------|------|-------|\n${crumbs.join("\n")}\n\n`;
+    }
+
+    const screenshotData = body.metadata?.screenshot;
+    if (screenshotData && typeof screenshotData === "string" && screenshotData.startsWith("data:image/")) {
+      const screenshotUrl = await uploadScreenshotToS3(screenshotData, report.id);
+      if (screenshotUrl) {
+        issueBody += `\n\n## Screenshot\n\n![Screenshot](${screenshotUrl})`;
       }
+    }
 
-      // Upload screenshot to S3
-      const screenshotData = body.metadata?.screenshot;
-      if (screenshotData && typeof screenshotData === "string" && screenshotData.startsWith("data:image/")) {
-        const screenshotUrl = await uploadScreenshotToS3(screenshotData, report.id);
-        if (screenshotUrl) {
-          issueBody += `\n\n## Screenshot\n\n![Screenshot](${screenshotUrl})`;
-        }
-      }
+    const sessionUserId = body.metadata?.sessionUserId;
+    const sessionUserName = body.metadata?.sessionUserName;
+    const sessionUserEmail = body.metadata?.sessionUserEmail;
+    const sessionUserPhone = body.metadata?.sessionUserPhone;
+    const reporterParts: string[] = [];
+    if (sessionUserName) reporterParts.push(sessionUserName);
+    if (sessionUserEmail) reporterParts.push(`(${sessionUserEmail})`);
+    if (sessionUserPhone) reporterParts.push(`📞 ${sessionUserPhone}`);
+    if (sessionUserId) reporterParts.push(`• ID: \`${sessionUserId}\``);
 
-      // Reported by (session info from host app)
-      const sessionUserId = body.metadata?.sessionUserId;
-      const sessionUserName = body.metadata?.sessionUserName;
-      const sessionUserEmail = body.metadata?.sessionUserEmail;
-      const sessionUserPhone = body.metadata?.sessionUserPhone;
-      const reporterParts: string[] = [];
-      if (sessionUserName) reporterParts.push(sessionUserName);
-      if (sessionUserEmail) reporterParts.push(`(${sessionUserEmail})`);
-      if (sessionUserPhone) reporterParts.push(`📞 ${sessionUserPhone}`);
-      if (sessionUserId) reporterParts.push(`• ID: \`${sessionUserId}\``);
+    if (reporterParts.length > 0) {
+      issueBody += `\n\n---\n> **Reported by:** ${reporterParts.join(" ")}`;
+      issueBody += "\n\n*Reported via [Glitchgrab](https://glitchgrab.dev) SDK*";
+    } else {
+      issueBody += "\n\n---\n*Reported via [Glitchgrab](https://glitchgrab.dev) SDK*";
+    }
 
-      if (reporterParts.length > 0) {
-        issueBody += `\n\n---\n> **Reported by:** ${reporterParts.join(" ")}`;
-        issueBody += "\n\n*Reported via [Glitchgrab](https://glitchgrab.dev) SDK*";
-      } else {
-        issueBody += "\n\n---\n*Reported via [Glitchgrab](https://glitchgrab.dev) SDK*";
-      }
-
+    try {
       const createdIssue = await createGitHubIssue(account.access_token, {
         owner: apiToken.repo.owner,
         repo: apiToken.repo.name,
@@ -348,7 +331,6 @@ export async function POST(request: Request) {
         labels,
       });
 
-      // Save Issue record
       await prisma.issue.create({
         data: {
           reportId: report.id,
@@ -389,22 +371,17 @@ export async function POST(request: Request) {
         },
         { headers: rateLimitHeaders }
       );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await prisma.report.update({
+        where: { id: report.id },
+        data: { status: "FAILED", failReason: message },
+      });
+      return NextResponse.json(
+        { success: false, error: message, data: { reportId: report.id, status: "FAILED" } },
+        { status: 500, headers: rateLimitHeaders }
+      );
     }
-
-    // Auto-capture — register background work before responding so Vercel doesn't kill it
-    waitUntil(
-      processReport(report.id).catch((err) =>
-        console.error("SDK auto-capture pipeline error:", err)
-      )
-    );
-
-    return NextResponse.json(
-      {
-        success: true,
-        data: { reportId: report.id, status: "PROCESSING" },
-      },
-      { headers: rateLimitHeaders }
-    );
   } catch (error) {
     console.error("SDK report error:", error);
     return NextResponse.json(
