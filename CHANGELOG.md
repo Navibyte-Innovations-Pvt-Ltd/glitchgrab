@@ -1,3 +1,9 @@
+## [1.36.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.35.0...v1.36.0) (2026-05-16)
+
+### Features
+
+* **org-overview:** skeleton for member commits loading + +N repos hint in triage chips ([bad97e7](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/bad97e7199767d1d28c59d12d6b5280f3fc24887))
+
 ## [1.35.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.34.0...v1.35.0) (2026-05-16)
 
 ### Features
