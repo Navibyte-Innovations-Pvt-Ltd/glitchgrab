@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getGitHubOrgMembers } from "@/lib/github";
 
-interface RepoStat { name: string; commits: number }
+interface RepoStat { name: string; commits: number; branches: string[] }
 interface MemberStat { commits: number; repos: RepoStat[] }
 
 export async function GET(_req: Request, { params }: { params: Promise<{ slug: string }> }) {
@@ -49,26 +49,49 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
     "X-GitHub-Api-Version": "2022-11-28",
   };
 
-  // login → repoShort → sha set (search API covers ALL branches; dedupe by SHA)
-  const perRepo: Record<string, Record<string, Set<string>>> = {};
-  const repoFilter = repos.map((r) => `repo:${r.fullName}`).join("+");
+  // login → repoShort → { shas: SHA set, branches: branch name set }
+  const perRepo: Record<string, Record<string, { shas: Set<string>; branches: Set<string> }>> = {};
+
+  interface Branch { name: string }
+  interface Commit { sha: string; author: { login?: string } | null; commit: { author: { date: string } } }
 
   await Promise.all(
-    githubMembers.map(async (member) => {
+    repos.map(async (repo) => {
       try {
-        const q = `author:${member.login}+author-date:>=${sinceIso}+${repoFilter}`;
-        const url = `https://api.github.com/search/commits?q=${q}&per_page=100`;
-        const res = await fetch(url, { headers: ghHeaders });
-        if (!res.ok) return;
-        const json = (await res.json()) as { items?: Array<{ sha: string; repository: { full_name: string } }> };
-        if (!Array.isArray(json.items) || json.items.length === 0) return;
+        const branchRes = await fetch(`https://api.github.com/repos/${repo.fullName}/branches?per_page=100`, { headers: ghHeaders });
+        if (!branchRes.ok) return;
+        const branches = (await branchRes.json()) as Branch[];
+        if (!Array.isArray(branches)) return;
 
-        perRepo[member.login] ??= {};
-        for (const item of json.items) {
-          const repoShort = item.repository.full_name.split("/")[1] ?? item.repository.full_name;
-          perRepo[member.login][repoShort] ??= new Set();
-          perRepo[member.login][repoShort].add(item.sha);
-        }
+        const repoShort = repo.fullName.split("/")[1] ?? repo.fullName;
+
+        await Promise.all(
+          branches.flatMap((branch) =>
+            githubMembers.map(async (member) => {
+              try {
+                const url = `https://api.github.com/repos/${repo.fullName}/commits?sha=${encodeURIComponent(branch.name)}&author=${member.login}&since=${sinceIso}&per_page=100`;
+                const res = await fetch(url, { headers: ghHeaders });
+                if (!res.ok) return;
+                const commits = (await res.json()) as Commit[];
+                if (!Array.isArray(commits) || commits.length === 0) return;
+
+                perRepo[member.login] ??= {};
+                perRepo[member.login][repoShort] ??= { shas: new Set(), branches: new Set() };
+                const entry = perRepo[member.login][repoShort];
+                let added = false;
+                for (const c of commits) {
+                  if (!entry.shas.has(c.sha)) {
+                    entry.shas.add(c.sha);
+                    added = true;
+                  }
+                }
+                if (added) entry.branches.add(branch.name);
+              } catch {
+                // fail silently
+              }
+            })
+          )
+        );
       } catch {
         // fail silently
       }
@@ -78,7 +101,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   const data: Record<string, MemberStat> = {};
   for (const [login, repoMap] of Object.entries(perRepo)) {
     const repos = Object.entries(repoMap)
-      .map(([name, shas]) => ({ name, commits: shas.size }))
+      .map(([name, v]) => ({ name, commits: v.shas.size, branches: Array.from(v.branches).sort() }))
       .sort((a, b) => b.commits - a.commits);
     data[login] = { commits: repos.reduce((s, r) => s + r.commits, 0), repos };
   }
