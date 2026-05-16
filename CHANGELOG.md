@@ -1,3 +1,26 @@
+## [1.32.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.31.0...v1.32.0) (2026-05-16)
+
+### ⚠ BREAKING CHANGES
+
+* SDK_AUTO responses no longer return status='PROCESSING'
+— they return the created issue inline.
+* response no longer includes intent variants
+(update/close/merge/clarify); always returns intent='create' or an
+error.
+* The AI pipeline no longer mutates report content.
+Issue titles, bodies, labels, and severity are derived deterministically.
+
+### Features
+
+* add AI enhance button to dashboard chat composer ([a15687a](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/a15687a919d90de32155458028b99301403b6d60))
+* add ai-enhance lib for polishing user-written text ([2cf29ac](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/2cf29acac8df22d2e946148a76f83da2f9d00487))
+* add POST /api/v1/ai/enhance-text endpoint ([61bc7a2](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/61bc7a2862078ce5127d08de55cf80f23f876d09))
+* dashboard report endpoint creates GitHub issues directly ([080dd70](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/080dd706671293a0e347da2fce0b2e2229bdb918))
+* remove AI enrichment pipeline ([6a6f1cf](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/6a6f1cfaf5c318f6033d03b8c2bb457062b4bea5))
+* SDK report endpoint creates GitHub issues directly ([4af2a6c](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/4af2a6cb2d1ef3d6317bacffafe59f5e5121c805))
+* **sdk:** add AI enhance link to report dialog description step ([9e33d1a](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/9e33d1a76324072de78b01897bd20ee99051da8e))
+* **sdk:** expose enhanceText helper on useGlitchgrab ([074ca87](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/074ca87143e4399c2631908675c1c4848c40235a))
+
 ## [1.31.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.30.0...v1.31.0) (2026-05-16)
 
 ### Features
