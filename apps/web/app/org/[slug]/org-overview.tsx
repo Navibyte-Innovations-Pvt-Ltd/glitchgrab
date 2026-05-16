@@ -21,6 +21,7 @@ import {
   MessageCircle,
   ArrowRight,
   GitPullRequest,
+  GitCommitHorizontal,
   RefreshCw,
   Activity,
   Copy,
@@ -55,7 +56,7 @@ interface MembersData {
   total: number;
 }
 
-interface RepoStat { name: string; commits: number; branches?: string[] }
+interface RepoStat { name: string; commits: number; branches?: string[]; prs?: number }
 interface MemberActivity {
   [githubLogin: string]: { commits: number; repos: RepoStat[] };
 }
@@ -742,8 +743,8 @@ function TeamPanel({ orgSlug, isOwner }: { orgSlug: string; isOwner: boolean }) 
                         <div className="text-[10px] font-mono text-primary/70">
                           ↑ {stats.commits} commit{stats.commits !== 1 ? "s" : ""} · today · {stats.repos.map((r) => (
                             <Tooltip key={r.name}>
-                              <TooltipTrigger render={<span className="underline decoration-dotted underline-offset-2 cursor-help" />}>
-                                {r.name} ({r.commits})
+                              <TooltipTrigger render={<span className="inline-flex items-center gap-1 underline decoration-dotted underline-offset-2 cursor-help" />}>
+                                {r.name} (<span className="inline-flex items-center gap-0.5"><GitCommitHorizontal className="h-2.5 w-2.5 shrink-0" />{r.commits}</span>{r.prs ? <><span className="mx-0.5">·</span><span className="inline-flex items-center gap-0.5 text-primary"><GitPullRequest className="h-2.5 w-2.5 shrink-0" />{r.prs}</span></> : null})
                               </TooltipTrigger>
                               <TooltipContent>
                                 {r.branches?.length ? `branches: ${r.branches.join(", ")}` : "no branch info"}
@@ -842,8 +843,8 @@ function PendingMemberRow({ member, orgSlug, isOwner, stats }: { member: MergedM
               <div className="text-[10px] font-mono text-muted-foreground/60">
                 ↑ {stats.commits} commit{stats.commits !== 1 ? "s" : ""} · today · {stats.repos.map((r) => (
                   <Tooltip key={r.name}>
-                    <TooltipTrigger render={<span className="underline decoration-dotted underline-offset-2 cursor-help" />}>
-                      {r.name} ({r.commits})
+                    <TooltipTrigger render={<span className="inline-flex items-center gap-1 underline decoration-dotted underline-offset-2 cursor-help" />}>
+                      {r.name} (<span className="inline-flex items-center gap-0.5"><GitCommitHorizontal className="h-2.5 w-2.5 shrink-0" />{r.commits}</span>{r.prs ? <><span className="mx-0.5">·</span><span className="inline-flex items-center gap-0.5 text-primary/70"><GitPullRequest className="h-2.5 w-2.5 shrink-0" />{r.prs}</span></> : null})
                     </TooltipTrigger>
                     <TooltipContent>
                       {r.branches?.length ? `branches: ${r.branches.join(", ")}` : "no branch info"}
