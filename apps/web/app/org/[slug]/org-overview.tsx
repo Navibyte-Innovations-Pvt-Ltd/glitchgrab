@@ -23,6 +23,8 @@ import {
   GitPullRequest,
   RefreshCw,
   Activity,
+  Copy,
+  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -218,6 +220,66 @@ function ListPanel({
   );
 }
 
+// ─── Issue Row ───────────────────────────────────────────────────────────────
+
+function IssueRow({ issue, critical }: { issue: IssueItem; critical: boolean }) {
+  const [copied, setCopied] = useState(false);
+
+  const copyLink = () => {
+    void navigator.clipboard.writeText(issue.url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div
+      className={cn(
+        "group flex items-center gap-2 rounded px-2 py-1.5 transition-colors border text-xs",
+        critical
+          ? "bg-red-500/5 border-red-500/15 hover:border-red-500/40"
+          : "bg-card/30 border-border/60 hover:border-primary/40 hover:bg-card/60"
+      )}
+    >
+      {critical ? (
+        <AlertCircle className="h-3 w-3 text-red-400 shrink-0" />
+      ) : (
+        <Circle className="h-3 w-3 text-primary/50 shrink-0" />
+      )}
+      <span className="flex-1 truncate text-foreground/90">{issue.title}</span>
+      <span className="font-mono text-[10px] text-muted-foreground/50 shrink-0">
+        #{issue.number} · {timeAgo(issue.createdAt)}
+      </span>
+      {issue.comments > 0 && (
+        <span className="font-mono text-[10px] text-muted-foreground/50 shrink-0 flex items-center gap-0.5">
+          <MessageCircle className="h-2.5 w-2.5" />
+          {issue.comments}
+        </span>
+      )}
+      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+        <button
+          type="button"
+          onClick={copyLink}
+          className="p-1 rounded hover:bg-muted transition-colors"
+          title="Copy link"
+        >
+          {copied
+            ? <Check className="h-3 w-3 text-green-400" />
+            : <Copy className="h-3 w-3 text-muted-foreground" />}
+        </button>
+        <a
+          href={issue.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="p-1 rounded hover:bg-muted transition-colors"
+          title="View on GitHub"
+        >
+          <ExternalLink className="h-3 w-3 text-muted-foreground" />
+        </a>
+      </div>
+    </div>
+  );
+}
+
 // ─── Issues Triage ───────────────────────────────────────────────────────────
 
 function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
@@ -312,34 +374,7 @@ function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
                 const critical = isHighPriority(issue.labels);
                 return (
                   <li key={`${repo}-${issue.number}`}>
-                    <a
-                      href={issue.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={cn(
-                        "group flex items-center gap-2 rounded px-2 py-1.5 transition-colors border text-xs",
-                        critical
-                          ? "bg-red-500/5 border-red-500/15 hover:border-red-500/40"
-                          : "bg-card/30 border-border/60 hover:border-primary/40 hover:bg-card/60"
-                      )}
-                    >
-                      {critical ? (
-                        <AlertCircle className="h-3 w-3 text-red-400 shrink-0" />
-                      ) : (
-                        <Circle className="h-3 w-3 text-primary/50 shrink-0" />
-                      )}
-                      <span className="flex-1 truncate text-foreground/90 group-hover:text-foreground transition-colors">
-                        {issue.title}
-                      </span>
-                      <span className="font-mono text-[10px] text-muted-foreground/50 shrink-0">
-                        #{issue.number} · {timeAgo(issue.createdAt)}
-                      </span>
-                      {issue.comments > 0 && (
-                        <span className="font-mono text-[10px] text-muted-foreground/50 shrink-0 flex items-center gap-0.5">
-                          <MessageCircle className="h-2.5 w-2.5" />{issue.comments}
-                        </span>
-                      )}
-                    </a>
+                    <IssueRow issue={issue} critical={critical} />
                   </li>
                 );
               })}
