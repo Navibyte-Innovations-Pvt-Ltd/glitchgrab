@@ -549,8 +549,8 @@ function TeamPanel({ orgSlug, isOwner }: { orgSlug: string; isOwner: boolean }) 
                     <div className="text-sm font-medium text-foreground truncate">{m.name ?? m.githubLogin}</div>
                     {stats ? (
                       <TooltipProvider delay={150}>
-                        <div className="text-[10px] font-mono text-primary/70 truncate">
-                          ↑ {stats.commits} commit{stats.commits !== 1 ? "s" : ""} · today · {stats.repos.slice(0, 3).map((r) => (
+                        <div className="text-[10px] font-mono text-primary/70">
+                          ↑ {stats.commits} commit{stats.commits !== 1 ? "s" : ""} · today · {stats.repos.map((r) => (
                             <Tooltip key={r.name}>
                               <TooltipTrigger render={<span className="underline decoration-dotted underline-offset-2 cursor-help" />}>
                                 {r.name} ({r.commits})
@@ -559,7 +559,7 @@ function TeamPanel({ orgSlug, isOwner }: { orgSlug: string; isOwner: boolean }) 
                                 {r.branches?.length ? `branches: ${r.branches.join(", ")}` : "no branch info"}
                               </TooltipContent>
                             </Tooltip>
-                          )).reduce((acc, el, i) => i === 0 ? [el] : [...acc, ", ", el], [] as React.ReactNode[])}{stats.repos.length > 3 ? ` +${stats.repos.length - 3}` : ""}
+                          )).reduce((acc, el, i) => i === 0 ? [el] : [...acc, ", ", el], [] as React.ReactNode[])}
                         </div>
                       </TooltipProvider>
                     ) : memberStats !== undefined ? (
@@ -649,8 +649,8 @@ function PendingMemberRow({ member, orgSlug, isOwner, stats }: { member: MergedM
           <div className="text-sm font-medium text-muted-foreground truncate">@{member.githubLogin}</div>
           {stats ? (
             <TooltipProvider delay={150}>
-              <div className="text-[10px] font-mono text-muted-foreground/60 truncate">
-                ↑ {stats.commits} commit{stats.commits !== 1 ? "s" : ""} · today · {stats.repos.slice(0, 3).map((r) => (
+              <div className="text-[10px] font-mono text-muted-foreground/60">
+                ↑ {stats.commits} commit{stats.commits !== 1 ? "s" : ""} · today · {stats.repos.map((r) => (
                   <Tooltip key={r.name}>
                     <TooltipTrigger render={<span className="underline decoration-dotted underline-offset-2 cursor-help" />}>
                       {r.name} ({r.commits})
@@ -659,7 +659,7 @@ function PendingMemberRow({ member, orgSlug, isOwner, stats }: { member: MergedM
                       {r.branches?.length ? `branches: ${r.branches.join(", ")}` : "no branch info"}
                     </TooltipContent>
                   </Tooltip>
-                )).reduce((acc, el, i) => i === 0 ? [el] : [...acc, ", ", el], [] as React.ReactNode[])}{stats.repos.length > 3 ? ` +${stats.repos.length - 3}` : ""}
+                )).reduce((acc, el, i) => i === 0 ? [el] : [...acc, ", ", el], [] as React.ReactNode[])}
               </div>
             </TooltipProvider>
           ) : null}
@@ -722,6 +722,7 @@ interface PullRequestItem {
   labels: { name: string; color: string }[];
   reviewers: string[];
   repoFullName: string;
+  checks?: { state: "passed" | "failed" | "pending" | "none"; passed: number; failed: number; total: number };
 }
 
 type PanelTab = "prs" | "workflows";
@@ -852,6 +853,24 @@ function OrgPRsOrWorkflowsPanel({ orgSlug }: { orgSlug: string }) {
                       {pr.draft && (
                         <span className="text-[9px] font-mono px-1 py-0 rounded border border-border text-muted-foreground/60 uppercase tracking-wide">
                           draft
+                        </span>
+                      )}
+                      {pr.checks && pr.checks.state !== "none" && (
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-0.5 text-[9px] font-mono px-1 py-0 rounded border uppercase tracking-wide",
+                            pr.checks.state === "passed" &&
+                              "border-green-500/30 bg-green-500/10 text-green-500",
+                            pr.checks.state === "failed" &&
+                              "border-red-500/30 bg-red-500/10 text-red-500",
+                            pr.checks.state === "pending" &&
+                              "border-yellow-500/30 bg-yellow-500/10 text-yellow-500"
+                          )}
+                          title={`${pr.checks.passed}/${pr.checks.total} checks passed${pr.checks.failed ? `, ${pr.checks.failed} failed` : ""}`}
+                        >
+                          {pr.checks.state === "passed" && "✓ checks"}
+                          {pr.checks.state === "failed" && `✕ ${pr.checks.failed} failed`}
+                          {pr.checks.state === "pending" && "● running"}
                         </span>
                       )}
                       {pr.labels.slice(0, 2).map((l) => (
