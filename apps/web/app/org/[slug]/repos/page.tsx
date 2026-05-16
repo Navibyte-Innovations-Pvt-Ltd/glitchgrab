@@ -63,7 +63,22 @@ export default async function OrgReposPage({ params }: { params: Promise<{ slug:
       };
     });
 
-    return <OrgRepoList repos={merged} orgSlug={slug} />;
+    // Include DB org repos not returned by GitHub API (renamed/transferred repos)
+    const mergedFullNames = new Set(merged.map((r) => r.fullName));
+    const orphaned = dbRepos
+      .filter((r) => r.orgId === ctx.orgId && !mergedFullNames.has(r.fullName))
+      .map((r) => ({
+        fullName: r.fullName,
+        name: r.name,
+        isPrivate: r.isPrivate,
+        dbId: r.id,
+        tokens: r._count.tokens,
+        reports: r._count.reports,
+        tracked: true,
+        inThisOrg: true,
+      }));
+
+    return <OrgRepoList repos={[...merged, ...orphaned]} orgSlug={slug} />;
   }
 
   // MEMBER — repos fetched live from GitHub in getOrgContext
