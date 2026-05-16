@@ -38,6 +38,12 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -174,6 +180,11 @@ export function GscPropertyDetail({
     retry: false,
   });
 
+  const [previewImage, setPreviewImage] = useState<{
+    src: string;
+    alt: string;
+    title: string;
+  } | null>(null);
   const [copiedHealth, setCopiedHealth] = useState(false);
   const [copiedIndexing, setCopiedIndexing] = useState(false);
   const [healthIssueUrl, setHealthIssueUrl] = useState<string | null>(null);
@@ -814,6 +825,30 @@ export function GscPropertyDetail({
                   Favicon
                 </span>
               </div>
+              <div className="mb-3 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPreviewImage({
+                      src: `/api/v1/gsc/favicon?domain=${encodeURIComponent(domain)}&size=128`,
+                      alt: `${domain} favicon`,
+                      title: "Favicon preview",
+                    })
+                  }
+                  className="border border-border rounded p-2 bg-muted/10 hover:bg-muted/30 transition cursor-zoom-in"
+                  aria-label="Preview favicon"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`/api/v1/gsc/favicon?domain=${encodeURIComponent(domain)}&size=64`}
+                    alt={`${domain} favicon`}
+                    className="h-8 w-8 object-contain"
+                  />
+                </button>
+                <span className="font-mono text-[10px] text-muted-foreground/70">
+                  Click to preview
+                </span>
+              </div>
               {isFaviconError && !isFaviconFetching && (
                 <RetryRow onRetry={recheckFavicon} />
               )}
@@ -940,6 +975,41 @@ export function GscPropertyDetail({
           </div>
         </div>
       </div>
+
+      <Dialog
+        open={previewImage !== null}
+        onOpenChange={(open) => {
+          if (!open) setPreviewImage(null);
+        }}
+      >
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="font-mono text-xs">
+              {previewImage?.title}
+            </DialogTitle>
+          </DialogHeader>
+          {previewImage && (
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-full bg-muted/20 rounded border border-border flex items-center justify-center p-4">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={previewImage.src}
+                  alt={previewImage.alt}
+                  className="max-h-[70vh] max-w-full object-contain"
+                />
+              </div>
+              <a
+                href={previewImage.src}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-[10px] text-muted-foreground hover:text-foreground break-all"
+              >
+                {previewImage.src}
+              </a>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
