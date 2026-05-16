@@ -32,20 +32,23 @@ Glitchgrab is an open-source SaaS tool that converts messy bug inputs (handwritt
 - Tokens stored as SHA-256 hash in DB, never plaintext.
 - User connects GitHub → selects repo → gets token.
 
-### AI pipeline
-All 4 input flows converge into one pipeline:
-1. Normalize input (image/text/error → standard format)
-2. Enrich with repo context (existing issues, labels)
-3. Dedup check against open issues
-4. Generate issue (title, body, labels, severity)
-5. Push to GitHub via API + attach screenshot
+### Issue creation pipeline (NO AI enrichment)
+All flows create GitHub issues DIRECTLY from user-provided text + metadata. There is **no AI pipeline**:
+1. Receive report (description, screenshots, error data)
+2. For SDK_AUTO only: signature-based dedup (errorMessage + pageUrl hash — deterministic, NOT AI)
+3. Build issue body deterministically from inputs
+4. Upload screenshots to S3, append markdown refs
+5. Push to GitHub via API
 
-AI provider is abstracted — both Claude and OpenAI implement the same interface. Users can BYOK (bring own key) or use platform-provided keys.
+There is NO AI dedup, NO AI label generation, NO AI severity inference, NO AI repo-context enrichment. The pipeline is synchronous.
+
+### AI enhance (opt-in, the only AI feature)
+`POST /api/v1/ai/enhance-text` polishes user-written description text — grammar/clarity only, never invents details. Token auth (Bearer `gg_…`) OR dashboard session required; anonymous = 401. Rate limit: 20 req/hr per token or session. Dashboard chat shows a sparkle button next to send. SDK exposes `useGlitchgrab().enhanceText(text)` and an "AI enhance" link in the report dialog.
 
 ### Input flows (implemented)
-1. **SDK auto-capture** — unhandled errors in production → context + screenshot → AI pipeline → issue
-2. **SDK report button** — end-user clicks report → screenshot + description → issue created directly (no AI)
-3. **Dashboard chat** — developer describes bug or uploads screenshot → AI pipeline → issue
+1. **SDK auto-capture** — unhandled errors in production → direct GitHub issue with error/stack/breadcrumbs (no AI)
+2. **SDK report button** — end-user clicks report → screenshot + description → direct issue
+3. **Dashboard chat** — developer describes bug or uploads screenshot → direct issue (sparkle button optionally polishes text before send)
 
 ### Input flows (planned, not yet built)
 4. **MCP server** — Claude Desktop integration
@@ -59,14 +62,14 @@ AI provider is abstracted — both Claude and OpenAI implement the same interfac
 - Auto-error capture is **disabled in development** (`NODE_ENV=development`).
 - `ReportButton` is a headless wrapper — supports render prop for custom trigger UI.
 - `session` prop on `GlitchgrabProvider` accepts `GlitchgrabSession` with `userId` (required), `name` (required), `email`, `phone`.
-- SDK user reports (`SDK_USER_REPORT`) bypass AI and create GitHub issues directly.
+- All SDK reports (SDK_USER_REPORT + SDK_AUTO) create GitHub issues directly. The SDK never triggers AI generation; the only AI surface is the optional `enhanceText` helper.
 
 ## Database models (Prisma)
 
 Key models: `User`, `Repo`, `ApiToken`, `Report`, `Issue`, `AiConfig`, `Subscription`, `Webhook`
 
 - `Report` has enum `source`: SDK_AUTO, SDK_USER_REPORT, DASHBOARD_UPLOAD, HANDWRITTEN_NOTE, MCP, COLLABORATOR
-- `Report` has enum `status`: PENDING, PROCESSING, CREATED, DUPLICATE, FAILED
+- `Report` has enum `status`: PENDING, PROCESSING (legacy — unused; kept for migration safety), CREATED, DUPLICATE, FAILED
 - `Report` stores reporter info: `reporterPrimaryKey` (required), `reporterName` (required), `reporterEmail`, `reporterPhone`
 - `AiConfig` stores per-user AI provider choice + encrypted API key (if BYOK)
 - User AI keys encrypted with AES-256-GCM using `ENCRYPTION_KEY` env var
@@ -80,12 +83,13 @@ Key models: `User`, `Repo`, `ApiToken`, `Report`, `Issue`, `AiConfig`, `Subscrip
 - Rate limit: 60 reports per token per hour (configurable)
 
 ### SDK API endpoints (token auth)
-- `POST /api/v1/sdk/report` — submit a bug report (SDK_USER_REPORT bypasses AI, SDK_AUTO goes through AI pipeline)
+- `POST /api/v1/sdk/report` — submit a bug report; creates a GitHub issue directly (no AI). SDK_AUTO uses signature-based dedup.
+- `POST /api/v1/ai/enhance-text` — polish user description text (grammar/clarity only). Accepts Bearer `gg_…` token OR dashboard session. Rate limit: 20/hr.
 - `GET /api/v1/sdk/reports` — fetch reports for a repo. Supports `?reporterPrimaryKey=xxx`, `?status=CREATED`, `?limit=20`
 - `GET /api/v1/repos/github` — list user's GitHub repos for connect dialog
 
 ### Dashboard API endpoints (session auth)
-- `POST /api/v1/reports` — submit report from dashboard chat (goes through AI pipeline)
+- `POST /api/v1/reports` — submit report from dashboard chat; creates a GitHub issue directly (no AI)
 - `GET /api/v1/repos` — list connected repos with token/report counts
 - `POST /api/v1/billing/subscribe` — create Razorpay subscription
 - `POST /api/v1/billing/verify` — verify Razorpay payment

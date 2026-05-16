@@ -9,7 +9,3 @@ export function getClaude(): Anthropic {
   client = new Anthropic({ apiKey });
   return client;
 }
-
-export function hasClaudeKey(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY);
-}

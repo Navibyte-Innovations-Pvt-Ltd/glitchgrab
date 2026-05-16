@@ -24,11 +24,11 @@ import {
   Loader2,
   Paperclip,
   RotateCcw,
+  Sparkles,
   Terminal,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { InteractiveQuestions } from "@/components/dashboard/interactive-questions";
 
 
 async function compressImage(
@@ -83,11 +83,6 @@ interface Repo {
   name: string;
 }
 
-interface ClarifyQuestion {
-  question: string;
-  options: string[];
-}
-
 interface Message {
   id: string;
   role: "user" | "assistant";
@@ -97,7 +92,6 @@ interface Message {
   issueUrl?: string;
   issueNumber?: number;
   failed?: boolean;
-  clarifyQuestions?: ClarifyQuestion[];
 }
 
 /* ---------- REPL row building blocks ---------- */
@@ -196,22 +190,14 @@ const MessageBlock = memo(function MessageBlock({
   userName,
   sending,
   onRetry,
-  onClarifyComplete,
-  onClarifyDismiss,
 }: {
   msg: Message;
   userName: string;
   sending: boolean;
   onRetry: () => void;
-  onClarifyComplete: (
-    msgId: string,
-    answers: { question: string; answer: string }[],
-  ) => void;
-  onClarifyDismiss: (msgId: string) => void;
 }) {
   const [selectedScreenshot, setSelectedScreenshot] = useState<string | null>(null);
   const isUser = msg.role === "user";
-  const hasClarify = msg.clarifyQuestions && msg.clarifyQuestions.length > 0;
   const isThinking = msg.id === "thinking";
   const isFailed = !!msg.failed;
   const isSuccess = !!msg.issueUrl;
@@ -243,8 +229,8 @@ const MessageBlock = memo(function MessageBlock({
         </div>
       )}
 
-      {/* Standard text content (hidden when clarify card shows) */}
-      {!isThinking && msg.content && !hasClarify && (
+      {/* Standard text content */}
+      {!isThinking && msg.content && (
         <div
           className={`font-mono text-sm whitespace-pre-wrap leading-relaxed ${
             isFailed
@@ -329,16 +315,6 @@ const MessageBlock = memo(function MessageBlock({
         </div>
       )}
 
-      {/* Clarifying questions */}
-      {hasClarify && msg.clarifyQuestions && (
-        <div className="mt-2">
-          <InteractiveQuestions
-            questions={msg.clarifyQuestions}
-            onComplete={(answers) => onClarifyComplete(msg.id, answers)}
-            onDismiss={() => onClarifyDismiss(msg.id)}
-          />
-        </div>
-      )}
     </ReplRow>
   );
 });
@@ -361,6 +337,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
     },
   ]);
   const [sending, setSending] = useState(false);
+  const [enhancing, setEnhancing] = useState(false);
   const [stagedPreview, setStagedPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -453,7 +430,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
     const thinkingMsg: Message = {
       id: "thinking",
       role: "assistant",
-      content: "analyzing input...",
+      content: "creating issue...",
     };
     setMessages((prev) => [...prev, thinkingMsg]);
 
@@ -474,55 +451,11 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
       }
       for (const file of allFiles) formData.append("screenshot", file);
 
-      const history = messages
-        .filter((m) => m.id !== "welcome" && m.id !== "thinking")
-        .slice(-5)
-        .map((m) => ({
-          role: m.role,
-          content: m.issueNumber
-            ? `${m.content} (GitHub issue #${m.issueNumber})`
-            : m.content,
-        }));
-      if (history.length > 0) formData.append("chatHistory", JSON.stringify(history));
-
       const { data } = await axios.post("/api/v1/reports", formData);
 
-      let content: string;
-      if (!data.success) {
-        content = `Exception: ${data.error ?? "Something went wrong."}`;
-      } else {
-        const intent = data.data?.intent;
-        if (intent === "create") content = `Issue created: ${data.data?.title ?? "Bug report"}`;
-        else if (intent === "update") content = data.data?.message ?? "Issue updated";
-        else if (intent === "close") content = data.data?.message ?? "Issues closed";
-        else if (intent === "merge") content = data.data?.message ?? "Issues merged";
-        else if (intent === "clarify")
-          content = data.data?.message ?? "Could you provide more details?";
-        else content = data.data?.message ?? "Done";
-      }
-
-      let clarifyQuestions: ClarifyQuestion[] | undefined;
-      if (data.data?.intent === "clarify") {
-        if (
-          Array.isArray(data.data?.clarifyQuestions) &&
-          data.data.clarifyQuestions.length > 0
-        ) {
-          clarifyQuestions = data.data.clarifyQuestions;
-        } else if (content) {
-          const lines = content
-            .split("\n")
-            .filter((l: string) => /^\d+\.\s/.test(l.trim()));
-          if (lines.length > 0) {
-            clarifyQuestions = lines.map((line: string) => ({
-              question: line.replace(/^\d+\.\s*/, "").trim(),
-              options: [],
-            }));
-          }
-        }
-      }
-
-      const isTerminalAction =
-        data.success && ["create", "update", "close", "merge"].includes(data.data?.intent);
+      const content = !data.success
+        ? `Exception: ${data.error ?? "Something went wrong."}`
+        : `Issue created: ${data.data?.title ?? "Bug report"}`;
 
       setMessages((prev) => {
         let updated = prev
@@ -534,10 +467,8 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
             issueUrl: data.data?.issueUrl,
             issueNumber: data.data?.issueNumber,
             failed: !data.success,
-            clarifyQuestions,
           });
-
-        if (isTerminalAction) {
+        if (data.success) {
           updated = updated.map((m) =>
             m.screenshotFiles ? { ...m, screenshotFiles: undefined } : m,
           );
@@ -545,13 +476,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
         return updated;
       });
 
-      if (data.success) {
-        const intent = data.data?.intent;
-        if (intent === "create") toast.success("Issue created");
-        else if (intent === "update") toast.success("Issue updated");
-        else if (intent === "close") toast.success("Issue(s) closed");
-        else if (intent === "merge") toast.success("Issues merged");
-      }
+      if (data.success) toast.success("Issue created");
     } catch {
       setMessages((prev) =>
         prev
@@ -572,51 +497,8 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
     );
   }
 
-  const TEST_QUESTIONS_PATTERN = /^ask\s+me\s+(some\s+)?questions?$/i;
-
-  function handleTestQuestions() {
-    const userMsg: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      content: input.trim(),
-    };
-    setMessages((prev) => [...prev, userMsg]);
-    setInput("");
-
-    const testMsg: Message = {
-      id: (Date.now() + 1).toString(),
-      role: "assistant",
-      content: "",
-      clarifyQuestions: [
-        {
-          question: "What type of bug are you reporting?",
-          options: ["UI/Visual issue", "Crash/Error", "Performance", "Feature not working"],
-        },
-        {
-          question: "Which part of the app is affected?",
-          options: ["Dashboard", "Bug chat", "Repos page", "Mobile app"],
-        },
-        {
-          question: "How severe is this issue?",
-          options: [
-            "Blocks my work",
-            "Annoying but usable",
-            "Minor cosmetic",
-            "Just a suggestion",
-          ],
-        },
-      ],
-    };
-    setMessages((prev) => [...prev, testMsg]);
-  }
-
   async function handleSend() {
     if (!input.trim() && screenshots.length === 0) return;
-
-    if (TEST_QUESTIONS_PATTERN.test(input.trim())) {
-      handleTestQuestions();
-      return;
-    }
 
     if (!selectedRepo) {
       toast.error("Select a repo first");
@@ -648,31 +530,26 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
     await sendReport(lastUserMsg.content, lastUserMsg.screenshotFiles);
   }
 
-  async function handleClarifyComplete(
-    msgId: string,
-    answers: { question: string; answer: string }[],
-  ) {
-    setMessages((prev) =>
-      prev.map((m) => (m.id === msgId ? { ...m, clarifyQuestions: undefined } : m)),
-    );
-
-    const answerText = answers
-      .map((a) => `Q: ${a.question}\nA: ${a.answer}`)
-      .join("\n\n");
-
-    const userMsg: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      content: answerText,
-    };
-    setMessages((prev) => [...prev, userMsg]);
-    await sendReport(answerText);
-  }
-
-  function handleClarifyDismiss(msgId: string) {
-    setMessages((prev) =>
-      prev.map((m) => (m.id === msgId ? { ...m, clarifyQuestions: undefined } : m)),
-    );
+  async function handleEnhance() {
+    const text = input.trim();
+    if (!text || enhancing || sending) return;
+    setEnhancing(true);
+    try {
+      const { data } = await axios.post("/api/v1/ai/enhance-text", { text });
+      if (data?.success && typeof data.data?.text === "string") {
+        setInput(data.data.text);
+      } else {
+        toast.error(data?.error ?? "Couldn't enhance text");
+      }
+    } catch (err) {
+      const msg =
+        axios.isAxiosError(err) && typeof err.response?.data?.error === "string"
+          ? err.response.data.error
+          : "Couldn't enhance text";
+      toast.error(msg);
+    } finally {
+      setEnhancing(false);
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -793,8 +670,6 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
             userName={userName}
             sending={sending}
             onRetry={handleRetry}
-            onClarifyComplete={handleClarifyComplete}
-            onClarifyDismiss={handleClarifyDismiss}
           />
         ))}
         <div ref={messagesEndRef} />
@@ -886,6 +761,19 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
               disabled={sending || !selectedRepoName}
             />
             <div className="flex flex-col items-end gap-1 shrink-0 pt-1">
+              <button
+                type="button"
+                onClick={handleEnhance}
+                disabled={enhancing || sending || !input.trim()}
+                className="flex items-center justify-center h-7 w-7 rounded bg-muted/40 text-muted-foreground hover:text-foreground border border-border hover:border-muted-foreground/40 transition-colors disabled:opacity-40 disabled:hover:text-muted-foreground disabled:hover:border-border"
+                title="AI enhance — polish your text"
+              >
+                {enhancing ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5" />
+                )}
+              </button>
               <button
                 type="button"
                 onClick={handleSend}

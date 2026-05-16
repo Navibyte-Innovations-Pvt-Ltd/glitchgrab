@@ -138,6 +138,12 @@ export interface UseGlitchgrabReturn {
   addBreadcrumb: (message: string, data?: Record<string, string>) => void;
   /** Open the ReportButton modal programmatically (captures screenshot + shows dialog) */
   openReportDialog: (options?: { description?: string; type?: ReportType }) => void;
+  /**
+   * Optional: polish user-written description text via the Glitchgrab AI enhance endpoint.
+   * Fixes grammar / clarity only — never invents details or changes meaning.
+   * Returns the polished text, or the original text on any failure (never throws).
+   */
+  enhanceText: (text: string) => Promise<string>;
   /** The token being used */
   token: string;
   /** The base URL of the Glitchgrab API */

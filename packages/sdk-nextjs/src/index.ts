@@ -20,7 +20,7 @@ export {
 } from "./breadcrumbs";
 
 // ─── Utilities ───────────────────────────────────────────
-export { sanitizeUrl, captureContext, captureDeviceInfo, sendReport } from "./utils";
+export { sanitizeUrl, captureContext, captureDeviceInfo, sendReport, enhanceText } from "./utils";
 export { computeSignature, shouldSkipDuplicate, clearDedupCache } from "./dedup";
 
 // ─── Types ───────────────────────────────────────────────

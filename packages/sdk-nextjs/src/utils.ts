@@ -134,3 +134,39 @@ export async function sendReport(
     return null;
   }
 }
+
+/**
+ * Polish raw description text via the Glitchgrab AI enhance endpoint.
+ * Returns the polished text on success, or the original text on any failure.
+ * Never throws.
+ */
+export async function enhanceText(
+  text: string,
+  token: string,
+  baseUrl?: string
+): Promise<string> {
+  try {
+    const trimmed = text.trim();
+    if (!trimmed) return text;
+    const url = `${baseUrl ?? DEFAULT_BASE_URL}/api/v1/ai/enhance-text`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ text: trimmed }),
+    });
+    if (!response.ok) return text;
+    const envelope = (await response.json()) as {
+      success: boolean;
+      data?: { text?: string };
+    };
+    if (envelope?.success && typeof envelope.data?.text === "string") {
+      return envelope.data.text;
+    }
+    return text;
+  } catch {
+    return text;
+  }
+}
