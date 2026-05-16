@@ -549,7 +549,7 @@ function TeamPanel({ orgSlug, isOwner }: { orgSlug: string; isOwner: boolean }) 
                     <div className="text-sm font-medium text-foreground truncate">{m.name ?? m.githubLogin}</div>
                     {stats ? (
                       <TooltipProvider delay={150}>
-                        <div className="text-[10px] font-mono text-primary/70 truncate">
+                        <div className="text-[10px] font-mono text-primary/70">
                           ↑ {stats.commits} commit{stats.commits !== 1 ? "s" : ""} · today · {stats.repos.map((r) => (
                             <Tooltip key={r.name}>
                               <TooltipTrigger render={<span className="underline decoration-dotted underline-offset-2 cursor-help" />}>
@@ -649,7 +649,7 @@ function PendingMemberRow({ member, orgSlug, isOwner, stats }: { member: MergedM
           <div className="text-sm font-medium text-muted-foreground truncate">@{member.githubLogin}</div>
           {stats ? (
             <TooltipProvider delay={150}>
-              <div className="text-[10px] font-mono text-muted-foreground/60 truncate">
+              <div className="text-[10px] font-mono text-muted-foreground/60">
                 ↑ {stats.commits} commit{stats.commits !== 1 ? "s" : ""} · today · {stats.repos.map((r) => (
                   <Tooltip key={r.name}>
                     <TooltipTrigger render={<span className="underline decoration-dotted underline-offset-2 cursor-help" />}>
