@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useTransition } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
   Loader2,
@@ -34,8 +35,7 @@ interface WebhookInfo {
 }
 
 export function WebhookForm() {
-  const [webhooks, setWebhooks] = useState<WebhookInfo[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [url, setUrl] = useState("");
   const [selectedEvents, setSelectedEvents] = useState<string[]>([
@@ -46,16 +46,11 @@ export function WebhookForm() {
   const [creating, startCreate] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadWebhooks();
-  }, []);
-
-  function loadWebhooks() {
-    listWebhooks()
-      .then(setWebhooks)
-      .catch(() => toast.error("Failed to load webhooks"))
-      .finally(() => setLoading(false));
-  }
+  const { data: webhooks = [], isLoading: loading } = useQuery<WebhookInfo[]>({
+    queryKey: ["webhooks"],
+    queryFn: () => listWebhooks(),
+    staleTime: 30_000,
+  });
 
   function toggleEvent(event: string) {
     setSelectedEvents((prev) =>
@@ -81,7 +76,7 @@ export function WebhookForm() {
         setNewSecret(result.secret);
         setUrl("");
         setSelectedEvents(["issue.created"]);
-        loadWebhooks();
+        queryClient.invalidateQueries({ queryKey: ["webhooks"] });
         toast.success("Webhook created");
       } catch (err) {
         toast.error(
@@ -95,7 +90,7 @@ export function WebhookForm() {
     setDeletingId(webhookId);
     try {
       await deleteWebhook(webhookId);
-      setWebhooks((prev) => prev.filter((w) => w.id !== webhookId));
+      queryClient.invalidateQueries({ queryKey: ["webhooks"] });
       toast.success("Webhook deleted");
     } catch {
       toast.error("Failed to delete webhook");
