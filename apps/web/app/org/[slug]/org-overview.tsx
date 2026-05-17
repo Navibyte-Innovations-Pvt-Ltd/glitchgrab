@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import Image from "next/image";
 import Link from "next/link";
@@ -31,13 +31,24 @@ import {
   X,
   Globe,
   UploadCloud,
+  Plus,
 } from "lucide-react";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider,
+} from "@/components/ui/tooltip";
+import { ConnectGscDialog } from "@/components/seo/connect-gsc-dialog";
 import { ActiveWorkflowsWidget } from "@/app/dashboard/active-workflows-widget";
 import { GithubContributions } from "@/app/dashboard/github-contributions";
 import type { OrgContext } from "./lib/get-org-context";
@@ -58,7 +69,12 @@ interface MembersData {
   total: number;
 }
 
-interface RepoStat { name: string; commits: number; branches?: string[]; prs?: number }
+interface RepoStat {
+  name: string;
+  commits: number;
+  branches?: string[];
+  prs?: number;
+}
 interface MemberActivity {
   [githubLogin: string]: { commits: number; repos: RepoStat[] };
 }
@@ -150,14 +166,33 @@ function StatCard({
   };
 
   const card = (
-    <Card className={cn("relative overflow-hidden transition-colors py-0 rounded-md", critical ? "bg-red-500/5 border-red-500/30" : "hover:border-foreground/30")}>
-      {critical && <div className="absolute top-0 left-0 right-0 h-0.5 bg-red-500/60" />}
+    <Card
+      className={cn(
+        "relative overflow-hidden transition-colors py-0 rounded-md",
+        critical
+          ? "bg-red-500/5 border-red-500/30"
+          : "hover:border-foreground/30",
+      )}
+    >
+      {critical && (
+        <div className="absolute top-0 left-0 right-0 h-0.5 bg-red-500/60" />
+      )}
       <CardContent className="px-3 py-2.5">
         <div className="flex items-start justify-between mb-1">
-          <span className={cn("text-[10px] font-mono uppercase tracking-[0.15em]", critical ? "text-red-400" : "text-muted-foreground")}>
+          <span
+            className={cn(
+              "text-[10px] font-mono uppercase tracking-[0.15em]",
+              critical ? "text-red-400" : "text-muted-foreground",
+            )}
+          >
             {label}
           </span>
-          <span className={cn(critical ? "text-red-400/70" : "text-muted-foreground/60", "[&>svg]:h-3.5 [&>svg]:w-3.5")}>
+          <span
+            className={cn(
+              critical ? "text-red-400/70" : "text-muted-foreground/60",
+              "[&>svg]:h-3.5 [&>svg]:w-3.5",
+            )}
+          >
             {icon}
           </span>
         </div>
@@ -168,7 +203,12 @@ function StatCard({
           </div>
         ) : (
           <div className="flex items-baseline gap-2 flex-wrap">
-            <span className={cn("text-2xl font-mono tabular-nums font-medium", critical ? "text-red-400" : "text-foreground")}>
+            <span
+              className={cn(
+                "text-2xl font-mono tabular-nums font-medium",
+                critical ? "text-red-400" : "text-foreground",
+              )}
+            >
               {typeof value === "number"
                 ? decimal
                   ? value.toFixed(1)
@@ -177,7 +217,12 @@ function StatCard({
                     : value
                 : value}
             </span>
-            <span className={cn("text-[10px] font-mono px-1.5 py-0.5 rounded border", toneClasses[pill.tone])}>
+            <span
+              className={cn(
+                "text-[10px] font-mono px-1.5 py-0.5 rounded border",
+                toneClasses[pill.tone],
+              )}
+            >
               {pill.text}
             </span>
           </div>
@@ -186,7 +231,12 @@ function StatCard({
     </Card>
   );
 
-  if (href) return <Link href={href} className="block">{card}</Link>;
+  if (href)
+    return (
+      <Link href={href} className="block">
+        {card}
+      </Link>
+    );
   return card;
 }
 
@@ -212,11 +262,15 @@ function ListPanel({
           {icon}
           {title}
         </h2>
-        {meta && <span className="text-xs font-mono text-muted-foreground">{meta}</span>}
+        {meta && (
+          <span className="text-xs font-mono text-muted-foreground">
+            {meta}
+          </span>
+        )}
       </div>
       <div>{children}</div>
-      {footer && (
-        footer.external ? (
+      {footer &&
+        (footer.external ? (
           <a
             href={footer.href}
             target="_blank"
@@ -226,18 +280,26 @@ function ListPanel({
             {footer.label} →
           </a>
         ) : (
-          <Link href={footer.href} className="mt-auto text-xs font-mono text-muted-foreground hover:text-primary transition-colors w-max">
+          <Link
+            href={footer.href}
+            className="mt-auto text-xs font-mono text-muted-foreground hover:text-primary transition-colors w-max"
+          >
             {footer.label} →
           </Link>
-        )
-      )}
+        ))}
     </div>
   );
 }
 
 // ─── Issue Row ───────────────────────────────────────────────────────────────
 
-function IssueRow({ issue, critical }: { issue: IssueItem; critical: boolean }) {
+function IssueRow({
+  issue,
+  critical,
+}: {
+  issue: IssueItem;
+  critical: boolean;
+}) {
   const [copied, setCopied] = useState(false);
 
   const copyLink = () => {
@@ -255,7 +317,7 @@ function IssueRow({ issue, critical }: { issue: IssueItem; critical: boolean }) 
         "group flex items-center gap-2 rounded px-2 py-1.5 transition-colors border text-xs",
         critical
           ? "bg-red-500/5 border-red-500/15 hover:border-red-500/40"
-          : "bg-card/30 border-border/60 hover:border-primary/40 hover:bg-card/60"
+          : "bg-card/30 border-border/60 hover:border-primary/40 hover:bg-card/60",
       )}
     >
       {critical ? (
@@ -278,13 +340,19 @@ function IssueRow({ issue, critical }: { issue: IssueItem; critical: boolean }) 
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
         <button
           type="button"
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); copyLink(); }}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            copyLink();
+          }}
           className="p-1 rounded hover:bg-muted transition-colors"
           title="Copy link"
         >
-          {copied
-            ? <Check className="h-3 w-3 text-green-400" />
-            : <Copy className="h-3 w-3 text-muted-foreground" />}
+          {copied ? (
+            <Check className="h-3 w-3 text-green-400" />
+          ) : (
+            <Copy className="h-3 w-3 text-muted-foreground" />
+          )}
         </button>
         <span className="p-1 rounded" title="View on GitHub">
           <ExternalLink className="h-3 w-3 text-muted-foreground" />
@@ -308,7 +376,7 @@ function RepoFilterPopover({
   const [search, setSearch] = useState("");
 
   const filteredRepos = allRepos.filter(([repo]) =>
-    repoShortName(repo).toLowerCase().includes(search.toLowerCase())
+    repoShortName(repo).toLowerCase().includes(search.toLowerCase()),
   );
 
   return (
@@ -318,13 +386,17 @@ function RepoFilterPopover({
           "flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded border transition-colors",
           selectedRepo
             ? "bg-primary/15 border-primary/50 text-primary"
-            : "border-border text-muted-foreground hover:border-primary/50 hover:text-primary"
+            : "border-border text-muted-foreground hover:border-primary/50 hover:text-primary",
         )}
       >
         <SlidersHorizontal className="h-2.5 w-2.5 shrink-0" />
         {selectedRepo ? repoShortName(selectedRepo) : "Filter"}
       </PopoverTrigger>
-      <PopoverContent align="end" side="bottom" className="w-56 p-2 flex flex-col gap-1.5">
+      <PopoverContent
+        align="end"
+        side="bottom"
+        className="w-56 p-2 flex flex-col gap-1.5"
+      >
         <div className="flex items-center gap-1.5 border border-border rounded px-2 py-1 bg-background">
           <Search className="h-3 w-3 text-muted-foreground shrink-0" />
           <input
@@ -347,11 +419,15 @@ function RepoFilterPopover({
           onClick={() => onSelect(null)}
           className={cn(
             "flex items-center justify-between px-2 py-1 rounded text-[11px] font-mono transition-colors",
-            !selectedRepo ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            !selectedRepo
+              ? "bg-primary/10 text-primary"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground",
           )}
         >
           <span>All repos</span>
-          <span className="text-[10px]">{allRepos.reduce((s, [, its]) => s + its.length, 0)}</span>
+          <span className="text-[10px]">
+            {allRepos.reduce((s, [, its]) => s + its.length, 0)}
+          </span>
         </button>
 
         <div className="flex flex-col gap-0.5 max-h-48 overflow-y-auto">
@@ -365,21 +441,30 @@ function RepoFilterPopover({
                 onClick={() => onSelect(isSelected ? null : repo)}
                 className={cn(
                   "flex items-center justify-between gap-2 px-2 py-1 rounded text-[11px] font-mono transition-colors",
-                  isSelected ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  isSelected
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
                 <span className="flex items-center gap-1.5 min-w-0">
                   <Folder className="h-2.5 w-2.5 shrink-0" />
                   <span className="truncate">{repoShortName(repo)}</span>
                 </span>
-                <span className={cn("shrink-0 text-[10px]", hasCritical && !isSelected ? "text-red-400" : "")}>
+                <span
+                  className={cn(
+                    "shrink-0 text-[10px]",
+                    hasCritical && !isSelected ? "text-red-400" : "",
+                  )}
+                >
                   {items.length}
                 </span>
               </button>
             );
           })}
           {filteredRepos.length === 0 && (
-            <p className="text-[10px] font-mono text-muted-foreground/50 px-2 py-1">No repos match</p>
+            <p className="text-[10px] font-mono text-muted-foreground/50 px-2 py-1">
+              No repos match
+            </p>
           )}
         </div>
       </PopoverContent>
@@ -404,7 +489,10 @@ function OrgIssuesTriageBody({
     return (
       <div className="flex flex-col gap-2">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="flex items-center gap-2 rounded px-2 py-1.5 border border-border/40">
+          <div
+            key={i}
+            className="flex items-center gap-2 rounded px-2 py-1.5 border border-border/40"
+          >
             <Skeleton className="h-3 w-3 rounded-full shrink-0" />
             <Skeleton className="h-3 flex-1" />
             <Skeleton className="h-2.5 w-12 shrink-0" />
@@ -418,7 +506,9 @@ function OrgIssuesTriageBody({
     return (
       <div className="flex items-center gap-3 border border-dashed border-border rounded-md px-4 py-4">
         <AlertCircle className="h-4 w-4 text-muted-foreground shrink-0" />
-        <p className="text-xs font-mono text-muted-foreground">No open issues — all clear.</p>
+        <p className="text-xs font-mono text-muted-foreground">
+          No open issues — all clear.
+        </p>
       </div>
     );
   }
@@ -428,7 +518,9 @@ function OrgIssuesTriageBody({
     return acc;
   }, {});
 
-  const sortedRepos = Object.entries(grouped).sort(([, a], [, b]) => b.length - a.length);
+  const sortedRepos = Object.entries(grouped).sort(
+    ([, a], [, b]) => b.length - a.length,
+  );
   const top2 = sortedRepos.slice(0, 2);
 
   const visibleRepos = selectedRepo
@@ -453,12 +545,21 @@ function OrgIssuesTriageBody({
                   ? "bg-primary/15 border-primary/50 text-primary"
                   : hasCritical
                     ? "bg-red-500/10 border-red-500/30 text-red-400 hover:border-red-500/60"
-                    : "bg-card/60 border-border text-muted-foreground hover:border-primary/50 hover:text-primary"
+                    : "bg-card/60 border-border text-muted-foreground hover:border-primary/50 hover:text-primary",
               )}
             >
               <Folder className="h-2.5 w-2.5 shrink-0" />
               <span>{repoShortName(repo)}</span>
-              <span className={cn("font-bold px-0.5", isSelected ? "text-primary" : hasCritical ? "text-red-300" : "text-foreground")}>
+              <span
+                className={cn(
+                  "font-bold px-0.5",
+                  isSelected
+                    ? "text-primary"
+                    : hasCritical
+                      ? "text-red-300"
+                      : "text-foreground",
+                )}
+              >
                 {items.length}
               </span>
             </button>
@@ -537,11 +638,16 @@ function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
     refetchInterval: 60_000,
   });
 
-  const grouped = (data ?? []).reduce<Record<string, IssueItem[]>>((acc, issue) => {
-    (acc[issue.repoFullName] ??= []).push(issue);
-    return acc;
-  }, {});
-  const sortedRepos = Object.entries(grouped).sort(([, a], [, b]) => b.length - a.length);
+  const grouped = (data ?? []).reduce<Record<string, IssueItem[]>>(
+    (acc, issue) => {
+      (acc[issue.repoFullName] ??= []).push(issue);
+      return acc;
+    },
+    {},
+  );
+  const sortedRepos = Object.entries(grouped).sort(
+    ([, a], [, b]) => b.length - a.length,
+  );
 
   return (
     <ListPanel
@@ -572,7 +678,20 @@ function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
 
 // ─── Issues Closed Preview ────────────────────────────────────────────────────
 
-const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTHS_SHORT = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 function fmtClosedDate(iso: string) {
   const d = new Date(iso + "T00:00:00Z");
   return `${MONTHS_SHORT[d.getUTCMonth()]} ${d.getUTCDate()}`;
@@ -582,7 +701,9 @@ function OrgIssuesClosedPreview({ orgSlug }: { orgSlug: string }) {
   const { data, isLoading } = useQuery<ClosedData>({
     queryKey: ["org-issues-closed", orgSlug, 14],
     queryFn: async () => {
-      const { data } = await axios.get(`/api/v1/orgs/${orgSlug}/issues-closed?days=14`);
+      const { data } = await axios.get(
+        `/api/v1/orgs/${orgSlug}/issues-closed?days=14`,
+      );
       return data.data;
     },
     staleTime: 5 * 60_000,
@@ -591,7 +712,10 @@ function OrgIssuesClosedPreview({ orgSlug }: { orgSlug: string }) {
 
   const maxCount = data ? Math.max(1, ...data.daily.map((d) => d.count)) : 1;
   const topDays = data
-    ? [...data.daily].sort((a, b) => b.count - a.count).filter((d) => d.count > 0).slice(0, 4)
+    ? [...data.daily]
+        .sort((a, b) => b.count - a.count)
+        .filter((d) => d.count > 0)
+        .slice(0, 4)
     : [];
 
   return (
@@ -614,9 +738,15 @@ function OrgIssuesClosedPreview({ orgSlug }: { orgSlug: string }) {
       {isLoading ? (
         <div className="flex flex-col gap-2">
           <div className="flex items-end gap-0.5 h-28 w-full">
-            {[45, 72, 30, 88, 55, 40, 65, 80, 35, 70, 50, 60, 78, 42].map((h, i) => (
-              <Skeleton key={i} className="flex-1 rounded-t-xs" style={{ height: `${h}%` }} />
-            ))}
+            {[45, 72, 30, 88, 55, 40, 65, 80, 35, 70, 50, 60, 78, 42].map(
+              (h, i) => (
+                <Skeleton
+                  key={i}
+                  className="flex-1 rounded-t-xs"
+                  style={{ height: `${h}%` }}
+                />
+              ),
+            )}
           </div>
           <Skeleton className="h-3 w-40" />
           <Skeleton className="h-3 w-28" />
@@ -638,9 +768,11 @@ function OrgIssuesClosedPreview({ orgSlug }: { orgSlug: string }) {
                     "group/mini relative flex-1 min-w-0 rounded-t-xs transition-colors cursor-default",
                     bucket.count === 0
                       ? "bg-muted/40 border border-border/30"
-                      : "bg-primary/50 hover:bg-primary"
+                      : "bg-primary/50 hover:bg-primary",
                   )}
-                  style={{ height: `${Math.max(bucket.count > 0 ? 8 : 3, heightPct)}%` }}
+                  style={{
+                    height: `${Math.max(bucket.count > 0 ? 8 : 3, heightPct)}%`,
+                  }}
                 />
               );
             })}
@@ -648,7 +780,8 @@ function OrgIssuesClosedPreview({ orgSlug }: { orgSlug: string }) {
 
           <div className="flex items-center justify-between text-[11px] font-mono text-muted-foreground border-b border-border/40 pb-2">
             <span>
-              <span className="text-foreground font-medium">{data.total}</span> closed · 14 days
+              <span className="text-foreground font-medium">{data.total}</span>{" "}
+              closed · 14 days
             </span>
             <span>
               avg <span className="text-foreground">{data.avgPerDay}</span>/day
@@ -663,14 +796,18 @@ function OrgIssuesClosedPreview({ orgSlug }: { orgSlug: string }) {
               <ul className="flex flex-col gap-1.5">
                 {topDays.map((d) => (
                   <li key={d.date} className="flex items-center gap-2">
-                    <span className="text-[11px] font-mono text-muted-foreground w-14 shrink-0">{fmtClosedDate(d.date)}</span>
+                    <span className="text-[11px] font-mono text-muted-foreground w-14 shrink-0">
+                      {fmtClosedDate(d.date)}
+                    </span>
                     <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
                       <div
                         className="h-full rounded-full bg-primary/60"
                         style={{ width: `${(d.count / maxCount) * 100}%` }}
                       />
                     </div>
-                    <span className="text-[11px] font-mono text-foreground tabular-nums w-5 text-right shrink-0">{d.count}</span>
+                    <span className="text-[11px] font-mono text-foreground tabular-nums w-5 text-right shrink-0">
+                      {d.count}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -690,7 +827,13 @@ function OrgIssuesClosedPreview({ orgSlug }: { orgSlug: string }) {
 
 // ─── Team Panel ───────────────────────────────────────────────────────────────
 
-function TeamPanel({ orgSlug, isOwner }: { orgSlug: string; isOwner: boolean }) {
+function TeamPanel({
+  orgSlug,
+  isOwner,
+}: {
+  orgSlug: string;
+  isOwner: boolean;
+}) {
   const { data: membersData } = useQuery<MembersData>({
     queryKey: ["org-members", orgSlug],
     queryFn: async () => {
@@ -741,10 +884,19 @@ function TeamPanel({ orgSlug, isOwner }: { orgSlug: string; isOwner: boolean }) 
             {joined.map((m) => {
               const stats = memberStats?.[m.githubLogin];
               return (
-                <li key={m.githubLogin} className="flex items-center gap-2.5 px-1 py-1.5 rounded-md hover:bg-card/60 transition-colors">
+                <li
+                  key={m.githubLogin}
+                  className="flex items-center gap-2.5 px-1 py-1.5 rounded-md hover:bg-card/60 transition-colors"
+                >
                   <div className="relative shrink-0">
                     {m.avatarUrl ? (
-                      <Image src={m.avatarUrl} alt={m.githubLogin} width={28} height={28} className="rounded-full border border-border" />
+                      <Image
+                        src={m.avatarUrl}
+                        alt={m.githubLogin}
+                        width={28}
+                        height={28}
+                        className="rounded-full border border-border"
+                      />
                     ) : (
                       <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-xs font-mono font-bold">
                         {(m.name ?? m.githubLogin).charAt(0).toUpperCase()}
@@ -753,20 +905,50 @@ function TeamPanel({ orgSlug, isOwner }: { orgSlug: string; isOwner: boolean }) 
                     <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-green-500 border border-background" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-foreground truncate">{m.name ?? m.githubLogin}</div>
+                    <div className="text-sm font-medium text-foreground truncate">
+                      {m.name ?? m.githubLogin}
+                    </div>
                     {stats ? (
                       <TooltipProvider delay={150}>
                         <div className="text-[10px] font-mono text-primary/70">
-                          ↑ {stats.commits} commit{stats.commits !== 1 ? "s" : ""} · today · {stats.repos.map((r) => (
-                            <Tooltip key={r.name}>
-                              <TooltipTrigger render={<span className="inline-flex items-center gap-1 underline decoration-dotted underline-offset-2 cursor-help" />}>
-                                {r.name} (<span className="inline-flex items-center gap-0.5"><GitCommitHorizontal className="h-2.5 w-2.5 shrink-0" />{r.commits}</span>{r.prs ? <><span className="mx-0.5">·</span><span className="inline-flex items-center gap-0.5 text-primary"><GitPullRequest className="h-2.5 w-2.5 shrink-0" />{r.prs}</span></> : null})
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {r.branches?.length ? `branches: ${r.branches.join(", ")}` : "no branch info"}
-                              </TooltipContent>
-                            </Tooltip>
-                          )).reduce((acc, el, i) => i === 0 ? [el] : [...acc, ", ", el], [] as React.ReactNode[])}
+                          ↑ {stats.commits} commit
+                          {stats.commits !== 1 ? "s" : ""} · today ·{" "}
+                          {stats.repos
+                            .map((r) => (
+                              <Tooltip key={r.name}>
+                                <TooltipTrigger
+                                  render={
+                                    <span className="inline-flex items-center gap-1 underline decoration-dotted underline-offset-2 cursor-help" />
+                                  }
+                                >
+                                  {r.name} (
+                                  <span className="inline-flex items-center gap-0.5">
+                                    <GitCommitHorizontal className="h-2.5 w-2.5 shrink-0" />
+                                    {r.commits}
+                                  </span>
+                                  {r.prs ? (
+                                    <>
+                                      <span className="mx-0.5">·</span>
+                                      <span className="inline-flex items-center gap-0.5 text-primary">
+                                        <GitPullRequest className="h-2.5 w-2.5 shrink-0" />
+                                        {r.prs}
+                                      </span>
+                                    </>
+                                  ) : null}
+                                  )
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {r.branches?.length
+                                    ? `branches: ${r.branches.join(", ")}`
+                                    : "no branch info"}
+                                </TooltipContent>
+                              </Tooltip>
+                            ))
+                            .reduce(
+                              (acc, el, i) =>
+                                i === 0 ? [el] : [...acc, ", ", el],
+                              [] as React.ReactNode[],
+                            )}
                         </div>
                       </TooltipProvider>
                     ) : memberStats !== undefined ? (
@@ -778,12 +960,14 @@ function TeamPanel({ orgSlug, isOwner }: { orgSlug: string; isOwner: boolean }) 
                     )}
                   </div>
                   {m.role && (
-                    <span className={cn(
-                      "font-mono text-[10px] px-1.5 py-0.5 rounded border uppercase tracking-wide shrink-0",
-                      m.role === "OWNER"
-                        ? "text-primary border-primary/30 bg-primary/10"
-                        : "text-muted-foreground border-border bg-muted"
-                    )}>
+                    <span
+                      className={cn(
+                        "font-mono text-[10px] px-1.5 py-0.5 rounded border uppercase tracking-wide shrink-0",
+                        m.role === "OWNER"
+                          ? "text-primary border-primary/30 bg-primary/10"
+                          : "text-muted-foreground border-border bg-muted",
+                      )}
+                    >
                       {m.role}
                     </span>
                   )}
@@ -801,7 +985,13 @@ function TeamPanel({ orgSlug, isOwner }: { orgSlug: string; isOwner: boolean }) 
           </div>
           <ul className="flex flex-col gap-1.5">
             {pending.slice(0, 4).map((m) => (
-              <PendingMemberRow key={m.githubLogin} member={m} orgSlug={orgSlug} isOwner={isOwner} stats={memberStats?.[m.githubLogin]} />
+              <PendingMemberRow
+                key={m.githubLogin}
+                member={m}
+                orgSlug={orgSlug}
+                isOwner={isOwner}
+                stats={memberStats?.[m.githubLogin]}
+              />
             ))}
             {pending.length > 4 && (
               <li>
@@ -820,11 +1010,25 @@ function TeamPanel({ orgSlug, isOwner }: { orgSlug: string; isOwner: boolean }) 
   );
 }
 
-function PendingMemberRow({ member, orgSlug, isOwner, stats }: { member: MergedMember; orgSlug: string; isOwner: boolean; stats?: { commits: number; repos: RepoStat[] } }) {
+function PendingMemberRow({
+  member,
+  orgSlug,
+  isOwner,
+  stats,
+}: {
+  member: MergedMember;
+  orgSlug: string;
+  isOwner: boolean;
+  stats?: { commits: number; repos: RepoStat[] };
+}) {
   const [showInvite, setShowInvite] = useState(false);
   const [email, setEmail] = useState("");
 
-  const { mutate: sendInvite, isPending, isSuccess } = useMutation({
+  const {
+    mutate: sendInvite,
+    isPending,
+    isSuccess,
+  } = useMutation({
     mutationFn: async () => {
       await axios.post(`/api/v1/orgs/${orgSlug}/members/invite`, {
         email: email.trim(),
@@ -844,7 +1048,13 @@ function PendingMemberRow({ member, orgSlug, isOwner, stats }: { member: MergedM
       <div className="flex items-center gap-2.5 px-1 py-1.5 rounded-md">
         <div className="relative shrink-0">
           {member.avatarUrl ? (
-            <Image src={member.avatarUrl} alt={member.githubLogin} width={28} height={28} className="rounded-full border border-border" />
+            <Image
+              src={member.avatarUrl}
+              alt={member.githubLogin}
+              width={28}
+              height={28}
+              className="rounded-full border border-border"
+            />
           ) : (
             <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-xs font-mono font-bold">
               {member.githubLogin.charAt(0).toUpperCase()}
@@ -853,20 +1063,49 @@ function PendingMemberRow({ member, orgSlug, isOwner, stats }: { member: MergedM
           <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-yellow-500 border border-background" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-muted-foreground truncate">@{member.githubLogin}</div>
+          <div className="text-sm font-medium text-muted-foreground truncate">
+            @{member.githubLogin}
+          </div>
           {stats ? (
             <TooltipProvider delay={150}>
               <div className="text-[10px] font-mono text-muted-foreground/60">
-                ↑ {stats.commits} commit{stats.commits !== 1 ? "s" : ""} · today · {stats.repos.map((r) => (
-                  <Tooltip key={r.name}>
-                    <TooltipTrigger render={<span className="inline-flex items-center gap-1 underline decoration-dotted underline-offset-2 cursor-help" />}>
-                      {r.name} (<span className="inline-flex items-center gap-0.5"><GitCommitHorizontal className="h-2.5 w-2.5 shrink-0" />{r.commits}</span>{r.prs ? <><span className="mx-0.5">·</span><span className="inline-flex items-center gap-0.5 text-primary/70"><GitPullRequest className="h-2.5 w-2.5 shrink-0" />{r.prs}</span></> : null})
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {r.branches?.length ? `branches: ${r.branches.join(", ")}` : "no branch info"}
-                    </TooltipContent>
-                  </Tooltip>
-                )).reduce((acc, el, i) => i === 0 ? [el] : [...acc, ", ", el], [] as React.ReactNode[])}
+                ↑ {stats.commits} commit{stats.commits !== 1 ? "s" : ""} · today
+                ·{" "}
+                {stats.repos
+                  .map((r) => (
+                    <Tooltip key={r.name}>
+                      <TooltipTrigger
+                        render={
+                          <span className="inline-flex items-center gap-1 underline decoration-dotted underline-offset-2 cursor-help" />
+                        }
+                      >
+                        {r.name} (
+                        <span className="inline-flex items-center gap-0.5">
+                          <GitCommitHorizontal className="h-2.5 w-2.5 shrink-0" />
+                          {r.commits}
+                        </span>
+                        {r.prs ? (
+                          <>
+                            <span className="mx-0.5">·</span>
+                            <span className="inline-flex items-center gap-0.5 text-primary/70">
+                              <GitPullRequest className="h-2.5 w-2.5 shrink-0" />
+                              {r.prs}
+                            </span>
+                          </>
+                        ) : null}
+                        )
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {r.branches?.length
+                          ? `branches: ${r.branches.join(", ")}`
+                          : "no branch info"}
+                      </TooltipContent>
+                    </Tooltip>
+                  ))
+                  .reduce(
+                    (acc, el, i) => (i === 0 ? [el] : [...acc, ", ", el]),
+                    [] as React.ReactNode[],
+                  )}
               </div>
             </TooltipProvider>
           ) : null}
@@ -901,10 +1140,20 @@ function PendingMemberRow({ member, orgSlug, isOwner, stats }: { member: MergedM
             disabled={isPending || !email.trim() || isSuccess}
             className="flex items-center gap-1 px-2 py-1 rounded bg-primary text-background text-xs font-mono font-semibold disabled:opacity-60 hover:bg-primary/90 transition-colors"
           >
-            {isPending ? <Loader2 size={10} className="animate-spin" /> : isSuccess ? <Check size={10} /> : <Mail size={10} />}
+            {isPending ? (
+              <Loader2 size={10} className="animate-spin" />
+            ) : isSuccess ? (
+              <Check size={10} />
+            ) : (
+              <Mail size={10} />
+            )}
             Send
           </button>
-          <button type="button" onClick={() => setShowInvite(false)} className="text-xs text-muted-foreground hover:text-foreground transition-colors px-1">
+          <button
+            type="button"
+            onClick={() => setShowInvite(false)}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors px-1"
+          >
             ✕
           </button>
         </div>
@@ -929,7 +1178,12 @@ interface PullRequestItem {
   labels: { name: string; color: string }[];
   reviewers: string[];
   repoFullName: string;
-  checks?: { state: "passed" | "failed" | "pending" | "none"; passed: number; failed: number; total: number };
+  checks?: {
+    state: "passed" | "failed" | "pending" | "none";
+    passed: number;
+    failed: number;
+    total: number;
+  };
 }
 
 type PanelTab = "prs" | "workflows";
@@ -946,17 +1200,21 @@ function OrgPRsOrWorkflowsPanel({ orgSlug }: { orgSlug: string }) {
     localStorage.setItem(TAB_STORAGE_KEY, t);
   };
 
-  const { data: prs, isLoading: prsLoading, isFetching: prsFetching, refetch: refetchPRs } =
-    useQuery<PullRequestItem[]>({
-      queryKey: ["org-pull-requests", orgSlug],
-      queryFn: async () => {
-        const { data } = await axios.get(`/api/v1/orgs/${orgSlug}/pull-requests`);
-        return data.data ?? [];
-      },
-      staleTime: 60_000,
-      refetchOnWindowFocus: true,
-      refetchInterval: 2 * 60_000,
-    });
+  const {
+    data: prs,
+    isLoading: prsLoading,
+    isFetching: prsFetching,
+    refetch: refetchPRs,
+  } = useQuery<PullRequestItem[]>({
+    queryKey: ["org-pull-requests", orgSlug],
+    queryFn: async () => {
+      const { data } = await axios.get(`/api/v1/orgs/${orgSlug}/pull-requests`);
+      return data.data ?? [];
+    },
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+    refetchInterval: 2 * 60_000,
+  });
 
   return (
     <section className="flex flex-col gap-3 h-full min-h-0 flex-1">
@@ -972,18 +1230,24 @@ function OrgPRsOrWorkflowsPanel({ orgSlug }: { orgSlug: string }) {
                 "flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-[0.12em] px-2 py-1 rounded transition-colors border",
                 tab === t
                   ? "bg-primary/10 text-primary border-primary/30"
-                  : "text-muted-foreground hover:text-foreground border-transparent"
+                  : "text-muted-foreground hover:text-foreground border-transparent",
               )}
             >
-              {t === "prs"
-                ? <GitPullRequest className="h-3 w-3 shrink-0" />
-                : <Activity className="h-3 w-3 shrink-0" />}
+              {t === "prs" ? (
+                <GitPullRequest className="h-3 w-3 shrink-0" />
+              ) : (
+                <Activity className="h-3 w-3 shrink-0" />
+              )}
               {t === "prs" ? "Open PRs" : "Workflows"}
               {t === "prs" && !prsLoading && prs !== undefined && (
-                <span className={cn(
-                  "text-[9px] px-1 rounded",
-                  tab === "prs" ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
-                )}>
+                <span
+                  className={cn(
+                    "text-[9px] px-1 rounded",
+                    tab === "prs"
+                      ? "bg-primary/20 text-primary"
+                      : "bg-muted text-muted-foreground",
+                  )}
+                >
                   {prs.length}
                 </span>
               )}
@@ -997,7 +1261,9 @@ function OrgPRsOrWorkflowsPanel({ orgSlug }: { orgSlug: string }) {
             disabled={prsFetching}
             className="text-muted-foreground/60 hover:text-muted-foreground transition-colors disabled:opacity-40"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${prsFetching ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`h-3.5 w-3.5 ${prsFetching ? "animate-spin" : ""}`}
+            />
           </button>
         )}
       </div>
@@ -1011,7 +1277,10 @@ function OrgPRsOrWorkflowsPanel({ orgSlug }: { orgSlug: string }) {
       ) : prsLoading ? (
         <div className="flex flex-col gap-1.5">
           {Array.from({ length: 2 }).map((_, i) => (
-            <div key={i} className="flex items-start gap-2 rounded-md border border-border/40 px-2.5 py-1.5">
+            <div
+              key={i}
+              className="flex items-start gap-2 rounded-md border border-border/40 px-2.5 py-1.5"
+            >
               <Skeleton className="h-5 w-5 rounded shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0 flex flex-col gap-1">
                 <Skeleton className="h-2.5 w-full" />
@@ -1023,7 +1292,9 @@ function OrgPRsOrWorkflowsPanel({ orgSlug }: { orgSlug: string }) {
       ) : !prs || prs.length === 0 ? (
         <div className="flex items-center gap-3 border border-dashed border-border rounded-md px-3 py-4">
           <GitPullRequest className="h-4 w-4 text-muted-foreground shrink-0" />
-          <p className="text-xs font-mono text-muted-foreground">No open PRs — all clear.</p>
+          <p className="text-xs font-mono text-muted-foreground">
+            No open PRs — all clear.
+          </p>
         </div>
       ) : (
         <>
@@ -1036,12 +1307,14 @@ function OrgPRsOrWorkflowsPanel({ orgSlug }: { orgSlug: string }) {
                   rel="noopener noreferrer"
                   className="group flex items-start gap-2.5 rounded-md border border-border bg-card/40 px-2.5 py-2 hover:border-foreground/30 hover:bg-card transition-colors"
                 >
-                  <span className={cn(
-                    "inline-flex items-center justify-center h-6 w-6 rounded shrink-0 border mt-0.5",
-                    pr.draft
-                      ? "bg-muted/40 border-border/50 text-muted-foreground"
-                      : "bg-primary/10 border-primary/30 text-primary"
-                  )}>
+                  <span
+                    className={cn(
+                      "inline-flex items-center justify-center h-6 w-6 rounded shrink-0 border mt-0.5",
+                      pr.draft
+                        ? "bg-muted/40 border-border/50 text-muted-foreground"
+                        : "bg-primary/10 border-primary/30 text-primary",
+                    )}
+                  >
                     <GitPullRequest className="h-3.5 w-3.5" />
                   </span>
                   <div className="flex-1 min-w-0 flex flex-col gap-0.5">
@@ -1071,12 +1344,13 @@ function OrgPRsOrWorkflowsPanel({ orgSlug }: { orgSlug: string }) {
                             pr.checks.state === "failed" &&
                               "border-red-500/30 bg-red-500/10 text-red-500",
                             pr.checks.state === "pending" &&
-                              "border-yellow-500/30 bg-yellow-500/10 text-yellow-500"
+                              "border-yellow-500/30 bg-yellow-500/10 text-yellow-500",
                           )}
                           title={`${pr.checks.passed}/${pr.checks.total} checks passed${pr.checks.failed ? `, ${pr.checks.failed} failed` : ""}`}
                         >
                           {pr.checks.state === "passed" && "✓ checks"}
-                          {pr.checks.state === "failed" && `✕ ${pr.checks.failed} failed`}
+                          {pr.checks.state === "failed" &&
+                            `✕ ${pr.checks.failed} failed`}
                           {pr.checks.state === "pending" && "● running"}
                         </span>
                       )}
@@ -1084,7 +1358,11 @@ function OrgPRsOrWorkflowsPanel({ orgSlug }: { orgSlug: string }) {
                         <span
                           key={l.name}
                           className="text-[9px] font-mono px-1 py-0 rounded border uppercase tracking-wide"
-                          style={{ borderColor: `#${l.color}40`, color: `#${l.color}`, backgroundColor: `#${l.color}15` }}
+                          style={{
+                            borderColor: `#${l.color}40`,
+                            color: `#${l.color}`,
+                            backgroundColor: `#${l.color}15`,
+                          }}
                         >
                           {l.name}
                         </span>
@@ -1112,14 +1390,20 @@ function OrgPRsOrWorkflowsPanel({ orgSlug }: { orgSlug: string }) {
 // ─── SEO Panel ────────────────────────────────────────────────────────────────
 
 function getSiteDomainSmall(siteUrl: string): string {
-  if (siteUrl.startsWith("sc-domain:")) return siteUrl.replace("sc-domain:", "");
-  try { return new URL(siteUrl).hostname; } catch { return siteUrl; }
+  if (siteUrl.startsWith("sc-domain:"))
+    return siteUrl.replace("sc-domain:", "");
+  try {
+    return new URL(siteUrl).hostname;
+  } catch {
+    return siteUrl;
+  }
 }
 
 function SiteFaviconSmall({ siteUrl }: { siteUrl: string }) {
   const [failed, setFailed] = useState(false);
   const domain = getSiteDomainSmall(siteUrl);
-  if (failed) return <Globe className="h-3.5 w-3.5 text-muted-foreground shrink-0" />;
+  if (failed)
+    return <Globe className="h-3.5 w-3.5 text-muted-foreground shrink-0" />;
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
@@ -1139,33 +1423,56 @@ function buildHealthPrompt(
   ogIssues: { severity: string; field: string; message: string }[],
 ): string | null {
   if (faviconIssues.length === 0 && ogIssues.length === 0) return null;
-  const parts: string[] = [`Fix the favicon and OG metadata issues for ${siteUrl}.`];
+  const parts: string[] = [
+    `Fix the favicon and OG metadata issues for ${siteUrl}.`,
+  ];
   if (faviconIssues.length > 0) {
-    parts.push(`\nFavicon issues (${faviconIssues.length}):\n${faviconIssues.map((i) => `- [${i.status}] ${i.text}`).join("\n")}`);
-    parts.push(`\nGenerate all missing favicon files: ICO, PNG (16×16, 32×32, 96×96, 180×180), SVG, and web manifest. Add correct <link> tags in <head>.`);
+    parts.push(
+      `\nFavicon issues (${faviconIssues.length}):\n${faviconIssues.map((i) => `- [${i.status}] ${i.text}`).join("\n")}`,
+    );
+    parts.push(
+      `\nGenerate all missing favicon files: ICO, PNG (16×16, 32×32, 96×96, 180×180), SVG, and web manifest. Add correct <link> tags in <head>.`,
+    );
   }
   if (ogIssues.length > 0) {
-    parts.push(`\nOG / social metadata issues (${ogIssues.length}):\n${ogIssues.map((i) => `- [${i.severity.toUpperCase()}] ${i.field}: ${i.message}`).join("\n")}`);
-    parts.push(`\nFix all OG meta tags in <head>. Ensure og:title (≤60 chars), og:description (≤160 chars), og:image (1200×630px, <300KB), og:url, twitter:card="summary_large_image".`);
+    parts.push(
+      `\nOG / social metadata issues (${ogIssues.length}):\n${ogIssues.map((i) => `- [${i.severity.toUpperCase()}] ${i.field}: ${i.message}`).join("\n")}`,
+    );
+    parts.push(
+      `\nFix all OG meta tags in <head>. Ensure og:title (≤60 chars), og:description (≤160 chars), og:image (1200×630px, <300KB), og:url, twitter:card="summary_large_image".`,
+    );
   }
   return parts.join("\n");
 }
 
-function SeoPropertyRow({ property, orgSlug }: { property: GscSummaryItem; orgSlug: string }) {
+function SeoPropertyRow({
+  property,
+  orgSlug,
+}: {
+  property: GscSummaryItem;
+  orgSlug: string;
+}) {
+  const queryClient = useQueryClient();
   const [copiedIssues, setCopiedIssues] = useState(false);
   const [copiedHealth, setCopiedHealth] = useState(false);
 
   const domain = getSiteDomainSmall(property.siteUrl);
   const total = property.indexedCount + property.notIndexedCount;
-  const pct = total > 0 ? Math.round((property.indexedCount / total) * 100) : null;
+  const pct =
+    total > 0 ? Math.round((property.indexedCount / total) * 100) : null;
   const notSynced = !property.lastSyncAt;
-  const displayDomain = property.siteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "").replace(/^sc-domain:/, "");
+  const displayDomain = property.siteUrl
+    .replace(/^https?:\/\//, "")
+    .replace(/\/$/, "")
+    .replace(/^sc-domain:/, "");
 
   const { data: healthData, isFetching: isHealthFetching } = useQuery({
     queryKey: ["seo-health", domain],
     queryFn: async () => {
       const [faviconRes, ogRes] = await Promise.allSettled([
-        axios.get(`/api/v1/gsc/favicon-check?domain=${encodeURIComponent(domain)}`),
+        axios.get(
+          `/api/v1/gsc/favicon-check?domain=${encodeURIComponent(domain)}`,
+        ),
         axios.get(`/api/v1/gsc/og-check?domain=${encodeURIComponent(domain)}`),
       ]);
       const faviconIssues: { status: string; text: string }[] =
@@ -1176,20 +1483,56 @@ function SeoPropertyRow({ property, orgSlug }: { property: GscSummaryItem; orgSl
         ogRes.status === "fulfilled" && ogRes.value.data.success
           ? ogRes.value.data.data.issues
           : [];
-      return { faviconIssues, ogIssues, prompt: buildHealthPrompt(property.siteUrl, faviconIssues, ogIssues) };
+      return {
+        faviconIssues,
+        ogIssues,
+        prompt: buildHealthPrompt(property.siteUrl, faviconIssues, ogIssues),
+      };
     },
     staleTime: 5 * 60_000,
     retry: false,
+    enabled: !notSynced,
   });
 
   const { mutate: reindex, isPending: isReindexing } = useMutation({
     mutationFn: async () => {
-      const { data } = await axios.post("/api/v1/gsc/reindex", { propertyId: property.id });
+      const { data } = await axios.post("/api/v1/gsc/reindex", {
+        propertyId: property.id,
+      });
       if (!data.success) throw new Error(data.error ?? "Reindex failed");
       return data.data as { submitted: number };
     },
-    onSuccess: (result) => toast.success(`Submitted ${result.submitted} URLs for re-indexing`),
-    onError: (err) => toast.error(err instanceof Error ? err.message : "Reindex failed"),
+    onSuccess: (result) =>
+      toast.success(`Submitted ${result.submitted} URLs for re-indexing`),
+    onError: (err) =>
+      toast.error(err instanceof Error ? err.message : "Reindex failed"),
+  });
+
+  const { mutate: syncNow, isPending: isSyncing } = useMutation({
+    mutationFn: async () => {
+      const { data } = await axios.post(
+        `/api/v1/gsc/properties/${property.id}/sync`,
+      );
+      if (!data.success) throw new Error(data.error ?? "Sync failed");
+      return data.data as {
+        synced: number;
+        indexed: number;
+        notIndexed: number;
+        noSitemap?: boolean;
+      };
+    },
+    onSuccess: (result) => {
+      if (result.noSitemap) {
+        toast.warning("No sitemap found for this property");
+      } else {
+        toast.success(
+          `Synced ${result.synced} URLs — ${result.indexed} indexed, ${result.notIndexed} not indexed`,
+        );
+      }
+      queryClient.invalidateQueries({ queryKey: ["gsc-properties"] });
+    },
+    onError: (err) =>
+      toast.error(err instanceof Error ? err.message : "Sync failed"),
   });
 
   const copyIssuesPrompt = () => {
@@ -1218,7 +1561,8 @@ Steps to diagnose and fix:
   };
 
   return (
-    <div className="rounded-md border border-border/60 bg-card/30 overflow-hidden">
+    <div className="relative rounded-md border border-border/60 bg-card/30 overflow-hidden shrink-0">
+      {isSyncing && <span aria-hidden className="sync-progress-bar" />}
       <Link
         href={`/org/${orgSlug}/seo/${property.id}`}
         className="group flex items-center gap-3 px-3 py-2 hover:bg-card/60 transition-colors"
@@ -1228,24 +1572,34 @@ Steps to diagnose and fix:
           {displayDomain}
         </span>
         {notSynced ? (
-          <span className="font-mono text-[10px] text-muted-foreground shrink-0">not synced</span>
+          <span className="font-mono text-[10px] text-muted-foreground shrink-0">
+            not synced
+          </span>
         ) : total === 0 ? (
-          <span className="font-mono text-[10px] text-muted-foreground shrink-0">no data</span>
+          <span className="font-mono text-[10px] text-muted-foreground shrink-0">
+            no data
+          </span>
         ) : (
           <div className="flex items-center gap-2 shrink-0">
-            <span className="font-mono text-[10px] text-green-400">{property.indexedCount} indexed</span>
+            <span className="font-mono text-[10px] text-green-400">
+              {property.indexedCount} indexed
+            </span>
             {property.notIndexedCount > 0 && (
-              <span className="font-mono text-[10px] text-red-400">{property.notIndexedCount} issues</span>
+              <span className="font-mono text-[10px] text-red-400">
+                {property.notIndexedCount} issues
+              </span>
             )}
             {pct !== null && (
-              <span className={cn(
-                "text-[10px] font-mono px-1.5 py-0.5 rounded border",
-                pct === 100
-                  ? "text-green-400 bg-green-400/10 border-green-400/20"
-                  : pct >= 80
-                  ? "text-yellow-400 bg-yellow-400/10 border-yellow-400/20"
-                  : "text-red-400 bg-red-400/10 border-red-400/20"
-              )}>
+              <span
+                className={cn(
+                  "text-[10px] font-mono px-1.5 py-0.5 rounded border",
+                  pct === 100
+                    ? "text-green-400 bg-green-400/10 border-green-400/20"
+                    : pct >= 80
+                      ? "text-yellow-400 bg-yellow-400/10 border-yellow-400/20"
+                      : "text-red-400 bg-red-400/10 border-red-400/20",
+                )}
+              >
                 {pct}%
               </span>
             )}
@@ -1254,72 +1608,116 @@ Steps to diagnose and fix:
       </Link>
 
       <div className="flex items-center gap-1.5 px-3 py-1.5 border-t border-border/40 bg-background/20 flex-wrap">
-        <button
-          type="button"
-          onClick={copyIssuesPrompt}
-          disabled={property.notIndexedCount === 0}
-          title="Copy prompt to fix not-indexed pages"
-          className={cn(
-            "inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border transition-colors",
-            property.notIndexedCount === 0
-              ? "opacity-40 cursor-not-allowed border-border text-muted-foreground"
-              : copiedIssues
-              ? "border-green-500/40 text-green-400 bg-green-500/10"
-              : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5"
-          )}
-        >
-          {copiedIssues ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-          {copiedIssues ? "Copied!" : "Page issues"}
-        </button>
-
-        {isHealthFetching ? (
-          <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border border-border text-muted-foreground opacity-60">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            Checking…
-          </span>
-        ) : healthData && !healthData.prompt ? (
-          <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border border-green-500/30 text-green-400 bg-green-500/10">
-            <CheckCircle2 className="h-3 w-3" />
-            Health OK
-          </span>
-        ) : healthData?.prompt ? (
+        {notSynced || isSyncing ? (
           <button
             type="button"
-            onClick={copyHealthPrompt}
-            title="Copy favicon & OG fix prompt"
+            onClick={() => syncNow()}
+            disabled={isSyncing}
+            title={
+              notSynced ? "Sync GSC data for this property" : "Re-sync GSC data"
+            }
             className={cn(
               "inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border transition-colors",
-              copiedHealth
-                ? "border-green-500/40 text-green-400 bg-green-500/10"
-                : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5"
+              isSyncing
+                ? "opacity-60 cursor-not-allowed border-border text-muted-foreground"
+                : "border-primary/40 text-primary hover:bg-primary/10",
             )}
           >
-            {copiedHealth ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-            {copiedHealth ? "Copied!" : "Favicon/OG"}
+            {isSyncing ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3 w-3" />
+            )}
+            {isSyncing ? "Syncing…" : "Sync now"}
           </button>
-        ) : null}
+        ) : isReindexing ? (
+          <button
+            type="button"
+            disabled
+            className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border opacity-60 cursor-not-allowed border-border text-muted-foreground"
+          >
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Submitting…
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={copyIssuesPrompt}
+              disabled={property.notIndexedCount === 0}
+              title="Copy prompt to fix not-indexed pages"
+              className={cn(
+                "inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border transition-colors",
+                property.notIndexedCount === 0
+                  ? "opacity-40 cursor-not-allowed border-border text-muted-foreground"
+                  : copiedIssues
+                    ? "border-green-500/40 text-green-400 bg-green-500/10"
+                    : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5",
+              )}
+            >
+              {copiedIssues ? (
+                <Check className="h-3 w-3" />
+              ) : (
+                <Copy className="h-3 w-3" />
+              )}
+              {copiedIssues ? "Copied!" : "Page issues"}
+            </button>
 
-        <button
-          type="button"
-          onClick={() => reindex()}
-          disabled={isReindexing || property.notIndexedCount === 0}
-          title="Submit not-indexed pages for re-crawling"
-          className={cn(
-            "inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border transition-colors",
-            isReindexing || property.notIndexedCount === 0
-              ? "opacity-40 cursor-not-allowed border-border text-muted-foreground"
-              : "border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
-          )}
-        >
-          {isReindexing ? <Loader2 className="h-3 w-3 animate-spin" /> : <UploadCloud className="h-3 w-3" />}
-          {isReindexing ? "Submitting…" : "Reindex"}
-        </button>
+            {isHealthFetching ? (
+              <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border border-border text-muted-foreground opacity-60">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Checking…
+              </span>
+            ) : healthData && !healthData.prompt ? (
+              <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border border-green-500/30 text-green-400 bg-green-500/10">
+                <CheckCircle2 className="h-3 w-3" />
+                Health OK
+              </span>
+            ) : healthData?.prompt ? (
+              <button
+                type="button"
+                onClick={copyHealthPrompt}
+                title="Copy favicon & OG fix prompt"
+                className={cn(
+                  "inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border transition-colors",
+                  copiedHealth
+                    ? "border-green-500/40 text-green-400 bg-green-500/10"
+                    : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5",
+                )}
+              >
+                {copiedHealth ? (
+                  <Check className="h-3 w-3" />
+                ) : (
+                  <Copy className="h-3 w-3" />
+                )}
+                {copiedHealth ? "Copied!" : "Favicon/OG"}
+              </button>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={() => reindex()}
+              disabled={property.notIndexedCount === 0}
+              title="Submit not-indexed pages for re-crawling"
+              className={cn(
+                "inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border transition-colors",
+                property.notIndexedCount === 0
+                  ? "opacity-40 cursor-not-allowed border-border text-muted-foreground"
+                  : "border-amber-500/40 text-amber-400 hover:bg-amber-500/10",
+              )}
+            >
+              <UploadCloud className="h-3 w-3" />
+              Reindex
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
 }
 
 function OrgSeoPanel({ orgSlug }: { orgSlug: string }) {
+  const [connectOpen, setConnectOpen] = useState(false);
   const { data: properties, isLoading } = useQuery<GscSummaryItem[]>({
     queryKey: ["gsc-properties"],
     queryFn: async () => {
@@ -1341,7 +1739,10 @@ function OrgSeoPanel({ orgSlug }: { orgSlug: string }) {
         </div>
         <div className="flex flex-col gap-2">
           {[1, 2].map((i) => (
-            <div key={i} className="flex flex-col rounded-md border border-border/40 overflow-hidden">
+            <div
+              key={i}
+              className="flex flex-col rounded-md border border-border/40 overflow-hidden"
+            >
               <div className="flex items-center gap-3 px-3 py-2">
                 <Skeleton className="h-3.5 w-3.5 rounded shrink-0" />
                 <Skeleton className="h-3 flex-1" />
@@ -1361,6 +1762,7 @@ function OrgSeoPanel({ orgSlug }: { orgSlug: string }) {
 
   if (!properties || properties.length === 0) {
     return (
+      <>
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between border-b border-border pb-2">
           <h2 className="text-sm font-medium text-foreground flex items-center gap-2">
@@ -1370,40 +1772,61 @@ function OrgSeoPanel({ orgSlug }: { orgSlug: string }) {
         </div>
         <div className="flex items-center gap-3 border border-dashed border-border rounded-md px-4 py-4">
           <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
-          <p className="text-xs font-mono text-muted-foreground">No GSC properties connected.</p>
-          <Link href={`/org/${orgSlug}/seo`} className="text-xs font-mono text-primary hover:underline ml-auto shrink-0">
+          <p className="text-xs font-mono text-muted-foreground">
+            No GSC properties connected.
+          </p>
+          <button
+            type="button"
+            onClick={() => setConnectOpen(true)}
+            className="text-xs font-mono text-primary hover:underline ml-auto shrink-0"
+          >
             Connect →
-          </Link>
+          </button>
         </div>
       </div>
+      <ConnectGscDialog open={connectOpen} onOpenChange={setConnectOpen} />
+      </>
     );
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between border-b border-border pb-2">
+    <>
+    <div className="flex flex-col gap-3 h-full min-h-0">
+      <div className="flex items-center justify-between border-b border-border pb-2 shrink-0">
         <h2 className="text-sm font-medium text-foreground flex items-center gap-2">
           <Globe className="h-4 w-4 text-primary" />
           SEO indexing
           <span className="text-[10px] font-mono text-muted-foreground">
-            {properties.length} {properties.length === 1 ? "property" : "properties"}
+            {properties.length}{" "}
+            {properties.length === 1 ? "property" : "properties"}
           </span>
         </h2>
-        <Link href={`/org/${orgSlug}/seo`} className="text-xs font-mono text-muted-foreground hover:text-primary transition-colors">
-          Manage →
-        </Link>
+        <button
+          type="button"
+          onClick={() => setConnectOpen(true)}
+          title="Connect new GSC property"
+          className="inline-flex items-center gap-1 text-xs font-mono text-muted-foreground hover:text-primary transition-colors"
+        >
+          <Plus className="h-3 w-3" />
+          Connect
+        </button>
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2 flex-1 min-h-0 max-h-90 overflow-y-auto pr-1 -mr-1">
         {properties.map((p) => (
           <SeoPropertyRow key={p.id} property={p} orgSlug={orgSlug} />
         ))}
       </div>
 
-      <Link href={`/org/${orgSlug}/seo`} className="text-xs font-mono text-muted-foreground hover:text-primary transition-colors w-max mt-auto">
+      <Link
+        href={`/org/${orgSlug}/seo`}
+        className="text-xs font-mono text-muted-foreground hover:text-primary transition-colors w-max shrink-0"
+      >
         SEO details →
       </Link>
     </div>
+    <ConnectGscDialog open={connectOpen} onOpenChange={setConnectOpen} />
+    </>
   );
 }
 
@@ -1444,7 +1867,9 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
   const { data: closedData } = useQuery<ClosedData>({
     queryKey: ["org-issues-closed", ctx.orgSlug, 14],
     queryFn: async () => {
-      const { data } = await axios.get(`/api/v1/orgs/${ctx.orgSlug}/issues-closed?days=14`);
+      const { data } = await axios.get(
+        `/api/v1/orgs/${ctx.orgSlug}/issues-closed?days=14`,
+      );
       return data.data;
     },
     staleTime: 5 * 60_000,
@@ -1454,7 +1879,9 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
   const { data: contribData } = useQuery<{ total: number; orgSlug: string }>({
     queryKey: ["org-contributions", ctx.orgSlug],
     queryFn: async () => {
-      const { data } = await axios.get(`/api/v1/orgs/${ctx.orgSlug}/contributions`);
+      const { data } = await axios.get(
+        `/api/v1/orgs/${ctx.orgSlug}/contributions`,
+      );
       return data.data;
     },
     staleTime: 10 * 60_000,
@@ -1473,10 +1900,13 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
   const repoCount = ctx.repos.length;
   const memberCount = membersData?.total ?? "—";
   const openIssues = issues?.length ?? 0;
-  const totalIndexed = gscProperties?.reduce((s, p) => s + p.indexedCount, 0) ?? 0;
-  const totalNotIndexed = gscProperties?.reduce((s, p) => s + p.notIndexedCount, 0) ?? 0;
+  const totalIndexed =
+    gscProperties?.reduce((s, p) => s + p.indexedCount, 0) ?? 0;
+  const totalNotIndexed =
+    gscProperties?.reduce((s, p) => s + p.notIndexedCount, 0) ?? 0;
   const totalGscPages = totalIndexed + totalNotIndexed;
-  const indexedPct = totalGscPages > 0 ? Math.round((totalIndexed / totalGscPages) * 100) : null;
+  const indexedPct =
+    totalGscPages > 0 ? Math.round((totalIndexed / totalGscPages) * 100) : null;
 
   return (
     <div className="flex flex-col gap-6 md:gap-8">
@@ -1494,7 +1924,10 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
             label="Members"
             value={typeof memberCount === "number" ? memberCount : 0}
             icon={<Users className="h-4 w-4" />}
-            pill={{ text: `${membersData?.members.filter((m) => m.joined).length ?? 0} joined`, tone: "primary" }}
+            pill={{
+              text: `${membersData?.members.filter((m) => m.joined).length ?? 0} joined`,
+              tone: "primary",
+            }}
             href={`/org/${ctx.orgSlug}/members`}
             loading={!membersData}
           />
@@ -1502,7 +1935,11 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
             label="Open issues"
             value={openIssues}
             icon={<AlertCircle className="h-4 w-4" />}
-            pill={openIssues > 0 ? { text: "Triage", tone: "primary" } : { text: "Clear", tone: "muted" }}
+            pill={
+              openIssues > 0
+                ? { text: "Triage", tone: "primary" }
+                : { text: "Clear", tone: "muted" }
+            }
             loading={!issues}
           />
           <StatCard
@@ -1523,7 +1960,11 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
                 ? { text: "Manual override", tone: "danger" }
                 : { text: "None", tone: "muted" }
             }
-            href={(stats?.failed ?? 0) > 0 ? `/org/${ctx.orgSlug}/reports` : undefined}
+            href={
+              (stats?.failed ?? 0) > 0
+                ? `/org/${ctx.orgSlug}/reports`
+                : undefined
+            }
             loading={!stats}
           />
           <StatCard
@@ -1537,16 +1978,24 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
           {ctx.role === "OWNER" && (
             <StatCard
               label="Indexed pages"
-              value={gscProperties === undefined ? 0 : totalGscPages === 0 ? "—" : totalIndexed}
+              value={
+                gscProperties === undefined
+                  ? 0
+                  : totalGscPages === 0
+                    ? "—"
+                    : totalIndexed
+              }
               icon={<Globe className="h-4 w-4" />}
               pill={
                 indexedPct === null
                   ? { text: "No data", tone: "muted" }
                   : totalNotIndexed > 0
-                  ? { text: `${totalNotIndexed} issues`, tone: "warn" }
-                  : { text: "All indexed", tone: "primary" }
+                    ? { text: `${totalNotIndexed} issues`, tone: "warn" }
+                    : { text: "All indexed", tone: "primary" }
               }
-              critical={totalNotIndexed > 0 && indexedPct !== null && indexedPct < 80}
+              critical={
+                totalNotIndexed > 0 && indexedPct !== null && indexedPct < 80
+              }
               href={`/org/${ctx.orgSlug}/seo`}
               loading={ctx.role === "OWNER" && gscProperties === undefined}
             />
@@ -1562,15 +2011,22 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
       </div>
 
       {/* Three-column action lists */}
-      <div className={cn(
-        "grid grid-cols-1 gap-4 md:gap-6",
-        ctx.role === "OWNER" ? "lg:grid-cols-2 xl:grid-cols-4" : "lg:grid-cols-3"
-      )}>
+      <div
+        className={cn(
+          "grid grid-cols-1 gap-4 md:gap-6",
+          ctx.role === "OWNER"
+            ? "lg:grid-cols-2 xl:grid-cols-4"
+            : "lg:grid-cols-3",
+        )}
+      >
         <ListPanel
           icon={<Users className="h-4 w-4 text-primary" />}
           title="Team"
           meta={`${membersData?.members.filter((m) => m.joined).length ?? 0}/${membersData?.total ?? 0} joined`}
-          footer={{ href: `/org/${ctx.orgSlug}/members`, label: "Manage members" }}
+          footer={{
+            href: `/org/${ctx.orgSlug}/members`,
+            label: "Manage members",
+          }}
         >
           <TeamPanel orgSlug={ctx.orgSlug} isOwner={ctx.role === "OWNER"} />
         </ListPanel>
@@ -1600,7 +2056,8 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
                 {ctx.orgName} contributions
               </h2>
               <p className="text-xs font-mono text-muted-foreground mt-0.5">
-                {contribData?.total?.toLocaleString() ?? "—"} combined commits · last 12 months · all repos
+                {contribData?.total?.toLocaleString() ?? "—"} combined commits ·
+                last 12 months · all repos
               </p>
             </div>
             <div className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground">
@@ -1623,8 +2080,13 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
 
       {/* Footer strip */}
       <div className="hidden md:flex items-center justify-between text-[11px] font-mono text-muted-foreground border-t border-border pt-4">
-        <span>{ctx.orgSlug} · {ctx.orgName}</span>
-        <Link href={`/org/${ctx.orgSlug}/chat`} className="hover:text-primary transition-colors">
+        <span>
+          {ctx.orgSlug} · {ctx.orgName}
+        </span>
+        <Link
+          href={`/org/${ctx.orgSlug}/chat`}
+          className="hover:text-primary transition-colors"
+        >
           ⌘ K to open chat
         </Link>
       </div>
