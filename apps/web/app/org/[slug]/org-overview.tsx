@@ -1381,7 +1381,7 @@ function OrgSeoPanel({ orgSlug }: { orgSlug: string }) {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-3 h-150">
+      <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between border-b border-border pb-2">
           <h2 className="text-sm font-medium text-foreground flex items-center gap-2">
             <Globe className="h-4 w-4 text-primary" />
@@ -1410,7 +1410,7 @@ function OrgSeoPanel({ orgSlug }: { orgSlug: string }) {
 
   if (!properties || properties.length === 0) {
     return (
-      <div className="flex flex-col gap-3 h-150">
+      <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between border-b border-border pb-2">
           <h2 className="text-sm font-medium text-foreground flex items-center gap-2">
             <Globe className="h-4 w-4 text-primary" />
@@ -1443,7 +1443,7 @@ function OrgSeoPanel({ orgSlug }: { orgSlug: string }) {
         </Link>
       </div>
 
-      <div className="flex flex-col gap-2 flex-1 min-h-0 overflow-y-auto pr-1 -mr-1">
+      <div className="flex flex-col gap-2 flex-1 min-h-0 max-h-140 overflow-y-auto pr-1 -mr-1">
         {properties.map((p) => (
           <SeoPropertyRow key={p.id} property={p} orgSlug={orgSlug} />
         ))}
