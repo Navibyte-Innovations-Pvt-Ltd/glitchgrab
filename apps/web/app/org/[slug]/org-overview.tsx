@@ -29,6 +29,8 @@ import {
   SlidersHorizontal,
   Search,
   X,
+  Globe,
+  UploadCloud,
 } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -88,6 +90,14 @@ interface ClosedData {
   daily: DayBucket[];
   total: number;
   avgPerDay: number;
+}
+
+interface GscSummaryItem {
+  id: string;
+  siteUrl: string;
+  indexedCount: number;
+  notIndexedCount: number;
+  lastSyncAt: string | null;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -1099,6 +1109,304 @@ function OrgPRsOrWorkflowsPanel({ orgSlug }: { orgSlug: string }) {
   );
 }
 
+// ─── SEO Panel ────────────────────────────────────────────────────────────────
+
+function getSiteDomainSmall(siteUrl: string): string {
+  if (siteUrl.startsWith("sc-domain:")) return siteUrl.replace("sc-domain:", "");
+  try { return new URL(siteUrl).hostname; } catch { return siteUrl; }
+}
+
+function SiteFaviconSmall({ siteUrl }: { siteUrl: string }) {
+  const [failed, setFailed] = useState(false);
+  const domain = getSiteDomainSmall(siteUrl);
+  if (failed) return <Globe className="h-3.5 w-3.5 text-muted-foreground shrink-0" />;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`/api/v1/gsc/favicon?domain=${encodeURIComponent(domain)}&size=32`}
+      alt=""
+      width={14}
+      height={14}
+      className="shrink-0 rounded-sm"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
+function buildHealthPrompt(
+  siteUrl: string,
+  faviconIssues: { status: string; text: string }[],
+  ogIssues: { severity: string; field: string; message: string }[],
+): string | null {
+  if (faviconIssues.length === 0 && ogIssues.length === 0) return null;
+  const parts: string[] = [`Fix the favicon and OG metadata issues for ${siteUrl}.`];
+  if (faviconIssues.length > 0) {
+    parts.push(`\nFavicon issues (${faviconIssues.length}):\n${faviconIssues.map((i) => `- [${i.status}] ${i.text}`).join("\n")}`);
+    parts.push(`\nGenerate all missing favicon files: ICO, PNG (16×16, 32×32, 96×96, 180×180), SVG, and web manifest. Add correct <link> tags in <head>.`);
+  }
+  if (ogIssues.length > 0) {
+    parts.push(`\nOG / social metadata issues (${ogIssues.length}):\n${ogIssues.map((i) => `- [${i.severity.toUpperCase()}] ${i.field}: ${i.message}`).join("\n")}`);
+    parts.push(`\nFix all OG meta tags in <head>. Ensure og:title (≤60 chars), og:description (≤160 chars), og:image (1200×630px, <300KB), og:url, twitter:card="summary_large_image".`);
+  }
+  return parts.join("\n");
+}
+
+function SeoPropertyRow({ property, orgSlug }: { property: GscSummaryItem; orgSlug: string }) {
+  const [copiedIssues, setCopiedIssues] = useState(false);
+  const [copiedHealth, setCopiedHealth] = useState(false);
+
+  const domain = getSiteDomainSmall(property.siteUrl);
+  const total = property.indexedCount + property.notIndexedCount;
+  const pct = total > 0 ? Math.round((property.indexedCount / total) * 100) : null;
+  const notSynced = !property.lastSyncAt;
+  const displayDomain = property.siteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "").replace(/^sc-domain:/, "");
+
+  const { data: healthData, isFetching: isHealthFetching } = useQuery({
+    queryKey: ["seo-health", domain],
+    queryFn: async () => {
+      const [faviconRes, ogRes] = await Promise.allSettled([
+        axios.get(`/api/v1/gsc/favicon-check?domain=${encodeURIComponent(domain)}`),
+        axios.get(`/api/v1/gsc/og-check?domain=${encodeURIComponent(domain)}`),
+      ]);
+      const faviconIssues: { status: string; text: string }[] =
+        faviconRes.status === "fulfilled" && faviconRes.value.data.success
+          ? faviconRes.value.data.data.issues
+          : [];
+      const ogIssues: { severity: string; field: string; message: string }[] =
+        ogRes.status === "fulfilled" && ogRes.value.data.success
+          ? ogRes.value.data.data.issues
+          : [];
+      return { faviconIssues, ogIssues, prompt: buildHealthPrompt(property.siteUrl, faviconIssues, ogIssues) };
+    },
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+
+  const { mutate: reindex, isPending: isReindexing } = useMutation({
+    mutationFn: async () => {
+      const { data } = await axios.post("/api/v1/gsc/reindex", { propertyId: property.id });
+      if (!data.success) throw new Error(data.error ?? "Reindex failed");
+      return data.data as { submitted: number };
+    },
+    onSuccess: (result) => toast.success(`Submitted ${result.submitted} URLs for re-indexing`),
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Reindex failed"),
+  });
+
+  const copyIssuesPrompt = () => {
+    const prompt = `Fix the indexing issues for ${property.siteUrl}.
+
+${property.notIndexedCount} page${property.notIndexedCount !== 1 ? "s are" : " is"} not indexed in Google Search Console.
+
+Steps to diagnose and fix:
+1. Open Google Search Console for ${property.siteUrl} → Coverage/Indexing report
+2. Review specific not-indexed URLs and their reasons (noindex tag, crawl error, redirect, canonical mismatch, etc.)
+3. Fix the root cause for each reason group
+4. Ensure affected pages have proper internal linking and are in the sitemap.xml
+5. Submit fixed pages for re-crawling via the URL Inspection tool`;
+    navigator.clipboard.writeText(prompt).then(() => {
+      setCopiedIssues(true);
+      setTimeout(() => setCopiedIssues(false), 2000);
+    });
+  };
+
+  const copyHealthPrompt = () => {
+    if (!healthData?.prompt) return;
+    navigator.clipboard.writeText(healthData.prompt).then(() => {
+      setCopiedHealth(true);
+      setTimeout(() => setCopiedHealth(false), 2000);
+    });
+  };
+
+  return (
+    <div className="rounded-md border border-border/60 bg-card/30 overflow-hidden">
+      <Link
+        href={`/org/${orgSlug}/seo/${property.id}`}
+        className="group flex items-center gap-3 px-3 py-2 hover:bg-card/60 transition-colors"
+      >
+        <SiteFaviconSmall siteUrl={property.siteUrl} />
+        <span className="flex-1 min-w-0 font-mono text-[11px] text-foreground/90 truncate group-hover:text-foreground transition-colors">
+          {displayDomain}
+        </span>
+        {notSynced ? (
+          <span className="font-mono text-[10px] text-muted-foreground shrink-0">not synced</span>
+        ) : total === 0 ? (
+          <span className="font-mono text-[10px] text-muted-foreground shrink-0">no data</span>
+        ) : (
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="font-mono text-[10px] text-green-400">{property.indexedCount} indexed</span>
+            {property.notIndexedCount > 0 && (
+              <span className="font-mono text-[10px] text-red-400">{property.notIndexedCount} issues</span>
+            )}
+            {pct !== null && (
+              <span className={cn(
+                "text-[10px] font-mono px-1.5 py-0.5 rounded border",
+                pct === 100
+                  ? "text-green-400 bg-green-400/10 border-green-400/20"
+                  : pct >= 80
+                  ? "text-yellow-400 bg-yellow-400/10 border-yellow-400/20"
+                  : "text-red-400 bg-red-400/10 border-red-400/20"
+              )}>
+                {pct}%
+              </span>
+            )}
+          </div>
+        )}
+      </Link>
+
+      <div className="flex items-center gap-1.5 px-3 py-1.5 border-t border-border/40 bg-background/20 flex-wrap">
+        <button
+          type="button"
+          onClick={copyIssuesPrompt}
+          disabled={property.notIndexedCount === 0}
+          title="Copy prompt to fix not-indexed pages"
+          className={cn(
+            "inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border transition-colors",
+            property.notIndexedCount === 0
+              ? "opacity-40 cursor-not-allowed border-border text-muted-foreground"
+              : copiedIssues
+              ? "border-green-500/40 text-green-400 bg-green-500/10"
+              : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5"
+          )}
+        >
+          {copiedIssues ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+          {copiedIssues ? "Copied!" : "Page issues"}
+        </button>
+
+        {isHealthFetching ? (
+          <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border border-border text-muted-foreground opacity-60">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Checking…
+          </span>
+        ) : healthData && !healthData.prompt ? (
+          <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border border-green-500/30 text-green-400 bg-green-500/10">
+            <CheckCircle2 className="h-3 w-3" />
+            Health OK
+          </span>
+        ) : healthData?.prompt ? (
+          <button
+            type="button"
+            onClick={copyHealthPrompt}
+            title="Copy favicon & OG fix prompt"
+            className={cn(
+              "inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border transition-colors",
+              copiedHealth
+                ? "border-green-500/40 text-green-400 bg-green-500/10"
+                : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5"
+            )}
+          >
+            {copiedHealth ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+            {copiedHealth ? "Copied!" : "Favicon/OG"}
+          </button>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={() => reindex()}
+          disabled={isReindexing || property.notIndexedCount === 0}
+          title="Submit not-indexed pages for re-crawling"
+          className={cn(
+            "inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border transition-colors",
+            isReindexing || property.notIndexedCount === 0
+              ? "opacity-40 cursor-not-allowed border-border text-muted-foreground"
+              : "border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+          )}
+        >
+          {isReindexing ? <Loader2 className="h-3 w-3 animate-spin" /> : <UploadCloud className="h-3 w-3" />}
+          {isReindexing ? "Submitting…" : "Reindex"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function OrgSeoPanel({ orgSlug }: { orgSlug: string }) {
+  const { data: properties, isLoading } = useQuery<GscSummaryItem[]>({
+    queryKey: ["gsc-properties"],
+    queryFn: async () => {
+      const { data } = await axios.get("/api/v1/gsc/properties");
+      return data.data ?? [];
+    },
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between border-b border-border pb-2">
+          <h2 className="text-sm font-medium text-foreground flex items-center gap-2">
+            <Globe className="h-4 w-4 text-primary" />
+            SEO indexing
+          </h2>
+        </div>
+        <div className="flex flex-col gap-2">
+          {[1, 2].map((i) => (
+            <div key={i} className="flex flex-col rounded-md border border-border/40 overflow-hidden">
+              <div className="flex items-center gap-3 px-3 py-2">
+                <Skeleton className="h-3.5 w-3.5 rounded shrink-0" />
+                <Skeleton className="h-3 flex-1" />
+                <Skeleton className="h-3 w-20 shrink-0" />
+              </div>
+              <div className="flex gap-1.5 px-3 py-1.5 border-t border-border/40">
+                <Skeleton className="h-5 w-20 rounded" />
+                <Skeleton className="h-5 w-20 rounded" />
+                <Skeleton className="h-5 w-16 rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!properties || properties.length === 0) {
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between border-b border-border pb-2">
+          <h2 className="text-sm font-medium text-foreground flex items-center gap-2">
+            <Globe className="h-4 w-4 text-primary" />
+            SEO indexing
+          </h2>
+        </div>
+        <div className="flex items-center gap-3 border border-dashed border-border rounded-md px-4 py-4">
+          <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
+          <p className="text-xs font-mono text-muted-foreground">No GSC properties connected.</p>
+          <Link href={`/org/${orgSlug}/seo`} className="text-xs font-mono text-primary hover:underline ml-auto shrink-0">
+            Connect →
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between border-b border-border pb-2">
+        <h2 className="text-sm font-medium text-foreground flex items-center gap-2">
+          <Globe className="h-4 w-4 text-primary" />
+          SEO indexing
+          <span className="text-[10px] font-mono text-muted-foreground">
+            {properties.length} {properties.length === 1 ? "property" : "properties"}
+          </span>
+        </h2>
+        <Link href={`/org/${orgSlug}/seo`} className="text-xs font-mono text-muted-foreground hover:text-primary transition-colors">
+          Manage →
+        </Link>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        {properties.map((p) => (
+          <SeoPropertyRow key={p.id} property={p} orgSlug={orgSlug} />
+        ))}
+      </div>
+
+      <Link href={`/org/${orgSlug}/seo`} className="text-xs font-mono text-muted-foreground hover:text-primary transition-colors w-max mt-auto">
+        SEO details →
+      </Link>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function OrgOverview({ ctx }: { ctx: OrgContext }) {
@@ -1152,9 +1460,23 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
     staleTime: 10 * 60_000,
   });
 
+  const { data: gscProperties } = useQuery<GscSummaryItem[]>({
+    queryKey: ["gsc-properties"],
+    queryFn: async () => {
+      const { data } = await axios.get("/api/v1/gsc/properties");
+      return data.data ?? [];
+    },
+    staleTime: 60_000,
+    enabled: ctx.role === "OWNER",
+  });
+
   const repoCount = ctx.repos.length;
   const memberCount = membersData?.total ?? "—";
   const openIssues = issues?.length ?? 0;
+  const totalIndexed = gscProperties?.reduce((s, p) => s + p.indexedCount, 0) ?? 0;
+  const totalNotIndexed = gscProperties?.reduce((s, p) => s + p.notIndexedCount, 0) ?? 0;
+  const totalGscPages = totalIndexed + totalNotIndexed;
+  const indexedPct = totalGscPages > 0 ? Math.round((totalIndexed / totalGscPages) * 100) : null;
 
   return (
     <div className="flex flex-col gap-6 md:gap-8">
@@ -1212,6 +1534,23 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
             decimal
             loading={!closedData}
           />
+          {ctx.role === "OWNER" && (
+            <StatCard
+              label="Indexed pages"
+              value={gscProperties === undefined ? 0 : totalGscPages === 0 ? "—" : totalIndexed}
+              icon={<Globe className="h-4 w-4" />}
+              pill={
+                indexedPct === null
+                  ? { text: "No data", tone: "muted" }
+                  : totalNotIndexed > 0
+                  ? { text: `${totalNotIndexed} issues`, tone: "warn" }
+                  : { text: "All indexed", tone: "primary" }
+              }
+              critical={totalNotIndexed > 0 && indexedPct !== null && indexedPct < 80}
+              href={`/org/${ctx.orgSlug}/seo`}
+              loading={ctx.role === "OWNER" && gscProperties === undefined}
+            />
+          )}
         </section>
 
         {/* Open PRs → fallback to active workflows */}
@@ -1223,7 +1562,10 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
       </div>
 
       {/* Three-column action lists */}
-      <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-3">
+      <div className={cn(
+        "grid grid-cols-1 gap-4 md:gap-6",
+        ctx.role === "OWNER" ? "lg:grid-cols-2 xl:grid-cols-4" : "lg:grid-cols-3"
+      )}>
         <ListPanel
           icon={<Users className="h-4 w-4 text-primary" />}
           title="Team"
@@ -1236,6 +1578,8 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
         <OrgIssuesTriage orgSlug={ctx.orgSlug} />
 
         <OrgIssuesClosedPreview orgSlug={ctx.orgSlug} />
+
+        {ctx.role === "OWNER" && <OrgSeoPanel orgSlug={ctx.orgSlug} />}
       </div>
 
       {/* Org-wide contributions heatmap */}

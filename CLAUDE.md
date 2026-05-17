@@ -22,6 +22,8 @@ Glitchgrab is an open-source SaaS tool that converts messy bug inputs (handwritt
 - **AWS S3** for screenshot storage (not Vercel Blob).
 - **Tailwind CSS v4** for styling.
 - **TanStack Query + Axios** for client-side data fetching. `useQuery` for GET, `useMutation` for POST/PATCH/DELETE. Server-side code uses raw `fetch`.
+  - **Never** use `useState` + `useEffect` to fetch data. Always `useQuery`. `useEffect` is only valid for: timers, DOM events, non-fetch side effects.
+  - After mutations: always `queryClient.invalidateQueries`. Never manually update state with `setData`.
 - **Razorpay** for subscription billing (INR ₹199/mo).
 
 ## Core concepts

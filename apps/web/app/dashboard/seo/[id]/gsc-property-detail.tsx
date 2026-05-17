@@ -501,30 +501,26 @@ export function GscPropertyDetail({
         action={repoAction}
       />
 
-      {/* ── Stats + action cards ── */}
-      <div className="space-y-3">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatCard label="Indexed" value={property.indexedCount} accent="green" />
-          <StatCard label="Not Indexed" value={property.notIndexedCount} accent="red" />
-          <StatCard label="Total Checked" value={total} />
-          <StatCard label="Index Rate" value={total > 0 ? `${indexedPct}%` : "—"} />
-        </div>
-
-        {total > 0 && (
-          <div className="space-y-1">
-            <div className="h-1 bg-border rounded-full overflow-hidden">
-              <div className="h-full bg-green-400 rounded-full transition-all duration-500" style={{ width: `${indexedPct}%` }} />
-            </div>
-            <p className="font-mono text-[10px] text-muted-foreground">{property.indexedCount} of {total} pages indexed</p>
-          </div>
-        )}
-
-      </div>
-
-      {/* ── Two-column body ── */}
+      {/* ── Two-column body: left = stats + indexing, right = SEO health ── */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start min-w-0">
-        {/* LEFT — Indexing data */}
+        {/* LEFT — Stats + Indexing data */}
         <div className="space-y-4 min-w-0">
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <StatCard label="Indexed" value={property.indexedCount} accent="green" />
+              <StatCard label="Not Indexed" value={property.notIndexedCount} accent="red" />
+              <StatCard label="Total Checked" value={total} />
+              <StatCard label="Index Rate" value={total > 0 ? `${indexedPct}%` : "—"} />
+            </div>
+            {total > 0 && (
+              <div className="space-y-1">
+                <div className="h-1 bg-border rounded-full overflow-hidden">
+                  <div className="h-full bg-green-400 rounded-full transition-all duration-500" style={{ width: `${indexedPct}%` }} />
+                </div>
+                <p className="font-mono text-[10px] text-muted-foreground">{property.indexedCount} of {total} pages indexed</p>
+              </div>
+            )}
+          </div>
           {isSyncing && !syncResult && (
             <div className="border border-border rounded bg-card/40 overflow-hidden">
               <div className="px-4 py-3 border-b border-border/60 flex items-center gap-2">
