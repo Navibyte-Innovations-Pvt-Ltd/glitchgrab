@@ -137,6 +137,26 @@ html {
   100% { transform: translateX(400%); }
 }
 
+@keyframes sync-sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.sync-progress-bar {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  overflow: hidden;
+  pointer-events: none;
+}
+.sync-progress-bar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--primary), transparent);
+  animation: sync-sweep 1.2s linear infinite;
+}
+
 .animate-float {
   animation: float 3s ease-in-out infinite;
 }
