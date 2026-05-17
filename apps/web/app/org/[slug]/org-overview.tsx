@@ -1237,7 +1237,8 @@ Steps to diagnose and fix:
   };
 
   return (
-    <div className="rounded-md border border-border/60 bg-card/30 overflow-hidden shrink-0">
+    <div className="relative rounded-md border border-border/60 bg-card/30 overflow-hidden shrink-0">
+      {isSyncing && <span aria-hidden className="sync-progress-bar" />}
       <Link
         href={`/org/${orgSlug}/seo/${property.id}`}
         className="group flex items-center gap-3 px-3 py-2 hover:bg-card/60 transition-colors"
