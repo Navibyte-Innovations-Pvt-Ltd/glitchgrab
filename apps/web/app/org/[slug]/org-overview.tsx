@@ -113,6 +113,7 @@ interface GscSummaryItem {
   siteUrl: string;
   indexedCount: number;
   notIndexedCount: number;
+  notIndexedPages: Array<{ url: string; reason?: string }> | null;
   lastSyncAt: string | null;
 }
 
@@ -1536,16 +1537,36 @@ function SeoPropertyRow({
   });
 
   const copyIssuesPrompt = () => {
-    const prompt = `Fix the indexing issues for ${property.siteUrl}.
+    const pages = property.notIndexedPages ?? [];
+    const grouped = new Map<string, string[]>();
+    for (const p of pages) {
+      const reason = p.reason?.trim() || "Unknown reason";
+      const list = grouped.get(reason) ?? [];
+      list.push(p.url);
+      grouped.set(reason, list);
+    }
+    const sections = Array.from(grouped.entries())
+      .sort((a, b) => b[1].length - a[1].length)
+      .map(([reason, urls]) => {
+        const list = urls.map((u) => `- ${u}`).join("\n");
+        return `## ${reason} (${urls.length})\n${list}`;
+      })
+      .join("\n\n");
 
-${property.notIndexedCount} page${property.notIndexedCount !== 1 ? "s are" : " is"} not indexed in Google Search Console.
+    const prompt = `Fix Google Search Console indexing issues for ${property.siteUrl}.
 
-Steps to diagnose and fix:
-1. Open Google Search Console for ${property.siteUrl} → Coverage/Indexing report
-2. Review specific not-indexed URLs and their reasons (noindex tag, crawl error, redirect, canonical mismatch, etc.)
-3. Fix the root cause for each reason group
-4. Ensure affected pages have proper internal linking and are in the sitemap.xml
-5. Submit fixed pages for re-crawling via the URL Inspection tool`;
+${property.notIndexedCount} page${property.notIndexedCount !== 1 ? "s are" : " is"} not indexed. Fix the root cause in the codebase for each URL below.
+
+${sections || "(No cached URLs — run Sync now first.)"}
+
+For every URL above:
+1. Open the page locally and confirm it renders with status 200.
+2. Inspect <head>: no noindex meta, correct canonical, valid hreflang.
+3. Confirm the URL is in sitemap.xml and reachable via internal links.
+4. Check robots.txt does not disallow it.
+5. For redirects/canonical mismatches, fix so the canonical URL is the indexed one.
+6. After fixing, request re-indexing in GSC URL Inspection.`;
+
     navigator.clipboard.writeText(prompt).then(() => {
       setCopiedIssues(true);
       setTimeout(() => setCopiedIssues(false), 2000);
