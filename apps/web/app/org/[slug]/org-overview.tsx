@@ -30,7 +30,6 @@ import {
   Search,
   X,
   Globe,
-  ScanSearch,
   UploadCloud,
 } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -1136,8 +1135,8 @@ function SiteFaviconSmall({ siteUrl }: { siteUrl: string }) {
 
 function SeoPropertyRow({ property, orgSlug }: { property: GscSummaryItem; orgSlug: string }) {
   const [copiedIssues, setCopiedIssues] = useState(false);
-  const [copiedHealth, setCopiedHealth] = useState(false);
-  const [healthFetching, setHealthFetching] = useState(false);
+  const [healthState, setHealthState] = useState<"fetching" | "clean" | "has-issues" | "copied">("fetching");
+  const [healthPrompt, setHealthPrompt] = useState<string | null>(null);
 
   const domain = getSiteDomainSmall(property.siteUrl);
   const total = property.indexedCount + property.notIndexedCount;
@@ -1172,52 +1171,58 @@ Steps to diagnose and fix:
     });
   };
 
-  const copyHealthPrompt = async () => {
-    setHealthFetching(true);
-    try {
-      const [faviconRes, ogRes] = await Promise.allSettled([
-        axios.get(`/api/v1/gsc/favicon-check?domain=${encodeURIComponent(domain)}`),
-        axios.get(`/api/v1/gsc/og-check?domain=${encodeURIComponent(domain)}`),
-      ]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [faviconRes, ogRes] = await Promise.allSettled([
+          axios.get(`/api/v1/gsc/favicon-check?domain=${encodeURIComponent(domain)}`),
+          axios.get(`/api/v1/gsc/og-check?domain=${encodeURIComponent(domain)}`),
+        ]);
+        if (cancelled) return;
 
-      const faviconLines: string[] = [];
-      if (faviconRes.status === "fulfilled" && faviconRes.value.data.success) {
-        (faviconRes.value.data.data.issues as { status: string; text: string }[]).forEach((i) => {
-          faviconLines.push(`- [${i.status}] ${i.text}`);
-        });
-      }
+        const faviconLines: string[] = [];
+        if (faviconRes.status === "fulfilled" && faviconRes.value.data.success) {
+          (faviconRes.value.data.data.issues as { status: string; text: string }[]).forEach((i) => {
+            faviconLines.push(`- [${i.status}] ${i.text}`);
+          });
+        }
+        const ogLines: string[] = [];
+        if (ogRes.status === "fulfilled" && ogRes.value.data.success) {
+          (ogRes.value.data.data.issues as { severity: string; field: string; message: string }[]).forEach((i) => {
+            ogLines.push(`- [${i.severity.toUpperCase()}] ${i.field}: ${i.message}`);
+          });
+        }
 
-      const ogLines: string[] = [];
-      if (ogRes.status === "fulfilled" && ogRes.value.data.success) {
-        (ogRes.value.data.data.issues as { severity: string; field: string; message: string }[]).forEach((i) => {
-          ogLines.push(`- [${i.severity.toUpperCase()}] ${i.field}: ${i.message}`);
-        });
-      }
+        if (faviconLines.length === 0 && ogLines.length === 0) {
+          setHealthState("clean");
+          return;
+        }
 
-      if (faviconLines.length === 0 && ogLines.length === 0) {
-        toast.success("No favicon or OG issues found!");
-        return;
+        const parts: string[] = [`Fix the favicon and OG metadata issues for ${property.siteUrl}.`];
+        if (faviconLines.length > 0) {
+          parts.push(`\nFavicon issues (${faviconLines.length}):\n${faviconLines.join("\n")}`);
+          parts.push(`\nGenerate all missing favicon files: ICO, PNG (16×16, 32×32, 96×96, 180×180), SVG, and web manifest. Add correct <link> tags in <head>.`);
+        }
+        if (ogLines.length > 0) {
+          parts.push(`\nOG / social metadata issues (${ogLines.length}):\n${ogLines.join("\n")}`);
+          parts.push(`\nFix all OG meta tags in <head>. Ensure og:title (≤60 chars), og:description (≤160 chars), og:image (1200×630px, <300KB), og:url, twitter:card="summary_large_image".`);
+        }
+        setHealthPrompt(parts.join("\n"));
+        setHealthState("has-issues");
+      } catch {
+        if (!cancelled) setHealthState("has-issues");
       }
+    })();
+    return () => { cancelled = true; };
+  }, [domain, property.siteUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
-      const parts: string[] = [`Fix the favicon and OG metadata issues for ${property.siteUrl}.`];
-      if (faviconLines.length > 0) {
-        parts.push(`\nFavicon issues (${faviconLines.length}):\n${faviconLines.join("\n")}`);
-        parts.push(`\nGenerate all missing favicon files: ICO, PNG (16×16, 32×32, 96×96, 180×180), SVG, and web manifest. Add correct <link> tags in <head>.`);
-      }
-      if (ogLines.length > 0) {
-        parts.push(`\nOG / social metadata issues (${ogLines.length}):\n${ogLines.join("\n")}`);
-        parts.push(`\nFix all OG meta tags in <head>. Ensure og:title (≤60 chars), og:description (≤160 chars), og:image (1200×630px, <300KB), og:url, twitter:card="summary_large_image".`);
-      }
-
-      navigator.clipboard.writeText(parts.join("\n")).then(() => {
-        setCopiedHealth(true);
-        setTimeout(() => setCopiedHealth(false), 2000);
-      });
-    } catch {
-      toast.error("Failed to fetch health data");
-    } finally {
-      setHealthFetching(false);
-    }
+  const copyHealthPrompt = () => {
+    if (!healthPrompt) return;
+    navigator.clipboard.writeText(healthPrompt).then(() => {
+      setHealthState("copied");
+      setTimeout(() => setHealthState("has-issues"), 2000);
+    });
   };
 
   return (
@@ -1275,27 +1280,33 @@ Steps to diagnose and fix:
           {copiedIssues ? "Copied!" : "Page issues"}
         </button>
 
-        <button
-          type="button"
-          onClick={copyHealthPrompt}
-          disabled={healthFetching}
-          title="Check favicon & OG health, copy fix prompt"
-          className={cn(
-            "inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border transition-colors",
-            healthFetching
-              ? "opacity-60 cursor-not-allowed border-border text-muted-foreground"
-              : copiedHealth
-              ? "border-green-500/40 text-green-400 bg-green-500/10"
-              : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5"
-          )}
-        >
-          {healthFetching
-            ? <Loader2 className="h-3 w-3 animate-spin" />
-            : copiedHealth
-            ? <Check className="h-3 w-3" />
-            : <ScanSearch className="h-3 w-3" />}
-          {healthFetching ? "Checking…" : copiedHealth ? "Copied!" : "Favicon/OG"}
-        </button>
+        {healthState === "fetching" ? (
+          <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border border-border text-muted-foreground opacity-60">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Checking…
+          </span>
+        ) : healthState === "clean" ? (
+          <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border border-green-500/30 text-green-400 bg-green-500/10">
+            <CheckCircle2 className="h-3 w-3" />
+            Health OK
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={copyHealthPrompt}
+            disabled={healthState === "copied" || !healthPrompt}
+            title="Copy favicon & OG fix prompt"
+            className={cn(
+              "inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border transition-colors",
+              healthState === "copied"
+                ? "border-green-500/40 text-green-400 bg-green-500/10"
+                : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5"
+            )}
+          >
+            {healthState === "copied" ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+            {healthState === "copied" ? "Copied!" : "Favicon/OG"}
+          </button>
+        )}
 
         <button
           type="button"
