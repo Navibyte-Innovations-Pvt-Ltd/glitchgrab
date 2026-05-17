@@ -30,6 +30,8 @@ import {
   Search,
   X,
   Globe,
+  ScanSearch,
+  UploadCloud,
 } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -1110,11 +1112,14 @@ function OrgPRsOrWorkflowsPanel({ orgSlug }: { orgSlug: string }) {
 
 // ─── SEO Panel ────────────────────────────────────────────────────────────────
 
+function getSiteDomainSmall(siteUrl: string): string {
+  if (siteUrl.startsWith("sc-domain:")) return siteUrl.replace("sc-domain:", "");
+  try { return new URL(siteUrl).hostname; } catch { return siteUrl; }
+}
+
 function SiteFaviconSmall({ siteUrl }: { siteUrl: string }) {
   const [failed, setFailed] = useState(false);
-  const domain = siteUrl.startsWith("sc-domain:")
-    ? siteUrl.replace("sc-domain:", "")
-    : (() => { try { return new URL(siteUrl).hostname; } catch { return siteUrl; } })();
+  const domain = getSiteDomainSmall(siteUrl);
   if (failed) return <Globe className="h-3.5 w-3.5 text-muted-foreground shrink-0" />;
   return (
     // eslint-disable-next-line @next/next/no-img-element
@@ -1126,6 +1131,189 @@ function SiteFaviconSmall({ siteUrl }: { siteUrl: string }) {
       className="shrink-0 rounded-sm"
       onError={() => setFailed(true)}
     />
+  );
+}
+
+function SeoPropertyRow({ property, orgSlug }: { property: GscSummaryItem; orgSlug: string }) {
+  const [copiedIssues, setCopiedIssues] = useState(false);
+  const [copiedHealth, setCopiedHealth] = useState(false);
+  const [healthFetching, setHealthFetching] = useState(false);
+
+  const domain = getSiteDomainSmall(property.siteUrl);
+  const total = property.indexedCount + property.notIndexedCount;
+  const pct = total > 0 ? Math.round((property.indexedCount / total) * 100) : null;
+  const notSynced = !property.lastSyncAt;
+  const displayDomain = property.siteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "").replace(/^sc-domain:/, "");
+
+  const { mutate: reindex, isPending: isReindexing } = useMutation({
+    mutationFn: async () => {
+      const { data } = await axios.post("/api/v1/gsc/reindex", { propertyId: property.id });
+      if (!data.success) throw new Error(data.error ?? "Reindex failed");
+      return data.data as { submitted: number };
+    },
+    onSuccess: (result) => toast.success(`Submitted ${result.submitted} URLs for re-indexing`),
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Reindex failed"),
+  });
+
+  const copyIssuesPrompt = () => {
+    const prompt = `Fix the indexing issues for ${property.siteUrl}.
+
+${property.notIndexedCount} page${property.notIndexedCount !== 1 ? "s are" : " is"} not indexed in Google Search Console.
+
+Steps to diagnose and fix:
+1. Open Google Search Console for ${property.siteUrl} → Coverage/Indexing report
+2. Review specific not-indexed URLs and their reasons (noindex tag, crawl error, redirect, canonical mismatch, etc.)
+3. Fix the root cause for each reason group
+4. Ensure affected pages have proper internal linking and are in the sitemap.xml
+5. Submit fixed pages for re-crawling via the URL Inspection tool`;
+    navigator.clipboard.writeText(prompt).then(() => {
+      setCopiedIssues(true);
+      setTimeout(() => setCopiedIssues(false), 2000);
+    });
+  };
+
+  const copyHealthPrompt = async () => {
+    setHealthFetching(true);
+    try {
+      const [faviconRes, ogRes] = await Promise.allSettled([
+        axios.get(`/api/v1/gsc/favicon-check?domain=${encodeURIComponent(domain)}`),
+        axios.get(`/api/v1/gsc/og-check?domain=${encodeURIComponent(domain)}`),
+      ]);
+
+      const faviconLines: string[] = [];
+      if (faviconRes.status === "fulfilled" && faviconRes.value.data.success) {
+        (faviconRes.value.data.data.issues as { status: string; text: string }[]).forEach((i) => {
+          faviconLines.push(`- [${i.status}] ${i.text}`);
+        });
+      }
+
+      const ogLines: string[] = [];
+      if (ogRes.status === "fulfilled" && ogRes.value.data.success) {
+        (ogRes.value.data.data.issues as { severity: string; field: string; message: string }[]).forEach((i) => {
+          ogLines.push(`- [${i.severity.toUpperCase()}] ${i.field}: ${i.message}`);
+        });
+      }
+
+      if (faviconLines.length === 0 && ogLines.length === 0) {
+        toast.success("No favicon or OG issues found!");
+        return;
+      }
+
+      const parts: string[] = [`Fix the favicon and OG metadata issues for ${property.siteUrl}.`];
+      if (faviconLines.length > 0) {
+        parts.push(`\nFavicon issues (${faviconLines.length}):\n${faviconLines.join("\n")}`);
+        parts.push(`\nGenerate all missing favicon files: ICO, PNG (16×16, 32×32, 96×96, 180×180), SVG, and web manifest. Add correct <link> tags in <head>.`);
+      }
+      if (ogLines.length > 0) {
+        parts.push(`\nOG / social metadata issues (${ogLines.length}):\n${ogLines.join("\n")}`);
+        parts.push(`\nFix all OG meta tags in <head>. Ensure og:title (≤60 chars), og:description (≤160 chars), og:image (1200×630px, <300KB), og:url, twitter:card="summary_large_image".`);
+      }
+
+      navigator.clipboard.writeText(parts.join("\n")).then(() => {
+        setCopiedHealth(true);
+        setTimeout(() => setCopiedHealth(false), 2000);
+      });
+    } catch {
+      toast.error("Failed to fetch health data");
+    } finally {
+      setHealthFetching(false);
+    }
+  };
+
+  return (
+    <div className="rounded-md border border-border/60 bg-card/30 overflow-hidden">
+      <Link
+        href={`/org/${orgSlug}/seo/${property.id}`}
+        className="group flex items-center gap-3 px-3 py-2 hover:bg-card/60 transition-colors"
+      >
+        <SiteFaviconSmall siteUrl={property.siteUrl} />
+        <span className="flex-1 min-w-0 font-mono text-[11px] text-foreground/90 truncate group-hover:text-foreground transition-colors">
+          {displayDomain}
+        </span>
+        {notSynced ? (
+          <span className="font-mono text-[10px] text-muted-foreground shrink-0">not synced</span>
+        ) : total === 0 ? (
+          <span className="font-mono text-[10px] text-muted-foreground shrink-0">no data</span>
+        ) : (
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="font-mono text-[10px] text-green-400">{property.indexedCount} indexed</span>
+            {property.notIndexedCount > 0 && (
+              <span className="font-mono text-[10px] text-red-400">{property.notIndexedCount} issues</span>
+            )}
+            {pct !== null && (
+              <span className={cn(
+                "text-[10px] font-mono px-1.5 py-0.5 rounded border",
+                pct === 100
+                  ? "text-green-400 bg-green-400/10 border-green-400/20"
+                  : pct >= 80
+                  ? "text-yellow-400 bg-yellow-400/10 border-yellow-400/20"
+                  : "text-red-400 bg-red-400/10 border-red-400/20"
+              )}>
+                {pct}%
+              </span>
+            )}
+          </div>
+        )}
+      </Link>
+
+      <div className="flex items-center gap-1.5 px-3 py-1.5 border-t border-border/40 bg-background/20 flex-wrap">
+        <button
+          type="button"
+          onClick={copyIssuesPrompt}
+          disabled={property.notIndexedCount === 0}
+          title="Copy prompt to fix not-indexed pages"
+          className={cn(
+            "inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border transition-colors",
+            property.notIndexedCount === 0
+              ? "opacity-40 cursor-not-allowed border-border text-muted-foreground"
+              : copiedIssues
+              ? "border-green-500/40 text-green-400 bg-green-500/10"
+              : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5"
+          )}
+        >
+          {copiedIssues ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+          {copiedIssues ? "Copied!" : "Page issues"}
+        </button>
+
+        <button
+          type="button"
+          onClick={copyHealthPrompt}
+          disabled={healthFetching}
+          title="Check favicon & OG health, copy fix prompt"
+          className={cn(
+            "inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border transition-colors",
+            healthFetching
+              ? "opacity-60 cursor-not-allowed border-border text-muted-foreground"
+              : copiedHealth
+              ? "border-green-500/40 text-green-400 bg-green-500/10"
+              : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5"
+          )}
+        >
+          {healthFetching
+            ? <Loader2 className="h-3 w-3 animate-spin" />
+            : copiedHealth
+            ? <Check className="h-3 w-3" />
+            : <ScanSearch className="h-3 w-3" />}
+          {healthFetching ? "Checking…" : copiedHealth ? "Copied!" : "Favicon/OG"}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => reindex()}
+          disabled={isReindexing || property.notIndexedCount === 0}
+          title="Submit not-indexed pages for re-crawling"
+          className={cn(
+            "inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border transition-colors",
+            isReindexing || property.notIndexedCount === 0
+              ? "opacity-40 cursor-not-allowed border-border text-muted-foreground"
+              : "border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+          )}
+        >
+          {isReindexing ? <Loader2 className="h-3 w-3 animate-spin" /> : <UploadCloud className="h-3 w-3" />}
+          {isReindexing ? "Submitting…" : "Reindex"}
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -1151,10 +1339,17 @@ function OrgSeoPanel({ orgSlug }: { orgSlug: string }) {
         </div>
         <div className="flex flex-col gap-2">
           {[1, 2].map((i) => (
-            <div key={i} className="flex items-center gap-3 rounded-md border border-border/40 px-3 py-2">
-              <Skeleton className="h-3.5 w-3.5 rounded shrink-0" />
-              <Skeleton className="h-3 flex-1" />
-              <Skeleton className="h-3 w-20 shrink-0" />
+            <div key={i} className="flex flex-col rounded-md border border-border/40 overflow-hidden">
+              <div className="flex items-center gap-3 px-3 py-2">
+                <Skeleton className="h-3.5 w-3.5 rounded shrink-0" />
+                <Skeleton className="h-3 flex-1" />
+                <Skeleton className="h-3 w-20 shrink-0" />
+              </div>
+              <div className="flex gap-1.5 px-3 py-1.5 border-t border-border/40">
+                <Skeleton className="h-5 w-20 rounded" />
+                <Skeleton className="h-5 w-20 rounded" />
+                <Skeleton className="h-5 w-16 rounded" />
+              </div>
             </div>
           ))}
         </div>
@@ -1198,47 +1393,9 @@ function OrgSeoPanel({ orgSlug }: { orgSlug: string }) {
       </div>
 
       <div className="flex flex-col gap-2">
-        {properties.map((p) => {
-          const total = p.indexedCount + p.notIndexedCount;
-          const pct = total > 0 ? Math.round((p.indexedCount / total) * 100) : null;
-          const notSynced = !p.lastSyncAt;
-          return (
-            <Link
-              key={p.id}
-              href={`/org/${orgSlug}/seo/${p.id}`}
-              className="group flex items-center gap-3 rounded-md border border-border/60 bg-card/30 px-3 py-2 hover:border-primary/40 hover:bg-card/60 transition-colors"
-            >
-              <SiteFaviconSmall siteUrl={p.siteUrl} />
-              <span className="flex-1 min-w-0 font-mono text-[11px] text-foreground/90 truncate group-hover:text-foreground transition-colors">
-                {p.siteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "").replace(/^sc-domain:/, "")}
-              </span>
-              {notSynced ? (
-                <span className="font-mono text-[10px] text-muted-foreground shrink-0">not synced</span>
-              ) : total === 0 ? (
-                <span className="font-mono text-[10px] text-muted-foreground shrink-0">no data</span>
-              ) : (
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="font-mono text-[10px] text-green-400">{p.indexedCount} indexed</span>
-                  {p.notIndexedCount > 0 && (
-                    <span className="font-mono text-[10px] text-red-400">{p.notIndexedCount} issues</span>
-                  )}
-                  {pct !== null && (
-                    <span className={cn(
-                      "text-[10px] font-mono px-1.5 py-0.5 rounded border",
-                      pct === 100
-                        ? "text-green-400 bg-green-400/10 border-green-400/20"
-                        : pct >= 80
-                        ? "text-yellow-400 bg-yellow-400/10 border-yellow-400/20"
-                        : "text-red-400 bg-red-400/10 border-red-400/20"
-                    )}>
-                      {pct}%
-                    </span>
-                  )}
-                </div>
-              )}
-            </Link>
-          );
-        })}
+        {properties.map((p) => (
+          <SeoPropertyRow key={p.id} property={p} orgSlug={orgSlug} />
+        ))}
       </div>
 
       <Link href={`/org/${orgSlug}/seo`} className="text-xs font-mono text-muted-foreground hover:text-primary transition-colors w-max mt-auto">
