@@ -1181,6 +1181,7 @@ function SeoPropertyRow({ property, orgSlug }: { property: GscSummaryItem; orgSl
     },
     staleTime: 5 * 60_000,
     retry: false,
+    enabled: !notSynced,
   });
 
   const { mutate: reindex, isPending: isReindexing } = useMutation({
@@ -1236,7 +1237,7 @@ Steps to diagnose and fix:
   };
 
   return (
-    <div className="rounded-md border border-border/60 bg-card/30 overflow-hidden">
+    <div className="rounded-md border border-border/60 bg-card/30 overflow-hidden shrink-0">
       <Link
         href={`/org/${orgSlug}/seo/${property.id}`}
         className="group flex items-center gap-3 px-3 py-2 hover:bg-card/60 transition-colors"
@@ -1290,6 +1291,8 @@ Steps to diagnose and fix:
           {isSyncing ? "Syncing…" : notSynced ? "Sync now" : "Sync"}
         </button>
 
+        {!notSynced && (
+        <>
         <button
           type="button"
           onClick={copyIssuesPrompt}
@@ -1350,6 +1353,8 @@ Steps to diagnose and fix:
           {isReindexing ? <Loader2 className="h-3 w-3 animate-spin" /> : <UploadCloud className="h-3 w-3" />}
           {isReindexing ? "Submitting…" : "Reindex"}
         </button>
+        </>
+        )}
       </div>
     </div>
   );
@@ -1368,7 +1373,7 @@ function OrgSeoPanel({ orgSlug }: { orgSlug: string }) {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 h-150">
         <div className="flex items-center justify-between border-b border-border pb-2">
           <h2 className="text-sm font-medium text-foreground flex items-center gap-2">
             <Globe className="h-4 w-4 text-primary" />
@@ -1397,7 +1402,7 @@ function OrgSeoPanel({ orgSlug }: { orgSlug: string }) {
 
   if (!properties || properties.length === 0) {
     return (
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 h-150">
         <div className="flex items-center justify-between border-b border-border pb-2">
           <h2 className="text-sm font-medium text-foreground flex items-center gap-2">
             <Globe className="h-4 w-4 text-primary" />
@@ -1416,8 +1421,8 @@ function OrgSeoPanel({ orgSlug }: { orgSlug: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between border-b border-border pb-2">
+    <div className="flex flex-col gap-3 h-150">
+      <div className="flex items-center justify-between border-b border-border pb-2 shrink-0">
         <h2 className="text-sm font-medium text-foreground flex items-center gap-2">
           <Globe className="h-4 w-4 text-primary" />
           SEO indexing
@@ -1430,13 +1435,13 @@ function OrgSeoPanel({ orgSlug }: { orgSlug: string }) {
         </Link>
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2 flex-1 min-h-0 overflow-y-auto pr-1 -mr-1">
         {properties.map((p) => (
           <SeoPropertyRow key={p.id} property={p} orgSlug={orgSlug} />
         ))}
       </div>
 
-      <Link href={`/org/${orgSlug}/seo`} className="text-xs font-mono text-muted-foreground hover:text-primary transition-colors w-max mt-auto">
+      <Link href={`/org/${orgSlug}/seo`} className="text-xs font-mono text-muted-foreground hover:text-primary transition-colors w-max shrink-0">
         SEO details →
       </Link>
     </div>
