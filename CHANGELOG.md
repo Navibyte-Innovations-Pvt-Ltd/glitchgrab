@@ -1,3 +1,13 @@
+## [1.37.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.36.0...v1.37.0) (2026-05-17)
+
+### Features
+
+* **gsc-property-detail:** reorganize stats section for improved layout and clarity ([24d8e75](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/24d8e75e77963dcb17398580952815395b585738))
+* **org-overview:** add SEO panel with GSC properties and indexing stats ([02f9b84](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/02f9b84569819ecc721b87a451ed1401b93ca2df))
+* **org-overview:** enhance SEO panel with site domain extraction and health prompts ([b4722c3](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/b4722c387d6a8b3d7c487f65e03680b2230c2f5c))
+* **org-overview:** implement health check for favicon and OG metadata with improved prompt handling ([51fc08a](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/51fc08a1d049adc6ba1f898452d7b57c8f9520e4))
+* **org-overview:** refactor health check logic for favicon and OG metadata ([4da4c79](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/4da4c794c2f12f5e54a546aa86ec29eb32c55baa))
+
 ## [1.36.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.35.0...v1.36.0) (2026-05-16)
 
 ### Features
