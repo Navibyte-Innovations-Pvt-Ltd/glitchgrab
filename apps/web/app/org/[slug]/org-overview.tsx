@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import Image from "next/image";
 import Link from "next/link";
@@ -1152,6 +1152,7 @@ function buildHealthPrompt(
 }
 
 function SeoPropertyRow({ property, orgSlug }: { property: GscSummaryItem; orgSlug: string }) {
+  const queryClient = useQueryClient();
   const [copiedIssues, setCopiedIssues] = useState(false);
   const [copiedHealth, setCopiedHealth] = useState(false);
 
@@ -1190,6 +1191,23 @@ function SeoPropertyRow({ property, orgSlug }: { property: GscSummaryItem; orgSl
     },
     onSuccess: (result) => toast.success(`Submitted ${result.submitted} URLs for re-indexing`),
     onError: (err) => toast.error(err instanceof Error ? err.message : "Reindex failed"),
+  });
+
+  const { mutate: syncNow, isPending: isSyncing } = useMutation({
+    mutationFn: async () => {
+      const { data } = await axios.post(`/api/v1/gsc/properties/${property.id}/sync`);
+      if (!data.success) throw new Error(data.error ?? "Sync failed");
+      return data.data as { synced: number; indexed: number; notIndexed: number; noSitemap?: boolean };
+    },
+    onSuccess: (result) => {
+      if (result.noSitemap) {
+        toast.warning("No sitemap found for this property");
+      } else {
+        toast.success(`Synced ${result.synced} URLs — ${result.indexed} indexed, ${result.notIndexed} not indexed`);
+      }
+      queryClient.invalidateQueries({ queryKey: ["gsc-properties"] });
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : "Sync failed"),
   });
 
   const copyIssuesPrompt = () => {
@@ -1254,6 +1272,24 @@ Steps to diagnose and fix:
       </Link>
 
       <div className="flex items-center gap-1.5 px-3 py-1.5 border-t border-border/40 bg-background/20 flex-wrap">
+        <button
+          type="button"
+          onClick={() => syncNow()}
+          disabled={isSyncing}
+          title={notSynced ? "Sync GSC data for this property" : "Re-sync GSC data"}
+          className={cn(
+            "inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border transition-colors",
+            isSyncing
+              ? "opacity-60 cursor-not-allowed border-border text-muted-foreground"
+              : notSynced
+              ? "border-primary/40 text-primary hover:bg-primary/10"
+              : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5"
+          )}
+        >
+          {isSyncing ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+          {isSyncing ? "Syncing…" : notSynced ? "Sync now" : "Sync"}
+        </button>
+
         <button
           type="button"
           onClick={copyIssuesPrompt}
