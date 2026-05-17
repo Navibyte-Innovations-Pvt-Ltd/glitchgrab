@@ -29,6 +29,7 @@ import {
   SlidersHorizontal,
   Search,
   X,
+  Globe,
 } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -88,6 +89,14 @@ interface ClosedData {
   daily: DayBucket[];
   total: number;
   avgPerDay: number;
+}
+
+interface GscSummaryItem {
+  id: string;
+  siteUrl: string;
+  indexedCount: number;
+  notIndexedCount: number;
+  lastSyncAt: string | null;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -1099,6 +1108,146 @@ function OrgPRsOrWorkflowsPanel({ orgSlug }: { orgSlug: string }) {
   );
 }
 
+// ─── SEO Panel ────────────────────────────────────────────────────────────────
+
+function SiteFaviconSmall({ siteUrl }: { siteUrl: string }) {
+  const [failed, setFailed] = useState(false);
+  const domain = siteUrl.startsWith("sc-domain:")
+    ? siteUrl.replace("sc-domain:", "")
+    : (() => { try { return new URL(siteUrl).hostname; } catch { return siteUrl; } })();
+  if (failed) return <Globe className="h-3.5 w-3.5 text-muted-foreground shrink-0" />;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`/api/v1/gsc/favicon?domain=${encodeURIComponent(domain)}&size=32`}
+      alt=""
+      width={14}
+      height={14}
+      className="shrink-0 rounded-sm"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
+function OrgSeoPanel({ orgSlug }: { orgSlug: string }) {
+  const { data: properties, isLoading } = useQuery<GscSummaryItem[]>({
+    queryKey: ["gsc-properties"],
+    queryFn: async () => {
+      const { data } = await axios.get("/api/v1/gsc/properties");
+      return data.data ?? [];
+    },
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between border-b border-border pb-2">
+          <h2 className="text-sm font-medium text-foreground flex items-center gap-2">
+            <Globe className="h-4 w-4 text-primary" />
+            SEO indexing
+          </h2>
+        </div>
+        <div className="flex flex-col gap-2">
+          {[1, 2].map((i) => (
+            <div key={i} className="flex items-center gap-3 rounded-md border border-border/40 px-3 py-2">
+              <Skeleton className="h-3.5 w-3.5 rounded shrink-0" />
+              <Skeleton className="h-3 flex-1" />
+              <Skeleton className="h-3 w-20 shrink-0" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!properties || properties.length === 0) {
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between border-b border-border pb-2">
+          <h2 className="text-sm font-medium text-foreground flex items-center gap-2">
+            <Globe className="h-4 w-4 text-primary" />
+            SEO indexing
+          </h2>
+        </div>
+        <div className="flex items-center gap-3 border border-dashed border-border rounded-md px-4 py-4">
+          <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
+          <p className="text-xs font-mono text-muted-foreground">No GSC properties connected.</p>
+          <Link href={`/org/${orgSlug}/seo`} className="text-xs font-mono text-primary hover:underline ml-auto shrink-0">
+            Connect →
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between border-b border-border pb-2">
+        <h2 className="text-sm font-medium text-foreground flex items-center gap-2">
+          <Globe className="h-4 w-4 text-primary" />
+          SEO indexing
+          <span className="text-[10px] font-mono text-muted-foreground">
+            {properties.length} {properties.length === 1 ? "property" : "properties"}
+          </span>
+        </h2>
+        <Link href={`/org/${orgSlug}/seo`} className="text-xs font-mono text-muted-foreground hover:text-primary transition-colors">
+          Manage →
+        </Link>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        {properties.map((p) => {
+          const total = p.indexedCount + p.notIndexedCount;
+          const pct = total > 0 ? Math.round((p.indexedCount / total) * 100) : null;
+          const notSynced = !p.lastSyncAt;
+          return (
+            <Link
+              key={p.id}
+              href={`/org/${orgSlug}/seo/${p.id}`}
+              className="group flex items-center gap-3 rounded-md border border-border/60 bg-card/30 px-3 py-2 hover:border-primary/40 hover:bg-card/60 transition-colors"
+            >
+              <SiteFaviconSmall siteUrl={p.siteUrl} />
+              <span className="flex-1 min-w-0 font-mono text-[11px] text-foreground/90 truncate group-hover:text-foreground transition-colors">
+                {p.siteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "").replace(/^sc-domain:/, "")}
+              </span>
+              {notSynced ? (
+                <span className="font-mono text-[10px] text-muted-foreground shrink-0">not synced</span>
+              ) : total === 0 ? (
+                <span className="font-mono text-[10px] text-muted-foreground shrink-0">no data</span>
+              ) : (
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="font-mono text-[10px] text-green-400">{p.indexedCount} indexed</span>
+                  {p.notIndexedCount > 0 && (
+                    <span className="font-mono text-[10px] text-red-400">{p.notIndexedCount} issues</span>
+                  )}
+                  {pct !== null && (
+                    <span className={cn(
+                      "text-[10px] font-mono px-1.5 py-0.5 rounded border",
+                      pct === 100
+                        ? "text-green-400 bg-green-400/10 border-green-400/20"
+                        : pct >= 80
+                        ? "text-yellow-400 bg-yellow-400/10 border-yellow-400/20"
+                        : "text-red-400 bg-red-400/10 border-red-400/20"
+                    )}>
+                      {pct}%
+                    </span>
+                  )}
+                </div>
+              )}
+            </Link>
+          );
+        })}
+      </div>
+
+      <Link href={`/org/${orgSlug}/seo`} className="text-xs font-mono text-muted-foreground hover:text-primary transition-colors w-max mt-auto">
+        SEO details →
+      </Link>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function OrgOverview({ ctx }: { ctx: OrgContext }) {
@@ -1152,9 +1301,23 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
     staleTime: 10 * 60_000,
   });
 
+  const { data: gscProperties } = useQuery<GscSummaryItem[]>({
+    queryKey: ["gsc-properties"],
+    queryFn: async () => {
+      const { data } = await axios.get("/api/v1/gsc/properties");
+      return data.data ?? [];
+    },
+    staleTime: 60_000,
+    enabled: ctx.role === "OWNER",
+  });
+
   const repoCount = ctx.repos.length;
   const memberCount = membersData?.total ?? "—";
   const openIssues = issues?.length ?? 0;
+  const totalIndexed = gscProperties?.reduce((s, p) => s + p.indexedCount, 0) ?? 0;
+  const totalNotIndexed = gscProperties?.reduce((s, p) => s + p.notIndexedCount, 0) ?? 0;
+  const totalGscPages = totalIndexed + totalNotIndexed;
+  const indexedPct = totalGscPages > 0 ? Math.round((totalIndexed / totalGscPages) * 100) : null;
 
   return (
     <div className="flex flex-col gap-6 md:gap-8">
@@ -1212,6 +1375,23 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
             decimal
             loading={!closedData}
           />
+          {ctx.role === "OWNER" && (
+            <StatCard
+              label="Indexed pages"
+              value={gscProperties === undefined ? 0 : totalGscPages === 0 ? "—" : totalIndexed}
+              icon={<Globe className="h-4 w-4" />}
+              pill={
+                indexedPct === null
+                  ? { text: "No data", tone: "muted" }
+                  : totalNotIndexed > 0
+                  ? { text: `${totalNotIndexed} issues`, tone: "warn" }
+                  : { text: "All indexed", tone: "primary" }
+              }
+              critical={totalNotIndexed > 0 && indexedPct !== null && indexedPct < 80}
+              href={`/org/${ctx.orgSlug}/seo`}
+              loading={ctx.role === "OWNER" && gscProperties === undefined}
+            />
+          )}
         </section>
 
         {/* Open PRs → fallback to active workflows */}
@@ -1223,7 +1403,10 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
       </div>
 
       {/* Three-column action lists */}
-      <div className="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-3">
+      <div className={cn(
+        "grid grid-cols-1 gap-4 md:gap-6",
+        ctx.role === "OWNER" ? "lg:grid-cols-2 xl:grid-cols-4" : "lg:grid-cols-3"
+      )}>
         <ListPanel
           icon={<Users className="h-4 w-4 text-primary" />}
           title="Team"
@@ -1236,6 +1419,8 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
         <OrgIssuesTriage orgSlug={ctx.orgSlug} />
 
         <OrgIssuesClosedPreview orgSlug={ctx.orgSlug} />
+
+        {ctx.role === "OWNER" && <OrgSeoPanel orgSlug={ctx.orgSlug} />}
       </div>
 
       {/* Org-wide contributions heatmap */}
