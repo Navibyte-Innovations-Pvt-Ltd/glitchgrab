@@ -31,6 +31,7 @@ import {
   X,
   Globe,
   UploadCloud,
+  Plus,
 } from "lucide-react";
 import {
   Popover,
@@ -47,6 +48,7 @@ import {
   TooltipContent,
   TooltipProvider,
 } from "@/components/ui/tooltip";
+import { ConnectGscDialog } from "@/components/seo/connect-gsc-dialog";
 import { ActiveWorkflowsWidget } from "@/app/dashboard/active-workflows-widget";
 import { GithubContributions } from "@/app/dashboard/github-contributions";
 import type { OrgContext } from "./lib/get-org-context";
@@ -1715,6 +1717,7 @@ Steps to diagnose and fix:
 }
 
 function OrgSeoPanel({ orgSlug }: { orgSlug: string }) {
+  const [connectOpen, setConnectOpen] = useState(false);
   const { data: properties, isLoading } = useQuery<GscSummaryItem[]>({
     queryKey: ["gsc-properties"],
     queryFn: async () => {
@@ -1759,6 +1762,7 @@ function OrgSeoPanel({ orgSlug }: { orgSlug: string }) {
 
   if (!properties || properties.length === 0) {
     return (
+      <>
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between border-b border-border pb-2">
           <h2 className="text-sm font-medium text-foreground flex items-center gap-2">
@@ -1771,19 +1775,23 @@ function OrgSeoPanel({ orgSlug }: { orgSlug: string }) {
           <p className="text-xs font-mono text-muted-foreground">
             No GSC properties connected.
           </p>
-          <Link
-            href={`/org/${orgSlug}/seo`}
+          <button
+            type="button"
+            onClick={() => setConnectOpen(true)}
             className="text-xs font-mono text-primary hover:underline ml-auto shrink-0"
           >
             Connect →
-          </Link>
+          </button>
         </div>
       </div>
+      <ConnectGscDialog open={connectOpen} onOpenChange={setConnectOpen} />
+      </>
     );
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <>
+    <div className="flex flex-col gap-3 h-full min-h-0">
       <div className="flex items-center justify-between border-b border-border pb-2 shrink-0">
         <h2 className="text-sm font-medium text-foreground flex items-center gap-2">
           <Globe className="h-4 w-4 text-primary" />
@@ -1793,12 +1801,15 @@ function OrgSeoPanel({ orgSlug }: { orgSlug: string }) {
             {properties.length === 1 ? "property" : "properties"}
           </span>
         </h2>
-        <Link
-          href={`/org/${orgSlug}/seo`}
-          className="text-xs font-mono text-muted-foreground hover:text-primary transition-colors"
+        <button
+          type="button"
+          onClick={() => setConnectOpen(true)}
+          title="Connect new GSC property"
+          className="inline-flex items-center gap-1 text-xs font-mono text-muted-foreground hover:text-primary transition-colors"
         >
-          Manage →
-        </Link>
+          <Plus className="h-3 w-3" />
+          Connect
+        </button>
       </div>
 
       <div className="flex flex-col gap-2 flex-1 min-h-0 max-h-90 overflow-y-auto pr-1 -mr-1">
@@ -1814,6 +1825,8 @@ function OrgSeoPanel({ orgSlug }: { orgSlug: string }) {
         SEO details →
       </Link>
     </div>
+    <ConnectGscDialog open={connectOpen} onOpenChange={setConnectOpen} />
+    </>
   );
 }
 
