@@ -1,3 +1,19 @@
+## [1.38.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.37.0...v1.38.0) (2026-05-17)
+
+### Features
+
+* **org-overview:** add Connect GSC button and dialog to SEO panel ([5ffc08d](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/5ffc08d45525b371df2a8f6ee523a4e53f6627cc))
+* **org-overview:** add sync functionality for GSC properties with user feedback ([1d57d67](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/1d57d67877015e014837d0f24bb302b4ac9decde))
+* **org-overview:** add sync progress bar visibility during syncing ([778e43c](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/778e43c2ca7c28d6d7690b3f77d5a698eea02b76))
+* **org-overview:** enhance sync and reindex button functionality and visibility ([1d8236a](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/1d8236afbd9bd6a9f0e71499b37d977574d1c355))
+* **seo:** extract reusable ConnectGscDialog component ([907881f](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/907881f6dc39a9af914222812df3c5e4df610fff))
+* **sync-progress:** add sync progress bar animation and styling ([ed3c690](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/ed3c6907a68bc2b5dabe7851adfb309bee4bcfff))
+
+### Bug Fixes
+
+* **org-overview:** adjust layout of SEO panel for improved responsiveness ([74f6b07](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/74f6b070f9a16c763579294198b55c206faaed13))
+* **org-overview:** improve SEO panel layout and sync button visibility ([1f3f3d4](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/1f3f3d4c906b76614b1d526b993c92bb1ca75377))
+
 ## [1.37.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.36.0...v1.37.0) (2026-05-17)
 
 ### Features
