@@ -1274,87 +1274,94 @@ Steps to diagnose and fix:
       </Link>
 
       <div className="flex items-center gap-1.5 px-3 py-1.5 border-t border-border/40 bg-background/20 flex-wrap">
-        <button
-          type="button"
-          onClick={() => syncNow()}
-          disabled={isSyncing}
-          title={notSynced ? "Sync GSC data for this property" : "Re-sync GSC data"}
-          className={cn(
-            "inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border transition-colors",
-            isSyncing
-              ? "opacity-60 cursor-not-allowed border-border text-muted-foreground"
-              : notSynced
-              ? "border-primary/40 text-primary hover:bg-primary/10"
-              : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5"
-          )}
-        >
-          {isSyncing ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-          {isSyncing ? "Syncing…" : notSynced ? "Sync now" : "Sync"}
-        </button>
-
-        {!notSynced && (
-        <>
-        <button
-          type="button"
-          onClick={copyIssuesPrompt}
-          disabled={property.notIndexedCount === 0}
-          title="Copy prompt to fix not-indexed pages"
-          className={cn(
-            "inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border transition-colors",
-            property.notIndexedCount === 0
-              ? "opacity-40 cursor-not-allowed border-border text-muted-foreground"
-              : copiedIssues
-              ? "border-green-500/40 text-green-400 bg-green-500/10"
-              : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5"
-          )}
-        >
-          {copiedIssues ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-          {copiedIssues ? "Copied!" : "Page issues"}
-        </button>
-
-        {isHealthFetching ? (
-          <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border border-border text-muted-foreground opacity-60">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            Checking…
-          </span>
-        ) : healthData && !healthData.prompt ? (
-          <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border border-green-500/30 text-green-400 bg-green-500/10">
-            <CheckCircle2 className="h-3 w-3" />
-            Health OK
-          </span>
-        ) : healthData?.prompt ? (
+        {notSynced || isSyncing ? (
           <button
             type="button"
-            onClick={copyHealthPrompt}
-            title="Copy favicon & OG fix prompt"
+            onClick={() => syncNow()}
+            disabled={isSyncing}
+            title={notSynced ? "Sync GSC data for this property" : "Re-sync GSC data"}
             className={cn(
               "inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border transition-colors",
-              copiedHealth
-                ? "border-green-500/40 text-green-400 bg-green-500/10"
-                : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5"
+              isSyncing
+                ? "opacity-60 cursor-not-allowed border-border text-muted-foreground"
+                : "border-primary/40 text-primary hover:bg-primary/10"
             )}
           >
-            {copiedHealth ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-            {copiedHealth ? "Copied!" : "Favicon/OG"}
+            {isSyncing ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+            {isSyncing ? "Syncing…" : "Sync now"}
           </button>
-        ) : null}
+        ) : isReindexing ? (
+          <button
+            type="button"
+            disabled
+            className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border opacity-60 cursor-not-allowed border-border text-muted-foreground"
+          >
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Submitting…
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={copyIssuesPrompt}
+              disabled={property.notIndexedCount === 0}
+              title="Copy prompt to fix not-indexed pages"
+              className={cn(
+                "inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border transition-colors",
+                property.notIndexedCount === 0
+                  ? "opacity-40 cursor-not-allowed border-border text-muted-foreground"
+                  : copiedIssues
+                  ? "border-green-500/40 text-green-400 bg-green-500/10"
+                  : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5"
+              )}
+            >
+              {copiedIssues ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+              {copiedIssues ? "Copied!" : "Page issues"}
+            </button>
 
-        <button
-          type="button"
-          onClick={() => reindex()}
-          disabled={isReindexing || property.notIndexedCount === 0}
-          title="Submit not-indexed pages for re-crawling"
-          className={cn(
-            "inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border transition-colors",
-            isReindexing || property.notIndexedCount === 0
-              ? "opacity-40 cursor-not-allowed border-border text-muted-foreground"
-              : "border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
-          )}
-        >
-          {isReindexing ? <Loader2 className="h-3 w-3 animate-spin" /> : <UploadCloud className="h-3 w-3" />}
-          {isReindexing ? "Submitting…" : "Reindex"}
-        </button>
-        </>
+            {isHealthFetching ? (
+              <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border border-border text-muted-foreground opacity-60">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Checking…
+              </span>
+            ) : healthData && !healthData.prompt ? (
+              <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border border-green-500/30 text-green-400 bg-green-500/10">
+                <CheckCircle2 className="h-3 w-3" />
+                Health OK
+              </span>
+            ) : healthData?.prompt ? (
+              <button
+                type="button"
+                onClick={copyHealthPrompt}
+                title="Copy favicon & OG fix prompt"
+                className={cn(
+                  "inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border transition-colors",
+                  copiedHealth
+                    ? "border-green-500/40 text-green-400 bg-green-500/10"
+                    : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5"
+                )}
+              >
+                {copiedHealth ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                {copiedHealth ? "Copied!" : "Favicon/OG"}
+              </button>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={() => reindex()}
+              disabled={property.notIndexedCount === 0}
+              title="Submit not-indexed pages for re-crawling"
+              className={cn(
+                "inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-2 py-1 rounded border transition-colors",
+                property.notIndexedCount === 0
+                  ? "opacity-40 cursor-not-allowed border-border text-muted-foreground"
+                  : "border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+              )}
+            >
+              <UploadCloud className="h-3 w-3" />
+              Reindex
+            </button>
+          </>
         )}
       </div>
     </div>
