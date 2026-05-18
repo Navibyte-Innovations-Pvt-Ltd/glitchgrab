@@ -1,3 +1,10 @@
+## [1.39.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.38.0...v1.39.0) (2026-05-18)
+
+### Features
+
+* **gsc:** expose cached notIndexedPages in properties list ([c333caf](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/c333cafd7dcb1ee67e5cc009f5a46c79a5ea13ff))
+* **org-overview:** embed not-indexed URLs in Page Issues copy prompt ([f658b29](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/f658b295dcc693e99686a37ff9287e40c30d6aa7))
+
 ## [1.38.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.37.0...v1.38.0) (2026-05-17)
 
 ### Features
