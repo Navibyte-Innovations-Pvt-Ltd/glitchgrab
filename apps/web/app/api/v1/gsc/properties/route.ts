@@ -25,6 +25,7 @@ export async function GET() {
       repo: p.repo,
       indexedCount: p.indexedCount,
       notIndexedCount: p.notIndexedCount,
+      notIndexedPages: p.cachedNotIndexedPages,
       lastSyncAt: p.lastSyncAt,
       createdAt: p.createdAt,
     })),
