@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutGrid,
   MessageSquare,
@@ -15,6 +14,7 @@ import type { OrgContext } from "./lib/get-org-context";
 
 export function OrgBottomNav({ ctx }: { ctx: OrgContext }) {
   const pathname = usePathname();
+  const router = useRouter();
   const base = `/org/${ctx.orgSlug}`;
   const isOwner = ctx.role === "OWNER";
 
@@ -39,9 +39,16 @@ export function OrgBottomNav({ ctx }: { ctx: OrgContext }) {
           const href = `${base}${item.href}`;
           const isActive = item.href === "" ? pathname === base : pathname.startsWith(href);
           return (
-            <Link
+            <button
               key={href}
-              href={href}
+              onClick={() => {
+                const isWebView = !!document.getElementById("glitchgrab-webview");
+                if (isWebView) {
+                  window.location.href = href;
+                } else {
+                  router.push(href);
+                }
+              }}
               className={cn(
                 "flex flex-1 flex-col items-center justify-center gap-1 text-[10px] font-mono uppercase tracking-wider transition-colors",
                 isActive ? "text-primary" : "text-muted-foreground"
@@ -49,7 +56,7 @@ export function OrgBottomNav({ ctx }: { ctx: OrgContext }) {
             >
               <item.icon size={18} />
               <span>{item.label}</span>
-            </Link>
+            </button>
           );
         })}
       </div>
