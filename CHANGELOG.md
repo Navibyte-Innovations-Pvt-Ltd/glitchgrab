@@ -1,3 +1,9 @@
+## [1.39.1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.39.0...v1.39.1) (2026-05-20)
+
+### Bug Fixes
+
+* **org-bottom-nav:** use full-page nav in WebView to prevent removeChild crash ([8800424](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/880042413dc0d8295da817ba29d0791383c0c19b))
+
 ## [1.39.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.38.0...v1.39.0) (2026-05-18)
 
 ### Features
