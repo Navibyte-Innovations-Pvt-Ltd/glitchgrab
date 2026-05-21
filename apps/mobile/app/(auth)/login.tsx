@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { Image, Alert, StyleSheet } from "react-native";
+import logo from "../../assets/icon.png";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { YStack, XStack, Text, Button } from "tamagui";
 import { router } from "expo-router";
@@ -63,7 +64,7 @@ export default function LoginScreen() {
     <SafeAreaView style={styles.container}>
       <YStack flex={1} justifyContent="center" alignItems="center" paddingHorizontal="$8" gap="$4">
         <YStack marginBottom="$4">
-          <Image source={require("../../assets/icon.png")} style={styles.logo} />
+          <Image source={logo} style={styles.logo} />
         </YStack>
 
         <YStack alignItems="center" gap="$2">
