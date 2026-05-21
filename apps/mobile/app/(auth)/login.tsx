@@ -62,14 +62,7 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <YStack flex={1} justifyContent="center" alignItems="center" paddingHorizontal="$8" gap="$4">
-        <YStack
-          // @ts-expect-error Tamagui shadow tokens not fully typed in RC
-          shadowColor={Colors.primary}
-          shadowOffset={{ width: 0, height: 0 }}
-          shadowOpacity={0.35}
-          shadowRadius={24}
-          marginBottom="$4"
-        >
+        <YStack marginBottom="$4">
           <Image source={require("../../assets/icon.png")} style={styles.logo} />
         </YStack>
 
@@ -87,8 +80,6 @@ export default function LoginScreen() {
           width="100%"
           size="$5"
           backgroundColor="$primary"
-          color="$primaryForeground"
-          fontWeight="700"
           onPress={handleLogin}
           disabled={loading || !request}
           opacity={loading ? 0.7 : 1}
