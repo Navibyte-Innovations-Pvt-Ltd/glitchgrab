@@ -1,6 +1,7 @@
 import type React from "react";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { SecureStorage } from "@/lib/secure-store";
+import { apiAuthEvents } from "@/lib/api";
 
 interface AuthUser {
   name: string;
@@ -22,18 +23,6 @@ interface AuthContextType extends AuthState {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// Simple event emitter for 401 logout
-const logoutListeners: Array<() => void> = [];
-export const authEvents = {
-  emitLogout: () => { logoutListeners.forEach((fn) => fn()); },
-  onLogout: (fn: () => void) => {
-    logoutListeners.push(fn);
-    return () => {
-      const i = logoutListeners.indexOf(fn);
-      if (i !== -1) logoutListeners.splice(i, 1);
-    };
-  },
-};
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>({
@@ -53,7 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    return authEvents.onLogout(stableLogout);
+    return apiAuthEvents.onLogout(() => { void stableLogout(); });
   }, [stableLogout]);
 
   async function loadStoredAuth() {
