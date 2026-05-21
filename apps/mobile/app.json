@@ -7,6 +7,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#09090b",
+    "scheme": "glitchgrab",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -61,8 +62,8 @@
         }
       ]
     },
-    "scheme": "glitchgrab",
     "plugins": [
+      "expo-router",
       [
         "expo-share-intent",
         {
@@ -73,12 +74,16 @@
             "image/*"
           ]
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "extra": {
       "APP_ENV": "development",
       "eas": {
         "projectId": "6166832f-68fa-4680-a312-99030a7e9d5c"
+      },
+      "router": {
+        "origin": false
       }
     }
   }
