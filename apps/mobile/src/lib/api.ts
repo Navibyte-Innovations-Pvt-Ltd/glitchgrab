@@ -2,14 +2,28 @@ import axios from "axios";
 import Constants from "expo-constants";
 import { SecureStorage } from "./secure-store";
 
-function getBaseUrl(): string {
-  const appEnv = Constants.expoConfig?.extra?.APP_ENV;
-  if (appEnv === "production") return "https://glitchgrab.dev";
+interface ExpoExtra {
+  APP_ENV?: string;
+  hostUri?: string;
+}
 
-  const debuggerHost =
-    Constants.expoConfig?.hostUri ??
-    // @ts-expect-error manifest2 is not typed
-    Constants.manifest2?.extra?.expoGo?.debuggerHost;
+interface MobileSession {
+  sessionToken: string;
+  user: { name: string; email: string; image: string };
+  success: boolean;
+  error?: string;
+}
+
+function getBaseUrl(): string {
+  const extra = Constants.expoConfig?.extra as ExpoExtra | undefined;
+  if (extra?.APP_ENV === "production") return "https://glitchgrab.dev";
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const debuggerHost: string | undefined =
+    (Constants.expoConfig?.hostUri as string | undefined) ??
+    // @ts-expect-error manifest2 is untyped in SDK 55
+    (Constants.manifest2 as any)?.extra?.expoGo?.debuggerHost;
+
   const host = debuggerHost?.split(":")[0];
   if (host) return `http://${host}:3000`;
 
@@ -18,7 +32,6 @@ function getBaseUrl(): string {
 
 export const BASE_URL = getBaseUrl();
 
-// Cookie name matches what /api/auth/mobile sets
 const SESSION_COOKIE_NAME = "authjs.session-token";
 
 export const api = axios.create({
@@ -50,11 +63,11 @@ export const apiAuthEvents = {
 
 api.interceptors.response.use(
   (res) => res,
-  (err) => {
+  (err: unknown) => {
     if (axios.isAxiosError(err) && err.response?.status === 401) {
       apiAuthEvents.emitLogout();
     }
-    return Promise.reject(err);
+    return Promise.reject(err instanceof Error ? err : new Error(String(err)));
   }
 );
 
@@ -73,9 +86,9 @@ export async function exchangeCodeForSession(
     throw new Error(`Auth failed (${res.status}): ${body}`);
   }
 
-  const data = await res.json();
+  const data = await res.json() as MobileSession;
   if (!data.success || !data.sessionToken) {
-    throw new Error(data.error || "Invalid response from server");
+    throw new Error(data.error ?? "Invalid response from server");
   }
 
   return { sessionToken: data.sessionToken, user: data.user };
