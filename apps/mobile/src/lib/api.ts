@@ -4,6 +4,7 @@ import { SecureStorage } from "./secure-store";
 
 interface ExpoExtra {
   APP_ENV?: string;
+  BASE_URL?: string;
   hostUri?: string;
 }
 
@@ -21,6 +22,7 @@ interface Manifest2 {
 function getBaseUrl(): string {
   const extra = Constants.expoConfig?.extra as ExpoExtra | undefined;
   if (extra?.APP_ENV === "production") return "https://glitchgrab.dev";
+  if (extra?.BASE_URL) return extra.BASE_URL;
 
   const manifest2 = (Constants as unknown as { manifest2?: Manifest2 }).manifest2;
   const debuggerHost: string | undefined =
