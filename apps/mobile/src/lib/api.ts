@@ -36,14 +36,23 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
+const logoutListeners: Array<() => void> = [];
+export const apiAuthEvents = {
+  emitLogout: () => { logoutListeners.forEach((fn) => fn()); },
+  onLogout: (fn: () => void) => {
+    logoutListeners.push(fn);
+    return () => {
+      const i = logoutListeners.indexOf(fn);
+      if (i !== -1) logoutListeners.splice(i, 1);
+    };
+  },
+};
+
 api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (axios.isAxiosError(err) && err.response?.status === 401) {
-      // Will be handled by AuthContext
-      import("../contexts/AuthContext").then(({ authEvents }) => {
-        authEvents.emitLogout();
-      }).catch(() => null);
+      apiAuthEvents.emitLogout();
     }
     return Promise.reject(err);
   }
