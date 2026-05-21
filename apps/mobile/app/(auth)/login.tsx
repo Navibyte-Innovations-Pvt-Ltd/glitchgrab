@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Image, Alert } from "react-native";
+import { Image, Alert, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { YStack, XStack, Text, Button } from "tamagui";
 import { router } from "expo-router";
@@ -7,6 +7,7 @@ import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import { useAuth } from "@/contexts/AuthContext";
 import { exchangeCodeForSession } from "@/lib/api";
+import { Colors } from "@/lib/colors";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -59,20 +60,17 @@ export default function LoginScreen() {
   }, [loading, promptAsync, request?.codeVerifier, login]);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#09090b" }}>
+    <SafeAreaView style={styles.container}>
       <YStack flex={1} justifyContent="center" alignItems="center" paddingHorizontal="$8" gap="$4">
-        {/* Logo */}
         <YStack
-          shadowColor="#22d3ee"
+          // @ts-expect-error Tamagui shadow tokens not fully typed in RC
+          shadowColor={Colors.primary}
           shadowOffset={{ width: 0, height: 0 }}
           shadowOpacity={0.35}
           shadowRadius={24}
           marginBottom="$4"
         >
-          <Image
-            source={require("../../assets/icon.png")}
-            style={{ width: 96, height: 96, borderRadius: 24 }}
-          />
+          <Image source={require("../../assets/icon.png")} style={styles.logo} />
         </YStack>
 
         <YStack alignItems="center" gap="$2">
@@ -94,7 +92,6 @@ export default function LoginScreen() {
           onPress={handleLogin}
           disabled={loading || !request}
           opacity={loading ? 0.7 : 1}
-          pressStyle={{ opacity: 0.85 }}
         >
           <XStack alignItems="center" gap="$3">
             <Text fontSize={18}>🐙</Text>
@@ -111,3 +108,15 @@ export default function LoginScreen() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.bg,
+  },
+  logo: {
+    width: 96,
+    height: 96,
+    borderRadius: 24,
+  },
+});
