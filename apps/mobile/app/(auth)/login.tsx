@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { Image, Alert, StyleSheet } from "react-native";
 import logo from "../../assets/icon.png";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { FontAwesome } from "@expo/vector-icons";
 import { YStack, XStack, Text, Button } from "tamagui";
 import { router } from "expo-router";
 import * as AuthSession from "expo-auth-session";
@@ -86,7 +87,7 @@ export default function LoginScreen() {
           opacity={loading ? 0.7 : 1}
         >
           <XStack alignItems="center" gap="$3">
-            <Text fontSize={18}>🐙</Text>
+            <FontAwesome name="github" size={20} color="white" />
             <Text color="$primaryForeground" fontSize="$4" fontWeight="700">
               {loading ? "Signing in..." : "Sign in with GitHub"}
             </Text>
