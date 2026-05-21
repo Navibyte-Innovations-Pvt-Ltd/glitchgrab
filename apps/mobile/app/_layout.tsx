@@ -4,8 +4,11 @@ import { Stack, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { TamaguiProvider } from "tamagui";
+import { TamaguiProvider, type TamaguiProviderProps } from "tamagui";
 import tamaguiConfig from "../tamagui.config";
+
+// rc.7 vs rc.42 @tamagui/web version mismatch causes structural type incompatibility
+const tamaguiConfigTyped = tamaguiConfig as unknown as TamaguiProviderProps["config"];
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 
@@ -48,7 +51,7 @@ function RootLayoutNav() {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   return (
-    <TamaguiProvider config={tamaguiConfig} defaultTheme={colorScheme === "light" ? "light" : "dark"}>
+    <TamaguiProvider config={tamaguiConfigTyped} defaultTheme={colorScheme === "light" ? "light" : "dark"}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <RootLayoutNav />
