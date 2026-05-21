@@ -1,6 +1,7 @@
-import { Image, Alert } from "react-native";
+import { Image, Alert, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { YStack, XStack, Text, Button } from "tamagui";
+import { Colors } from "@/lib/colors";
 import { router } from "expo-router";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRepos } from "@/hooks/use-repos";
@@ -49,7 +50,7 @@ export default function SettingsScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#09090b" }} edges={["top"]}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <YStack flex={1} padding="$4" gap="$6">
         {/* Header */}
         <Text color="$color" fontSize="$7" fontWeight="700">
@@ -115,12 +116,12 @@ export default function SettingsScreen() {
             backgroundColor="$errorSoft"
             borderWidth={1}
             borderColor="$error"
-            color="$error"
-            fontWeight="700"
             onPress={handleLogout}
             pressStyle={{ opacity: 0.8 }}
           >
-            Sign Out
+            <Text color="$error" fontWeight="700" fontSize="$4">
+              Sign Out
+            </Text>
           </Button>
 
           <Text color="$mutedForeground" fontSize="$2" textAlign="center">
@@ -131,3 +132,7 @@ export default function SettingsScreen() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.bg },
+});
