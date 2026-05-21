@@ -1,5 +1,6 @@
 import { config as defaultConfig } from "@tamagui/config";
 import { createTamagui } from "@tamagui/core";
+import type { CreateTamaguiProps } from "@tamagui/core";
 
 // Glitchgrab brand — matches the web dashboard CSS vars
 const brand = {
@@ -15,7 +16,6 @@ const brand = {
   error: "#ef4444",
   errorSoft: "rgba(239, 68, 68, 0.12)",
 
-  // Dark
   bgDark: "#09090b",
   bgSecondaryDark: "#18181b",
   borderDark: "#2c2c2e",
@@ -23,7 +23,6 @@ const brand = {
   textDark: "#fafafa",
   mutedDark: "#a1a1aa",
 
-  // Light
   bgLight: "#ffffff",
   bgSecondaryLight: "#f4f4f5",
   borderLight: "#e4e4e7",
@@ -32,7 +31,7 @@ const brand = {
   mutedLight: "#71717a",
 };
 
-const config = createTamagui({
+const tamaguiConfig: CreateTamaguiProps = {
   ...defaultConfig,
   tokens: {
     ...defaultConfig.tokens,
@@ -93,7 +92,9 @@ const config = createTamagui({
     ...defaultConfig.settings,
     onlyAllowShorthands: false,
   },
-});
+};
+
+const config = createTamagui(tamaguiConfig);
 
 export type AppConfig = typeof config;
 
