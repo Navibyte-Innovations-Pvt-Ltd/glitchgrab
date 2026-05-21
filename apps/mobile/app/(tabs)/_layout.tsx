@@ -1,10 +1,10 @@
 import { Tabs } from "expo-router";
 import { useTheme } from "tamagui";
-import { Platform } from "react-native";
+import { Platform, Text } from "react-native";
 
 function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
   return (
-    <>{/* Rendered via tabBarLabel — emoji icon here for accessibility */}</>
+    <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.5 }}>{emoji}</Text>
   );
 }
 
