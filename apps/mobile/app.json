@@ -30,7 +30,9 @@
         "foregroundImage": "./assets/icon.png"
       },
       "permissions": [
-        "INTERNET"
+        "INTERNET",
+        "READ_MEDIA_IMAGES",
+        "READ_EXTERNAL_STORAGE"
       ],
       "usesClearTextTraffic": true,
       "intentFilters": [
@@ -75,10 +77,19 @@
           ]
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Glitchgrab to detect screenshots for bug reporting.",
+          "savePhotosPermission": "Allow Glitchgrab to save photos.",
+          "isAccessMediaLocationEnabled": true
+        }
+      ]
     ],
     "extra": {
       "APP_ENV": "development",
+      "BASE_URL": "",
       "eas": {
         "projectId": "6166832f-68fa-4680-a312-99030a7e9d5c"
       },
