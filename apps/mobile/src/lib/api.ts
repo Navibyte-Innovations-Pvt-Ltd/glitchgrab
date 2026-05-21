@@ -14,15 +14,18 @@ interface MobileSession {
   error?: string;
 }
 
+interface Manifest2 {
+  extra?: { expoGo?: { debuggerHost?: string } };
+}
+
 function getBaseUrl(): string {
   const extra = Constants.expoConfig?.extra as ExpoExtra | undefined;
   if (extra?.APP_ENV === "production") return "https://glitchgrab.dev";
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const manifest2 = (Constants as unknown as { manifest2?: Manifest2 }).manifest2;
   const debuggerHost: string | undefined =
-    (Constants.expoConfig?.hostUri as string | undefined) ??
-    // @ts-expect-error manifest2 is untyped in SDK 55
-    (Constants.manifest2 as any)?.extra?.expoGo?.debuggerHost;
+    Constants.expoConfig?.hostUri ??
+    manifest2?.extra?.expoGo?.debuggerHost;
 
   const host = debuggerHost?.split(":")[0];
   if (host) return `http://${host}:3000`;
