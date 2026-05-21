@@ -6,12 +6,14 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  StyleSheet,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { YStack, XStack, Text, Button } from "tamagui";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useRepos } from "@/hooks/use-repos";
+import { Colors } from "@/lib/colors";
 
 type ReportType = "BUG" | "FEATURE_REQUEST" | "QUESTION" | "OTHER";
 
@@ -38,7 +40,7 @@ export default function ChatScreen() {
 
   async function handleSubmit() {
     if (!description.trim() || submitting) return;
-    if (!selectedRepoId && repos.length > 0) {
+    if (!selectedRepoId && repos.length > 1) {
       Alert.alert("Select a repo", "Please select which repo this report belongs to.");
       return;
     }
@@ -55,7 +57,7 @@ export default function ChatScreen() {
       void queryClient.invalidateQueries({ queryKey: ["reports"] });
       setDescription("");
       setSubmitted(true);
-      setTimeout(() => setSubmitted(false), 3000);
+      setTimeout(() => { setSubmitted(false); }, 3000);
     } catch {
       Alert.alert("Failed to submit", "Could not send the report. Please try again.");
     } finally {
@@ -64,18 +66,17 @@ export default function ChatScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#09090b" }} edges={["top"]}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={90}
       >
         <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{ padding: 16, gap: 16 }}
+          style={styles.flex}
+          contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Header */}
           <YStack gap="$1" marginBottom="$2">
             <Text color="$color" fontSize="$7" fontWeight="700">
               Report a Bug
@@ -97,7 +98,7 @@ export default function ChatScreen() {
                   size="$3"
                   flex={1}
                   minWidth="45%"
-                  onPress={() => setType(opt.type)}
+                  onPress={() => { setType(opt.type); }}
                   backgroundColor={type === opt.type ? "$primarySoft" : "$backgroundSecondary"}
                   borderWidth={1}
                   borderColor={type === opt.type ? "$primary" : "$borderColor"}
@@ -129,7 +130,7 @@ export default function ChatScreen() {
                   <Button
                     key={repo.id}
                     size="$3"
-                    onPress={() => setSelectedRepoId(repo.id)}
+                    onPress={() => { setSelectedRepoId(repo.id); }}
                     backgroundColor={selectedRepoId === repo.id ? "$primarySoft" : "$backgroundSecondary"}
                     borderWidth={1}
                     borderColor={selectedRepoId === repo.id ? "$primary" : "$borderColor"}
@@ -147,7 +148,7 @@ export default function ChatScreen() {
             </YStack>
           )}
 
-          {/* Description input */}
+          {/* Description */}
           <YStack gap="$2">
             <Text color="$mutedForeground" fontSize="$2" fontWeight="600" textTransform="uppercase" letterSpacing={1}>
               Description
@@ -164,16 +165,10 @@ export default function ChatScreen() {
                 value={description}
                 onChangeText={setDescription}
                 placeholder={activeType.placeholder}
-                placeholderTextColor="#a1a1aa"
+                placeholderTextColor={Colors.muted}
                 multiline
                 numberOfLines={6}
-                style={{
-                  color: "#fafafa",
-                  fontSize: 15,
-                  lineHeight: 22,
-                  minHeight: 120,
-                  textAlignVertical: "top",
-                }}
+                style={styles.input}
                 autoFocus={false}
               />
             </YStack>
@@ -182,7 +177,7 @@ export default function ChatScreen() {
             </Text>
           </YStack>
 
-          {/* Submit button */}
+          {/* Submit */}
           {submitted ? (
             <YStack
               backgroundColor="$successSoft"
@@ -201,19 +196,23 @@ export default function ChatScreen() {
             <Button
               size="$5"
               backgroundColor={!description.trim() ? "$backgroundSecondary" : "$primary"}
-              color={!description.trim() ? "$mutedForeground" : "$primaryForeground"}
               disabled={!description.trim() || submitting}
               onPress={handleSubmit}
               pressStyle={{ opacity: 0.85 }}
-              fontWeight="700"
             >
               {submitting ? (
                 <XStack alignItems="center" gap="$2">
-                  <ActivityIndicator size="small" color="#09090b" />
+                  <ActivityIndicator size="small" color={Colors.bg} />
                   <Text color="$primaryForeground" fontWeight="700">Sending...</Text>
                 </XStack>
               ) : (
-                "Send Report"
+                <Text
+                  color={!description.trim() ? "$mutedForeground" : "$primaryForeground"}
+                  fontWeight="700"
+                  fontSize="$4"
+                >
+                  Send Report
+                </Text>
               )}
             </Button>
           )}
@@ -222,3 +221,16 @@ export default function ChatScreen() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.bg },
+  flex: { flex: 1 },
+  scrollContent: { padding: 16, gap: 16 },
+  input: {
+    color: Colors.text,
+    fontSize: 15,
+    lineHeight: 22,
+    minHeight: 120,
+    textAlignVertical: "top",
+  },
+});
