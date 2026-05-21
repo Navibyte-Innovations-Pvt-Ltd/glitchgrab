@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { FlatList, RefreshControl } from "react-native";
+import { FlatList, RefreshControl, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { YStack, XStack, Text, Button } from "tamagui";
+import { Colors } from "@/lib/colors";
 import { router } from "expo-router";
 import { useReports } from "@/hooks/use-reports";
 import { ReportCard } from "@/components/ReportCard";
@@ -28,7 +29,7 @@ export default function ReportsScreen() {
   if (isLoading) return <LoadingSpinner message="Loading reports..." />;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#09090b" }} edges={["top"]}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <YStack flex={1}>
         {/* Header */}
         <XStack paddingHorizontal="$4" paddingTop="$4" paddingBottom="$3" alignItems="center" justifyContent="space-between">
@@ -48,12 +49,17 @@ export default function ReportsScreen() {
               size="$3"
               onPress={() => setActiveFilter(f.value)}
               backgroundColor={activeFilter === f.value ? "$primary" : "$backgroundSecondary"}
-              color={activeFilter === f.value ? "$primaryForeground" : "$mutedForeground"}
               borderWidth={1}
               borderColor={activeFilter === f.value ? "$primary" : "$borderColor"}
               pressStyle={{ opacity: 0.8 }}
             >
-              {f.label}
+              <Text
+                color={activeFilter === f.value ? "$primaryForeground" : "$mutedForeground"}
+                fontSize="$3"
+                fontWeight="600"
+              >
+                {f.label}
+              </Text>
             </Button>
           ))}
         </XStack>
@@ -74,12 +80,12 @@ export default function ReportsScreen() {
                 onPress={() => router.push(`/report/${item.id}`)}
               />
             )}
-            contentContainerStyle={{ padding: 16 }}
+            contentContainerStyle={styles.listContent}
             refreshControl={
               <RefreshControl
                 refreshing={isFetching}
                 onRefresh={() => void refetch()}
-                tintColor="#22d3ee"
+                tintColor={Colors.primary}
               />
             }
           />
@@ -88,3 +94,8 @@ export default function ReportsScreen() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.bg },
+  listContent: { padding: 16 },
+});
