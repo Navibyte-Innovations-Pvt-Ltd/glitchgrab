@@ -1,6 +1,6 @@
 import { config as defaultConfig } from "@tamagui/config";
 import { createTamagui } from "@tamagui/core";
-import type { CreateTamaguiProps } from "@tamagui/core";
+import type { AnimationsConfig } from "@tamagui/core";
 
 // Glitchgrab brand — matches the web dashboard CSS vars
 const brand = {
@@ -31,8 +31,10 @@ const brand = {
   mutedLight: "#71717a",
 };
 
-const tamaguiConfig: CreateTamaguiProps = {
+const config = createTamagui({
   ...defaultConfig,
+  // rc.7 vs rc.42 AnimationDriver types are structurally incompatible — cast needed
+  animations: defaultConfig.animations as unknown as AnimationsConfig,
   tokens: {
     ...defaultConfig.tokens,
     color: {
@@ -92,9 +94,7 @@ const tamaguiConfig: CreateTamaguiProps = {
     ...defaultConfig.settings,
     onlyAllowShorthands: false,
   },
-};
-
-const config = createTamagui(tamaguiConfig);
+});
 
 export type AppConfig = typeof config;
 
