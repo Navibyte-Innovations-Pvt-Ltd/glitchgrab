@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "expo": "~55.0.8",
+    "@expo/vector-icons": "^15.0.2",
     "expo-auth-session": "^55.0.9",
     "expo-clipboard": "^55.0.9",
     "expo-constants": "^55.0.9",
