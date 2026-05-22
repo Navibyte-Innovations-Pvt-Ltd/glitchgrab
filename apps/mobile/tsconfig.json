@@ -15,6 +15,9 @@
     "node_modules",
     "android",
     "ios",
-    ".expo"
+    ".expo",
+    "App.tsx",
+    "src/api.ts",
+    "src/screens"
   ]
 }
