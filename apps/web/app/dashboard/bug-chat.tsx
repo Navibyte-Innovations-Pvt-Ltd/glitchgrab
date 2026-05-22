@@ -565,7 +565,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
   );
 
   return (
-    <div className="flex flex-col h-full max-h-[calc(var(--app-height,100dvh)-100px)] md:max-h-[calc(var(--app-height,100dvh)-0px)]">
+    <div className="flex flex-col h-full max-h-[calc(var(--app-height,100dvh)-100px)] md:max-h-[calc(var(--app-height,100dvh)-0)]">
       {/* Top context bar */}
       <div className="shrink-0 border-b border-border bg-card/40 backdrop-blur-sm">
         <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 gap-3">
