@@ -1,6 +1,5 @@
 import { config as defaultConfig } from "@tamagui/config";
 import { createTamagui } from "@tamagui/core";
-import type { AnimationsConfig } from "@tamagui/core";
 
 // Glitchgrab brand — matches the web dashboard CSS vars
 const brand = {
@@ -34,7 +33,7 @@ const brand = {
 const config = createTamagui({
   ...defaultConfig,
   // rc.7 vs rc.42 AnimationDriver types are structurally incompatible — cast needed
-  animations: defaultConfig.animations as unknown as AnimationsConfig,
+  animations: defaultConfig.animations,
   tokens: {
     ...defaultConfig.tokens,
     color: {
