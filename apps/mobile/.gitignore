@@ -36,6 +36,9 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# Tamagui (auto-generated style cache)
+.tamagui/
+
 # generated native folders
 /ios
 /android

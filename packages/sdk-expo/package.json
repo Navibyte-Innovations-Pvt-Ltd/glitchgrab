@@ -1,0 +1,32 @@
+{
+  "name": "@glitchgrab/sdk-expo",
+  "version": "0.1.0",
+  "description": "Glitchgrab bug capture SDK for Expo apps — auto-captures screenshots, 3-finger tap, and posts to GitHub issues",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "expo-file-system": ">=16",
+    "expo-media-library": ">=16",
+    "react": ">=18",
+    "react-native": ">=0.73",
+    "react-native-view-shot": ">=5"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "@types/react-native": "~0.73.0",
+    "expo": "~55.0.8",
+    "expo-file-system": "^55.0.11",
+    "expo-media-library": "^16.0.5",
+    "react": "19.2.0",
+    "react-native": "0.83.2",
+    "react-native-view-shot": "^5.1.0",
+    "typescript": "~5.9.2"
+  },
+  "private": false
+}

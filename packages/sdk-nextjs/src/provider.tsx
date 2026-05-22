@@ -130,6 +130,10 @@ function GlitchgrabProviderInner({
 
       const handleError = (event: ErrorEvent) => {
         try {
+          // Ignore generic cross-origin script errors which don't provide useful stack traces or details.
+          if (event.message === "Script error." || event.message === "Script error") {
+            return;
+          }
           const context = captureContext(visitedPagesRef.current);
           const sig = computeSignature({
             errorMessage: event.message,
@@ -173,6 +177,10 @@ function GlitchgrabProviderInner({
           const context = captureContext(visitedPagesRef.current);
           const reason = event.reason;
           const errMsg = reason instanceof Error ? reason.message : String(reason);
+          // Ignore generic cross-origin script errors.
+          if (errMsg === "Script error." || errMsg === "Script error") {
+            return;
+          }
           const errStack = reason instanceof Error ? reason.stack : undefined;
           const sig = computeSignature({
             errorMessage: errMsg,

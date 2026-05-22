@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "expo-mcp": {
+      "type": "stdio",
+      "command": "/Users/webnaresh/coding-line/glitchgrab/apps/mobile/node_modules/.bin/expo-mcp",
+      "args": []
+    }
+  }
+}
