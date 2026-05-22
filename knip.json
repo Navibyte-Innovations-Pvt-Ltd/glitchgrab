@@ -12,8 +12,7 @@
       "project": [
         "app/**/*.{ts,tsx}",
         "lib/**/*.{ts,tsx}",
-        "components/**/*.{ts,tsx}",
-        "public/**/*.{png,jpg,jpeg,svg,webp}"
+        "components/**/*.{ts,tsx}"
       ],
       "next": {
         "entry": ["next.config.{js,ts,cjs,mjs}"]
@@ -25,13 +24,27 @@
       ]
     },
     "apps/mobile": {
-      "entry": ["App.tsx", "src/**/*.{ts,tsx}"],
-      "project": ["src/**/*.{ts,tsx}"],
+      "entry": [
+        "app/**/{_layout,index,page,layout}.{ts,tsx}"
+      ],
+      "project": [
+        "app/**/*.{ts,tsx}",
+        "src/**/*.{ts,tsx}",
+        "tamagui.config.ts"
+      ],
+      "ignore": [
+        "src/api.ts",
+        "src/screens/**"
+      ],
       "ignoreDependencies": [
-        "expo-status-bar",
         "expo-updates",
         "expo-system-ui",
-        "eas-cli"
+        "eas-cli",
+        "react-dom",
+        "@tamagui/toast",
+        "@tamagui/portal",
+        "expo-mcp",
+        "expo-clipboard"
       ]
     },
     "packages/sdk-nextjs": {
@@ -42,6 +55,12 @@
         "@semantic-release/npm",
         "@semantic-release/release-notes-generator",
         "conventional-changelog-conventionalcommits"
+      ]
+    },
+    "packages/sdk-expo": {
+      "project": ["src/**/*.{ts,tsx}"],
+      "ignoreDependencies": [
+        "@types/react-native"
       ]
     }
   },
