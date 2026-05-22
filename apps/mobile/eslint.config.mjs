@@ -80,6 +80,9 @@ export default defineConfig([
       "eslint.config.mjs",
       "babel.config.js",
       "metro.config.js",
+      "patches/**",
+      "plugins/**",
+      "scripts/**",
       // Legacy files kept for git history — superseded by expo-router + Tamagui rewrite
       "App.tsx",
       "src/api.ts",
