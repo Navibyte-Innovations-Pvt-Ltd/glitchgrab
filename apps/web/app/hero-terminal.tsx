@@ -35,7 +35,6 @@ export function HeroTerminal() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setVisibleLines(0);
     const timers: ReturnType<typeof setTimeout>[] = [];
 
     for (let i = 0; i < TERMINAL_LINES.length; i++) {
@@ -52,6 +51,7 @@ export function HeroTerminal() {
     // Restart after pause
     timers.push(
       setTimeout(() => {
+        setVisibleLines(0);
         setCycle((c) => c + 1);
       }, 8000)
     );
