@@ -130,8 +130,13 @@ function GlitchgrabProviderInner({
 
       const handleError = (event: ErrorEvent) => {
         try {
-          // Ignore generic cross-origin script errors which don't provide useful stack traces or details.
-          if (event.message === "Script error." || event.message === "Script error") {
+          // Ignore opaque cross-origin script errors — the browser masks these with no
+          // stack, no filename, and no error object, so there is nothing actionable to report.
+          const isOpaqueCrossOrigin =
+            event.message === "Script error." ||
+            event.message === "Script error" ||
+            (!event.error && !event.filename);
+          if (isOpaqueCrossOrigin) {
             return;
           }
           const context = captureContext(visitedPagesRef.current);
