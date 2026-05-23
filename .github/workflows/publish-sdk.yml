@@ -60,3 +60,21 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Self-heal: semantic-release pushes the git tag BEFORE npm publish, so a failed
+      # publish leaves package.json/tag bumped while npm stays behind, and every later
+      # run no-ops ("0 commits since last release"). This republishes whenever the exact
+      # local version is missing from npm, recovering that stuck state automatically.
+      - name: Reconcile npm registry
+        working-directory: packages/sdk-nextjs
+        run: |
+          LOCAL=$(node -p "require('./package.json').version")
+          if npm view "glitchgrab@${LOCAL}" version >/dev/null 2>&1; then
+            echo "glitchgrab@${LOCAL} already on npm — in sync"
+          else
+            echo "glitchgrab@${LOCAL} missing from npm — publishing to catch up"
+            npm publish --tag latest
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
