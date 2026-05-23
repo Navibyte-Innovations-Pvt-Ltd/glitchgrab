@@ -1,3 +1,9 @@
+## [1.40.2](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.40.1...v1.40.2) (2026-05-23)
+
+### Bug Fixes
+
+* **sdk:** drop opaque cross-origin errors with no error object or filename ([ed88c71](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/ed88c71acec2985240e62aaedfdc513ffb36ee60))
+
 ## [1.40.1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.40.0...v1.40.1) (2026-05-23)
 
 ## [1.40.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.39.1...v1.40.0) (2026-05-22)
