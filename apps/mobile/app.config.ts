@@ -32,6 +32,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       foregroundImage: "./assets/icon.png",
     },
     permissions: ["INTERNET", "READ_MEDIA_IMAGES", "READ_EXTERNAL_STORAGE"],
+    // @ts-ignore - valid Expo Android option, missing from type defs
     usesClearTextTraffic: true,
     intentFilters: [
       {
