@@ -18,7 +18,7 @@ export async function GET() {
 
   return NextResponse.json({
     success: true,
-    data: properties.map((p) => ({
+    data: properties.map((p: typeof properties[number]) => ({
       id: p.id,
       siteUrl: p.siteUrl,
       repoId: p.repoId,
