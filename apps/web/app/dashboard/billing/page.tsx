@@ -137,7 +137,7 @@ export default async function BillingPage() {
                 </div>
                 <span className="font-mono tabular-nums text-sm text-foreground">
                   {plan.expiresAt
-                    ? plan.expiresAt.toLocaleDateString()
+                    ? plan.expiresAt.toLocaleDateString("en-US")
                     : "\u2014"}
                 </span>
               </div>
@@ -186,7 +186,7 @@ export default async function BillingPage() {
                 <p className="font-mono text-[11px] text-red-400 leading-relaxed">
                   Subscription cancelled. You retain Pro access until
                   {plan.expiresAt
-                    ? ` ${plan.expiresAt.toLocaleDateString()}`
+                    ? ` ${plan.expiresAt.toLocaleDateString("en-US")}`
                     : " the end of your billing period"}
                   .
                 </p>
