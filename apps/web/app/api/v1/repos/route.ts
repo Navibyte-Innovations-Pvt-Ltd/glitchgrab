@@ -24,7 +24,7 @@ export async function GET() {
   return NextResponse.json({
     success: true,
     data: {
-      ownRepos: repos.map((r) => ({
+      ownRepos: repos.map((r: { id: string; githubId: number; fullName: string; isPrivate: boolean; _count: { tokens: number; reports: number } }) => ({
         id: r.id,
         githubId: r.githubId,
         fullName: r.fullName,
