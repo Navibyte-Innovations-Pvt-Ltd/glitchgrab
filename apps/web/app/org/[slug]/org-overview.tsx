@@ -125,7 +125,7 @@ function timeAgo(iso: string) {
   if (diff < 60 * 60 * 1000) return `${Math.max(1, Math.round(diff / 60000))}m`;
   if (diff < day) return `${Math.round(diff / (60 * 60 * 1000))}h`;
   if (diff < 30 * day) return `${Math.round(diff / day)}d`;
-  return new Date(iso).toLocaleDateString();
+  return new Date(iso).toLocaleDateString("en-US");
 }
 
 function isHighPriority(labels: { name: string }[]) {
