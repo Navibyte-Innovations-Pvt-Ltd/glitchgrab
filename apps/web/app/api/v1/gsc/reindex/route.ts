@@ -69,5 +69,24 @@ export async function POST(request: NextRequest) {
     data: { seoHealthSnoozedUntil: snoozedUntil },
   });
 
+  // Record this reindex action in the indexing-history timeline.
+  // Failures here must not break the user-facing reindex.
+  const checkedTotal = urlsToCheck.length;
+  const indexedAtCheck = checkedTotal - notIndexedUrls.length;
+  try {
+    await prisma.gscIndexingSnapshot.create({
+      data: {
+        propertyId,
+        kind: "reindex",
+        indexedCount: indexedAtCheck,
+        notIndexedCount: notIndexedUrls.length,
+        totalChecked: checkedTotal,
+        submittedCount: submitted,
+      },
+    });
+  } catch (err) {
+    console.error("Failed to record reindex snapshot", err);
+  }
+
   return NextResponse.json({ success: true, data: { submitted, failed: notIndexedUrls.length - submitted, checked: urlsToCheck.length, snoozedUntil: snoozedUntil.toISOString(), ...(firstError ? { indexingApiError: firstError } : {}) } });
 }

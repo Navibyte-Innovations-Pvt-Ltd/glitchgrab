@@ -237,8 +237,29 @@ model GscProperty {
 
   user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   repo Repo? @relation(fields: [repoId], references: [id], onDelete: SetNull)
+  indexingSnapshots GscIndexingSnapshot[]
 
   @@unique([userId, siteUrl])
+}
+
+// ─── GSC Indexing Snapshot — historical record per sync/reindex ────────
+
+model GscIndexingSnapshot {
+  id              String   @id @default(cuid())
+  propertyId      String
+  // "sync" = full sitemap inspection; "reindex" = re-indexing submission
+  kind            String
+  // counts at time of snapshot
+  indexedCount    Int      @default(0)
+  notIndexedCount Int      @default(0)
+  totalChecked    Int      @default(0)
+  // For "reindex" entries: how many URLs we actually submitted to Google
+  submittedCount  Int?
+  createdAt       DateTime @default(now())
+
+  property GscProperty @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId, createdAt])
 }
 
 // ─── GSC Connect Session (temporary, expires after 10 min) ────────────────

@@ -64,6 +64,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 import { InnerPageHeader } from "@/components/dashboard/inner-page-header";
+import { IndexingHistoryChart } from "./indexing-history-chart";
 
 interface GscPropertyData {
   id: string;
@@ -289,7 +290,12 @@ export function GscPropertyDetail({
         ),
     });
 
-  const { mutate: syncNow, isPending: isSyncing } = useMutation({
+  const { mutate: syncNow, isPending: isSyncing } = useMutation<
+    SyncResult,
+    Error,
+    void,
+    { toastId: string | number }
+  >({
     mutationFn: async () => {
       const { data } = await axios.post(
         `/api/v1/gsc/properties/${property.id}/sync`,
@@ -297,7 +303,11 @@ export function GscPropertyDetail({
       if (!data.success) throw new Error(data.error ?? "Sync failed");
       return data.data as SyncResult;
     },
-    onSuccess: (result) => {
+    onMutate: () => {
+      const toastId = toast.loading("Syncing with Google Search Console…");
+      return { toastId };
+    },
+    onSuccess: (result, _vars, ctx) => {
       setSyncResult(result);
       setProperty((p) => ({
         ...p,
@@ -307,14 +317,23 @@ export function GscPropertyDetail({
       }));
       toast.success(
         `Synced ${result.synced} URLs — ${result.indexed} indexed, ${result.notIndexed} not indexed`,
+        { id: ctx?.toastId },
       );
       queryClient.invalidateQueries({ queryKey: ["gsc-properties"] });
+      queryClient.invalidateQueries({ queryKey: ["gsc-history", property.id] });
     },
-    onError: (err) =>
-      toast.error(err instanceof Error ? err.message : "Sync failed"),
+    onError: (err, _vars, ctx) =>
+      toast.error(err instanceof Error ? err.message : "Sync failed", {
+        id: ctx?.toastId,
+      }),
   });
 
-  const { mutate: reindex, isPending: isReindexing } = useMutation({
+  const { mutate: reindex, isPending: isReindexing } = useMutation<
+    { submitted: number },
+    Error,
+    void,
+    { toastId: string | number }
+  >({
     mutationFn: async () => {
       const { data } = await axios.post("/api/v1/gsc/reindex", {
         propertyId: property.id,
@@ -322,10 +341,20 @@ export function GscPropertyDetail({
       if (!data.success) throw new Error(data.error ?? "Reindex failed");
       return data.data as { submitted: number };
     },
-    onSuccess: (result) =>
-      toast.success(`Submitted ${result.submitted} URLs for re-indexing`),
-    onError: (err) =>
-      toast.error(err instanceof Error ? err.message : "Reindex failed"),
+    onMutate: () => {
+      const toastId = toast.loading("Submitting not-indexed pages for re-indexing…");
+      return { toastId };
+    },
+    onSuccess: (result, _vars, ctx) => {
+      toast.success(`Submitted ${result.submitted} URLs for re-indexing`, {
+        id: ctx?.toastId,
+      });
+      queryClient.invalidateQueries({ queryKey: ["gsc-history", property.id] });
+    },
+    onError: (err, _vars, ctx) =>
+      toast.error(err instanceof Error ? err.message : "Reindex failed", {
+        id: ctx?.toastId,
+      }),
   });
 
   const { mutate: checkFix, isPending: isCheckingFix } = useMutation({
@@ -536,6 +565,9 @@ export function GscPropertyDetail({
             </div>
           )}
 
+          {/* Indexing history over time — shows how indexed/not-indexed counts evolved */}
+          <IndexingHistoryChart propertyId={property.id} />
+
           {syncResult &&
             syncResult.notIndexedPages.length === 0 &&
             syncResult.synced > 0 && (
@@ -577,7 +609,14 @@ export function GscPropertyDetail({
                         type="button"
                         onClick={() => syncNow()}
                         disabled={isSyncing || isReindexing}
-                        className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        aria-busy={isSyncing}
+                        aria-live="polite"
+                        className={cn(
+                          "inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest transition-all rounded px-2 py-1 -mx-2 -my-1",
+                          isSyncing
+                            ? "text-primary bg-primary/10 cursor-progress animate-pulse"
+                            : "text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
+                        )}
                       >
                         {isSyncing ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
                         {isSyncing ? "Syncing…" : "Sync Now"}
@@ -586,7 +625,14 @@ export function GscPropertyDetail({
                         type="button"
                         onClick={() => reindex()}
                         disabled={isReindexing || isSyncing || property.notIndexedCount === 0}
-                        className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-amber-400 hover:text-amber-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        aria-busy={isReindexing}
+                        aria-live="polite"
+                        className={cn(
+                          "inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest transition-all rounded px-2 py-1 -mx-2 -my-1",
+                          isReindexing
+                            ? "text-amber-300 bg-amber-500/15 cursor-progress animate-pulse"
+                            : "text-amber-400 hover:text-amber-300 disabled:opacity-40 disabled:cursor-not-allowed"
+                        )}
                       >
                         {isReindexing ? <Loader2 className="h-3 w-3 animate-spin" /> : <UploadCloud className="h-3 w-3" />}
                         {isReindexing ? "Submitting…" : `Reindex ${property.notIndexedCount}`}
