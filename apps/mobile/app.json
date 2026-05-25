@@ -74,6 +74,13 @@
           "savePhotosPermission": "Allow Glitchgrab to save photos.",
           "isAccessMediaLocationEnabled": true
         }
+      ],
+      [
+        "expo-share-intent",
+        {
+          "androidIntentFilters": ["image/*"],
+          "androidMultiIntentFilters": ["image/*"]
+        }
       ]
     ],
     "extra": {
