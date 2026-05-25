@@ -1,12 +1,7 @@
 import { Tabs } from "expo-router";
 import { useTheme } from "tamagui";
-import { Platform, Text } from "react-native";
-
-function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
-  return (
-    <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.5 }}>{emoji}</Text>
-  );
-}
+import { Platform } from "react-native";
+import { Zap, Bug, MessageSquarePlus, FolderGit2, Settings } from "@tamagui/lucide-icons";
 
 export default function TabsLayout() {
   const theme = useTheme();
@@ -40,7 +35,7 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: "Home",
-          tabBarIcon: ({ focused }) => <TabIcon emoji="⚡" focused={focused} />,
+          tabBarIcon: ({ color, size }) => <Zap color={color} size={size ?? 22} />,
           tabBarLabel: "Home",
         }}
       />
@@ -48,7 +43,7 @@ export default function TabsLayout() {
         name="reports"
         options={{
           title: "Reports",
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🐛" focused={focused} />,
+          tabBarIcon: ({ color, size }) => <Bug color={color} size={size ?? 22} />,
           tabBarLabel: "Reports",
         }}
       />
@@ -56,7 +51,7 @@ export default function TabsLayout() {
         name="chat"
         options={{
           title: "Report Bug",
-          tabBarIcon: ({ focused }) => <TabIcon emoji="💬" focused={focused} />,
+          tabBarIcon: ({ color, size }) => <MessageSquarePlus color={color} size={size ?? 22} />,
           tabBarLabel: "Report",
         }}
       />
@@ -64,7 +59,7 @@ export default function TabsLayout() {
         name="repos"
         options={{
           title: "Repos",
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🔗" focused={focused} />,
+          tabBarIcon: ({ color, size }) => <FolderGit2 color={color} size={size ?? 22} />,
           tabBarLabel: "Repos",
         }}
       />
@@ -72,7 +67,7 @@ export default function TabsLayout() {
         name="settings"
         options={{
           title: "Settings",
-          tabBarIcon: ({ focused }) => <TabIcon emoji="⚙️" focused={focused} />,
+          tabBarIcon: ({ color, size }) => <Settings color={color} size={size ?? 22} />,
           tabBarLabel: "Settings",
         }}
       />
