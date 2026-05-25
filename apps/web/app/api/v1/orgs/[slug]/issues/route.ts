@@ -86,7 +86,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
 
   const issues = (
     await Promise.all(
-      repos.map(async (repo) => {
+      repos.map(async (repo: { fullName: string }) => {
         try {
           const [issuesRes, linkedNumbers] = await Promise.all([
             fetch(
