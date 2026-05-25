@@ -63,7 +63,7 @@ export default async function SeoPage({
           <div className="h-px bg-border flex-1" />
         </div>
         <GscPropertiesClient
-          initialProperties={properties.map((p) => ({
+          initialProperties={properties.map((p: typeof properties[number]) => ({
             id: p.id,
             siteUrl: p.siteUrl,
             repoId: p.repoId,
