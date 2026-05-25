@@ -4,7 +4,6 @@ import { GlitchgrabContext } from "./context";
 import type { GlitchgrabConfig, GlitchgrabUser } from "./context";
 import { BugReportSheet } from "./BugReportSheet";
 import { ThreeFingerArea } from "./ThreeFingerArea";
-import { captureCurrentScreen } from "./lib/capture";
 import { useScreenshotDetection } from "./hooks/useScreenshotDetection";
 
 export interface GlitchgrabProviderProps {
@@ -58,12 +57,7 @@ export function GlitchgrabProvider({
 
   return (
     <GlitchgrabContext.Provider value={{ config, openSheet }}>
-      <ThreeFingerArea
-        enabled={threeFinger}
-        onTrigger={() => {
-          void captureCurrentScreen().then((uri) => { openSheet(uri); });
-        }}
-      >
+      <ThreeFingerArea enabled={threeFinger} onTrigger={openSheet}>
         {children}
       </ThreeFingerArea>
       <BugReportSheet
