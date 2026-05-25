@@ -75,7 +75,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
 
         await Promise.all(
           branches.flatMap((branch) =>
-            logins.map(async (login) => {
+            logins.map(async (login: string) => {
               try {
                 const url = `https://api.github.com/repos/${repo.fullName}/commits?sha=${encodeURIComponent(branch.name)}&author=${login}&since=${sinceIso}&per_page=100`;
                 const res = await fetch(url, { headers });
