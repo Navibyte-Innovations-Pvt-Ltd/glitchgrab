@@ -30,6 +30,7 @@
     "expo-auth-session": "^55.0.9",
     "expo-clipboard": "^55.0.9",
     "expo-constants": "^55.0.9",
+    "expo-dev-client": "^56.0.15",
     "expo-file-system": "^55.0.11",
     "expo-media-library": "~55.0.17",
     "expo-router": "~55.0.16",
