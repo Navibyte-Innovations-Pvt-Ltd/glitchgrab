@@ -524,7 +524,7 @@ export function GscPropertyDetail({
         subtitle="Google Search Console property"
         meta={
           property.lastSyncAt
-            ? `last synced ${new Date(property.lastSyncAt).toLocaleDateString()}`
+            ? `last synced ${new Date(property.lastSyncAt).toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" })}`
             : "never synced"
         }
         action={repoAction}
