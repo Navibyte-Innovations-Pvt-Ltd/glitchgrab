@@ -93,7 +93,7 @@ export async function GET() {
 
     const pulls = (
       await Promise.all(
-        repos.map(async (repo) => {
+        repos.map(async (repo: { fullName: string }) => {
           try {
             const res = await fetch(
               `https://api.github.com/repos/${repo.fullName}/pulls?state=open&sort=updated&direction=desc&per_page=10`,
