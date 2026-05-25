@@ -1,0 +1,6 @@
+[install]
+# Use the flat/hoisted node_modules layout (no .bun isolated store).
+# Metro with disableHierarchicalLookup resolves deps from top-level node_modules,
+# so transitive deps (@babel/runtime, @expo/metro-runtime, etc.) must be hoisted.
+# Matches the working abhyasika-app layout.
+linker = "hoisted"
