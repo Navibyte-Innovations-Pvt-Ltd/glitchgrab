@@ -66,17 +66,6 @@
     },
     "plugins": [
       "expo-router",
-      [
-        "expo-share-intent",
-        {
-          "androidIntentFilters": [
-            "image/*"
-          ],
-          "androidMultiIntentFilters": [
-            "image/*"
-          ]
-        }
-      ],
       "expo-secure-store",
       [
         "expo-media-library",
