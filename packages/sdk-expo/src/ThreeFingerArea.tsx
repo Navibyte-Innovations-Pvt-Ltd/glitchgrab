@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { View } from "react-native";
 import type { ReactNode } from "react";
+import { captureCurrentScreen } from "./lib/capture";
 
 const DEFAULT_DRAG_THRESHOLD = 60;
 
@@ -13,8 +14,13 @@ function averageTouch(touches: { pageX: number; pageY: number }[]) {
 }
 
 export interface ThreeFingerAreaProps {
-  /** Fired once the 3 fingers drag past the distance threshold. */
-  onTrigger: () => void;
+  /**
+   * Fired once the 3 fingers drag past the distance threshold. Receives the
+   * captured screenshot URI (or null if capture is disabled or failed).
+   */
+  onTrigger: (screenshotUri: string | null) => void;
+  /** Capture the current screen before firing onTrigger (default: true). */
+  capture?: boolean;
   /** Enable the gesture (default: true). */
   enabled?: boolean;
   /** Min drag distance in px before it fires (default: 60). */
@@ -31,6 +37,7 @@ export interface ThreeFingerAreaProps {
  */
 export function ThreeFingerArea({
   onTrigger,
+  capture = true,
   enabled = true,
   threshold = DEFAULT_DRAG_THRESHOLD,
   debounceMs = 1000,
@@ -38,6 +45,14 @@ export function ThreeFingerArea({
 }: ThreeFingerAreaProps) {
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fire = () => {
+    if (capture) {
+      void captureCurrentScreen().then((uri) => onTrigger(uri));
+    } else {
+      onTrigger(null);
+    }
+  };
 
   return (
     <View
@@ -64,7 +79,7 @@ export function ThreeFingerArea({
             debounceRef.current = null;
           }, debounceMs);
           dragStartRef.current = null;
-          onTrigger();
+          fire();
         }
         return false;
       }}
