@@ -47,7 +47,6 @@ function RootLayoutNav() {
 
     void MediaLibrary.requestPermissionsAsync();
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const subscription = MediaLibrary.addListener(() => {
       void (async () => {
         const now = Date.now();
@@ -81,7 +80,7 @@ function RootLayoutNav() {
       })();
     });
 
-    return () => { (subscription as { remove: () => void }).remove(); };
+    return () => { subscription.remove(); };
   }, [isAuthenticated]);
 
   const openReportWithCapture = useCallback(() => {
