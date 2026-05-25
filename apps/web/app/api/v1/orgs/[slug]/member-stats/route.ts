@@ -56,7 +56,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   interface Commit { sha: string; author: { login?: string } | null; commit: { author: { date: string } } }
 
   await Promise.all(
-    repos.map(async (repo) => {
+    repos.map(async (repo: { fullName: string }) => {
       try {
         const branchRes = await fetch(`https://api.github.com/repos/${repo.fullName}/branches?per_page=100`, { headers: ghHeaders });
         if (!branchRes.ok) return;
