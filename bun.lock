@@ -31,6 +31,7 @@
       "dependencies": {
         "@expo/metro-runtime": "~5.0.4",
         "@expo/vector-icons": "^14.0.0",
+        "@glitchgrab/sdk-expo": "workspace:*",
         "@tamagui/babel-plugin": "^2.0.0-rc.42",
         "@tamagui/config": "^2.0.0-rc.42",
         "@tamagui/core": "^2.0.0-rc.42",
