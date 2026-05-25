@@ -112,7 +112,7 @@ async function handleListRepos(userId: string) {
     orderBy: { createdAt: "desc" },
   });
 
-  return repos.map((r) => ({
+  return repos.map((r: { id: string; fullName: string; isPrivate: boolean; _count: { reports: number } }) => ({
     id: r.id,
     fullName: r.fullName,
     isPrivate: r.isPrivate,
@@ -145,7 +145,7 @@ async function handleGetIndexingStatus(userId: string, params: Record<string, un
     select: { siteUrl: true, indexedCount: true, notIndexedCount: true, lastSyncAt: true },
   });
 
-  return properties.map((p) => ({
+  return properties.map((p: { siteUrl: string; indexedCount: number; notIndexedCount: number; lastSyncAt: Date | null }) => ({
     siteUrl: p.siteUrl,
     indexed: p.indexedCount,
     notIndexed: p.notIndexedCount,
