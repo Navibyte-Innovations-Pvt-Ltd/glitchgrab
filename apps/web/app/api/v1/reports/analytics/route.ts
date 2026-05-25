@@ -1,7 +1,6 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
@@ -17,7 +16,7 @@ export async function GET() {
     }
 
     const repos = await prisma.repo.findMany({ where: { userId }, select: { id: true } });
-    const repoIds = repos.map((r) => r.id);
+    const repoIds = repos.map((r: { id: string }) => r.id);
 
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
@@ -39,12 +38,12 @@ export async function GET() {
     }
 
     const [aggregated, failedCount] = await Promise.all([
-      prisma.$queryRaw<{ day: Date; count: bigint }[]>(Prisma.sql`
+      prisma.$queryRaw`
         SELECT DATE_TRUNC('day', "createdAt") AS day, COUNT(*) AS count
         FROM "Report"
         WHERE "repoId" = ANY(${repoIds}::text[]) AND "createdAt" >= ${startDate}
         GROUP BY day
-      `),
+      ` as Promise<{ day: Date; count: bigint }[]>,
       prisma.report.count({
         where: {
           repoId: { in: repoIds },
