@@ -10,7 +10,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   userInterfaceStyle: "dark",
   backgroundColor: "#09090b",
   scheme: "glitchgrab",
-  newArchEnabled: false,
+  newArchEnabled: true,
   splash: {
     image: "./assets/splash-icon.png",
     resizeMode: "contain",
