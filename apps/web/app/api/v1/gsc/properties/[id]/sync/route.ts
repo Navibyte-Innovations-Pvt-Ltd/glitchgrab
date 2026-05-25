@@ -88,6 +88,22 @@ export async function POST(
     },
   });
 
+  // Record this sync in the indexing-history timeline.
+  // Failures here must not break the user-facing sync.
+  try {
+    await prisma.gscIndexingSnapshot.create({
+      data: {
+        propertyId,
+        kind: "sync",
+        indexedCount: indexed,
+        notIndexedCount: notIndexed,
+        totalChecked: urlsToCheck.length,
+      },
+    });
+  } catch (err) {
+    console.error("Failed to record sync snapshot", err);
+  }
+
   return NextResponse.json({
     success: true,
     data: {
