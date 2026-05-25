@@ -45,7 +45,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   });
 
   const results: RepoWorkflowRuns[] = await Promise.all(
-    repos.map(async (repo) => {
+    repos.map(async (repo: { id: string; fullName: string; owner: string; name: string }) => {
       try {
         const runs = await listWorkflowRuns(token, repo.owner, repo.name, 20);
         return { repoId: repo.id, repoFullName: repo.fullName, runs, error: null };
