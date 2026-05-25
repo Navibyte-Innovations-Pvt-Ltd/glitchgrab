@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useColorScheme } from "react-native";
 import { Stack, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -6,7 +6,6 @@ import * as SplashScreen from "expo-splash-screen";
 import * as MediaLibrary from "expo-media-library";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TamaguiProvider, type TamaguiProviderProps } from "tamagui";
-import { captureScreen } from "react-native-view-shot";
 import { ThreeFingerArea } from "@glitchgrab/sdk-expo";
 import tamaguiConfig from "../tamagui.config";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
@@ -83,22 +82,15 @@ function RootLayoutNav() {
     return () => { subscription.remove(); };
   }, [isAuthenticated]);
 
-  const openReportWithCapture = useCallback(() => {
-    void (async () => {
-      try {
-        const uri = await captureScreen({ format: "jpg", quality: 0.8 });
-        setScreenshotUri(uri);
-      } catch {
-        setScreenshotUri(null);
-      }
-      setSheetOpen(true);
-    })();
-  }, []);
-
   if (isLoading) return <LoadingSpinner message="Loading..." />;
 
   return (
-    <ThreeFingerArea onTrigger={openReportWithCapture}>
+    <ThreeFingerArea
+      onTrigger={(uri) => {
+        setScreenshotUri(uri);
+        setSheetOpen(true);
+      }}
+    >
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
