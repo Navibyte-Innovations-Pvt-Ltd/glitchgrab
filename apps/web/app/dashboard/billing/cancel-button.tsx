@@ -60,7 +60,7 @@ export function CancelButton({ expiresAt }: { expiresAt: Date | null }) {
           <AlertDialogDescription>
             Your Pro access will continue until{" "}
             <strong className="font-mono text-foreground">
-              {expiresAt ? expiresAt.toLocaleDateString() : "the end of your billing period"}
+              {expiresAt ? expiresAt.toLocaleDateString("en-US") : "the end of your billing period"}
             </strong>
             . After that, you won&apos;t be able to create new issues or use AI features.
           </AlertDialogDescription>
