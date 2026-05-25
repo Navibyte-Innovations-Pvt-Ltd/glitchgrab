@@ -349,32 +349,53 @@ function PropertyRow({ property, repos, detailHrefPrefix, selected, onToggleSele
     retry: false,
   });
 
-  const { mutate: syncNow, isPending: isSyncing } = useMutation({
+  const { mutate: syncNow, isPending: isSyncing } = useMutation<
+    { synced: number; indexed: number; notIndexed: number },
+    Error,
+    void,
+    { toastId: string | number }
+  >({
     mutationFn: async () => {
       const { data } = await axios.post(`/api/v1/gsc/properties/${property.id}/sync`);
       if (!data.success) throw new Error(data.error ?? "Sync failed");
       return data.data as { synced: number; indexed: number; notIndexed: number };
     },
-    onSuccess: (result) => {
-      toast.success(`Synced ${result.synced} URLs — ${result.indexed} indexed, ${result.notIndexed} not indexed`);
+    onMutate: () => {
+      const toastId = toast.loading(`Syncing ${getSiteDomain(property.siteUrl)} with Google Search Console…`);
+      return { toastId };
+    },
+    onSuccess: (result, _vars, ctx) => {
+      toast.success(
+        `Synced ${result.synced} URLs — ${result.indexed} indexed, ${result.notIndexed} not indexed`,
+        { id: ctx?.toastId }
+      );
       onMutated();
     },
-    onError: (err) => {
-      toast.error(err instanceof Error ? err.message : "Sync failed");
+    onError: (err, _vars, ctx) => {
+      toast.error(err instanceof Error ? err.message : "Sync failed", { id: ctx?.toastId });
     },
   });
 
-  const { mutate: reindex, isPending: isReindexing } = useMutation({
+  const { mutate: reindex, isPending: isReindexing } = useMutation<
+    { submitted: number },
+    Error,
+    void,
+    { toastId: string | number }
+  >({
     mutationFn: async () => {
       const { data } = await axios.post("/api/v1/gsc/reindex", { propertyId: property.id });
       if (!data.success) throw new Error(data.error ?? "Reindex failed");
       return data.data as { submitted: number };
     },
-    onSuccess: (result) => {
-      toast.success(`Submitted ${result.submitted} URLs for re-indexing`);
+    onMutate: () => {
+      const toastId = toast.loading(`Submitting not-indexed pages of ${getSiteDomain(property.siteUrl)} for re-indexing…`);
+      return { toastId };
     },
-    onError: (err) => {
-      toast.error(err instanceof Error ? err.message : "Reindex request failed");
+    onSuccess: (result, _vars, ctx) => {
+      toast.success(`Submitted ${result.submitted} URLs for re-indexing`, { id: ctx?.toastId });
+    },
+    onError: (err, _vars, ctx) => {
+      toast.error(err instanceof Error ? err.message : "Reindex request failed", { id: ctx?.toastId });
     },
   });
 
@@ -462,10 +483,14 @@ function PropertyRow({ property, repos, detailHrefPrefix, selected, onToggleSele
             type="button"
             onClick={() => syncNow()}
             disabled={isSyncing || isReindexing}
+            aria-busy={isSyncing}
+            aria-live="polite"
             className={cn(
-              "inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-3 py-1.5 rounded border transition-colors",
+              "relative inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-3 py-1.5 rounded border transition-all",
               isSyncing
-                ? "opacity-60 cursor-not-allowed border-border text-muted-foreground"
+                ? "border-primary/60 bg-primary/10 text-primary cursor-progress shadow-[0_0_0_2px_rgba(34,211,238,0.15)] animate-pulse"
+                : isReindexing
+                ? "opacity-50 cursor-not-allowed border-border text-muted-foreground"
                 : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5"
             )}
           >
@@ -481,9 +506,13 @@ function PropertyRow({ property, repos, detailHrefPrefix, selected, onToggleSele
             type="button"
             onClick={() => reindex()}
             disabled={isReindexing || isSyncing || property.notIndexedCount === 0}
+            aria-busy={isReindexing}
+            aria-live="polite"
             className={cn(
-              "inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-3 py-1.5 rounded border transition-colors",
-              isReindexing || property.notIndexedCount === 0
+              "relative inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest px-3 py-1.5 rounded border transition-all",
+              isReindexing
+                ? "border-amber-400/70 bg-amber-500/15 text-amber-300 cursor-progress shadow-[0_0_0_2px_rgba(251,191,36,0.18)] animate-pulse"
+                : isSyncing || property.notIndexedCount === 0
                 ? "opacity-50 cursor-not-allowed border-border text-muted-foreground"
                 : "border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
             )}
