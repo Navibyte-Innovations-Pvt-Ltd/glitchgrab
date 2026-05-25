@@ -60,7 +60,7 @@ export async function GET(request: Request) {
     const since = startDate.toISOString();
 
     await Promise.all(
-      repos.map(async (repo) => {
+      repos.map(async (repo: { id: string; fullName: string }) => {
         try {
           const headers: Record<string, string> = {
             Accept: "application/vnd.github+json",
