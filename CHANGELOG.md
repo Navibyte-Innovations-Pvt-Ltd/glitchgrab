@@ -1,3 +1,23 @@
+## [1.41.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.40.2...v1.41.0) (2026-05-25)
+
+### Features
+
+* **app/api/v1/gsc/reindex:** record reindex action in the indexing-history timeline ([8520010](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/8520010358d04bcd48c1914f86b6f82ead0248d1))
+* **app/mobile:** update Expo Share Intent for image sharing ([a41cf8c](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/a41cf8cabcb90e17ce9cccb1d2fe22504fed4ad7))
+* **apps/mobile/package.json:** upgrade react-native to 0.83.6 ([6455036](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/645503627090b6d446e6f9469d93d11fa87ce922))
+* **seo:** clearer sync/reindex feedback and indexing history chart ([313ebc3](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/313ebc305ffcc64b44c32cb9109123da2bc6ce28)), closes [#219](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/issues/219) [#219](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/issues/219) [#218](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/issues/218)
+
+### Bug Fixes
+
+* **app:** add share intent filter for image support ([51f232a](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/51f232a91e811b3d7acc69670bb1cccbc74f034e))
+* **gsc-properties:** update sync and reindex mutations to use useMutation with custom options ([0a815ba](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/0a815baefb4be886ff9d1b5012fc001dd2e27ea8))
+* **mobile:** update start scripts for improved local development experience ([d33ee24](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/d33ee24afcb06cb1ea88ed563fdd26933c7c7efa))
+* **package.json:** update dependencies to support new versions ([6d019a9](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/6d019a93b3592452338885ed0c3a27494fb02b31))
+* **package:** add --clear flag to dev script for improved iOS build process ([8212b12](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/8212b128422834538f4a9282c93fae5494a0e98e))
+* **props:** add indexing history chart to SEO detail page ([3b778de](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/3b778debd41a63a1dc2fc055c2ad0d68c797e43c))
+* **props:** record sync in indexing-history timeline ([b9aacdf](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/b9aacdf40220f69be28b0338fd7838e791e0a189))
+* **route:** add dynamic property and handling ([9433a48](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/9433a4808b020f7c624092b5d38b98a2531e9b4c))
+
 ## [1.40.2](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.40.1...v1.40.2) (2026-05-23)
 
 ### Bug Fixes
