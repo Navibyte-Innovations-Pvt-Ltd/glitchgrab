@@ -139,6 +139,15 @@ function GlitchgrabProviderInner({
           if (isOpaqueCrossOrigin) {
             return;
           }
+
+          // Ignore benign ResizeObserver warnings — these are triggered by UI libraries
+          // (Radix, cmdk, etc.) and are not actionable bugs.
+          if (
+            event.message === "ResizeObserver loop completed with undelivered notifications." ||
+            event.message === "ResizeObserver loop limit exceeded"
+          ) {
+            return;
+          }
           const context = captureContext(visitedPagesRef.current);
           const sig = computeSignature({
             errorMessage: event.message,
