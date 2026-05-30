@@ -17,7 +17,7 @@
   "packageManager": "bun@1.3.7",
   "private": true,
   "scripts": {
-    "dev": "dotenvx run -- turbo dev --filter=@glitchgrab/web --filter=@glitchgrab/recordly-extension",
+    "dev": "dotenvx run -- sh -c 'turbo dev --filter=@glitchgrab/web --filter=@glitchgrab/recordly-extension & npm run dev --prefix apps/glitchrecord; wait'",
     "dev:web": "dotenvx run -- turbo dev --filter=@glitchgrab/web",
     "dev:record": "npm run dev --prefix apps/glitchrecord",
     "dev:mobile": "cd apps/mobile && bun run ios",
