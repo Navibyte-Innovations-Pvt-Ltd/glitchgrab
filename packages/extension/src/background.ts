@@ -90,6 +90,12 @@ chrome.commands.onCommand.addListener((command) => {
   }
 });
 
+// Accept heartbeat ports from content scripts (they use these to detect context invalidation)
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== "gg-heartbeat") return;
+  // Keep the port alive; content script's onDisconnect fires when SW dies or ext reloads
+});
+
 // Receive events from content script
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === "CAPTURE_EVENT" && state.active && state.startedAt !== null) {
