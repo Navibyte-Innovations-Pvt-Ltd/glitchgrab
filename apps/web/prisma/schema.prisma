@@ -43,6 +43,7 @@ model User {
   gscConnectSessions  GscConnectSession[]
   ownedOrgs     Organization[]
   orgMemberships OrgMember[]
+  glitchRecordTokens GlitchRecordToken[]
 }
 
 model Account {
