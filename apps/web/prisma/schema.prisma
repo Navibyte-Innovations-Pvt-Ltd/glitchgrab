@@ -330,6 +330,7 @@ model Webhook {
 model CaptureSession {
   id         String   @id @default(cuid())
   events     Json
+  meta       Json?    // RecordingMeta from Recordly — clips, cuts, duration
   script     String?
   expiresAt  DateTime
   createdAt  DateTime @default(now())
