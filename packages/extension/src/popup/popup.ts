@@ -36,6 +36,12 @@ function render(s: { active: boolean; eventCount: number; sessionId: string | nu
   }
 }
 
+// Check if dev server is reachable
+const connEl = document.getElementById("conn")!;
+fetch("http://localhost:3000/api/v1/capture-signal", { cache: "no-store" })
+  .then(() => { connEl.textContent = "🟢"; connEl.title = "Server connected"; })
+  .catch(() => { connEl.textContent = "🔴"; connEl.title = "Server offline — run bun dev"; });
+
 chrome.runtime.sendMessage({ type: "GET_STATE" }, (s) => { if (s) render(s); });
 chrome.runtime.onMessage.addListener((msg) => { if (msg.type === "STATE_UPDATE") render(msg.state); });
 
