@@ -1,0 +1,13 @@
+{
+  "name": "@glitchgrab/extension",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "bun run build.ts"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.279",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.0.0"
+  }
+}
