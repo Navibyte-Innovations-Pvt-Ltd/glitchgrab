@@ -15,6 +15,7 @@ export interface CaptureEvent {
   url?: string;
   durationMs?: number;
   preview?: string; // input events: truncated field value
+  meta?: Record<string, string>; // rich element descriptor (tag, role, icon, href, section, selector…)
 }
 
 const state: CaptureState = {
@@ -155,7 +156,16 @@ chrome.runtime.onMessage.addListener((msg) => {
       t: Date.now() - state.startedAt,
     };
     state.events.push(event);
-    log(`[GG] #${state.events.length} ${event.type} | ${event.label ?? event.url ?? ""} | t=${event.t}ms`);
+    const m = event.meta ?? {};
+    const metaBits = [
+      m.role && `role=${m.role}`,
+      m.icon && `icon=${m.icon}`,
+      m.href && `href=${m.href}`,
+      m.section && `section=${m.section}`,
+      m.id && `id=${m.id}`,
+      event.preview && `value="${event.preview}"`,
+    ].filter(Boolean).join(" ");
+    log(`[GG] #${state.events.length} ${event.type} | ${event.label ?? event.url ?? ""} | ${metaBits} | t=${event.t}ms`);
     broadcastState();
     // Stream live to GlitchRecord so it shows the event feed in real time
     if (ws && ws.readyState === WebSocket.OPEN) {
