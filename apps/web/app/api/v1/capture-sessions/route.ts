@@ -57,6 +57,7 @@ export async function POST(request: Request) {
     const session = await prisma.captureSession.create({
       data: {
         events: events as object[],
+        meta: body.meta ?? undefined,
         expiresAt: new Date(Date.now() + SESSION_TTL_MS),
       },
       select: { id: true },
