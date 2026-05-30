@@ -13,21 +13,50 @@
       <span class="badge" id="badge">idle</span>
     </div>
 
-    <div class="status" id="status">
-      Press <kbd>Ctrl+Shift+R</kbd> or click below to capture clicks during your recording.
+    <!-- idle state -->
+    <div class="panel" id="panel-idle">
+      <div class="status">
+        Press <kbd>Ctrl+Shift+R</kbd> or click below before you start recording in Recordly.
+      </div>
+      <button class="btn btn-start" id="btn-start">Start Capture</button>
     </div>
 
-    <button class="btn btn-start" id="btn-toggle">
-      Start Capture
-    </button>
+    <!-- recording state -->
+    <div class="panel" id="panel-recording" style="display:none">
+      <div class="status recording-status">
+        <span class="dot"></span> Capturing — click around normally in Chrome.
+      </div>
+      <div class="count" id="count">0 events</div>
+      <button class="btn btn-stop" id="btn-stop">Stop Capture</button>
+    </div>
 
-    <div class="result" id="result" style="display:none">
-      <div class="result-label">Session ID — paste into Recordly extension:</div>
+    <!-- done state: session uploaded -->
+    <div class="panel" id="panel-done" style="display:none">
+      <div class="result-label">Session ID</div>
       <div class="session-id" id="session-id"></div>
-      <button class="btn btn-copy" id="btn-copy">Copy ID</button>
+      <div class="row">
+        <button class="btn btn-secondary" id="btn-copy-id">Copy ID</button>
+        <button class="btn btn-primary" id="btn-generate">Generate Script</button>
+      </div>
+      <div class="count" id="count-done"></div>
     </div>
 
-    <div class="count" id="count" style="display:none"></div>
+    <!-- generating state -->
+    <div class="panel" id="panel-generating" style="display:none">
+      <div class="status">Calling Claude... generating narration script.</div>
+      <div class="spinner"></div>
+    </div>
+
+    <!-- script ready state -->
+    <div class="panel" id="panel-script" style="display:none">
+      <div class="result-label">Narration Script</div>
+      <textarea class="script-box" id="script-box" readonly></textarea>
+      <div class="row">
+        <button class="btn btn-secondary" id="btn-copy-script">Copy Script</button>
+        <button class="btn btn-ghost" id="btn-new">New Session</button>
+      </div>
+      <div class="word-count" id="word-count"></div>
+    </div>
   </div>
   <script src="popup.js" type="module"></script>
 </body>
