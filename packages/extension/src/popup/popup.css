@@ -95,3 +95,63 @@ kbd {
 .word-count { font-size: 10px; color: #444; text-align: right; }
 
 .conn { font-size: 8px; line-height: 1; cursor: default; }
+
+/* log toggle button */
+.btn-log {
+  background: transparent; border: none; cursor: pointer;
+  color: #555; padding: 3px; border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  transition: color 0.15s, background 0.15s;
+}
+.btn-log:hover { color: #999; background: #1e1e1e; }
+.btn-log.active { color: #818cf8; background: #1a1a2e; }
+
+/* log panel */
+.log-panel { gap: 6px; }
+
+.log-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-top: 2px;
+}
+.log-count { font-size: 10px; color: #444; }
+
+.log-list {
+  max-height: 200px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 2px;
+  scrollbar-width: thin; scrollbar-color: #2a2a2a transparent;
+}
+
+.log-empty { font-size: 11px; color: #444; padding: 6px 0; }
+
+.log-item {
+  display: flex; align-items: flex-start; gap: 6px;
+  padding: 4px 6px; border-radius: 4px;
+  background: #111; border: 1px solid #1e1e1e;
+  min-width: 0;
+}
+.log-item:hover { border-color: #2a2a2a; }
+
+.log-icon {
+  font-size: 10px; color: #555; flex-shrink: 0;
+  width: 14px; text-align: center; padding-top: 1px;
+}
+
+.log-body {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; gap: 1px;
+}
+
+.log-type {
+  font-size: 9px; font-weight: 700; color: #666;
+  text-transform: uppercase; letter-spacing: 0.4px;
+}
+
+.log-detail {
+  font-size: 10px; color: #aaa;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.log-time {
+  font-size: 9px; color: #444; flex-shrink: 0;
+  font-family: monospace; padding-top: 2px;
+}
