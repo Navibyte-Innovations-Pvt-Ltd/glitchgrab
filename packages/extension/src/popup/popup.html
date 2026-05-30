@@ -19,29 +19,22 @@
     <!-- idle state -->
     <div class="panel" id="panel-idle">
       <div class="status">
-        Toggle <strong>Start Capture</strong> in Recordly extension, or press <kbd>Ctrl+Shift+G</kbd> manually.
+        Press Record in <strong>GlitchRecord</strong> to start capturing. This panel is just a status indicator.
       </div>
-      <button class="btn btn-start" id="btn-start">Start Capture</button>
     </div>
 
     <!-- recording state -->
     <div class="panel" id="panel-recording" style="display:none">
       <div class="status recording-status">
-        <span class="dot"></span> Capturing — click around normally in Chrome.
+        <span class="dot"></span> Capturing clicks for GlitchRecord.
       </div>
       <div class="count" id="count">0 events</div>
-      <button class="btn btn-stop" id="btn-stop">Stop Capture</button>
     </div>
 
-    <!-- done state: session uploaded -->
+    <!-- done state -->
     <div class="panel" id="panel-done" style="display:none">
-      <div class="result-label">Session ID — give this to Claude with <kbd>/glitchgrab-script</kbd></div>
-      <div class="session-id" id="session-id"></div>
-      <div class="row">
-        <button class="btn btn-primary" id="btn-copy-id">Copy Session ID</button>
-      </div>
+      <div class="status">Capture complete — events sent to GlitchRecord.</div>
       <div class="count" id="count-done"></div>
-      <button class="btn btn-ghost" id="btn-new-from-done">+ New Capture</button>
     </div>
   </div>
   <script src="popup.js" type="module"></script>
