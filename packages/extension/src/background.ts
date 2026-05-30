@@ -45,13 +45,22 @@ chrome.runtime.onMessage.addListener((msg) => {
   return false;
 });
 
+function setRecordingBadge(recording: boolean) {
+  if (recording) {
+    chrome.action.setBadgeText({ text: " " });
+    chrome.action.setBadgeBackgroundColor({ color: "#dc2626" });
+  } else {
+    chrome.action.setBadgeText({ text: "" });
+  }
+}
+
 function startCapture() {
   state.active = true;
   state.startedAt = Date.now();
   state.events = [];
   state.sessionId = null;
+  setRecordingBadge(true);
   broadcastState();
-  // Notify all tabs to start listening
   chrome.tabs.query({}, (tabs) => {
     for (const tab of tabs) {
       if (tab.id) {
@@ -63,6 +72,7 @@ function startCapture() {
 
 async function stopCapture() {
   state.active = false;
+  setRecordingBadge(false);
   broadcastState();
 
   // Notify tabs to stop
