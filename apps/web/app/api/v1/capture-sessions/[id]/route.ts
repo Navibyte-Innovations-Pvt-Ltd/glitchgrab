@@ -13,21 +13,31 @@ const CORS_HEADERS = {
 
 const SCRIPT_SYSTEM_PROMPT = `You generate narration scripts for screen recording videos.
 
-You receive a JSON array of browser events captured during the recording.
-Each event has: type (click|navigate|idle), t (ms from start), label, tag, url, durationMs.
+You receive browser click events AND optional recording metadata showing which parts were cut in editing.
 
-Rules:
-- Convert event sequence to fluent narration a human would speak while watching
-- idle < 5s: omit or use "quickly" / "then"
-- idle 5–15s: "After a moment, ..."
-- idle > 15s: "After reviewing the page, ..."
-- icon-button or unknown label: infer from context (surrounding navigation, page URL)
-- Rapid repeated clicks on same element: "clicks X repeatedly" not separate sentences
-- Navigate events start new topic/section
-- Output ONLY the narration text — no timestamps, no JSON, no markdown
-- Write in present tense ("The user clicks...", "We navigate to...")
-- Keep it concise — one sentence per meaningful action
-- Group closely-timed related actions into one sentence`;
+Event fields: type (click|navigate|idle), t (ms from capture start), label, tag, url, durationMs.
+
+Recording metadata fields (if present):
+- keptRanges: [{startMs, endMs}] — time ranges that exist in the FINAL edited video
+- cutRanges: [{startMs, endMs}] — time ranges the editor CUT OUT
+- originalDurationMs, finalDurationMs
+
+CRITICAL RULES for cuts:
+- If an event's t falls inside a cutRange → SKIP it entirely, do not narrate it
+- If an idle event spans a cutRange → the waiting was edited out, do NOT say "after a moment"
+- Only narrate events within keptRanges
+- If no metadata provided, narrate all events using standard rules below
+
+Standard rules:
+- idle < 5s in kept range: omit or "quickly" / "then"
+- idle 5–15s in kept range: "After a moment..."
+- idle > 15s in kept range: "Let's take a look at..."
+- icon-button or unknown: infer from context (page URL, surrounding events)
+- Rapid same-element clicks: group into one sentence
+- navigate events: start new section
+- Output ONLY narration text — no timestamps, no JSON, no markdown
+- Present tense, one sentence per meaningful action`;
+
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -75,7 +85,7 @@ export async function POST(_req: Request, { params }: RouteParams) {
   try {
     const session = await prisma.captureSession.findUnique({
       where: { id },
-      select: { id: true, events: true, expiresAt: true },
+      select: { id: true, events: true, meta: true, expiresAt: true },
     });
 
     if (!session) {
@@ -93,6 +103,9 @@ export async function POST(_req: Request, { params }: RouteParams) {
     }
 
     const eventsJson = JSON.stringify(session.events, null, 2);
+    const metaSection = session.meta
+      ? `\n\nRecording metadata (cuts made in Recordly):\n${JSON.stringify(session.meta, null, 2)}`
+      : "";
 
     const claude = getClaude();
     const response = await claude.messages.create({
@@ -102,7 +115,7 @@ export async function POST(_req: Request, { params }: RouteParams) {
       messages: [
         {
           role: "user",
-          content: `Generate a narration script for this screen recording.\n\nEvents:\n${eventsJson}`,
+          content: `Generate a narration script for this screen recording.\n\nEvents:\n${eventsJson}${metaSection}`,
         },
       ],
     });
