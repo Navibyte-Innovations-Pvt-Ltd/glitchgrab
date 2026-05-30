@@ -41,6 +41,8 @@ chrome.runtime.onMessage.addListener((msg) => {
       t: Date.now() - state.startedAt,
     };
     state.events.push(event);
+    console.log(`[GG] #${state.events.length} ${event.type} | ${event.label ?? event.url ?? ""} | t=${event.t}ms`);
+    broadcastState();
   }
   return false;
 });
@@ -90,6 +92,7 @@ function startCapture() {
   state.sessionId = null;
   setRecordingIcon(true);
   broadcastState();
+  console.log("[GG] Capture started");
   chrome.tabs.query({}, (tabs) => {
     for (const tab of tabs) {
       if (tab.id) {
@@ -103,6 +106,7 @@ async function stopCapture() {
   state.active = false;
   setRecordingIcon(false);
   broadcastState();
+  console.log(`[GG] Capture stopped — ${state.events.length} events`);
 
   // Notify tabs to stop
   chrome.tabs.query({}, (tabs) => {
@@ -125,10 +129,11 @@ async function stopCapture() {
     const data = await res.json();
     if (data.success) {
       state.sessionId = data.data.sessionId;
+      console.log("[GG] Uploaded — session:", data.data.sessionId);
       broadcastState();
     }
-  } catch {
-    // Network error — store events locally so user can retry
+  } catch (err) {
+    console.error("[GG] Upload failed:", err);
     await chrome.storage.local.set({ pendingEvents: state.events });
   }
 }
