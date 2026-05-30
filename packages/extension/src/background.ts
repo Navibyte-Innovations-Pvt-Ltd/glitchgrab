@@ -22,29 +22,8 @@ const state: CaptureState = {
   sessionId: null,
 };
 
-// ── Signal polling ────────────────────────────────────────────
-// Polls localhost:3000 every 600ms. When Recordly extension posts
-// "start" signal, auto-begins capture. "stop" auto-stops.
-const SIGNAL_URL = "http://localhost:3000/api/v1/capture-signal";
-let lastSignalAt = 0;
-
-setInterval(async () => {
-  try {
-    const res = await fetch(SIGNAL_URL, { cache: "no-store" });
-    const data = await res.json() as { signal: string; signalAt: number };
-    if (data.signalAt <= lastSignalAt) return; // already handled
-    lastSignalAt = data.signalAt;
-    if (data.signal === "start" && !state.active) {
-      console.log("[GG] Auto-start from Recordly signal");
-      startCapture();
-    } else if (data.signal === "stop" && state.active) {
-      console.log("[GG] Auto-stop from Recordly signal");
-      stopCapture();
-    }
-  } catch {
-    // dev server not running — silent
-  }
-}, 600);
+// Signal polling moved to content.ts (service workers die after 30s idle).
+// Content script messages background when signal changes.
 
 // Toggle capture on hotkey
 chrome.commands.onCommand.addListener((command) => {
@@ -203,6 +182,16 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
     return false;
   }
   if (msg.type === "MANUAL_STOP") {
+    stopCapture();
+    return false;
+  }
+  if (msg.type === "SIGNAL_START" && !state.active) {
+    console.log("[GG] Auto-start from Recordly signal");
+    startCapture();
+    return false;
+  }
+  if (msg.type === "SIGNAL_STOP" && state.active) {
+    console.log("[GG] Auto-stop from Recordly signal");
     stopCapture();
     return false;
   }
