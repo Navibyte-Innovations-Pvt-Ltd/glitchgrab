@@ -24,9 +24,9 @@ const state: CaptureState = {
 
 console.log("[GG] Background service worker started");
 
-// ── GlitchBridge WebSocket connection ────────────────────────
-// Real-time, no polling. GlitchRecord sends recording:start/stop natively.
-const BRIDGE_WS = "ws://localhost:7337/ws?role=chrome";
+// ── GlitchRecord WebSocket connection ────────────────────────
+// GlitchRecord runs a WS server on 7337. Chrome ext connects for real-time sync.
+const BRIDGE_WS = "ws://localhost:7337?role=chrome";
 let ws: WebSocket | null = null;
 let wsReconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
