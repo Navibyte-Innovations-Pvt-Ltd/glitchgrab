@@ -12,8 +12,18 @@ const DEDUP_MS = 80;
 // ── Signal polling ────────────────────────────────────────────
 // Content script pings background every 600ms to check signal.
 // Background does the actual fetch (immune to mixed-content HTTPS blocks).
-setInterval(() => {
-  chrome.runtime.sendMessage({ type: "POLL_SIGNAL" }).catch(() => {});
+const pollTimer = setInterval(() => {
+  // After an extension reload, this orphaned content script loses its context.
+  // chrome.runtime.id becomes undefined — stop polling instead of throwing.
+  if (!chrome.runtime?.id) {
+    clearInterval(pollTimer);
+    return;
+  }
+  try {
+    chrome.runtime.sendMessage({ type: "POLL_SIGNAL" }).catch(() => {});
+  } catch {
+    clearInterval(pollTimer);
+  }
 }, 600);
 
 chrome.runtime.onMessage.addListener((msg) => {
@@ -120,7 +130,12 @@ function sendEvent(event: {
   url?: string;
   durationMs?: number;
 }) {
-  chrome.runtime.sendMessage({ type: "CAPTURE_EVENT", event }).catch(() => {});
+  if (!chrome.runtime?.id) return;
+  try {
+    chrome.runtime.sendMessage({ type: "CAPTURE_EVENT", event }).catch(() => {});
+  } catch {
+    /* context invalidated */
+  }
 }
 
 // Navigation via history API
