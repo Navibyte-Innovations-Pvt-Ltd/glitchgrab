@@ -227,33 +227,101 @@ function firstLine(text: string): string {
   return text.split(/[\n\r]/).map(s => s.trim()).find(s => s.length > 0) ?? "";
 }
 
-function getClickLabel(target: Element): { label: string; tag: string } {
-  const interactive = target.closest(
-    'button, a, [role="button"], [role="link"], [role="menuitem"], [role="tab"], [role="option"], input, select, label'
-  );
-  const candidates = interactive ? [interactive, target] : [target];
-  for (const el of candidates) {
-    const explicit =
-      el.getAttribute("aria-label")?.trim() ||
-      el.getAttribute("title")?.trim() ||
-      el.getAttribute("data-testid")?.replace(/-/g, " ").trim() ||
-      el.getAttribute("alt")?.trim() ||
-      el.getAttribute("placeholder")?.trim();
-    if (explicit) return { label: explicit.slice(0, 80), tag: el.tagName.toLowerCase() };
-    const raw = (el as HTMLElement).innerText?.trim() ?? "";
-    const line = firstLine(raw);
-    if (line && line.length >= 2 && line.length <= 60) {
-      return { label: line, tag: el.tagName.toLowerCase() };
+function cleanLabel(s: string | null | undefined): string {
+  return (s ?? "").replace(/\s+/g, " ").trim();
+}
+
+// Pull a human-readable label from a single element's own attributes/content.
+function labelFromElement(el: Element): string {
+  // 1. Explicit accessibility / tooltip attributes
+  const attrLabel =
+    cleanLabel(el.getAttribute("aria-label")) ||
+    cleanLabel(el.getAttribute("title")) ||
+    cleanLabel(el.getAttribute("data-tooltip")) ||
+    cleanLabel(el.getAttribute("data-title")) ||
+    cleanLabel(el.getAttribute("data-label")) ||
+    cleanLabel(el.getAttribute("alt")) ||
+    cleanLabel(el.getAttribute("placeholder")) ||
+    cleanLabel(el.getAttribute("name")) ||
+    cleanLabel(el.getAttribute("value"));
+  if (attrLabel && attrLabel.length >= 1) return attrLabel;
+
+  // 2. aria-labelledby → resolve referenced element text
+  const labelledby = el.getAttribute("aria-labelledby");
+  if (labelledby) {
+    const ref = document.getElementById(labelledby.split(/\s+/)[0]);
+    const txt = cleanLabel((ref as HTMLElement | null)?.innerText);
+    if (txt) return txt;
+  }
+
+  // 3. Visible text (first line)
+  const text = firstLine(cleanLabel((el as HTMLElement).innerText));
+  if (text && text.length >= 1 && text.length <= 60) return text;
+
+  // 4. Child with a label (icon buttons often wrap a labelled svg/img/span)
+  const labelledChild = el.querySelector("[aria-label],[title],img[alt]");
+  if (labelledChild) {
+    const childLabel =
+      cleanLabel(labelledChild.getAttribute("aria-label")) ||
+      cleanLabel(labelledChild.getAttribute("title")) ||
+      cleanLabel(labelledChild.getAttribute("alt"));
+    if (childLabel) return childLabel;
+  }
+
+  // 5. SVG <title>
+  const svgTitle = cleanLabel(el.querySelector("svg title")?.textContent);
+  if (svgTitle) return svgTitle;
+
+  // 6. data-testid (machine-y but better than nothing)
+  const testid = cleanLabel(el.getAttribute("data-testid"))?.replace(/[-_]/g, " ");
+  if (testid) return testid;
+
+  return "";
+}
+
+// Derive a hint from a link's href or an element's id/class as a last resort.
+function structuralHint(el: Element): string {
+  if (el.tagName === "A") {
+    const href = el.getAttribute("href");
+    if (href && !href.startsWith("javascript:") && href !== "#") {
+      try {
+        const u = new URL(href, location.href);
+        const path = (u.pathname + u.search).replace(/\/$/, "");
+        if (path && path !== "/") return `link ${path.slice(0, 50)}`;
+      } catch { /* relative weirdness */ }
     }
   }
-  let el: Element | null = (interactive ?? target).parentElement;
-  for (let i = 0; i < 3; i++) {
-    if (!el) break;
-    const label = el.getAttribute("aria-label")?.trim() || el.getAttribute("title")?.trim();
+  const id = cleanLabel(el.getAttribute("id"));
+  if (id) return id.replace(/[-_]/g, " ").slice(0, 50);
+  const cls = cleanLabel(el.getAttribute("class")).split(" ")[0];
+  if (cls && !/^[a-z]{1,3}\d|css-|sc-/.test(cls)) return `${el.tagName.toLowerCase()}.${cls}`.slice(0, 50);
+  return "";
+}
+
+function getClickLabel(target: Element): { label: string; tag: string } {
+  const interactive = target.closest(
+    'button, a, [role="button"], [role="link"], [role="menuitem"], [role="tab"], [role="option"], [role="checkbox"], [role="switch"], input, select, label, summary'
+  );
+  // Try the interactive ancestor first, then the exact target, then walk up.
+  const ordered: Element[] = [];
+  if (interactive) ordered.push(interactive);
+  ordered.push(target);
+  let up: Element | null = (interactive ?? target).parentElement;
+  for (let i = 0; i < 4 && up; i++) { ordered.push(up); up = up.parentElement; }
+
+  for (const el of ordered) {
+    const label = labelFromElement(el);
     if (label) return { label: label.slice(0, 80), tag: el.tagName.toLowerCase() };
-    el = el.parentElement;
   }
-  return { label: "icon-button", tag: (interactive ?? target).tagName.toLowerCase() };
+
+  // Structural fallback (href / id / class) before generic placeholder
+  for (const el of ordered) {
+    const hint = structuralHint(el);
+    if (hint) return { label: hint, tag: el.tagName.toLowerCase() };
+  }
+
+  const base = interactive ?? target;
+  return { label: `${base.tagName.toLowerCase()} (no label)`, tag: base.tagName.toLowerCase() };
 }
 
 function sendEvent(event: {
