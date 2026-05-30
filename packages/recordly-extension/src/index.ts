@@ -4,7 +4,7 @@
 
 import type { RecordlyExtensionAPI } from "./types";
 
-const API_BASE = "https://glitchgrab.dev/api/v1";
+const API_BASE = "http://localhost:3000/api/v1";
 
 // Settings field IDs
 const FIELD_SESSION_ID = "sessionId";
@@ -18,7 +18,6 @@ export function activate(api: RecordlyExtensionAPI) {
     id: "glitchgrab-script",
     label: "Script Generator",
     icon: "Sparkle",
-    parentSection: "cursor",
     fields: [
       {
         id: FIELD_SESSION_ID,
