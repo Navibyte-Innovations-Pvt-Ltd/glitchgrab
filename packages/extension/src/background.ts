@@ -101,7 +101,7 @@ function startCapture() {
 
 async function stopCapture() {
   state.active = false;
-  setRecordingBadge(false);
+  setRecordingIcon(false);
   broadcastState();
 
   // Notify tabs to stop
