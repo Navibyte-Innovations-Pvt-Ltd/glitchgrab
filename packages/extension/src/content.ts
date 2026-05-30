@@ -76,6 +76,17 @@ const GG_PING = "__gg_ping__";
     });
   } catch { /* context invalidated at load */ }
 
+  // CRITICAL: a page that LOADS during an active recording (new tab, or a
+  // full-page navigation that tore down the previous content script) misses the
+  // one-time CAPTURE_START broadcast. Ask the background if capture is active
+  // and self-start so no events are lost.
+  try {
+    chrome.runtime.sendMessage({ type: "GET_STATE" }, (s) => {
+      if (chrome.runtime.lastError) return; // background asleep / context gone
+      if (s?.active) startListening();
+    });
+  } catch { /* context invalidated at load */ }
+
   // History-API navigation hooks
   const origPushState = history.pushState.bind(history);
   const origReplaceState = history.replaceState.bind(history);
