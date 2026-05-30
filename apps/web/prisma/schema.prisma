@@ -325,3 +325,12 @@ model Webhook {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+// Temporary click-capture sessions for Recordly script generation
+model CaptureSession {
+  id         String   @id @default(cuid())
+  events     Json
+  script     String?
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+}
