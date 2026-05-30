@@ -116,7 +116,7 @@ function stopListening() {
     if (lastInputEl) {
       const { label } = getClickLabel(lastInputEl);
       const preview = lastInputEl.value.slice(0, 40).replace(/\s+/g, " ").trim();
-      if (preview) sendEvent({ type: "input", label, tag: lastInputEl.tagName.toLowerCase(), url: location.href, preview });
+      if (preview) sendEvent({ type: "input", label, tag: lastInputEl.tagName.toLowerCase(), url: location.href, preview, meta: describeElement(lastInputEl) });
       lastInputEl = null;
     }
   }
@@ -149,7 +149,7 @@ function onClickCapture(e: MouseEvent) {
   if (clickKey === lastClickKey && now - lastClickAt < DEDUP_MS) return;
   lastClickKey = clickKey;
   lastClickAt = now;
-  sendEvent({ type: "click", label, tag, url: location.href });
+  sendEvent({ type: "click", label, tag, url: location.href, meta: describeElement(target) });
 }
 
 // ── Input / typing ─────────────────────────────────────────────
@@ -167,7 +167,7 @@ function onInputCapture(e: Event) {
       if (!lastInputEl) return;
       const { label } = getClickLabel(lastInputEl);
       const preview = lastInputEl.value.slice(0, 40).replace(/\s+/g, " ").trim();
-      sendEvent({ type: "input", label, tag: lastInputEl.tagName.toLowerCase(), url: location.href, preview: preview || undefined });
+      sendEvent({ type: "input", label, tag: lastInputEl.tagName.toLowerCase(), url: location.href, preview: preview || undefined, meta: describeElement(lastInputEl) });
       lastInputEl = null;
     } catch { /* dom detached or context gone */ }
   }, 800);
@@ -225,6 +225,140 @@ function onPasteCapture() {
 // ── Helpers ────────────────────────────────────────────────────
 function firstLine(text: string): string {
   return text.split(/[\n\r]/).map(s => s.trim()).find(s => s.length > 0) ?? "";
+}
+
+export interface ElementMeta {
+  tag?: string;            // a, button, div…
+  role?: string;           // explicit or implicit ARIA role
+  inputType?: string;      // text, checkbox, search… (inputs only)
+  text?: string;           // visible text (longer than label)
+  ariaLabel?: string;
+  title?: string;
+  name?: string;
+  id?: string;
+  classes?: string;        // first few meaningful class tokens
+  href?: string;           // resolved link path (anchors)
+  icon?: string;           // detected icon: svg <title>/<use>/class, or img alt/src
+  section?: string;        // nearest landmark / heading providing context
+  selector?: string;       // short CSS-ish path to the element
+  placeholder?: string;
+  checked?: string;        // "true"/"false" for checkbox/radio/switch
+}
+
+function attr(el: Element, name: string): string {
+  return (el.getAttribute(name) ?? "").replace(/\s+/g, " ").trim();
+}
+
+// Implicit role for common tags when no explicit role is set.
+function implicitRole(el: Element): string {
+  const tag = el.tagName.toLowerCase();
+  if (tag === "a" && el.hasAttribute("href")) return "link";
+  if (tag === "button" || tag === "summary") return "button";
+  if (tag === "select") return "combobox";
+  if (tag === "textarea") return "textbox";
+  if (tag === "input") {
+    const t = (el as HTMLInputElement).type;
+    if (["checkbox", "radio"].includes(t)) return t;
+    if (t === "submit" || t === "button") return "button";
+    return "textbox";
+  }
+  return "";
+}
+
+// Detect what icon an element shows (icon-only buttons are common & opaque).
+function detectIcon(el: Element): string {
+  const svg = el.querySelector("svg");
+  if (svg) {
+    const title = svg.querySelector("title")?.textContent?.trim();
+    if (title) return `svg:${title}`;
+    const use = svg.querySelector("use");
+    const href = use?.getAttribute("href") || use?.getAttribute("xlink:href");
+    if (href) return `svg:${href.split(/[#/]/).pop()}`;
+    const dataIcon = svg.getAttribute("data-icon");
+    if (dataIcon) return `svg:${dataIcon}`;
+    const cls = (svg.getAttribute("class") || "").split(/\s+/).find(c => /icon|ic-|fa-/.test(c));
+    if (cls) return `svg:${cls}`;
+    return "svg";
+  }
+  const img = el.querySelector("img");
+  if (img) {
+    const alt = img.getAttribute("alt")?.trim();
+    if (alt) return `img:${alt}`;
+    const src = img.getAttribute("src") || "";
+    const base = src.split("/").pop()?.split("?")[0];
+    if (base) return `img:${base}`;
+  }
+  const iconClass = (el.getAttribute("class") || "").split(/\s+/).find(c => /^(icon|fa|material-icons|ic-)/.test(c));
+  if (iconClass) return `class:${iconClass}`;
+  return "";
+}
+
+// Nearest meaningful container/heading to give the click context.
+function nearestSection(el: Element): string {
+  let node: Element | null = el;
+  for (let i = 0; i < 8 && node; i++) {
+    const landmark = node.closest("[role=navigation],[role=main],[role=banner],[role=dialog],[role=menu],nav,header,footer,aside,section,form,dialog,[aria-label]");
+    if (landmark && landmark !== el) {
+      const lbl = attr(landmark, "aria-label") || landmark.getAttribute("role") || landmark.tagName.toLowerCase();
+      if (lbl) return lbl.slice(0, 40);
+    }
+    node = node.parentElement;
+  }
+  // fall back to nearest heading above
+  const heading = el.closest("section,article,main,div")?.querySelector("h1,h2,h3");
+  const ht = (heading as HTMLElement | null)?.innerText?.trim();
+  return ht ? ht.slice(0, 40) : "";
+}
+
+// Compact CSS-ish path: tag#id.firstClass, 3 levels deep.
+function shortSelector(el: Element): string {
+  const parts: string[] = [];
+  let node: Element | null = el;
+  for (let i = 0; i < 3 && node && node.tagName; i++) {
+    let part = node.tagName.toLowerCase();
+    const id = node.getAttribute("id");
+    if (id) { part += `#${id}`; parts.unshift(part); break; }
+    const cls = (node.getAttribute("class") || "").split(/\s+/).find(c => c && !/^(css-|sc-)/.test(c) && c.length < 24);
+    if (cls) part += `.${cls}`;
+    parts.unshift(part);
+    node = node.parentElement;
+  }
+  return parts.join(" > ").slice(0, 120);
+}
+
+function describeElement(target: Element): ElementMeta {
+  const interactive = target.closest(
+    'button, a, [role="button"], [role="link"], [role="menuitem"], [role="tab"], [role="option"], [role="checkbox"], [role="switch"], input, select, textarea, label, summary'
+  );
+  const el = (interactive ?? target) as HTMLElement;
+  const meta: ElementMeta = {};
+  meta.tag = el.tagName.toLowerCase();
+  const role = attr(el, "role") || implicitRole(el);
+  if (role) meta.role = role;
+  if (el.tagName === "INPUT") meta.inputType = (el as HTMLInputElement).type;
+  const text = firstLine((el.innerText || "").replace(/\s+/g, " ").trim());
+  if (text) meta.text = text.slice(0, 100);
+  const aria = attr(el, "aria-label"); if (aria) meta.ariaLabel = aria.slice(0, 80);
+  const title = attr(el, "title"); if (title) meta.title = title.slice(0, 80);
+  const name = attr(el, "name"); if (name) meta.name = name.slice(0, 60);
+  const id = attr(el, "id"); if (id) meta.id = id.slice(0, 60);
+  const classes = (el.getAttribute("class") || "").split(/\s+/).filter(c => c && !/^(css-|sc-)/.test(c)).slice(0, 4).join(" ");
+  if (classes) meta.classes = classes.slice(0, 80);
+  if (el.tagName === "A") {
+    const href = el.getAttribute("href");
+    if (href && !href.startsWith("javascript:")) {
+      try { meta.href = new URL(href, location.href).href.slice(0, 200); } catch { meta.href = href.slice(0, 200); }
+    }
+  }
+  const icon = detectIcon(el); if (icon) meta.icon = icon.slice(0, 60);
+  const section = nearestSection(el); if (section) meta.section = section;
+  meta.selector = shortSelector(el);
+  const placeholder = attr(el, "placeholder"); if (placeholder) meta.placeholder = placeholder.slice(0, 60);
+  const inputEl = el as HTMLInputElement;
+  if (["checkbox", "radio"].includes(inputEl.type) || role === "switch" || role === "checkbox") {
+    meta.checked = String(inputEl.checked ?? attr(el, "aria-checked") === "true");
+  }
+  return meta;
 }
 
 function cleanLabel(s: string | null | undefined): string {
@@ -331,6 +465,7 @@ function sendEvent(event: {
   url?: string;
   durationMs?: number;
   preview?: string;
+  meta?: ElementMeta;
 }) {
   if (!isContextAlive()) return;
   try {
