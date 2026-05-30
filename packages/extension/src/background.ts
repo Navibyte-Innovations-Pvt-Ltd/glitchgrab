@@ -22,8 +22,11 @@ const state: CaptureState = {
   sessionId: null,
 };
 
-// Signal polling moved to content.ts (service workers die after 30s idle).
-// Content script messages background when signal changes.
+console.log("[GG] Background service worker started");
+
+// Signal polling — background does the fetch (bypasses HTTPS mixed-content blocks)
+const SIGNAL_URL = "http://localhost:3000/api/v1/capture-signal";
+let lastSignalAt = 0;
 
 // Toggle capture on hotkey
 chrome.commands.onCommand.addListener((command) => {
@@ -185,13 +188,34 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
     stopCapture();
     return false;
   }
+  if (msg.type === "POLL_SIGNAL") {
+    // Deduplicate — only one fetch per 500ms regardless of how many tabs send POLL_SIGNAL
+    const now = Date.now();
+    if (now - (state as unknown as { lastPollAt?: number }).lastPollAt! < 500) return false;
+    (state as unknown as { lastPollAt: number }).lastPollAt = now;
+
+    fetch(SIGNAL_URL, { cache: "no-store" })
+      .then(r => r.json())
+      .then((data: { signal: string; signalAt: number }) => {
+        if (data.signalAt <= lastSignalAt) return;
+        lastSignalAt = data.signalAt;
+        console.log("[GG] Signal changed →", data.signal);
+        if (data.signal === "start" && !state.active) {
+          console.log("[GG] Auto-start from Recordly signal");
+          startCapture();
+        } else if (data.signal === "stop" && state.active) {
+          console.log("[GG] Auto-stop from Recordly signal");
+          stopCapture();
+        }
+      })
+      .catch(() => {});
+    return false;
+  }
   if (msg.type === "SIGNAL_START" && !state.active) {
-    console.log("[GG] Auto-start from Recordly signal");
     startCapture();
     return false;
   }
   if (msg.type === "SIGNAL_STOP" && state.active) {
-    console.log("[GG] Auto-stop from Recordly signal");
     stopCapture();
     return false;
   }
