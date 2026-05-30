@@ -143,17 +143,32 @@ async function stopCapture() {
 
   if (state.events.length === 0) return;
 
-  // POST events to API
+  // Grab recording metadata from signal endpoint (Recordly cuts/clips)
+  let meta: unknown = null;
+  try {
+    const sigRes = await fetch("http://localhost:3000/api/v1/capture-signal", { cache: "no-store" });
+    const sigData = await sigRes.json() as { meta?: unknown };
+    meta = sigData.meta ?? null;
+    if (meta) console.log("[GG] Got recording meta from Recordly");
+  } catch { /* server not running */ }
+
+  // POST events + metadata to API
   try {
     const res = await fetch("http://localhost:3000/api/v1/capture-sessions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ events: state.events }),
+      body: JSON.stringify({ events: state.events, meta }),
     });
-    const data = await res.json();
-    if (data.success) {
+    const data = await res.json() as { success: boolean; data?: { sessionId: string } };
+    if (data.success && data.data?.sessionId) {
       state.sessionId = data.data.sessionId;
       console.log("[GG] Uploaded — session:", data.data.sessionId);
+      // Broadcast sessionId back to signal endpoint so Recordly can read it
+      fetch("http://localhost:3000/api/v1/capture-signal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ signal: "idle", sessionId: state.sessionId }),
+      }).catch(() => {});
       broadcastState();
     }
   } catch (err) {
