@@ -2,12 +2,15 @@
 
 ## What is this project?
 
-Glitchgrab is an open-source SaaS tool that converts messy bug inputs (handwritten notes, screenshots, production errors, user-reported bugs) into well-structured GitHub issues using AI (Claude or OpenAI). It has four components: an npm SDK for Next.js, a web dashboard, a mobile app (Android/iOS), and an MCP server.
+Glitchgrab is an open-source SaaS tool that converts messy bug inputs (handwritten notes, screenshots, production errors, user-reported bugs) into well-structured GitHub issues using AI (Claude or OpenAI). Components: an npm SDK for Next.js, a web dashboard, a mobile app (Android/iOS), an MCP server, a **Chrome extension** + **GlitchRecord desktop app** that together turn a screen recording into a narrated tutorial and auto-create a GitHub issue from the captured interactions.
 
 ## Monorepo structure
 
 - **apps/web** — Next.js 15 (App Router) dashboard + API routes. Deployed on Vercel.
 - **apps/mobile** — React Native (Expo SDK 55) mobile app. WebView wrapper around the web dashboard with native features (share intent, deep links, secure token storage). Builds APK via `bun run build:android:prod`.
+- **apps/glitchrecord** — Electron screen recorder/editor (a fork of Recordly). Records the screen, edits clips/zooms, and hosts the GlitchGrab bridge that pairs with the Chrome extension. Dev via `bun run dev` (vite-plugin-electron hot-reloads main+preload). userData in dev: `~/Library/Application Support/Recordly-dev`.
+- **packages/extension** — `@glitchgrab/extension`. The **Chrome extension** (MV3) that captures browser interaction events (click/input/scroll/navigate/select/keydown/copy/paste) during a recording. Build: `bun run build` → `dist/` (load unpacked). NOT published to the store yet.
+- **packages/recordly-extension** — `@glitchgrab/recordly-extension`. A **Recordly in-app plugin** (permissions: timeline/ui/cursor) — the AI script generator panel inside GlitchRecord. NOT a Chrome extension; don't confuse with `packages/extension`.
 - **packages/sdk-nextjs** — `glitchgrab` npm package. Drop-in error capture + report button for Next.js apps.
 - **packages/mcp-server** — MCP server using `@modelcontextprotocol/sdk`. Connects to Claude Desktop.
 - **packages/shared** — Shared TypeScript types and constants used across all packages.
@@ -123,6 +126,19 @@ bun run install:android:prod   # Build + install release APK via adb
 bun run install:android:dev    # Build + install debug APK via adb
 ```
 
+### Chrome extension (from `packages/extension`)
+```bash
+bun run build                  # Build to dist/ (then Load unpacked in chrome://extensions)
+bun run dev                    # build.ts --watch (rebuild on save)
+```
+After build: reload via the **↻** button on the existing entry (NOT "Load unpacked" again — that creates duplicate entries). Reload affected web tabs to replace orphaned content scripts.
+
+### GlitchRecord (from `apps/glitchrecord`)
+```bash
+bun run dev                    # vite + electron (hot-reloads main/preload). User manages this — don't start/stop it.
+```
+Electron main/preload changes need a full quit + relaunch to take effect reliably.
+
 ## Mobile app architecture
 
 - **WebView-based** — the mobile app wraps the web dashboard in a `react-native-webview`. All UI lives in `apps/web`; the native shell handles auth, deep links, and share intent.
@@ -134,6 +150,41 @@ bun run install:android:dev    # Build + install debug APK via adb
 - **Performance**: Avoid injecting JS that runs on every scroll/resize frame. Use `requestAnimationFrame` for layout recalculations. Remove `console.*` calls in production builds.
 - **WebView GPU fix**: Mobile app injects `webview` class on `<html>`. Global CSS disables `backdrop-filter`, `animation-duration`, and `transition-duration` for `.webview *` to prevent MediaTek GPU crashes.
 - **Navigation in WebView**: Sheet menu uses `window.location.href` (full page nav) instead of `router.push` (client nav) in WebView to prevent GPU freeze during portal teardown. Detected via `document.documentElement.classList.contains("webview")`.
+
+## GlitchRecord ↔ extension capture pipeline
+
+Turns a screen recording into a narrated tutorial + auto-created GitHub issue. The Chrome extension captures *what the user did on the page*; GlitchRecord records the *screen* and owns the session, AI script, and issue creation.
+
+### Components
+- **`packages/extension`** — MV3. `content.ts` (per-page event capture), `background.ts` (service worker: session state, WS client, tab orchestration), `popup/` (status UI).
+- **`apps/glitchrecord/electron/glitchbridge/`** — `server.ts` (WS server on **port 7337**), `api.ts` (calls the web API), `types.ts` (shared `WsMsg`/`Session`/`CaptureEvent`).
+- **`apps/glitchrecord/.../video-editor/GlitchgrabLogPanel.tsx`** — editor panel (list icon in the rail) showing captured events + a Copy button. **`launch/GlitchgrabEventFeed.tsx`** — live feed in the recorder HUD during recording.
+
+### Flow
+1. User presses Record in GlitchRecord → IPC `glitchbridge:recording-start` → `broadcastRecordingStart` creates an in-memory session, sets `recordingActive`, sends `recording:start` over WS.
+2. Background `startCapture()` → sends `CAPTURE_START` to all tabs; content scripts attach DOM listeners.
+3. Each event → background `CAPTURE_EVENT` → streamed live as `event:live` (HUD feed) + buffered in `state.events`.
+4. Stop (ANY way) → `set-recording-state(false)` hook in `main.ts` broadcasts `recording:stop` (universal, not just the HUD button) → background `stopCapture()` → `events:upload` over WS.
+5. Bridge persists events to disk, fires `eventsReadyCb` (→ editor `glitchbridge:events-ready` → panel refresh). If logged in: `uploadSession` → `generateScript` (Claude) → `createIssue` in the selected repo.
+
+### Event model
+`CaptureEvent`: `type` (click|input|select|keydown|scroll|copy|paste|navigate|idle), `t` (ms from start), `label`, `tag`, `url`, `preview` (typed text; passwords skipped), `meta` (rich element descriptor: role, icon, href, section, selector, classes, inputType…). Built by `describeElement()`/`getClickLabel()` in `content.ts`.
+
+### Auth model
+Capturing works WITHOUT login. Login + a selected repo are only needed for DB upload + AI script + GitHub issue. `broadcastRecordingStart` no longer gates on auth.
+
+### Debugging
+- **Unified debug log**: `~/Library/Application Support/Recordly-dev/glitchgrab-debug.log` (dev). Extension logs forward over WS (`{type:"log"}`); GlitchRecord appends `appendDebugLog("rec", …)`. One file, both sides — read it directly.
+- Extension `log()` also mirrors to every page console as `[GG-bg]` (read via any open tab).
+
+### Gotchas (learned the hard way)
+1. **Pages that LOAD during a recording** (new tab OR full-page navigation) get a fresh content script that missed the one-time `CAPTURE_START`. Fixed via: content script queries `GET_STATE` on bootstrap + background re-sends `CAPTURE_START` on `tabs.onUpdated` "complete". Without this → 0 events captured.
+2. **"Extension context invalidated"** — orphaned content scripts from a previous extension version keep running in open tabs after reload; they die only on page reload. Current build has no periodic chrome calls, so its orphans are silent. Restart Chrome to clear old ones.
+3. **Single instance** — GlitchRecord enforces `requestSingleInstanceLock()` always (the bridge owns port 7337; two instances can't coexist). A 2nd launch focuses the existing window.
+4. **Idempotency** — `recording:stop` fires from two places (HUD button + `set-recording-state` hook). The bridge sets `session.finalized` so upload/script/issue run once → no duplicate issues. `buildIssueBody` guards meta by *shape* (empty `{}` is truthy but has no `cutRanges`).
+5. **get-events** returns the *current* run's session even if empty — never falls back to the old persisted session while a session exists (would show stale events from a prior recording).
+6. **Clipboard** in the editor uses Electron `clipboard.writeText` via IPC (`navigator.clipboard` silently fails in the renderer).
+7. Content script only sees **page DOM** — Chrome address bar, `chrome://` pages, other native apps (WhatsApp, etc.) are NOT capturable.
 
 ## Code conventions
 
@@ -154,3 +205,5 @@ bun run install:android:dev    # Build + install debug APK via adb
 5. SDK must never throw — wrap everything, fail silently
 6. GitHub API rate limits — use installation token, not user token
 7. MCP server calls the same REST API as the dashboard
+8. Extension content script must never throw on a dead context — guard every `chrome.*` call with `isContextAlive()` + try/catch; no periodic chrome calls (the 600ms signal poll lives in the background SW, not content)
+9. Capture chain breaks silently — when touching it, check the unified debug log (`glitchgrab-debug.log`) and confirm a page loading mid-recording still captures (see GlitchRecord ↔ extension pipeline gotchas)
