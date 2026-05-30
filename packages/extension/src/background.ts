@@ -45,13 +45,42 @@ chrome.runtime.onMessage.addListener((msg) => {
   return false;
 });
 
-function setRecordingBadge(recording: boolean) {
-  if (recording) {
-    chrome.action.setBadgeText({ text: " " });
-    chrome.action.setBadgeBackgroundColor({ color: "#dc2626" });
-  } else {
-    chrome.action.setBadgeText({ text: "" });
+async function setRecordingIcon(recording: boolean) {
+  const sizes = [16, 32, 48, 128];
+  const imageData: Record<number, ImageData> = {};
+
+  for (const size of sizes) {
+    const canvas = new OffscreenCanvas(size, size);
+    const ctx = canvas.getContext("2d")!;
+
+    // Draw original icon
+    const res = await fetch(chrome.runtime.getURL(`icon${size}.png`));
+    const blob = await res.blob();
+    const bitmap = await createImageBitmap(blob);
+    ctx.drawImage(bitmap, 0, 0, size, size);
+    bitmap.close();
+
+    if (recording) {
+      // Small red dot — bottom-right corner, 22% of icon size
+      const r = Math.max(2, Math.round(size * 0.22));
+      const x = size - r - 1;
+      const y = size - r - 1;
+      // Dark border so dot pops on any background
+      ctx.beginPath();
+      ctx.arc(x, y, r + 1, 0, Math.PI * 2);
+      ctx.fillStyle = "#000";
+      ctx.fill();
+      // Red fill
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = "#ef4444";
+      ctx.fill();
+    }
+
+    imageData[size] = ctx.getImageData(0, 0, size, size);
   }
+
+  chrome.action.setIcon({ imageData });
 }
 
 function startCapture() {
@@ -59,7 +88,7 @@ function startCapture() {
   state.startedAt = Date.now();
   state.events = [];
   state.sessionId = null;
-  setRecordingBadge(true);
+  setRecordingIcon(true);
   broadcastState();
   chrome.tabs.query({}, (tabs) => {
     for (const tab of tabs) {
