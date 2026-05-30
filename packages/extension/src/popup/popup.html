@@ -10,13 +10,16 @@
   <div class="container">
     <div class="header">
       <span class="logo">Glitchgrab</span>
-      <span class="badge" id="badge">idle</span>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span class="conn" id="conn" title="Server connection">⚫</span>
+        <span class="badge" id="badge">idle</span>
+      </div>
     </div>
 
     <!-- idle state -->
     <div class="panel" id="panel-idle">
       <div class="status">
-        Press <kbd>Ctrl+Shift+R</kbd> or click below before you start recording in Recordly.
+        Toggle <strong>Start Capture</strong> in Recordly extension, or press <kbd>Ctrl+Shift+G</kbd> manually.
       </div>
       <button class="btn btn-start" id="btn-start">Start Capture</button>
     </div>
