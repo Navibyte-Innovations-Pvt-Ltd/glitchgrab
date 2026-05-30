@@ -110,7 +110,10 @@ function interceptFetch() {
     const start = Date.now();
 
     try {
-      const response = await origFetch.apply(window, [input, init]);
+      const response = await origFetch(
+        input as Parameters<typeof origFetch>[0],
+        init,
+      );
       addBreadcrumb("api", `${method} ${url.slice(0, 100)} → ${response.status}`, {
         method,
         status: String(response.status),
