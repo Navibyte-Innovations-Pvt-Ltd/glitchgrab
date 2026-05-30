@@ -6,8 +6,7 @@
   "author": "Glitchgrab",
   "homepage": "https://glitchgrab.dev",
   "license": "MIT",
-  "icon": "icon.png",
-  "main": "dist/index.js",
+  "main": "index.js",
   "permissions": ["timeline", "ui", "cursor"],
   "contributes": {}
 }
