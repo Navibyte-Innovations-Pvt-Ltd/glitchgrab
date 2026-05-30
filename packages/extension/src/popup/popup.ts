@@ -104,12 +104,13 @@ document.getElementById("btn-generate")!.addEventListener("click", async () => {
     // Auto-copy
     navigator.clipboard.writeText(script).catch(() => {});
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Network error";
+    const msg = err instanceof Error ? err.message : "Network error — is dev server running?";
     badge.textContent = "error";
     badge.className = "badge";
     showPanel("done");
     const countEl2 = document.getElementById("count-done")!;
-    countEl2.textContent = `Error: ${msg}`;
+    countEl2.textContent = `⚠ ${msg}`;
+    countEl2.style.color = "#ef4444";
   }
 });
 
@@ -122,11 +123,14 @@ document.getElementById("btn-copy-script")!.addEventListener("click", () => {
   });
 });
 
-// New session
-document.getElementById("btn-new")!.addEventListener("click", () => {
+function resetToIdle() {
   currentSessionId = null;
   scriptBox.value = "";
   badge.textContent = "idle";
   badge.className = "badge";
   showPanel("idle");
-});
+}
+
+document.getElementById("btn-new")!.addEventListener("click", resetToIdle);
+document.getElementById("btn-new-from-done")!.addEventListener("click", resetToIdle);
+document.getElementById("btn-cancel-generate")!.addEventListener("click", resetToIdle);
