@@ -24,7 +24,55 @@ const state: CaptureState = {
 
 console.log("[GG] Background service worker started");
 
-// Signal polling — background does the fetch (bypasses HTTPS mixed-content blocks)
+// ── GlitchBridge WebSocket connection ────────────────────────
+// Real-time, no polling. GlitchRecord sends recording:start/stop natively.
+const BRIDGE_WS = "ws://localhost:7337/ws?role=chrome";
+let ws: WebSocket | null = null;
+let wsReconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+function connectBridge() {
+  if (ws && ws.readyState < 2) return; // already open/connecting
+  try {
+    ws = new WebSocket(BRIDGE_WS);
+
+    ws.onopen = () => {
+      console.log("[GG] Bridge connected");
+      if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data) as { type: string; sessionId?: string; script?: string; issueUrl?: string };
+        if (msg.type === "recording:start") {
+          console.log("[GG] Bridge → recording:start");
+          startCapture(msg.sessionId);
+        } else if (msg.type === "recording:stop") {
+          console.log("[GG] Bridge → recording:stop");
+          stopCapture();
+        } else if (msg.type === "script:ready") {
+          state.sessionId = msg.sessionId ?? null;
+          broadcastState();
+        } else if (msg.type === "issue:created") {
+          console.log("[GG] Issue created:", msg.issueUrl);
+        }
+      } catch { /* bad json */ }
+    };
+
+    ws.onclose = () => {
+      console.log("[GG] Bridge disconnected — retry in 3s");
+      ws = null;
+      wsReconnectTimer = setTimeout(connectBridge, 3000);
+    };
+
+    ws.onerror = () => { ws?.close(); };
+  } catch {
+    wsReconnectTimer = setTimeout(connectBridge, 3000);
+  }
+}
+
+connectBridge();
+
+// Fallback signal polling (HTTP) used only when bridge is offline
 const SIGNAL_URL = "http://localhost:3000/api/v1/capture-signal";
 let lastSignalAt = 0;
 
@@ -91,14 +139,14 @@ async function setRecordingIcon(recording: boolean) {
   chrome.action.setIcon({ imageData });
 }
 
-function startCapture() {
+function startCapture(bridgeSessionId?: string) {
   state.active = true;
   state.startedAt = Date.now();
   state.events = [];
-  state.sessionId = null;
+  state.sessionId = bridgeSessionId ?? null; // use bridge session if provided
   setRecordingIcon(true);
   broadcastState();
-  console.log("[GG] Capture started");
+  console.log("[GG] Capture started", bridgeSessionId ? `(bridge session: ${bridgeSessionId})` : "(manual)");
   chrome.tabs.query({}, (tabs) => {
     for (const tab of tabs) {
       if (tab.id) {
