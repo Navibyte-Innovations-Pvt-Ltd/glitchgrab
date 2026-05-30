@@ -4,10 +4,27 @@ let idleTimer: ReturnType<typeof setInterval> | null = null;
 let idleStart = 0;
 let inIdle = false;
 
-// Dedup: track last click key + time to drop duplicate bubbles
 let lastClickKey = "";
 let lastClickAt = 0;
 const DEDUP_MS = 80;
+
+// ── Signal polling (content script stays alive, service worker doesn't) ──
+const SIGNAL_URL = "http://localhost:3000/api/v1/capture-signal";
+let lastSignalAt = 0;
+
+setInterval(async () => {
+  try {
+    const res = await fetch(SIGNAL_URL, { cache: "no-store" });
+    const data = await res.json() as { signal: string; signalAt: number };
+    if (data.signalAt <= lastSignalAt) return;
+    lastSignalAt = data.signalAt;
+    if (data.signal === "start") {
+      chrome.runtime.sendMessage({ type: "SIGNAL_START" }).catch(() => {});
+    } else if (data.signal === "stop") {
+      chrome.runtime.sendMessage({ type: "SIGNAL_STOP" }).catch(() => {});
+    }
+  } catch { /* server not running */ }
+}, 600);
 
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === "CAPTURE_START") startListening();
