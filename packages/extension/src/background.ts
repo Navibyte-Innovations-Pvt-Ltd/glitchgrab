@@ -237,6 +237,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
     return false;
   }
   if (msg.type === "POLL_SIGNAL") {
+    // WebSocket is primary path — skip HTTP polling fallback when bridge connected
+    if (ws && ws.readyState === WebSocket.OPEN) return false;
+
     // Deduplicate — only one fetch per 500ms regardless of how many tabs send POLL_SIGNAL
     const now = Date.now();
     if (now - (state as unknown as { lastPollAt?: number }).lastPollAt! < 500) return false;
