@@ -25,7 +25,43 @@ const state: CaptureState = {
   fromBridge: false,
 };
 
-console.log("[GG] Background service worker started");
+// ── Debug log relay ───────────────────────────────────────────
+// Background logs live in the service-worker console (hard to inspect).
+// Mirror them into every page console (prefixed [GG-bg]) so they can be
+// read alongside content-script logs from a single tab.
+function log(...args: unknown[]) {
+  console.log(...args);
+  const text = args.map((a) => (typeof a === "string" ? a : JSON.stringify(a))).join(" ");
+  try {
+    chrome.tabs.query({ url: ["http://*/*", "https://*/*"] }, (tabs) => {
+      for (const t of tabs) {
+        if (t.id) chrome.tabs.sendMessage(t.id, { type: "GG_LOG", text }).catch(() => {});
+      }
+    });
+  } catch { /* no tabs */ }
+}
+
+log("[GG] Background service worker started");
+
+// ── Reinject content script into already-open tabs ────────────
+// On install/update/SW-start, existing tabs still run the OLD (now orphaned)
+// content script. Reinject the fresh one so those tabs can capture again.
+// The content script's single-instance ping guard prevents double-registration
+// on tabs that already have a live instance.
+function reinjectAllTabs() {
+  chrome.tabs.query({ url: ["http://*/*", "https://*/*"] }, (tabs) => {
+    for (const tab of tabs) {
+      if (!tab.id) continue;
+      chrome.scripting.executeScript({
+        target: { tabId: tab.id, allFrames: false },
+        files: ["content.js"],
+      }).catch(() => { /* restricted page (chrome://, web store) — skip */ });
+    }
+  });
+}
+chrome.runtime.onInstalled.addListener(reinjectAllTabs);
+chrome.runtime.onStartup.addListener(reinjectAllTabs);
+reinjectAllTabs(); // also run when SW first spins up
 
 // ── GlitchRecord WebSocket connection ────────────────────────
 // GlitchRecord runs a WS server on 7337. Chrome ext connects for real-time sync.
@@ -39,7 +75,7 @@ function connectBridge() {
     ws = new WebSocket(BRIDGE_WS);
 
     ws.onopen = () => {
-      console.log("[GG] Bridge connected");
+      log("[GG] Bridge connected");
       if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
     };
 
@@ -47,10 +83,10 @@ function connectBridge() {
       try {
         const msg = JSON.parse(event.data) as { type: string; sessionId?: string; script?: string; issueUrl?: string };
         if (msg.type === "recording:start") {
-          console.log("[GG] Bridge → recording:start");
+          log("[GG] Bridge → recording:start");
           startCapture(msg.sessionId);
         } else if (msg.type === "recording:stop") {
-          console.log("[GG] Bridge → recording:stop");
+          log("[GG] Bridge → recording:stop");
           stopCapture();
         } else if (msg.type === "script:ready") {
           state.sessionId = msg.sessionId ?? null;
@@ -62,7 +98,7 @@ function connectBridge() {
     };
 
     ws.onclose = () => {
-      console.log("[GG] Bridge disconnected — retry in 3s");
+      log("[GG] Bridge disconnected — retry in 3s");
       ws = null;
       wsReconnectTimer = setTimeout(connectBridge, 3000);
     };
@@ -87,7 +123,7 @@ setInterval(() => {
     .then((data: { signal: string; signalAt: number }) => {
       if (data.signalAt <= lastSignalAt) return;
       lastSignalAt = data.signalAt;
-      console.log("[GG] Signal changed →", data.signal);
+      log("[GG] Signal changed →", data.signal);
       if (data.signal === "start" && !state.active) startCapture();
       else if (data.signal === "stop" && state.active) stopCapture();
     })
@@ -119,7 +155,7 @@ chrome.runtime.onMessage.addListener((msg) => {
       t: Date.now() - state.startedAt,
     };
     state.events.push(event);
-    console.log(`[GG] #${state.events.length} ${event.type} | ${event.label ?? event.url ?? ""} | t=${event.t}ms`);
+    log(`[GG] #${state.events.length} ${event.type} | ${event.label ?? event.url ?? ""} | t=${event.t}ms`);
     broadcastState();
     // Stream live to GlitchRecord so it shows the event feed in real time
     if (ws && ws.readyState === WebSocket.OPEN) {
@@ -175,7 +211,7 @@ function startCapture(bridgeSessionId?: string) {
   state.fromBridge = !!bridgeSessionId;
   setRecordingIcon(true);
   broadcastState();
-  console.log("[GG] Capture started", bridgeSessionId ? `(bridge session: ${bridgeSessionId})` : "(manual)");
+  log("[GG] Capture started", bridgeSessionId ? `(bridge session: ${bridgeSessionId})` : "(manual)");
   chrome.tabs.query({}, (tabs) => {
     for (const tab of tabs) {
       if (tab.id) {
@@ -189,7 +225,7 @@ async function stopCapture() {
   state.active = false;
   setRecordingIcon(false);
   broadcastState();
-  console.log(`[GG] Capture stopped — ${state.events.length} events`);
+  log(`[GG] Capture stopped — ${state.events.length} events`);
 
   // Notify tabs to stop
   chrome.tabs.query({}, (tabs) => {
@@ -210,7 +246,7 @@ async function stopCapture() {
       sessionId: state.sessionId,
       events: state.events,
     }));
-    console.log(`[GG] Sent ${state.events.length} events to bridge → ${state.sessionId}`);
+    log(`[GG] Sent ${state.events.length} events to bridge → ${state.sessionId}`);
     return;
   }
 
@@ -233,7 +269,7 @@ async function stopCapture() {
     const data = await res.json() as { success: boolean; data?: { sessionId: string } };
     if (data.success && data.data?.sessionId) {
       state.sessionId = data.data.sessionId;
-      console.log("[GG] Uploaded — session:", data.data.sessionId);
+      log("[GG] Uploaded — session:", data.data.sessionId);
       // Broadcast sessionId back to signal endpoint so Recordly can read it
       fetch("http://localhost:3000/api/v1/capture-signal", {
         method: "POST",
@@ -243,7 +279,7 @@ async function stopCapture() {
       broadcastState();
     }
   } catch (err) {
-    console.error("[GG] Upload failed:", err);
+    log("[GG] Upload failed:", String(err));
     await chrome.storage.local.set({ pendingEvents: state.events });
   }
 }
