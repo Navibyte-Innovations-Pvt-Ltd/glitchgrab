@@ -17,10 +17,12 @@
   "packageManager": "bun@1.3.7",
   "private": true,
   "scripts": {
-    "dev": "dotenvx run -- turbo dev",
+    "dev": "dotenvx run -- turbo dev --filter=@glitchgrab/web --filter=@glitchgrab/recordly-extension & npm run dev --prefix apps/glitchrecord",
     "dev:web": "dotenvx run -- turbo dev --filter=@glitchgrab/web",
+    "dev:record": "npm run dev --prefix apps/glitchrecord",
     "dev:mobile": "cd apps/mobile && bun run ios",
     "build": "dotenvx run -- turbo build --filter=@glitchgrab/web",
+    "postinstall": "npm install --prefix apps/glitchrecord",
     "lint": "turbo lint --",
     "validate": "turbo validate -- && knip && pruny --all --ignore-apps mobile",
     "knip:fix": "knip --fix",
@@ -36,7 +38,8 @@
     "install:android:prod": "cd apps/mobile && bun run install:android:prod"
   },
   "workspaces": [
-    "apps/*",
+    "apps/web",
+    "apps/mobile",
     "packages/*"
   ],
   "overrides": {
