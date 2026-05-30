@@ -4,7 +4,7 @@ import { homedir } from "os";
 import { join } from "path";
 
 const WATCH = process.argv.includes("--watch");
-const RECORDLY_EXT_DIR = join(homedir(), ".recordly", "extensions", "dev.glitchgrab.script-generator");
+const RECORDLY_EXT_DIR = join(homedir(), "Library", "Application Support", "Recordly", "extensions", "dev.glitchgrab.script-generator");
 
 const STATIC = [
   { src: "recordly-extension.json", dest: "recordly-extension.json" },
