@@ -1,5 +1,6 @@
 console.log("[GG] Content script loaded on", location.hostname);
 let capturing = false;
+let stopped = false; // set on first context invalidation — all queued callbacks bail immediately
 let lastEventAt = 0;
 let idleTimer: ReturnType<typeof setInterval> | null = null;
 let idleStart = 0;
@@ -16,6 +17,7 @@ let selTimer: ReturnType<typeof setTimeout> | null = null;
 let scrollTimer: ReturnType<typeof setTimeout> | null = null;
 
 function isContextAlive(): boolean {
+  if (stopped) return false;
   try {
     return !!chrome.runtime?.id;
   } catch {
@@ -24,12 +26,15 @@ function isContextAlive(): boolean {
 }
 
 function cleanup() {
+  if (stopped) return;
+  stopped = true;          // flip FIRST — all queued callbacks now bail via isContextAlive()
   clearInterval(pollTimer);
   stopListening();
 }
 
 // ── Signal polling ────────────────────────────────────────────
 const pollTimer = setInterval(() => {
+  if (stopped) return;               // fast-exit for all queued callbacks after first failure
   if (!isContextAlive()) { cleanup(); return; }
   try {
     const p = chrome.runtime.sendMessage({ type: "POLL_SIGNAL" });
