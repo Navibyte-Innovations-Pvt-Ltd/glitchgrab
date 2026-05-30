@@ -1,19 +1,17 @@
-// Content script — injected into every page
-// Captures click + navigation events when capture session is active
-
 let capturing = false;
 let lastEventAt = 0;
 let idleTimer: ReturnType<typeof setInterval> | null = null;
 let idleStart = 0;
 let inIdle = false;
 
-// Listen for capture start/stop from background
+// Dedup: track last click key + time to drop duplicate bubbles
+let lastClickKey = "";
+let lastClickAt = 0;
+const DEDUP_MS = 80;
+
 chrome.runtime.onMessage.addListener((msg) => {
-  if (msg.type === "CAPTURE_START") {
-    startListening();
-  } else if (msg.type === "CAPTURE_STOP") {
-    stopListening();
-  }
+  if (msg.type === "CAPTURE_START") startListening();
+  else if (msg.type === "CAPTURE_STOP") stopListening();
 });
 
 function startListening() {
@@ -38,67 +36,74 @@ function checkIdle() {
     inIdle = true;
     idleStart = lastEventAt;
   } else if (inIdle && idleMs < 3000) {
-    sendEvent({
-      type: "idle",
-      label: undefined,
-      tag: undefined,
-      durationMs: Date.now() - idleStart,
-    });
+    sendEvent({ type: "idle", durationMs: Date.now() - idleStart });
     inIdle = false;
   }
 }
 
 function onClickCapture(e: MouseEvent) {
   if (!capturing) return;
-  lastEventAt = Date.now();
+
+  const now = Date.now();
+  lastEventAt = now;
+
   if (inIdle) {
-    sendEvent({
-      type: "idle",
-      durationMs: Date.now() - idleStart,
-    });
+    sendEvent({ type: "idle", durationMs: now - idleStart });
     inIdle = false;
   }
 
   const target = e.target as Element;
   const { label, tag } = getClickLabel(target);
-  const currentUrl = location.href;
 
-  sendEvent({ type: "click", label, tag, url: currentUrl });
+  // Drop duplicate bubbles: same label within DEDUP_MS
+  const clickKey = `${label}::${tag}`;
+  if (clickKey === lastClickKey && now - lastClickAt < DEDUP_MS) return;
+  lastClickKey = clickKey;
+  lastClickAt = now;
+
+  sendEvent({ type: "click", label, tag, url: location.href });
+}
+
+function firstLine(text: string): string {
+  return text.split(/[\n\r]/).map(s => s.trim()).find(s => s.length > 0) ?? "";
 }
 
 function getClickLabel(target: Element): { label: string; tag: string } {
-  // Walk up to 5 levels looking for meaningful label
-  let el: Element | null = target;
-  for (let i = 0; i < 5; i++) {
-    if (!el) break;
-    const label =
+  // Prefer explicit interactive ancestor first (button, link, role)
+  const interactive = target.closest(
+    'button, a, [role="button"], [role="link"], [role="menuitem"], [role="tab"], [role="option"], input, select, label'
+  );
+
+  const candidates = interactive ? [interactive, target] : [target];
+
+  for (const el of candidates) {
+    const explicit =
       el.getAttribute("aria-label")?.trim() ||
       el.getAttribute("title")?.trim() ||
       el.getAttribute("data-testid")?.replace(/-/g, " ").trim() ||
       el.getAttribute("alt")?.trim() ||
-      (el as HTMLElement).innerText?.trim().slice(0, 80);
+      el.getAttribute("placeholder")?.trim();
 
-    if (label && label.length > 0 && label.length < 100) {
-      return { label, tag: el.tagName.toLowerCase() };
+    if (explicit) return { label: explicit.slice(0, 80), tag: el.tagName.toLowerCase() };
+
+    // innerText — first line only, skip if it's just price/number noise
+    const raw = (el as HTMLElement).innerText?.trim() ?? "";
+    const line = firstLine(raw);
+    if (line && line.length >= 2 && line.length <= 60) {
+      return { label: line, tag: el.tagName.toLowerCase() };
     }
+  }
+
+  // Walk up 3 more levels for aria-label
+  let el: Element | null = (interactive ?? target).parentElement;
+  for (let i = 0; i < 3; i++) {
+    if (!el) break;
+    const label = el.getAttribute("aria-label")?.trim() || el.getAttribute("title")?.trim();
+    if (label) return { label: label.slice(0, 80), tag: el.tagName.toLowerCase() };
     el = el.parentElement;
   }
 
-  // SVG / icon fallback — find nearest interactive ancestor
-  const interactive = target.closest(
-    'button, a, [role="button"], [role="link"], [role="menuitem"], [role="tab"], input, select'
-  );
-  if (interactive) {
-    const label =
-      interactive.getAttribute("aria-label")?.trim() ||
-      interactive.getAttribute("title")?.trim() ||
-      (interactive as HTMLElement).innerText?.trim().slice(0, 80) ||
-      interactive.getAttribute("type") ||
-      "icon-button";
-    return { label, tag: interactive.tagName.toLowerCase() };
-  }
-
-  return { label: "unknown", tag: target.tagName.toLowerCase() };
+  return { label: "icon-button", tag: (interactive ?? target).tagName.toLowerCase() };
 }
 
 function sendEvent(event: {
@@ -111,26 +116,16 @@ function sendEvent(event: {
   chrome.runtime.sendMessage({ type: "CAPTURE_EVENT", event }).catch(() => {});
 }
 
-// Navigation detection via history API patching
+// Navigation via history API
 const origPushState = history.pushState.bind(history);
 const origReplaceState = history.replaceState.bind(history);
+history.pushState = (...args) => { origPushState(...args); onNavigate(); };
+history.replaceState = (...args) => { origReplaceState(...args); onNavigate(); };
+window.addEventListener("popstate", onNavigate);
 
-history.pushState = (...args) => {
-  origPushState(...args);
-  onNavigate("pushState");
-};
-history.replaceState = (...args) => {
-  origReplaceState(...args);
-  onNavigate("replaceState");
-};
-window.addEventListener("popstate", () => onNavigate("popstate"));
-
-function onNavigate(_reason: string) {
+function onNavigate() {
   if (!capturing) return;
   lastEventAt = Date.now();
-  if (inIdle) {
-    sendEvent({ type: "idle", durationMs: Date.now() - idleStart });
-    inIdle = false;
-  }
+  if (inIdle) { sendEvent({ type: "idle", durationMs: Date.now() - idleStart }); inIdle = false; }
   sendEvent({ type: "navigate", url: location.href, label: document.title });
 }
