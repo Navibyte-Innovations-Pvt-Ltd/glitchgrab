@@ -1,0 +1,13 @@
+{
+  "id": "dev.glitchgrab.script-generator",
+  "name": "Glitchgrab Script Generator",
+  "version": "1.0.0",
+  "description": "Generate AI narration scripts from browser click events captured during your recording.",
+  "author": "Glitchgrab",
+  "homepage": "https://glitchgrab.dev",
+  "license": "MIT",
+  "icon": "icon.png",
+  "main": "dist/index.js",
+  "permissions": ["timeline", "ui", "cursor"],
+  "contributes": {}
+}
