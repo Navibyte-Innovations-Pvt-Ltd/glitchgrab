@@ -27,47 +27,9 @@ function isContextAlive(): boolean {
 
 function cleanup() {
   if (stopped) return;
-  stopped = true;          // flip FIRST — all queued callbacks now bail via isContextAlive()
-  clearInterval(pollTimer);
+  stopped = true;
   stopListening();
 }
-
-// ── Port-based context invalidation detection ─────────────────
-// onDisconnect fires SYNCHRONOUSLY when extension is reloaded/updated,
-// setting stopped=true BEFORE any queued setInterval callbacks can run.
-// This eliminates the race between isContextAlive() check and sendMessage call.
-function connectHeartbeatPort(): void {
-  if (stopped) return;
-  try {
-    const port = chrome.runtime.connect({ name: "gg-heartbeat" });
-    port.onDisconnect.addListener(() => {
-      if (!isContextAlive()) {
-        // Extension context truly gone — cleanup without any chrome API call
-        cleanup();
-      } else if (!stopped) {
-        // Service worker restarted normally — reconnect after short delay
-        setTimeout(connectHeartbeatPort, 2000);
-      }
-    });
-  } catch {
-    cleanup();
-  }
-}
-connectHeartbeatPort();
-
-// ── Signal polling ────────────────────────────────────────────
-// stopped=true is already set by port.onDisconnect before this callback
-// can reach sendMessage, so the race condition is eliminated in practice.
-const pollTimer = setInterval(() => {
-  if (stopped) return;
-  if (!isContextAlive()) { cleanup(); return; }
-  try {
-    const p = chrome.runtime.sendMessage({ type: "POLL_SIGNAL" });
-    p?.catch?.((err: Error) => {
-      if (err?.message?.includes("Extension context invalidated")) cleanup();
-    });
-  } catch { cleanup(); }
-}, 600);
 
 window.addEventListener("unhandledrejection", (event) => {
   if ((event.reason as Error)?.message?.includes("Extension context invalidated")) {
