@@ -12,6 +12,13 @@
       <span class="logo">Glitchgrab</span>
       <div style="display:flex;gap:6px;align-items:center">
         <span class="conn" id="conn" title="Server connection">⚫</span>
+        <button class="btn-log" id="btn-log" title="Event log">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <rect x="1" y="2" width="12" height="1.5" rx="0.75" fill="currentColor"/>
+            <rect x="1" y="6.25" width="12" height="1.5" rx="0.75" fill="currentColor"/>
+            <rect x="1" y="10.5" width="8" height="1.5" rx="0.75" fill="currentColor"/>
+          </svg>
+        </button>
         <span class="badge" id="badge">idle</span>
       </div>
     </div>
@@ -26,7 +33,7 @@
     <!-- recording state -->
     <div class="panel" id="panel-recording" style="display:none">
       <div class="status recording-status">
-        <span class="dot"></span> Capturing clicks for GlitchRecord.
+        <span class="dot"></span> Capturing events for GlitchRecord.
       </div>
       <div class="count" id="count">0 events</div>
     </div>
@@ -35,6 +42,17 @@
     <div class="panel" id="panel-done" style="display:none">
       <div class="status">Capture complete — events sent to GlitchRecord.</div>
       <div class="count" id="count-done"></div>
+    </div>
+
+    <!-- event log panel (toggled by btn-log) -->
+    <div class="panel log-panel" id="panel-log" style="display:none">
+      <div class="log-header">
+        <span class="result-label">Event Log</span>
+        <span class="log-count" id="log-count">—</span>
+      </div>
+      <div class="log-list" id="log-list">
+        <div class="log-empty">No events captured yet.</div>
+      </div>
     </div>
   </div>
   <script src="popup.js" type="module"></script>
