@@ -1,3 +1,4 @@
+console.log("[GG] Content script loaded on", location.hostname);
 let capturing = false;
 let lastEventAt = 0;
 let idleTimer: ReturnType<typeof setInterval> | null = null;
@@ -8,22 +9,11 @@ let lastClickKey = "";
 let lastClickAt = 0;
 const DEDUP_MS = 80;
 
-// ── Signal polling (content script stays alive, service worker doesn't) ──
-const SIGNAL_URL = "http://localhost:3000/api/v1/capture-signal";
-let lastSignalAt = 0;
-
-setInterval(async () => {
-  try {
-    const res = await fetch(SIGNAL_URL, { cache: "no-store" });
-    const data = await res.json() as { signal: string; signalAt: number };
-    if (data.signalAt <= lastSignalAt) return;
-    lastSignalAt = data.signalAt;
-    if (data.signal === "start") {
-      chrome.runtime.sendMessage({ type: "SIGNAL_START" }).catch(() => {});
-    } else if (data.signal === "stop") {
-      chrome.runtime.sendMessage({ type: "SIGNAL_STOP" }).catch(() => {});
-    }
-  } catch { /* server not running */ }
+// ── Signal polling ────────────────────────────────────────────
+// Content script pings background every 600ms to check signal.
+// Background does the actual fetch (immune to mixed-content HTTPS blocks).
+setInterval(() => {
+  chrome.runtime.sendMessage({ type: "POLL_SIGNAL" }).catch(() => {});
 }, 600);
 
 chrome.runtime.onMessage.addListener((msg) => {
