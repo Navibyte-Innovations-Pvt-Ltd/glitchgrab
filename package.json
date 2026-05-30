@@ -20,7 +20,7 @@
     "dev": "dotenvx run -- turbo dev --ui=tui --filter=@glitchgrab/web --filter=@glitchgrab/recordly-extension --filter=@glitchgrab/extension",
     "dev:all": "dotenvx run -- sh -c 'turbo dev --ui=stream --filter=@glitchgrab/web --filter=@glitchgrab/recordly-extension --filter=@glitchgrab/extension & (cd apps/glitchrecord && exec npm run dev); wait'",
     "dev:web": "dotenvx run -- turbo dev --filter=@glitchgrab/web",
-    "dev:record": "cd apps/glitchrecord && npm run dev",
+    "dev:record": "cd apps/glitchrecord && npm run dev:fresh",
     "dev:mobile": "cd apps/mobile && bun run ios",
     "build": "dotenvx run -- turbo build --filter=@glitchgrab/web",
     "postinstall": "npm install --prefix apps/glitchrecord",
