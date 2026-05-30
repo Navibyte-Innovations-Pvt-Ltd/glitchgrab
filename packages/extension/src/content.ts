@@ -46,6 +46,15 @@ window.addEventListener("unhandledrejection", (event) => {
   }
 });
 
+// Last-resort: catch any synchronous "Extension context invalidated" that escapes try/catch
+window.addEventListener("error", (event) => {
+  if (event.message?.includes("Extension context invalidated")) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    cleanup();
+  }
+}, { capture: true });
+
 try {
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg.type === "CAPTURE_START") startListening();
@@ -94,14 +103,16 @@ function stopListening() {
 }
 
 function checkIdle() {
-  const idleMs = Date.now() - lastEventAt;
-  if (!inIdle && idleMs > 3000) {
-    inIdle = true;
-    idleStart = lastEventAt;
-  } else if (inIdle && idleMs < 3000) {
-    sendEvent({ type: "idle", durationMs: Date.now() - idleStart });
-    inIdle = false;
-  }
+  try {
+    const idleMs = Date.now() - lastEventAt;
+    if (!inIdle && idleMs > 3000) {
+      inIdle = true;
+      idleStart = lastEventAt;
+    } else if (inIdle && idleMs < 3000) {
+      sendEvent({ type: "idle", durationMs: Date.now() - idleStart });
+      inIdle = false;
+    }
+  } catch { /* context gone */ }
 }
 
 // ── Click ─────────────────────────────────────────────────────
@@ -129,12 +140,14 @@ function onInputCapture(e: Event) {
   lastInputEl = target;
   if (inputTimer) clearTimeout(inputTimer);
   inputTimer = setTimeout(() => {
-    inputTimer = null;
-    if (!lastInputEl) return;
-    const { label } = getClickLabel(lastInputEl);
-    const preview = lastInputEl.value.slice(0, 40).replace(/\s+/g, " ").trim();
-    sendEvent({ type: "input", label, tag: lastInputEl.tagName.toLowerCase(), url: location.href, preview: preview || undefined });
-    lastInputEl = null;
+    try {
+      inputTimer = null;
+      if (!lastInputEl) return;
+      const { label } = getClickLabel(lastInputEl);
+      const preview = lastInputEl.value.slice(0, 40).replace(/\s+/g, " ").trim();
+      sendEvent({ type: "input", label, tag: lastInputEl.tagName.toLowerCase(), url: location.href, preview: preview || undefined });
+      lastInputEl = null;
+    } catch { /* dom detached or context gone */ }
   }, 800);
 }
 
@@ -152,11 +165,13 @@ function onSelectionChange() {
   if (!capturing) return;
   if (selTimer) clearTimeout(selTimer);
   selTimer = setTimeout(() => {
-    selTimer = null;
-    const sel = window.getSelection()?.toString().trim() ?? "";
-    if (sel.length >= 3) {
-      sendEvent({ type: "select", label: sel.slice(0, 80), url: location.href });
-    }
+    try {
+      selTimer = null;
+      const sel = window.getSelection()?.toString().trim() ?? "";
+      if (sel.length >= 3) {
+        sendEvent({ type: "select", label: sel.slice(0, 80), url: location.href });
+      }
+    } catch { /* context gone */ }
   }, 500);
 }
 
@@ -166,8 +181,10 @@ function onScrollCapture() {
   lastEventAt = Date.now();
   if (scrollTimer) clearTimeout(scrollTimer);
   scrollTimer = setTimeout(() => {
-    scrollTimer = null;
-    sendEvent({ type: "scroll", url: location.href });
+    try {
+      scrollTimer = null;
+      sendEvent({ type: "scroll", url: location.href });
+    } catch { /* context gone */ }
   }, 1500);
 }
 
