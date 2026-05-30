@@ -34,8 +34,8 @@
   "commands": {
     "toggle-capture": {
       "suggested_key": {
-        "default": "Ctrl+Shift+R",
-        "mac": "MacCtrl+Shift+R"
+        "default": "Ctrl+Shift+G",
+        "mac": "MacCtrl+Shift+G"
       },
       "description": "Start / stop click capture session"
     }
