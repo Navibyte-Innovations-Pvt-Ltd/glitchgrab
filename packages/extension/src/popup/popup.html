@@ -39,12 +39,14 @@
         <button class="btn btn-primary" id="btn-generate">Generate Script</button>
       </div>
       <div class="count" id="count-done"></div>
+      <button class="btn btn-ghost" id="btn-new-from-done">+ New Capture</button>
     </div>
 
     <!-- generating state -->
     <div class="panel" id="panel-generating" style="display:none">
       <div class="status">Calling Claude... generating narration script.</div>
       <div class="spinner"></div>
+      <button class="btn btn-ghost" id="btn-cancel-generate">Cancel</button>
     </div>
 
     <!-- script ready state -->
