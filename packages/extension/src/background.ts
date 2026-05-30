@@ -33,6 +33,7 @@ const state: CaptureState = {
 function log(...args: unknown[]) {
   console.log(...args);
   const text = args.map((a) => (typeof a === "string" ? a : JSON.stringify(a))).join(" ");
+  // 1. Mirror into page consoles (readable via a watcher tab)
   try {
     chrome.tabs.query({ url: ["http://*/*", "https://*/*"] }, (tabs) => {
       for (const t of tabs) {
@@ -40,6 +41,12 @@ function log(...args: unknown[]) {
       }
     });
   } catch { /* no tabs */ }
+  // 2. Forward to GlitchRecord so it lands in the unified debug log file
+  try {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "log", text }));
+    }
+  } catch { /* ws not ready */ }
 }
 
 log("[GG] Background service worker started");
@@ -146,6 +153,15 @@ chrome.commands.onCommand.addListener((command) => {
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name !== "gg-heartbeat") return;
   // Keep the port alive; content script's onDisconnect fires when SW dies or ext reloads
+});
+
+// Re-arm capture on tabs that finish loading DURING a recording. A full-page
+// navigation or a new tab loads a fresh content script that missed the one-time
+// CAPTURE_START broadcast — without this it would capture nothing.
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (!state.active) return;
+  if (changeInfo.status !== "complete") return;
+  chrome.tabs.sendMessage(tabId, { type: "CAPTURE_START" }).catch(() => {});
 });
 
 // Receive events from content script
