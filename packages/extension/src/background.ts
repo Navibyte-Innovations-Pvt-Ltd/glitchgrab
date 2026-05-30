@@ -4,6 +4,7 @@ interface CaptureState {
   startedAt: number | null;
   events: CaptureEvent[];
   sessionId: string | null;
+  fromBridge: boolean; // started via GlitchRecord bridge (WS) vs manual hotkey
 }
 
 export interface CaptureEvent {
@@ -20,6 +21,7 @@ const state: CaptureState = {
   startedAt: null,
   events: [],
   sessionId: null,
+  fromBridge: false,
 };
 
 console.log("[GG] Background service worker started");
@@ -148,6 +150,7 @@ function startCapture(bridgeSessionId?: string) {
   state.startedAt = Date.now();
   state.events = [];
   state.sessionId = bridgeSessionId ?? null; // use bridge session if provided
+  state.fromBridge = !!bridgeSessionId;
   setRecordingIcon(true);
   broadcastState();
   console.log("[GG] Capture started", bridgeSessionId ? `(bridge session: ${bridgeSessionId})` : "(manual)");
@@ -177,7 +180,19 @@ async function stopCapture() {
 
   if (state.events.length === 0) return;
 
-  // Grab recording metadata from signal endpoint (Recordly cuts/clips)
+  // Bridge session → send events to GlitchRecord over WS.
+  // The bridge generates the script + creates the GitHub issue in the selected repo.
+  if (state.fromBridge && state.sessionId && ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: "events:upload",
+      sessionId: state.sessionId,
+      events: state.events,
+    }));
+    console.log(`[GG] Sent ${state.events.length} events to bridge → ${state.sessionId}`);
+    return;
+  }
+
+  // Manual (hotkey) session → grab Recordly meta + POST to web API
   let meta: unknown = null;
   try {
     const sigRes = await fetch("http://localhost:3000/api/v1/capture-signal", { cache: "no-store" });
