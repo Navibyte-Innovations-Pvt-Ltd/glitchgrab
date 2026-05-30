@@ -4,68 +4,92 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: #0f0f0f;
   color: #e5e5e5;
-  width: 280px;
-  min-height: 160px;
+  width: 300px;
 }
 
-.container { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.container { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
 
+/* header */
 .header { display: flex; align-items: center; justify-content: space-between; }
-
-.logo { font-size: 14px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
+.logo { font-size: 13px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
 
 .badge {
-  font-size: 10px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 9999px;
-  background: #2a2a2a;
-  color: #888;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  font-size: 9px; font-weight: 700;
+  padding: 2px 8px; border-radius: 9999px;
+  background: #222; color: #666;
+  text-transform: uppercase; letter-spacing: 0.6px;
 }
-.badge.active { background: #1a3a1a; color: #4ade80; }
-.badge.done   { background: #1a2a3a; color: #60a5fa; }
+.badge.active { background: #14281a; color: #4ade80; }
+.badge.done   { background: #16213a; color: #60a5fa; }
+.badge.ready  { background: #2a1f00; color: #fbbf24; }
+
+/* panels */
+.panel { display: flex; flex-direction: column; gap: 8px; }
 
 .status { font-size: 12px; color: #888; line-height: 1.5; }
+.recording-status { display: flex; align-items: center; gap: 6px; color: #4ade80; font-size: 12px; }
+
+.dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #4ade80;
+  animation: pulse 1.2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
 
 kbd {
-  background: #222;
-  border: 1px solid #444;
-  border-radius: 3px;
-  padding: 1px 4px;
-  font-size: 11px;
-  font-family: monospace;
-  color: #ccc;
+  background: #1e1e1e; border: 1px solid #3a3a3a; border-radius: 3px;
+  padding: 1px 5px; font-size: 10px; font-family: monospace; color: #ccc;
 }
 
+/* buttons */
 .btn {
-  width: 100%;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
+  padding: 7px 12px; border-radius: 6px;
+  font-size: 12px; font-weight: 600;
+  cursor: pointer; border: none;
   transition: opacity 0.15s;
 }
-.btn:hover { opacity: 0.85; }
-.btn-start  { background: #2563eb; color: #fff; }
-.btn-stop   { background: #dc2626; color: #fff; }
-.btn-copy   { background: #27272a; color: #e5e5e5; font-size: 12px; padding: 6px 10px; }
+.btn:hover { opacity: 0.82; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-.result { display: flex; flex-direction: column; gap: 6px; }
-.result-label { font-size: 11px; color: #666; }
+.btn-start   { background: #2563eb; color: #fff; }
+.btn-stop    { background: #dc2626; color: #fff; }
+.btn-primary { background: #7c3aed; color: #fff; flex: 1; }
+.btn-secondary { background: #27272a; color: #d4d4d8; flex: 1; }
+.btn-ghost { background: transparent; color: #555; font-size: 11px; padding: 5px 8px; }
 
+.row { display: flex; gap: 6px; align-items: center; }
+
+/* session id */
+.result-label { font-size: 10px; color: #555; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
 .session-id {
-  background: #1a1a1a;
-  border: 1px solid #333;
-  border-radius: 4px;
-  padding: 6px 10px;
-  font-size: 12px;
-  font-family: monospace;
-  color: #a5b4fc;
-  word-break: break-all;
+  background: #141414; border: 1px solid #2a2a2a; border-radius: 4px;
+  padding: 5px 8px; font-size: 11px; font-family: monospace;
+  color: #818cf8; word-break: break-all; line-height: 1.4;
 }
 
-.count { font-size: 11px; color: #555; text-align: center; }
+.count { font-size: 11px; color: #555; }
+
+/* spinner */
+.spinner {
+  width: 20px; height: 20px; border-radius: 50%;
+  border: 2px solid #27272a; border-top-color: #7c3aed;
+  animation: spin 0.8s linear infinite;
+  align-self: center; margin: 4px 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* script output */
+.script-box {
+  width: 100%; min-height: 140px; max-height: 220px;
+  background: #141414; border: 1px solid #2a2a2a; border-radius: 6px;
+  padding: 8px 10px; font-size: 11px; color: #d4d4d8;
+  line-height: 1.6; resize: vertical; font-family: inherit;
+  outline: none;
+}
+.script-box:focus { border-color: #7c3aed; }
+
+.word-count { font-size: 10px; color: #444; text-align: right; }
