@@ -1,10 +1,8 @@
-// Build script — bundles Chrome extension src/ → dist-capture/
 import { build } from "esbuild";
-import { copyFileSync, mkdirSync, cpSync } from "fs";
+import { copyFileSync, mkdirSync } from "fs";
 
-const OUT = "dist-capture";
+const OUT = "dist";
 
-mkdirSync(OUT, { recursive: true });
 mkdirSync(`${OUT}/popup`, { recursive: true });
 
 await build({
@@ -20,16 +18,8 @@ await build({
   minify: false,
 });
 
-// Copy static files
 copyFileSync("src/manifest.json", `${OUT}/manifest.json`);
 copyFileSync("src/popup/popup.html", `${OUT}/popup/popup.html`);
 copyFileSync("src/popup/popup.css", `${OUT}/popup/popup.css`);
-
-// Copy icons from existing dist if available
-try {
-  cpSync("dist/icons", `${OUT}/icons`, { recursive: true });
-} catch {
-  mkdirSync(`${OUT}/icons`, { recursive: true });
-}
 
 console.log("Built to", OUT);
