@@ -9,6 +9,12 @@ let lastClickKey = "";
 let lastClickAt = 0;
 const DEDUP_MS = 80;
 
+// Debounce timers for noisy events
+let inputTimer: ReturnType<typeof setTimeout> | null = null;
+let lastInputEl: HTMLInputElement | HTMLTextAreaElement | null = null;
+let selTimer: ReturnType<typeof setTimeout> | null = null;
+let scrollTimer: ReturnType<typeof setTimeout> | null = null;
+
 function isContextAlive(): boolean {
   try {
     return !!chrome.runtime?.id;
@@ -23,24 +29,16 @@ function cleanup() {
 }
 
 // ── Signal polling ────────────────────────────────────────────
-// Content script pings background every 600ms to check signal.
-// Background does the actual fetch (immune to mixed-content HTTPS blocks).
 const pollTimer = setInterval(() => {
-  if (!isContextAlive()) {
-    cleanup();
-    return;
-  }
+  if (!isContextAlive()) { cleanup(); return; }
   try {
     const p = chrome.runtime.sendMessage({ type: "POLL_SIGNAL" });
     p?.catch?.((err: Error) => {
       if (err?.message?.includes("Extension context invalidated")) cleanup();
     });
-  } catch {
-    cleanup();
-  }
+  } catch { cleanup(); }
 }, 600);
 
-// Catch unhandled promise rejections from chrome.runtime calls that escape .catch()
 window.addEventListener("unhandledrejection", (event) => {
   if ((event.reason as Error)?.message?.includes("Extension context invalidated")) {
     event.preventDefault();
@@ -53,24 +51,46 @@ try {
     if (msg.type === "CAPTURE_START") startListening();
     else if (msg.type === "CAPTURE_STOP") stopListening();
   });
-} catch {
-  // Context already invalidated at script load — nothing to listen to
-}
+} catch { /* context invalidated at load */ }
 
 function startListening() {
   if (capturing) return;
   capturing = true;
   lastEventAt = Date.now();
-  document.addEventListener("click", onClickCapture, { capture: true, passive: true });
+  document.addEventListener("click",           onClickCapture,     { capture: true, passive: true });
+  document.addEventListener("input",           onInputCapture,     { capture: true, passive: true });
+  document.addEventListener("keydown",         onKeydownCapture,   { capture: true, passive: true });
+  document.addEventListener("selectionchange", onSelectionChange,  { passive: true });
+  document.addEventListener("scroll",          onScrollCapture,    { capture: true, passive: true });
+  document.addEventListener("copy",            onCopyCapture,      { capture: true });
+  document.addEventListener("paste",           onPasteCapture,     { capture: true });
   idleTimer = setInterval(checkIdle, 1000);
 }
 
 function stopListening() {
   if (!capturing) return;
   capturing = false;
-  document.removeEventListener("click", onClickCapture, { capture: true });
-  if (idleTimer) clearInterval(idleTimer);
-  idleTimer = null;
+  document.removeEventListener("click",           onClickCapture,    { capture: true });
+  document.removeEventListener("input",           onInputCapture,    { capture: true });
+  document.removeEventListener("keydown",         onKeydownCapture,  { capture: true });
+  document.removeEventListener("selectionchange", onSelectionChange);
+  document.removeEventListener("scroll",          onScrollCapture,   { capture: true });
+  document.removeEventListener("copy",            onCopyCapture,     { capture: true });
+  document.removeEventListener("paste",           onPasteCapture,    { capture: true });
+  if (idleTimer) { clearInterval(idleTimer); idleTimer = null; }
+  // Flush pending input event
+  if (inputTimer) {
+    clearTimeout(inputTimer);
+    inputTimer = null;
+    if (lastInputEl) {
+      const { label } = getClickLabel(lastInputEl);
+      const preview = lastInputEl.value.slice(0, 40).replace(/\s+/g, " ").trim();
+      if (preview) sendEvent({ type: "input", label, tag: lastInputEl.tagName.toLowerCase(), url: location.href, preview });
+      lastInputEl = null;
+    }
+  }
+  if (selTimer) { clearTimeout(selTimer); selTimer = null; }
+  if (scrollTimer) { clearTimeout(scrollTimer); scrollTimer = null; }
 }
 
 function checkIdle() {
@@ -84,41 +104,95 @@ function checkIdle() {
   }
 }
 
+// ── Click ─────────────────────────────────────────────────────
 function onClickCapture(e: MouseEvent) {
   if (!capturing) return;
-
   const now = Date.now();
   lastEventAt = now;
-
-  if (inIdle) {
-    sendEvent({ type: "idle", durationMs: now - idleStart });
-    inIdle = false;
-  }
-
+  if (inIdle) { sendEvent({ type: "idle", durationMs: now - idleStart }); inIdle = false; }
   const target = e.target as Element;
   const { label, tag } = getClickLabel(target);
-
-  // Drop duplicate bubbles: same label within DEDUP_MS
   const clickKey = `${label}::${tag}`;
   if (clickKey === lastClickKey && now - lastClickAt < DEDUP_MS) return;
   lastClickKey = clickKey;
   lastClickAt = now;
-
   sendEvent({ type: "click", label, tag, url: location.href });
 }
 
+// ── Input / typing ─────────────────────────────────────────────
+function onInputCapture(e: Event) {
+  if (!capturing) return;
+  lastEventAt = Date.now();
+  if (inIdle) { sendEvent({ type: "idle", durationMs: Date.now() - idleStart }); inIdle = false; }
+  const target = e.target as HTMLInputElement | HTMLTextAreaElement;
+  if ((target as HTMLInputElement).type === "password") return;
+  lastInputEl = target;
+  if (inputTimer) clearTimeout(inputTimer);
+  inputTimer = setTimeout(() => {
+    inputTimer = null;
+    if (!lastInputEl) return;
+    const { label } = getClickLabel(lastInputEl);
+    const preview = lastInputEl.value.slice(0, 40).replace(/\s+/g, " ").trim();
+    sendEvent({ type: "input", label, tag: lastInputEl.tagName.toLowerCase(), url: location.href, preview: preview || undefined });
+    lastInputEl = null;
+  }, 800);
+}
+
+// ── Keydown (Enter / Escape / Tab) ─────────────────────────────
+function onKeydownCapture(e: KeyboardEvent) {
+  if (!capturing) return;
+  if (!["Enter", "Escape", "Tab"].includes(e.key)) return;
+  lastEventAt = Date.now();
+  if (inIdle) { sendEvent({ type: "idle", durationMs: Date.now() - idleStart }); inIdle = false; }
+  sendEvent({ type: "keydown", label: e.key, url: location.href });
+}
+
+// ── Text selection ─────────────────────────────────────────────
+function onSelectionChange() {
+  if (!capturing) return;
+  if (selTimer) clearTimeout(selTimer);
+  selTimer = setTimeout(() => {
+    selTimer = null;
+    const sel = window.getSelection()?.toString().trim() ?? "";
+    if (sel.length >= 3) {
+      sendEvent({ type: "select", label: sel.slice(0, 80), url: location.href });
+    }
+  }, 500);
+}
+
+// ── Scroll ─────────────────────────────────────────────────────
+function onScrollCapture() {
+  if (!capturing) return;
+  lastEventAt = Date.now();
+  if (scrollTimer) clearTimeout(scrollTimer);
+  scrollTimer = setTimeout(() => {
+    scrollTimer = null;
+    sendEvent({ type: "scroll", url: location.href });
+  }, 1500);
+}
+
+// ── Copy / Paste ───────────────────────────────────────────────
+function onCopyCapture() {
+  if (!capturing) return;
+  const sel = window.getSelection()?.toString().trim().slice(0, 60) ?? "";
+  sendEvent({ type: "copy", label: sel || undefined, url: location.href });
+}
+
+function onPasteCapture() {
+  if (!capturing) return;
+  sendEvent({ type: "paste", url: location.href });
+}
+
+// ── Helpers ────────────────────────────────────────────────────
 function firstLine(text: string): string {
   return text.split(/[\n\r]/).map(s => s.trim()).find(s => s.length > 0) ?? "";
 }
 
 function getClickLabel(target: Element): { label: string; tag: string } {
-  // Prefer explicit interactive ancestor first (button, link, role)
   const interactive = target.closest(
     'button, a, [role="button"], [role="link"], [role="menuitem"], [role="tab"], [role="option"], input, select, label'
   );
-
   const candidates = interactive ? [interactive, target] : [target];
-
   for (const el of candidates) {
     const explicit =
       el.getAttribute("aria-label")?.trim() ||
@@ -126,18 +200,13 @@ function getClickLabel(target: Element): { label: string; tag: string } {
       el.getAttribute("data-testid")?.replace(/-/g, " ").trim() ||
       el.getAttribute("alt")?.trim() ||
       el.getAttribute("placeholder")?.trim();
-
     if (explicit) return { label: explicit.slice(0, 80), tag: el.tagName.toLowerCase() };
-
-    // innerText — first line only, skip if it's just price/number noise
     const raw = (el as HTMLElement).innerText?.trim() ?? "";
     const line = firstLine(raw);
     if (line && line.length >= 2 && line.length <= 60) {
       return { label: line, tag: el.tagName.toLowerCase() };
     }
   }
-
-  // Walk up 3 more levels for aria-label
   let el: Element | null = (interactive ?? target).parentElement;
   for (let i = 0; i < 3; i++) {
     if (!el) break;
@@ -145,7 +214,6 @@ function getClickLabel(target: Element): { label: string; tag: string } {
     if (label) return { label: label.slice(0, 80), tag: el.tagName.toLowerCase() };
     el = el.parentElement;
   }
-
   return { label: "icon-button", tag: (interactive ?? target).tagName.toLowerCase() };
 }
 
@@ -155,17 +223,16 @@ function sendEvent(event: {
   tag?: string;
   url?: string;
   durationMs?: number;
+  preview?: string;
 }) {
   if (!isContextAlive()) return;
   try {
     const p = chrome.runtime.sendMessage({ type: "CAPTURE_EVENT", event });
     p?.catch?.(() => {});
-  } catch {
-    /* context invalidated */
-  }
+  } catch { /* context invalidated */ }
 }
 
-// Navigation via history API
+// ── Navigation via history API ─────────────────────────────────
 const origPushState = history.pushState.bind(history);
 const origReplaceState = history.replaceState.bind(history);
 history.pushState = (...args) => { origPushState(...args); onNavigate(); };
