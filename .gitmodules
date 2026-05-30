@@ -1,3 +1,4 @@
 [submodule "apps/glitchrecord"]
 	path = apps/glitchrecord
 	url = https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchrecord
+	ignore = all
