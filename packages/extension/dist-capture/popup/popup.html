@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Glitchgrab</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <span class="logo">Glitchgrab</span>
+      <span class="badge" id="badge">idle</span>
+    </div>
+
+    <div class="status" id="status">
+      Press <kbd>Ctrl+Shift+R</kbd> or click below to capture clicks during your recording.
+    </div>
+
+    <button class="btn btn-start" id="btn-toggle">
+      Start Capture
+    </button>
+
+    <div class="result" id="result" style="display:none">
+      <div class="result-label">Session ID — paste into Recordly extension:</div>
+      <div class="session-id" id="session-id"></div>
+      <button class="btn btn-copy" id="btn-copy">Copy ID</button>
+    </div>
+
+    <div class="count" id="count" style="display:none"></div>
+  </div>
+  <script src="popup.js" type="module"></script>
+</body>
+</html>
