@@ -5,6 +5,7 @@
   "scripts": {
     "build": "bun run build.ts",
     "dev": "bun run build.ts --watch"
+
   },
   "devDependencies": {
     "esbuild": "^0.24.0",
