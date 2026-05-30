@@ -39,6 +39,7 @@ function sanitizeEvents(raw: unknown): CaptureEvent[] {
       tag: typeof e.tag === "string" ? e.tag.slice(0, 30) : undefined,
       url: typeof e.url === "string" ? e.url.slice(0, 500) : undefined,
       durationMs: typeof e.durationMs === "number" ? Math.floor(e.durationMs) : undefined,
+      preview: typeof e.preview === "string" ? e.preview.slice(0, 100) : undefined,
     }));
 }
 
