@@ -97,6 +97,10 @@ chrome.runtime.onMessage.addListener((msg) => {
     state.events.push(event);
     console.log(`[GG] #${state.events.length} ${event.type} | ${event.label ?? event.url ?? ""} | t=${event.t}ms`);
     broadcastState();
+    // Stream live to GlitchRecord so it shows the event feed in real time
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "event:live", event }));
+    }
   }
   return false;
 });
