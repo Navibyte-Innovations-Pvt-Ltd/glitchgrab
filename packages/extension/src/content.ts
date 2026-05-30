@@ -9,27 +9,53 @@ let lastClickKey = "";
 let lastClickAt = 0;
 const DEDUP_MS = 80;
 
+function isContextAlive(): boolean {
+  try {
+    return !!chrome.runtime?.id;
+  } catch {
+    return false;
+  }
+}
+
+function cleanup() {
+  clearInterval(pollTimer);
+  stopListening();
+}
+
 // ── Signal polling ────────────────────────────────────────────
 // Content script pings background every 600ms to check signal.
 // Background does the actual fetch (immune to mixed-content HTTPS blocks).
 const pollTimer = setInterval(() => {
-  // After an extension reload, this orphaned content script loses its context.
-  // chrome.runtime.id becomes undefined — stop polling instead of throwing.
-  if (!chrome.runtime?.id) {
-    clearInterval(pollTimer);
+  if (!isContextAlive()) {
+    cleanup();
     return;
   }
   try {
-    chrome.runtime.sendMessage({ type: "POLL_SIGNAL" }).catch(() => {});
+    const p = chrome.runtime.sendMessage({ type: "POLL_SIGNAL" });
+    p?.catch?.((err: Error) => {
+      if (err?.message?.includes("Extension context invalidated")) cleanup();
+    });
   } catch {
-    clearInterval(pollTimer);
+    cleanup();
   }
 }, 600);
 
-chrome.runtime.onMessage.addListener((msg) => {
-  if (msg.type === "CAPTURE_START") startListening();
-  else if (msg.type === "CAPTURE_STOP") stopListening();
+// Catch unhandled promise rejections from chrome.runtime calls that escape .catch()
+window.addEventListener("unhandledrejection", (event) => {
+  if ((event.reason as Error)?.message?.includes("Extension context invalidated")) {
+    event.preventDefault();
+    cleanup();
+  }
 });
+
+try {
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.type === "CAPTURE_START") startListening();
+    else if (msg.type === "CAPTURE_STOP") stopListening();
+  });
+} catch {
+  // Context already invalidated at script load — nothing to listen to
+}
 
 function startListening() {
   if (capturing) return;
@@ -130,9 +156,10 @@ function sendEvent(event: {
   url?: string;
   durationMs?: number;
 }) {
-  if (!chrome.runtime?.id) return;
+  if (!isContextAlive()) return;
   try {
-    chrome.runtime.sendMessage({ type: "CAPTURE_EVENT", event }).catch(() => {});
+    const p = chrome.runtime.sendMessage({ type: "CAPTURE_EVENT", event });
+    p?.catch?.(() => {});
   } catch {
     /* context invalidated */
   }
