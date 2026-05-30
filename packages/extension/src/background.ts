@@ -75,9 +75,24 @@ function connectBridge() {
 
 connectBridge();
 
-// Fallback signal polling (HTTP) used only when bridge is offline
+// Fallback signal polling (HTTP) used only when bridge is offline.
+// Runs in background service worker — no "Extension context invalidated" risk.
 const SIGNAL_URL = "http://localhost:3000/api/v1/capture-signal";
 let lastSignalAt = 0;
+
+setInterval(() => {
+  if (ws && ws.readyState === WebSocket.OPEN) return; // bridge is primary
+  fetch(SIGNAL_URL, { cache: "no-store" })
+    .then(r => r.json())
+    .then((data: { signal: string; signalAt: number }) => {
+      if (data.signalAt <= lastSignalAt) return;
+      lastSignalAt = data.signalAt;
+      console.log("[GG] Signal changed →", data.signal);
+      if (data.signal === "start" && !state.active) startCapture();
+      else if (data.signal === "stop" && state.active) stopCapture();
+    })
+    .catch(() => {});
+}, 600);
 
 // Toggle capture on hotkey
 chrome.commands.onCommand.addListener((command) => {
@@ -264,32 +279,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   }
   if (msg.type === "MANUAL_STOP") {
     stopCapture();
-    return false;
-  }
-  if (msg.type === "POLL_SIGNAL") {
-    // WebSocket is primary path — skip HTTP polling fallback when bridge connected
-    if (ws && ws.readyState === WebSocket.OPEN) return false;
-
-    // Deduplicate — only one fetch per 500ms regardless of how many tabs send POLL_SIGNAL
-    const now = Date.now();
-    if (now - (state as unknown as { lastPollAt?: number }).lastPollAt! < 500) return false;
-    (state as unknown as { lastPollAt: number }).lastPollAt = now;
-
-    fetch(SIGNAL_URL, { cache: "no-store" })
-      .then(r => r.json())
-      .then((data: { signal: string; signalAt: number }) => {
-        if (data.signalAt <= lastSignalAt) return;
-        lastSignalAt = data.signalAt;
-        console.log("[GG] Signal changed →", data.signal);
-        if (data.signal === "start" && !state.active) {
-          console.log("[GG] Auto-start from Recordly signal");
-          startCapture();
-        } else if (data.signal === "stop" && state.active) {
-          console.log("[GG] Auto-stop from Recordly signal");
-          stopCapture();
-        }
-      })
-      .catch(() => {});
     return false;
   }
   if (msg.type === "SIGNAL_START" && !state.active) {
