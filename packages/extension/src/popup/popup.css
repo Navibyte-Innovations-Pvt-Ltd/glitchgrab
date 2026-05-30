@@ -93,3 +93,5 @@ kbd {
 .script-box:focus { border-color: #7c3aed; }
 
 .word-count { font-size: 10px; color: #444; text-align: right; }
+
+.conn { font-size: 8px; line-height: 1; cursor: default; }
