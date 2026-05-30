@@ -326,6 +326,17 @@ model Webhook {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+// Auth token for GlitchRecord desktop app
+model GlitchRecordToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
 // Temporary click-capture sessions for Recordly script generation
 model CaptureSession {
   id         String   @id @default(cuid())
