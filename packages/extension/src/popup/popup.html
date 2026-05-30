@@ -32,32 +32,13 @@
 
     <!-- done state: session uploaded -->
     <div class="panel" id="panel-done" style="display:none">
-      <div class="result-label">Session ID</div>
+      <div class="result-label">Session ID — give this to Claude with <kbd>/glitchgrab-script</kbd></div>
       <div class="session-id" id="session-id"></div>
       <div class="row">
-        <button class="btn btn-secondary" id="btn-copy-id">Copy ID</button>
-        <button class="btn btn-primary" id="btn-generate">Generate Script</button>
+        <button class="btn btn-primary" id="btn-copy-id">Copy Session ID</button>
       </div>
       <div class="count" id="count-done"></div>
       <button class="btn btn-ghost" id="btn-new-from-done">+ New Capture</button>
-    </div>
-
-    <!-- generating state -->
-    <div class="panel" id="panel-generating" style="display:none">
-      <div class="status">Calling Claude... generating narration script.</div>
-      <div class="spinner"></div>
-      <button class="btn btn-ghost" id="btn-cancel-generate">Cancel</button>
-    </div>
-
-    <!-- script ready state -->
-    <div class="panel" id="panel-script" style="display:none">
-      <div class="result-label">Narration Script</div>
-      <textarea class="script-box" id="script-box" readonly></textarea>
-      <div class="row">
-        <button class="btn btn-secondary" id="btn-copy-script">Copy Script</button>
-        <button class="btn btn-ghost" id="btn-new">New Session</button>
-      </div>
-      <div class="word-count" id="word-count"></div>
     </div>
   </div>
   <script src="popup.js" type="module"></script>
