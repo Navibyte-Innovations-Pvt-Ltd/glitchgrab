@@ -8,12 +8,13 @@ interface CaptureState {
 }
 
 export interface CaptureEvent {
-  type: "click" | "navigate" | "idle";
+  type: "click" | "navigate" | "idle" | "input" | "select" | "keydown" | "scroll" | "copy" | "paste";
   t: number; // ms from capture start
   label?: string;
   tag?: string;
   url?: string;
   durationMs?: number;
+  preview?: string; // input events: truncated field value
 }
 
 const state: CaptureState = {
@@ -245,6 +246,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
       eventCount: state.events.length,
       sessionId: state.sessionId,
     });
+    return true;
+  }
+  if (msg.type === "GET_EVENTS") {
+    reply({ events: state.events });
     return true;
   }
   if (msg.type === "MANUAL_START") {
