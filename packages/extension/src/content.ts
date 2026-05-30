@@ -1,6 +1,5 @@
-console.log("[GG] Content script loaded on", location.hostname);
 let capturing = false;
-let stopped = false; // set on first context invalidation — all queued callbacks bail immediately
+let stopped = false; // set on context invalidation — all callbacks bail immediately
 let lastEventAt = 0;
 let idleTimer: ReturnType<typeof setInterval> | null = null;
 let idleStart = 0;
@@ -31,27 +30,59 @@ function cleanup() {
   stopListening();
 }
 
-window.addEventListener("unhandledrejection", (event) => {
-  if ((event.reason as Error)?.message?.includes("Extension context invalidated")) {
-    event.preventDefault();
-    cleanup();
-  }
-});
+// ── Single-instance guard ─────────────────────────────────────
+// The extension reinjects this script into already-open tabs on startup.
+// If a LIVE instance already runs here, bail so we don't double-register
+// listeners. Orphaned (dead-context) instances do NOT answer the ping —
+// their chrome.runtime is gone — so a fresh inject correctly replaces them.
+const GG_PING = "__gg_ping__";
 
-window.addEventListener("error", (event) => {
-  if (event.message?.includes("Extension context invalidated")) {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    cleanup();
+(function bootstrap() {
+  const probe = { alive: false };
+  document.dispatchEvent(new CustomEvent(GG_PING, { detail: probe }));
+  if (probe.alive) {
+    // A live sibling already owns this page — become inert (register nothing).
+    return;
   }
-}, { capture: true });
 
-try {
-  chrome.runtime.onMessage.addListener((msg) => {
-    if (msg.type === "CAPTURE_START") startListening();
-    else if (msg.type === "CAPTURE_STOP") stopListening();
+  // Only the ACTIVE instance answers pings. Registered after the probe check so
+  // inert instances never falsely claim the page and block a later reinjection.
+  document.addEventListener(GG_PING, (e) => {
+    if (isContextAlive()) (e as CustomEvent<{ alive: boolean }>).detail.alive = true;
   });
-} catch { /* context invalidated at load */ }
+
+  console.log("[GG] Content script active on", location.hostname);
+
+  window.addEventListener("unhandledrejection", (event) => {
+    if ((event.reason as Error)?.message?.includes("Extension context invalidated")) {
+      event.preventDefault();
+      cleanup();
+    }
+  });
+
+  window.addEventListener("error", (event) => {
+    if (event.message?.includes("Extension context invalidated")) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      cleanup();
+    }
+  }, { capture: true });
+
+  try {
+    chrome.runtime.onMessage.addListener((msg) => {
+      if (msg.type === "CAPTURE_START") startListening();
+      else if (msg.type === "CAPTURE_STOP") stopListening();
+      else if (msg.type === "GG_LOG") console.log("[GG-bg]", msg.text);
+    });
+  } catch { /* context invalidated at load */ }
+
+  // History-API navigation hooks
+  const origPushState = history.pushState.bind(history);
+  const origReplaceState = history.replaceState.bind(history);
+  history.pushState = (...args) => { origPushState(...args); onNavigate(); };
+  history.replaceState = (...args) => { origReplaceState(...args); onNavigate(); };
+  window.addEventListener("popstate", onNavigate);
+})();
 
 function startListening() {
   if (capturing) return;
@@ -239,13 +270,6 @@ function sendEvent(event: {
     p?.catch?.(() => {});
   } catch { /* context invalidated */ }
 }
-
-// ── Navigation via history API ─────────────────────────────────
-const origPushState = history.pushState.bind(history);
-const origReplaceState = history.replaceState.bind(history);
-history.pushState = (...args) => { origPushState(...args); onNavigate(); };
-history.replaceState = (...args) => { origReplaceState(...args); onNavigate(); };
-window.addEventListener("popstate", onNavigate);
 
 function onNavigate() {
   if (!capturing) return;
