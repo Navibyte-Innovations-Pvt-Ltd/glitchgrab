@@ -13,6 +13,7 @@ export interface CaptureEvent {
   durationMs?: number;
   preview?: string;
   meta?: Record<string, string>;
+  note?: string;
 }
 
 export function sanitizeEvents(raw: unknown): CaptureEvent[] {
@@ -29,6 +30,7 @@ export function sanitizeEvents(raw: unknown): CaptureEvent[] {
       durationMs: typeof e.durationMs === "number" ? Math.floor(e.durationMs) : undefined,
       preview: typeof e.preview === "string" ? e.preview.slice(0, 100) : undefined,
       meta: sanitizeMeta(e.meta),
+      note: typeof e.note === "string" ? e.note.slice(0, 200) : undefined,
     }));
 }
 
