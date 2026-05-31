@@ -167,4 +167,20 @@ describe("Capture orchestration", () => {
     expect(nav?.label).toBe("Dashboard");
     cap.stop();
   });
+
+  it("annotate hotkey (Ctrl+Shift+E) emits a 'note' marker for the hovered element", () => {
+    const { events, cap } = setup();
+    cap.start();
+    dom.window.document.body.innerHTML = `<button aria-label="Claim">Claim</button>`;
+    const btn = dom.window.document.querySelector("button")!;
+    // jsdom has no elementFromPoint — stub it to return the hovered button.
+    (dom.window.document as unknown as { elementFromPoint: () => Element | null }).elementFromPoint = () => btn;
+    dom.window.document.dispatchEvent(new dom.window.MouseEvent("mousemove", { clientX: 10, clientY: 10, bubbles: true }));
+    dom.window.document.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "E", ctrlKey: true, shiftKey: true, bubbles: true }));
+    const note = events.find((e) => e.type === "note");
+    expect(note).toBeDefined();
+    expect(note?.note).toBe("explain");
+    expect(note?.label).toBe("Claim");
+    cap.stop();
+  });
 });
