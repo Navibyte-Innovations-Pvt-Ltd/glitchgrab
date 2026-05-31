@@ -57,7 +57,10 @@ log("[GG] Background service worker started");
 // content script. Reinject the fresh one so those tabs can capture again.
 // The content script's single-instance ping guard prevents double-registration
 // on tabs that already have a live instance.
+let reinjectedOnce = false;
 function reinjectAllTabs() {
+  if (reinjectedOnce) return; // run at most once per worker — avoid stacking instances
+  reinjectedOnce = true;
   chrome.tabs.query({ url: ["http://*/*", "https://*/*"] }, (tabs) => {
     for (const tab of tabs) {
       if (!tab.id) continue;
@@ -68,9 +71,9 @@ function reinjectAllTabs() {
     }
   });
 }
+// Only on install/update — the manifest content_scripts already covers normal
+// page loads, so reinjecting on every startup just stacks duplicate instances.
 chrome.runtime.onInstalled.addListener(reinjectAllTabs);
-chrome.runtime.onStartup.addListener(reinjectAllTabs);
-reinjectAllTabs(); // also run when SW first spins up
 
 // ── GlitchRecord WebSocket connection ────────────────────────
 // GlitchRecord runs a WS server on 7337. Chrome ext connects for real-time sync.
@@ -165,12 +168,25 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   chrome.tabs.sendMessage(tabId, { type: "CAPTURE_START" }).catch(() => {});
 });
 
+// Cross-instance dedup: if more than one content-script instance is alive in a
+// tab (e.g. reinjection + manifest), the SAME DOM action arrives multiple times
+// within a few ms. Collapse identical events that land inside a tiny window.
+let ddKey = "";
+let ddAt = 0;
+const DEDUP_WINDOW_MS = 120;
+
 // Receive events from content script
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === "CAPTURE_EVENT" && state.active && state.startedAt !== null) {
+    const e = msg.event;
+    const key = `${e.type}|${e.label ?? ""}|${e.url ?? ""}|${e.preview ?? ""}|${e.meta?.selector ?? ""}`;
+    const now = Date.now();
+    if (key === ddKey && now - ddAt < DEDUP_WINDOW_MS) return; // duplicate from another instance
+    ddKey = key;
+    ddAt = now;
     const event: CaptureEvent = {
       ...msg.event,
-      t: Date.now() - state.startedAt,
+      t: now - state.startedAt,
     };
     state.events.push(event);
     const m = event.meta ?? {};
