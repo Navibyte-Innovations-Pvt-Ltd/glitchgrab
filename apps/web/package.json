@@ -8,7 +8,8 @@
     "postbuild": "next-sitemap",
     "start": "next start",
     "lint": "eslint .",
-    "validate": "eslint . && tsc --noEmit"
+    "validate": "eslint . && tsc --noEmit",
+    "test:capture": "bun test app/api/v1/capture-sessions/"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.88.0",
