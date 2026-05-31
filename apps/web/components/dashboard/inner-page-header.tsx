@@ -32,7 +32,7 @@ export function InnerPageHeader({
               </p>
             )}
             {meta && (
-              <p className="font-mono text-[11px] text-primary/70 leading-tight truncate">
+              <p className="font-mono text-[11px] text-primary/70 leading-tight truncate" suppressHydrationWarning>
                 {meta}
               </p>
             )}

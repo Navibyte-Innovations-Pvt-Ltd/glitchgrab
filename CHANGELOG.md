@@ -1,3 +1,20 @@
+## [1.42.1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.42.0...v1.42.1) (2026-05-25)
+
+### Bug Fixes
+
+* **mobile:** remove unnecessary type assertion and unused eslint-disable in _layout ([d027d35](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/d027d351651300edb7ed7b3d9770a7a687ff5dcd))
+* **seo:** suppress hydration warning on meta date in InnerPageHeader ([e84ff2f](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/e84ff2f90226b3bf666391d1f2bfb1ae40b1d9ce))
+
+## [1.42.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.41.0...v1.42.0) (2026-05-25)
+
+### Features
+
+* **app/dashboard/seo:** update gsc property last sync date to display in US locale ([20dba73](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/20dba73d3e135bec6ff0eb7fd30c15076b70de3a))
+
+### Bug Fixes
+
+* **apps/mobile/app/_layout.tsx:** initial implementation of media library listener ([1427577](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/1427577adfcc38fb4e189859d73810fddaecfe4d))
+
 ## [1.41.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.40.2...v1.41.0) (2026-05-25)
 
 ### Features
