@@ -5,13 +5,14 @@
 import { type ElementMeta, getClickLabel, describeElement } from "./labeler";
 
 export interface CaptureEvent {
-  type: "click" | "navigate" | "idle" | "input" | "select" | "keydown" | "scroll" | "copy" | "paste";
+  type: "click" | "navigate" | "idle" | "input" | "select" | "keydown" | "scroll" | "copy" | "paste" | "note";
   label?: string;
   tag?: string;
   url?: string;
   durationMs?: number;
   preview?: string;
   meta?: ElementMeta;
+  note?: string; // for "note" events: free-text or "explain this" marker
 }
 
 const DEDUP_MS = 80;
@@ -37,6 +38,8 @@ export class Capture {
   private lastInputEl: HTMLInputElement | HTMLTextAreaElement | null = null;
   private selTimer: ReturnType<typeof setTimeout> | null = null;
   private scrollTimer: ReturnType<typeof setTimeout> | null = null;
+  private pointerX = 0;
+  private pointerY = 0;
 
   private readonly inputDebounceMs: number;
   private readonly selDebounceMs: number;
@@ -67,6 +70,7 @@ export class Capture {
     document.addEventListener("scroll", this.onScroll, { capture: true, passive: true });
     document.addEventListener("copy", this.onCopy, { capture: true });
     document.addEventListener("paste", this.onPaste, { capture: true });
+    document.addEventListener("mousemove", this.onPointerMove, { capture: true, passive: true });
     this.idleTimer = setInterval(this.checkIdle, this.idleCheckMs);
   }
 
@@ -80,6 +84,7 @@ export class Capture {
     document.removeEventListener("scroll", this.onScroll, { capture: true });
     document.removeEventListener("copy", this.onCopy, { capture: true });
     document.removeEventListener("paste", this.onPaste, { capture: true });
+    document.removeEventListener("mousemove", this.onPointerMove, { capture: true });
     if (this.idleTimer) { clearInterval(this.idleTimer); this.idleTimer = null; }
     // Flush any pending debounced input so the last keystrokes aren't lost.
     if (this.inputTimer) {
@@ -160,13 +165,43 @@ export class Capture {
     }, this.inputDebounceMs);
   };
 
+  private onPointerMove = (e: Event): void => {
+    const m = e as MouseEvent;
+    this.pointerX = m.clientX;
+    this.pointerY = m.clientY;
+  };
+
+  // Annotate hotkey: Ctrl/Cmd+Shift+E → mark "explain this" on the element under
+  // the cursor. The script generator treats `note` events as "spend time here,
+  // the user wants this explained" (e.g. what Claim vs Add means).
+  private isAnnotateCombo(e: KeyboardEvent): boolean {
+    return (e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "e";
+  }
+
   private onKeydown = (e: Event): void => {
     if (!this.capturing) return;
-    const key = (e as KeyboardEvent).key;
-    if (!["Enter", "Escape", "Tab"].includes(key)) return;
+    const ke = e as KeyboardEvent;
+
+    if (this.isAnnotateCombo(ke)) {
+      ke.preventDefault();
+      ke.stopPropagation();
+      this.lastEventAt = Date.now();
+      this.breakIdle(Date.now());
+      // Element under the cursor (what the user is pointing at to explain).
+      const el = document.elementFromPoint(this.pointerX, this.pointerY);
+      if (el) {
+        const { label } = getClickLabel(el);
+        this.emit({ type: "note", label, url: location.href, meta: describeElement(el), note: "explain" });
+      } else {
+        this.emit({ type: "note", url: location.href, note: "explain" });
+      }
+      return;
+    }
+
+    if (!["Enter", "Escape", "Tab"].includes(ke.key)) return;
     this.lastEventAt = Date.now();
     this.breakIdle(Date.now());
-    this.emit({ type: "keydown", label: key, url: location.href });
+    this.emit({ type: "keydown", label: ke.key, url: location.href });
   };
 
   private onSelectionChange = (): void => {
