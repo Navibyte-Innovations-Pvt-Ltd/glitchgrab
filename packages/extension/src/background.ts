@@ -8,7 +8,7 @@ interface CaptureState {
 }
 
 export interface CaptureEvent {
-  type: "click" | "navigate" | "idle" | "input" | "select" | "keydown" | "scroll" | "copy" | "paste";
+  type: "click" | "navigate" | "idle" | "input" | "select" | "keydown" | "scroll" | "copy" | "paste" | "note";
   t: number; // ms from capture start
   label?: string;
   tag?: string;
@@ -16,6 +16,7 @@ export interface CaptureEvent {
   durationMs?: number;
   preview?: string; // input events: truncated field value
   meta?: Record<string, string>; // rich element descriptor (tag, role, icon, href, section, selector…)
+  note?: string; // "note" events: "explain this" marker from the annotate hotkey
 }
 
 const state: CaptureState = {
