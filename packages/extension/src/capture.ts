@@ -24,6 +24,7 @@ export interface CaptureTiming {
   scrollDebounceMs?: number;
   idleThresholdMs?: number;
   idleCheckMs?: number;
+  minHoldMs?: number; // min Shift-hold to count as an "explain" gesture
 }
 
 export class Capture {
@@ -40,6 +41,11 @@ export class Capture {
   private scrollTimer: ReturnType<typeof setTimeout> | null = null;
   private pointerX = 0;
   private pointerY = 0;
+  // Hold-Shift "explain this" gesture state.
+  private shiftDownAt = 0;             // 0 = Shift not held
+  private shiftSubject: Element | null = null; // element under cursor when hold began
+  private shiftHadOtherKey = false;    // a letter was typed while Shift held → it's typing, not explain
+  private readonly minHoldMs: number;
 
   private readonly inputDebounceMs: number;
   private readonly selDebounceMs: number;
@@ -53,6 +59,7 @@ export class Capture {
     this.scrollDebounceMs = timing.scrollDebounceMs ?? 1500;
     this.idleThresholdMs = timing.idleThresholdMs ?? 3000;
     this.idleCheckMs = timing.idleCheckMs ?? 1000;
+    this.minHoldMs = timing.minHoldMs ?? 400;
   }
 
   get active(): boolean {
@@ -66,6 +73,7 @@ export class Capture {
     document.addEventListener("click", this.onClick, { capture: true, passive: true });
     document.addEventListener("input", this.onInput, { capture: true, passive: true });
     document.addEventListener("keydown", this.onKeydown, { capture: true, passive: true });
+    document.addEventListener("keyup", this.onKeyup, { capture: true, passive: true });
     document.addEventListener("selectionchange", this.onSelectionChange, { passive: true });
     document.addEventListener("scroll", this.onScroll, { capture: true, passive: true });
     document.addEventListener("copy", this.onCopy, { capture: true });
@@ -80,6 +88,7 @@ export class Capture {
     document.removeEventListener("click", this.onClick, { capture: true });
     document.removeEventListener("input", this.onInput, { capture: true });
     document.removeEventListener("keydown", this.onKeydown, { capture: true });
+    document.removeEventListener("keyup", this.onKeyup, { capture: true });
     document.removeEventListener("selectionchange", this.onSelectionChange);
     document.removeEventListener("scroll", this.onScroll, { capture: true });
     document.removeEventListener("copy", this.onCopy, { capture: true });
@@ -171,37 +180,56 @@ export class Capture {
     this.pointerY = m.clientY;
   };
 
-  // Annotate hotkey: Ctrl/Cmd+Shift+E → mark "explain this" on the element under
-  // the cursor. The script generator treats `note` events as "spend time here,
-  // the user wants this explained" (e.g. what Claim vs Add means).
-  private isAnnotateCombo(e: KeyboardEvent): boolean {
-    return (e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "e";
+  // Mark "explain this" on `el`. The script generator treats `note` events as
+  // "spend time here — the user wants this explained" (e.g. Claim vs Add).
+  private emitNote(el: Element | null, durationMs: number): void {
+    this.lastEventAt = Date.now();
+    this.breakIdle(Date.now());
+    if (el) {
+      const { label } = getClickLabel(el);
+      this.emit({ type: "note", label, url: location.href, meta: describeElement(el), note: "explain", durationMs });
+    } else {
+      this.emit({ type: "note", url: location.href, note: "explain", durationMs });
+    }
   }
 
   private onKeydown = (e: Event): void => {
     if (!this.capturing) return;
     const ke = e as KeyboardEvent;
 
-    if (this.isAnnotateCombo(ke)) {
-      ke.preventDefault();
-      ke.stopPropagation();
-      this.lastEventAt = Date.now();
-      this.breakIdle(Date.now());
-      // Element under the cursor (what the user is pointing at to explain).
-      const el = document.elementFromPoint(this.pointerX, this.pointerY);
-      if (el) {
-        const { label } = getClickLabel(el);
-        this.emit({ type: "note", label, url: location.href, meta: describeElement(el), note: "explain" });
-      } else {
-        this.emit({ type: "note", url: location.href, note: "explain" });
+    // Explain gesture = HOLD Shift. Record when the hold starts + what's under
+    // the cursor. Recording continues normally throughout.
+    if (ke.key === "Shift") {
+      if (!ke.repeat && this.shiftDownAt === 0) {
+        this.shiftDownAt = Date.now();
+        this.shiftSubject = document.elementFromPoint(this.pointerX, this.pointerY);
+        this.shiftHadOtherKey = false;
       }
       return;
     }
+    // A real key while Shift is held → the user is typing (capitals/symbols),
+    // not explaining. Cancel the explain gesture.
+    if (this.shiftDownAt > 0) this.shiftHadOtherKey = true;
 
     if (!["Enter", "Escape", "Tab"].includes(ke.key)) return;
     this.lastEventAt = Date.now();
     this.breakIdle(Date.now());
     this.emit({ type: "keydown", label: ke.key, url: location.href });
+  };
+
+  private onKeyup = (e: Event): void => {
+    if (!this.capturing) return;
+    if ((e as KeyboardEvent).key !== "Shift" || this.shiftDownAt === 0) return;
+    const held = Date.now() - this.shiftDownAt;
+    const subject = this.shiftSubject;
+    const wasTyping = this.shiftHadOtherKey;
+    this.shiftDownAt = 0;
+    this.shiftSubject = null;
+    this.shiftHadOtherKey = false;
+    // Held long enough AND nothing typed → it was an "explain" hold.
+    if (held >= this.minHoldMs && !wasTyping) {
+      this.emitNote(subject, held);
+    }
   };
 
   private onSelectionChange = (): void => {
