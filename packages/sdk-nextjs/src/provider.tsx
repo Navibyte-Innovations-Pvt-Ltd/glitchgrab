@@ -128,6 +128,9 @@ function GlitchgrabProviderInner({
       if (typeof window === "undefined") return;
       if (process.env.NODE_ENV === "development") return;
 
+      // Matches chrome-extension://, safari-extension://, moz-extension://
+      const EXTENSION_ORIGIN_RE = /\b(?:chrome|safari|moz)-extension:\/\//;
+
       const handleError = (event: ErrorEvent) => {
         try {
           // Ignore opaque cross-origin script errors — the browser masks these with no
@@ -145,6 +148,15 @@ function GlitchgrabProviderInner({
           if (
             event.message === "ResizeObserver loop completed with undelivered notifications." ||
             event.message === "ResizeObserver loop limit exceeded"
+          ) {
+            return;
+          }
+
+          // Ignore errors thrown by browser extensions — crypto wallets, ad blockers,
+          // and other extensions run in the page's JS context but are not part of the app.
+          if (
+            (event.filename && EXTENSION_ORIGIN_RE.test(event.filename)) ||
+            (event.error?.stack && EXTENSION_ORIGIN_RE.test(event.error.stack))
           ) {
             return;
           }
@@ -196,6 +208,11 @@ function GlitchgrabProviderInner({
             return;
           }
           const errStack = reason instanceof Error ? reason.stack : undefined;
+
+          // Ignore unhandled rejections where the call chain passes through a browser
+          // extension — these are the extension's own failures, not the app's.
+          if (errStack && EXTENSION_ORIGIN_RE.test(errStack)) return;
+
           const sig = computeSignature({
             errorMessage: errMsg,
             pageUrl: context.url,
