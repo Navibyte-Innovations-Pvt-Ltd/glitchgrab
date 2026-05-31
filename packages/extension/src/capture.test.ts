@@ -8,7 +8,7 @@ import { Capture, type CaptureEvent } from "./capture";
 let dom: JSDOM;
 
 // Small delays so real timers fire quickly during the test.
-const FAST = { inputDebounceMs: 20, selDebounceMs: 20, scrollDebounceMs: 20, idleThresholdMs: 30, idleCheckMs: 10 };
+const FAST = { inputDebounceMs: 20, selDebounceMs: 20, scrollDebounceMs: 20, idleThresholdMs: 30, idleCheckMs: 10, minHoldMs: 20 };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 beforeAll(() => {
@@ -168,19 +168,42 @@ describe("Capture orchestration", () => {
     cap.stop();
   });
 
-  it("annotate hotkey (Ctrl+Shift+E) emits a 'note' marker for the hovered element", () => {
+  it("holding Shift (then releasing) emits a 'note' for the hovered element", async () => {
     const { events, cap } = setup();
     cap.start();
     dom.window.document.body.innerHTML = `<button aria-label="Claim">Claim</button>`;
     const btn = dom.window.document.querySelector("button")!;
-    // jsdom has no elementFromPoint — stub it to return the hovered button.
     (dom.window.document as unknown as { elementFromPoint: () => Element | null }).elementFromPoint = () => btn;
-    dom.window.document.dispatchEvent(new dom.window.MouseEvent("mousemove", { clientX: 10, clientY: 10, bubbles: true }));
-    dom.window.document.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "E", ctrlKey: true, shiftKey: true, bubbles: true }));
+    const KE = dom.window.KeyboardEvent;
+    dom.window.document.dispatchEvent(new KE("keydown", { key: "Shift", bubbles: true }));
+    await sleep(60); // hold past minHoldMs (20 in FAST)
+    dom.window.document.dispatchEvent(new KE("keyup", { key: "Shift", bubbles: true }));
     const note = events.find((e) => e.type === "note");
-    expect(note).toBeDefined();
     expect(note?.note).toBe("explain");
     expect(note?.label).toBe("Claim");
+    expect(note?.durationMs).toBeGreaterThan(0);
+    cap.stop();
+  });
+
+  it("a quick Shift tap (under the hold threshold) does NOT annotate", () => {
+    const { events, cap } = setup();
+    cap.start();
+    const KE = dom.window.KeyboardEvent;
+    dom.window.document.dispatchEvent(new KE("keydown", { key: "Shift", bubbles: true }));
+    dom.window.document.dispatchEvent(new KE("keyup", { key: "Shift", bubbles: true })); // instant release
+    expect(events.some((e) => e.type === "note")).toBe(false);
+    cap.stop();
+  });
+
+  it("holding Shift WHILE typing a capital does NOT annotate", async () => {
+    const { events, cap } = setup();
+    cap.start();
+    const KE = dom.window.KeyboardEvent;
+    dom.window.document.dispatchEvent(new KE("keydown", { key: "Shift", bubbles: true }));
+    dom.window.document.dispatchEvent(new KE("keydown", { key: "H", bubbles: true })); // typing → cancels
+    await sleep(60);
+    dom.window.document.dispatchEvent(new KE("keyup", { key: "Shift", bubbles: true }));
+    expect(events.some((e) => e.type === "note")).toBe(false);
     cap.stop();
   });
 });
