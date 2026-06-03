@@ -215,6 +215,7 @@ export function ReportDialog({
   showSeverity = true,
 }: ReportDialogProps) {
   const [isEnhancing, setIsEnhancing] = useState(false);
+  const [screenshotDragOver, setScreenshotDragOver] = useState(false);
   // Prevent hydration mismatch — render nothing until after hydration
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
