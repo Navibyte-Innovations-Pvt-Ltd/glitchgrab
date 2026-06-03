@@ -23,7 +23,7 @@
     "dev:record": "cd apps/glitchrecord && npm run dev:fresh",
     "dev:mobile": "cd apps/mobile && bun run ios",
     "build": "dotenvx run -- turbo build --filter=@glitchgrab/web",
-    "postinstall": "npm install --prefix apps/glitchrecord",
+    "postinstall": "test -f apps/glitchrecord/package.json && npm install --prefix apps/glitchrecord || true",
     "lint": "turbo lint --",
     "validate": "turbo validate -- && knip && pruny --all --ignore-apps mobile",
     "knip:fix": "knip --fix",
