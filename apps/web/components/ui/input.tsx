@@ -3,9 +3,14 @@ import { Input as InputPrimitive } from "@base-ui/react/input"
 
 import { cn } from "@/lib/utils"
 
+// Cast to standard React input props to avoid @base-ui/react vs project React type mismatch
+const NativeInput = InputPrimitive as React.ComponentType<
+  React.InputHTMLAttributes<HTMLInputElement> & { "data-slot"?: string }
+>
+
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   return (
-    <InputPrimitive
+    <NativeInput
       type={type}
       data-slot="input"
       className={cn(
