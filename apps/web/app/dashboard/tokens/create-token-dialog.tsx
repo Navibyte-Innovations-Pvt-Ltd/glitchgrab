@@ -11,14 +11,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Check,
+  ChevronDown,
   Copy,
   GitFork,
   KeyRound,
@@ -42,12 +41,17 @@ export function CreateTokenDialog({ repos }: { repos: Repo[] }) {
   const [generatedToken, setGeneratedToken] = useState<string | null>(null);
   const [copied, setCopied] = useState<"token" | "env" | null>(null);
   const [pending, startTransition] = useTransition();
+  const [repoPickerOpen, setRepoPickerOpen] = useState(false);
+  const [repoSearch, setRepoSearch] = useState("");
 
   const envLine = generatedToken
     ? `NEXT_PUBLIC_GLITCHGRAB_TOKEN=${generatedToken}`
     : "";
 
   const selectedRepoId = repos.find((r) => r.fullName === repoName)?.id ?? "";
+  const filteredRepos = repos.filter((r) =>
+    r.fullName.toLowerCase().includes(repoSearch.toLowerCase())
+  );
 
   function handleCreate() {
     if (!selectedRepoId) {
@@ -81,6 +85,8 @@ export function CreateTokenDialog({ repos }: { repos: Repo[] }) {
       setGeneratedToken(null);
       setName("");
       setCopied(null);
+      setRepoSearch("");
+      setRepoPickerOpen(false);
     }
   }
 
@@ -183,27 +189,56 @@ export function CreateTokenDialog({ repos }: { repos: Repo[] }) {
                 <GitFork className="h-3 w-3" />
                 repository
               </label>
-              <Select
-                value={repoName}
-                onValueChange={(val) => {
-                  if (val) setRepoName(val);
+              <Popover
+                open={repoPickerOpen}
+                onOpenChange={(isOpen) => {
+                  setRepoPickerOpen(isOpen);
+                  if (!isOpen) setRepoSearch("");
                 }}
               >
-                <SelectTrigger className="w-full font-mono text-sm">
-                  <SelectValue placeholder="Select a repo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {repos.map((repo) => (
-                    <SelectItem
-                      key={repo.id}
-                      value={repo.fullName}
-                      className="font-mono text-sm"
-                    >
-                      {repo.fullName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <PopoverTrigger className="flex w-full items-center justify-between gap-2 rounded-lg border border-input bg-transparent px-2.5 py-2 font-mono text-sm text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <span className="truncate flex-1 text-left">
+                    {repoName || "Select a repo"}
+                  </span>
+                  <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                </PopoverTrigger>
+                <PopoverContent align="start" side="bottom" className="w-[--anchor-width] p-0">
+                  <div className="p-2 border-b border-border">
+                    <input
+                      type="text"
+                      value={repoSearch}
+                      onChange={(e) => setRepoSearch(e.target.value)}
+                      placeholder="Search repos..."
+                      className="w-full bg-transparent font-mono text-sm outline-none placeholder:text-muted-foreground"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="max-h-48 overflow-y-auto p-1">
+                    {filteredRepos.map((repo) => (
+                      <button
+                        key={repo.id}
+                        type="button"
+                        onClick={() => {
+                          setRepoName(repo.fullName);
+                          setRepoPickerOpen(false);
+                          setRepoSearch("");
+                        }}
+                        className="flex items-center justify-between w-full rounded px-2 py-1.5 font-mono text-xs text-foreground hover:bg-muted transition"
+                      >
+                        <span className="break-all text-left">{repo.fullName}</span>
+                        {repoName === repo.fullName && (
+                          <Check className="h-3.5 w-3.5 text-primary shrink-0" />
+                        )}
+                      </button>
+                    ))}
+                    {filteredRepos.length === 0 && (
+                      <p className="font-mono text-xs text-muted-foreground text-center py-3">
+                        No repos found
+                      </p>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
             <div>
               <label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5 flex items-center gap-1.5">
