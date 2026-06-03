@@ -29,9 +29,7 @@ function ensureCleanup() {
     }
   }, CLEANUP_INTERVAL_MS);
   // Don't block process exit
-  if (typeof cleanupTimer === "object" && "unref" in cleanupTimer) {
-    cleanupTimer.unref();
-  }
+  (cleanupTimer as unknown as { unref?: () => void })?.unref?.();
 }
 
 /**
