@@ -166,6 +166,24 @@ export async function listWorkflowRuns(
   });
 }
 
+// ─── Reopen Issue ────────────────────────────────────
+
+export async function reopenGitHubIssue(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  issueNumber: number
+): Promise<void> {
+  const res = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/issues/${issueNumber}`, {
+    method: "PATCH",
+    headers: headers(accessToken),
+    body: JSON.stringify({ state: "open" }),
+  });
+  if (!res.ok) {
+    throw new Error(`GitHub reopen error (${res.status}): ${await res.text()}`);
+  }
+}
+
 // ─── Check If Issue Is Still Open ────────────────────
 
 export async function checkIssueIsOpen(
