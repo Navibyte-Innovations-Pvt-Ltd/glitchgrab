@@ -41,7 +41,7 @@ describe("sanitizeEvents", () => {
 
   it("bounds label length and floors/clamps t", () => {
     const [e] = sanitizeEvents([{ type: "click", t: -5.9, label: "x".repeat(500) }]);
-    expect(e.label!.length).toBe(MAX_EVENT_LABEL_LEN);
+    expect(e.label?.length).toBe(MAX_EVENT_LABEL_LEN);
     expect(e.t).toBe(0); // negative clamped to 0
   });
 
@@ -67,15 +67,15 @@ describe("sanitizeMeta", () => {
   });
 
   it("keeps only string values, bounds value length", () => {
-    const m = sanitizeMeta({ role: "button", count: 5, big: "y".repeat(400) })!;
-    expect(m.role).toBe("button");
-    expect(m.count).toBeUndefined(); // non-string dropped
-    expect(m.big.length).toBe(250);
+    const m = sanitizeMeta({ role: "button", count: 5, big: "y".repeat(400) });
+    expect(m?.role).toBe("button");
+    expect(m?.count).toBeUndefined(); // non-string dropped
+    expect(m?.big.length).toBe(250);
   });
 
   it("caps at 20 keys", () => {
     const raw: Record<string, string> = {};
     for (let i = 0; i < 40; i++) raw[`k${i}`] = "v";
-    expect(Object.keys(sanitizeMeta(raw)!).length).toBe(20);
+    expect(Object.keys(sanitizeMeta(raw) ?? {}).length).toBe(20);
   });
 });
