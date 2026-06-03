@@ -650,6 +650,78 @@ export function ReportDialog({
                           </button>
                         )}
                       </div>
+
+                      {/* Screenshot section — visible on Step 2 so users know it exists */}
+                      <div style={{ marginTop: "10px" }}>
+                        <span style={{ fontSize: "12px", color: t.textMuted, marginBottom: "6px", display: "block" }}>
+                          Screenshot
+                          {screenshot && (
+                            <span style={{ color: t.accent, marginLeft: "6px", fontSize: "11px" }}>✓ captured</span>
+                          )}
+                        </span>
+                        {screenshot ? (
+                          <div style={{ position: "relative", display: "inline-block", width: "100%" }}>
+                            <img
+                              src={screenshot}
+                              alt="Page screenshot"
+                              onClick={() => setPreviewOpen(true)}
+                              style={{
+                                width: "100%",
+                                borderRadius: "6px",
+                                border: `1px solid ${t.border}`,
+                                maxHeight: "60px",
+                                objectFit: "cover",
+                                objectPosition: "top",
+                                cursor: "pointer",
+                                display: "block",
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setScreenshot(null)}
+                              style={{
+                                position: "absolute",
+                                top: "4px",
+                                right: "4px",
+                                background: "rgba(0,0,0,0.6)",
+                                border: "none",
+                                borderRadius: "50%",
+                                width: "18px",
+                                height: "18px",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
+                              aria-label="Remove screenshot"
+                            >
+                              <svg width="8" height="8" viewBox="0 0 10 10" fill="none">
+                                <path d="M1 1L9 9M9 1L1 9" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" />
+                              </svg>
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            style={{
+                              width: "100%",
+                              padding: "10px",
+                              borderRadius: "6px",
+                              border: `1px dashed ${t.inputBorder}`,
+                              textAlign: "center",
+                              fontSize: "12px",
+                              color: t.textMuted,
+                              background: "none",
+                              cursor: "pointer",
+                              fontFamily: "inherit",
+                            }}
+                          >
+                            📎 Upload or paste a screenshot (⌘V / Ctrl+V)
+                          </button>
+                        )}
+                      </div>
+
                       {showSeverity && reportType === "BUG" && (
                         <div style={{ marginTop: "10px" }}>
                           <span style={{ fontSize: "12px", color: t.textMuted, marginBottom: "6px", display: "block" }}>Severity</span>
@@ -768,7 +840,7 @@ export function ReportDialog({
                         {description.length > 200 ? description.slice(0, 200) + "..." : description}
                       </div>
 
-                      {/* Screenshot */}
+                      {/* Screenshot preview (managed on Step 2) */}
                       {screenshot && (
                         <div style={{ marginBottom: "10px", position: "relative" }}>
                           <img
@@ -785,67 +857,6 @@ export function ReportDialog({
                               cursor: "pointer",
                             }}
                           />
-                          <button
-                            type="button"
-                            onClick={() => setScreenshot(null)}
-                            style={{
-                              position: "absolute",
-                              top: "4px",
-                              right: "4px",
-                              background: "rgba(0,0,0,0.6)",
-                              border: "none",
-                              borderRadius: "50%",
-                              width: "20px",
-                              height: "20px",
-                              cursor: "pointer",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                            }}
-                            aria-label="Remove screenshot"
-                          >
-                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                              <path d="M1 1L9 9M9 1L1 9" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" />
-                            </svg>
-                          </button>
-                        </div>
-                      )}
-                      {!screenshot && (
-                        <div style={{ display: "flex", gap: "6px", marginBottom: "10px" }}>
-                          <button
-                            type="button"
-                            onClick={() => fileInputRef.current?.click()}
-                            style={{
-                              flex: 1,
-                              padding: "8px",
-                              borderRadius: "6px",
-                              border: `1px dashed ${t.inputBorder}`,
-                              textAlign: "center",
-                              fontSize: "11px",
-                              color: t.textMuted,
-                              background: "none",
-                              cursor: "pointer",
-                            }}
-                          >
-                            Upload or paste (⌘V)
-                          </button>
-                          <button
-                            type="button"
-                            onClick={retakeScreenshot}
-                            style={{
-                              flex: 1,
-                              padding: "8px",
-                              borderRadius: "6px",
-                              border: `1px dashed ${t.inputBorder}`,
-                              textAlign: "center",
-                              fontSize: "11px",
-                              color: t.textMuted,
-                              background: "none",
-                              cursor: "pointer",
-                            }}
-                          >
-                            Retake screenshot
-                          </button>
                         </div>
                       )}
 
