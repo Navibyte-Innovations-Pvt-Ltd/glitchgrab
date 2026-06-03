@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { dispatchWebhook } from "@/lib/webhooks";
+import { sendIssueResolvedWhatsApp } from "@/lib/whatsapp";
 
 /**
  * POST /api/v1/github/webhook
@@ -63,9 +64,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, skipped: "repo not tracked" });
     }
 
-    // Find the linked Glitchgrab issue
+    // Find the linked Glitchgrab issue + reporter details
     const glitchgrabIssue = await prisma.issue.findFirst({
       where: { repoId: repo.fullName, githubNumber: issueNumber },
+      include: {
+        report: { select: { reporterPhone: true, reporterName: true } },
+      },
     });
 
     // Handle different GitHub events
@@ -79,6 +83,14 @@ export async function POST(request: Request) {
           repoFullName,
           glitchgrabIssueId: glitchgrabIssue?.id,
         });
+
+        // Notify reporter via WhatsApp if phone is available
+        const phone = glitchgrabIssue?.report?.reporterPhone;
+        const name = glitchgrabIssue?.report?.reporterName ?? "there";
+        const title = payload.issue?.title ?? "your issue";
+        if (phone) {
+          sendIssueResolvedWhatsApp({ phone, reporterName: name, issueTitle: title });
+        }
       }
 
       if (payload.action === "reopened") {
