@@ -69,7 +69,7 @@ export async function GET(
   return NextResponse.json({
     success: true,
     data: {
-      snapshots: snapshots.reverse().map((s: { id: string; kind: string; indexedCount: number; notIndexedCount: number; totalChecked: number; submittedCount: number; createdAt: Date }) => ({
+      snapshots: snapshots.reverse().map((s) => ({
         id: s.id,
         kind: s.kind,
         indexedCount: s.indexedCount,
