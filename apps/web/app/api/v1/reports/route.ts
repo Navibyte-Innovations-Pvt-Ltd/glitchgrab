@@ -129,9 +129,9 @@ export async function POST(request: Request) {
     }
 
     const formData = await request.formData();
-    const repoId = formData.get("repoId") as string;
-    const description = ((formData.get("description") as string) || "").trim();
-    const screenshotFiles = formData.getAll("screenshot") as File[];
+    const repoId = (formData.getAll("repoId").at(0) ?? "") as string;
+    const description = ((formData.getAll("description").at(0) ?? "") as string).trim();
+    const screenshotFiles = formData.getAll("screenshot") as unknown as File[];
 
     if (!repoId) {
       return NextResponse.json(
