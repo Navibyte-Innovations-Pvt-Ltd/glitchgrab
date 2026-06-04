@@ -205,6 +205,49 @@ export async function checkIssueIsOpen(
   }
 }
 
+export async function getOpenIssueCount(
+  accessToken: string,
+  owner: string,
+  repo: string
+): Promise<number> {
+  try {
+    const res = await fetch(
+      `${GITHUB_API}/repos/${owner}/${repo}/issues?state=open&per_page=1`,
+      { headers: headers(accessToken) }
+    );
+    if (!res.ok) return 0;
+    const linkHeader = res.headers.get("link") ?? "";
+    const lastMatch = linkHeader.match(/page=(\d+)>; rel="last"/);
+    if (lastMatch) return parseInt(lastMatch[1], 10);
+    const data = (await res.json()) as unknown[];
+    return data.length;
+  } catch {
+    return 0;
+  }
+}
+
+export async function getClosedIssueCountSince(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  since: Date
+): Promise<number> {
+  try {
+    const res = await fetch(
+      `${GITHUB_API}/repos/${owner}/${repo}/issues?state=closed&since=${since.toISOString()}&per_page=1`,
+      { headers: headers(accessToken) }
+    );
+    if (!res.ok) return 0;
+    const linkHeader = res.headers.get("link") ?? "";
+    const lastMatch = linkHeader.match(/page=(\d+)>; rel="last"/);
+    if (lastMatch) return parseInt(lastMatch[1], 10);
+    const data = (await res.json()) as unknown[];
+    return data.length;
+  } catch {
+    return 0;
+  }
+}
+
 // ─── Org Types ──────────────────────────────────────────
 
 interface GitHubOrg {
