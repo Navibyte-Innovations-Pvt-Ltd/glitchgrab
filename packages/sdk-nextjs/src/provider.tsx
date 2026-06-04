@@ -25,7 +25,7 @@ import {
   getBreadcrumbs,
 } from "./breadcrumbs";
 
-const DEFAULT_BASE_URL = "https://www.glitchgrab.dev";
+const DEFAULT_BASE_URL = "https://glitchgrab.dev";
 
 const GlitchgrabContext = createContext<UseGlitchgrabReturn | null>(null);
 

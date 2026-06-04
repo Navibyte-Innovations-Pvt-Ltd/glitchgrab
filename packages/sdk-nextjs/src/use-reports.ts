@@ -25,7 +25,7 @@ export interface GlitchgrabReport {
   } | null;
 }
 
-const BASE_URL = "https://www.glitchgrab.dev";
+const BASE_URL = "https://glitchgrab.dev";
 
 /**
  * Hook to fetch bug reports for a specific user.

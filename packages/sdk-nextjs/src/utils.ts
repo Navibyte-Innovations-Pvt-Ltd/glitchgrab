@@ -66,7 +66,7 @@ export function captureContext(visitedPages: string[]): CapturedContext {
   }
 }
 
-const DEFAULT_BASE_URL = "https://www.glitchgrab.dev";
+const DEFAULT_BASE_URL = "https://glitchgrab.dev";
 const MAX_RETRIES = 3;
 const RETRY_BASE_MS = 500;
 
