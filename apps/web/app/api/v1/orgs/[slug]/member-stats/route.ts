@@ -39,8 +39,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
     return NextResponse.json({ success: true, data: {} });
   }
 
-  const since = new Date();
-  since.setUTCHours(0, 0, 0, 0);
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const sinceIso = since.toISOString();
 
   const ghHeaders = {
