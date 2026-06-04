@@ -78,7 +78,7 @@ export async function sendIssueResolvedWhatsApp({
 }): Promise<void> {
   const phoneNumberId = process.env.META_WA_PHONE_NUMBER_ID;
   const accessToken = process.env.META_WA_ACCESS_TOKEN;
-  const templateName = process.env.META_WA_TEMPLATE_NAME ?? "issue_resolved";
+  const templateName = "issue_resolved";
 
   if (!phoneNumberId || !accessToken) return;
 
