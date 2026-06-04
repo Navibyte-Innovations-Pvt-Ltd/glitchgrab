@@ -121,5 +121,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
 
   issues.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  return NextResponse.json({ success: true, data: issues.slice(0, 30) });
+  return NextResponse.json(
+    { success: true, data: issues.slice(0, 30) },
+    { headers: { "Cache-Control": "private, max-age=300, stale-while-revalidate=60" } },
+  );
 }
