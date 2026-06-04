@@ -84,7 +84,7 @@ async function handleReporterSaidNo(issueId: string) {
     where: { id: issueId },
     include: {
       report: { select: { reporterName: true } },
-      repo: { select: { owner: true, name: true, userId: true } },
+      repo: { select: { owner: true, name: true, userId: true, orgId: true } },
     },
   });
 
@@ -120,14 +120,21 @@ async function handleReporterSaidNo(issueId: string) {
   // Notify developer via WhatsApp
   const devUser = await prisma.user.findUnique({
     where: { id: userId },
-    select: { whatsappPhone: true },
+    select: {
+      name: true,
+      whatsappPhone: true,
+      ownedOrgs: { where: { id: issue.repo.orgId ?? "" }, select: { name: true }, take: 1 },
+    },
   });
+
+  const orgName = devUser?.ownedOrgs?.[0]?.name ?? devUser?.name ?? "the team";
 
   if (devUser?.whatsappPhone) {
     await sendDeveloperReopenedNotification({
       phone: devUser.whatsappPhone,
       reporterName: issue.report?.reporterName ?? "Reporter",
       issueTitle: issue.title,
+      orgName,
       githubUrl: issue.githubUrl,
     });
   }
