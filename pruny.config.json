@@ -6,7 +6,8 @@
       "/api/v1/billing/webhook",
       "/api/v1/sdk/reports/**",
       "/api/mcp",
-      "/api/v1/orgs/**/today-activity"
+      "/api/v1/orgs/**/today-activity",
+      "/api/v1/whatsapp/webhook"
     ],
     "files": ["**/db-sync.ts", "**/components/ui/**", "**/public/favicon-48x48.png"]
   }
