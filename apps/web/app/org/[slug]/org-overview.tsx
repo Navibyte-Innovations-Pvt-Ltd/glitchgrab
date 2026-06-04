@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useQueryState, parseAsString, parseAsStringLiteral } from "nuqs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import Image from "next/image";
@@ -95,6 +96,7 @@ interface IssueItem {
   comments: number;
   labels: { name: string; color: string }[];
   repoFullName: string;
+  assignees?: { login: string; avatarUrl: string }[];
 }
 
 interface DayBucket {
@@ -338,6 +340,30 @@ function IssueRow({
           {issue.comments}
         </span>
       )}
+      {issue.assignees && issue.assignees.length > 0 ? (
+        <div className="flex items-center gap-1 shrink-0">
+          {issue.assignees.slice(0, 2).map((a) => (
+            <Image
+              key={a.login}
+              src={`${a.avatarUrl}&s=32`}
+              alt={a.login}
+              title={`@${a.login}`}
+              width={16}
+              height={16}
+              className="h-4 w-4 rounded-full border border-border/60"
+            />
+          ))}
+          {issue.assignees.length === 1 && (
+            <span className="text-[10px] font-mono text-muted-foreground/60 hidden group-hover:inline">
+              @{issue.assignees[0].login}
+            </span>
+          )}
+        </div>
+      ) : (
+        <span className="text-[10px] font-mono text-muted-foreground/30 shrink-0 hidden group-hover:inline">
+          unassigned
+        </span>
+      )}
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
         <button
           type="button"
@@ -365,14 +391,21 @@ function IssueRow({
 
 // ─── Repo Filter Popover (header button) ─────────────────────────────────────
 
-function RepoFilterPopover({
+const ASSIGN_VIEWS = ["all", "assigned", "unassigned"] as const;
+type AssignView = (typeof ASSIGN_VIEWS)[number];
+
+function TriageFilterPopover({
   allRepos,
   selectedRepo,
   onSelect,
+  assignView,
+  onAssignViewChange,
 }: {
   allRepos: [string, IssueItem[]][];
   selectedRepo: string | null;
   onSelect: (repo: string | null) => void;
+  assignView: AssignView;
+  onAssignViewChange: (v: AssignView) => void;
 }) {
   const [search, setSearch] = useState("");
 
@@ -380,120 +413,151 @@ function RepoFilterPopover({
     repoShortName(repo).toLowerCase().includes(search.toLowerCase()),
   );
 
+  const isFiltered = selectedRepo !== null || assignView !== "assigned";
+  const label = selectedRepo
+    ? repoShortName(selectedRepo)
+    : assignView === "all"
+      ? "All issues"
+      : assignView === "unassigned"
+        ? "Unassigned"
+        : "Filter";
+
   return (
     <Popover>
-      <PopoverTrigger
-        className={cn(
-          "flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded border transition-colors",
-          selectedRepo
-            ? "bg-primary/15 border-primary/50 text-primary"
-            : "border-border text-muted-foreground hover:border-primary/50 hover:text-primary",
-        )}
-      >
-        <SlidersHorizontal className="h-2.5 w-2.5 shrink-0" />
-        {selectedRepo ? repoShortName(selectedRepo) : "Filter"}
-      </PopoverTrigger>
-      <PopoverContent
-        align="end"
-        side="bottom"
-        className="w-56 p-2 flex flex-col gap-1.5"
-      >
-        <div className="flex items-center gap-1.5 border border-border rounded px-2 py-1 bg-background">
-          <Search className="h-3 w-3 text-muted-foreground shrink-0" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search repos…"
-            autoFocus
-            className="flex-1 bg-transparent text-xs font-mono text-foreground outline-none placeholder:text-muted-foreground/50"
-          />
-          {search && (
-            <button type="button" onClick={() => setSearch("")}>
-              <X className="h-3 w-3 text-muted-foreground" />
-            </button>
-          )}
-        </div>
-
-        <button
-          type="button"
-          onClick={() => onSelect(null)}
+      <div className="flex items-center">
+        <PopoverTrigger
           className={cn(
-            "flex items-center justify-between px-2 py-1 rounded text-[11px] font-mono transition-colors",
-            !selectedRepo
-              ? "bg-primary/10 text-primary"
-              : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            "flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 border transition-colors",
+            isFiltered
+              ? "rounded-l bg-primary/15 border-primary/50 text-primary"
+              : "rounded border-border text-muted-foreground hover:border-primary/50 hover:text-primary",
           )}
         >
-          <span>All repos</span>
-          <span className="text-[10px]">
-            {allRepos.reduce((s, [, its]) => s + its.length, 0)}
-          </span>
-        </button>
-
-        <div className="flex flex-col gap-0.5 max-h-48 overflow-y-auto">
-          {filteredRepos.map(([repo, items]) => {
-            const isSelected = selectedRepo === repo;
-            const hasCritical = items.some((i) => isHighPriority(i.labels));
-            return (
+          <SlidersHorizontal className="h-2.5 w-2.5 shrink-0" />
+          {label}
+        </PopoverTrigger>
+        {isFiltered && (
+          <button
+            type="button"
+            onClick={() => { onSelect(null); onAssignViewChange("all"); }}
+            className="flex items-center px-1 py-0.5 rounded-r border border-l-0 bg-primary/15 border-primary/50 text-primary hover:text-destructive hover:border-destructive/40 transition-colors"
+          >
+            <X className="h-2.5 w-2.5" />
+          </button>
+        )}
+      </div>
+      <PopoverContent align="end" side="bottom" className="w-56 p-2 flex flex-col gap-1.5">
+        {/* Assign filter */}
+        <div className="space-y-1">
+          <p className="text-[10px] font-mono text-muted-foreground/60 uppercase tracking-widest px-1">Assignment</p>
+          <div className="flex rounded border border-border overflow-hidden">
+            {ASSIGN_VIEWS.map((v, i) => (
               <button
-                key={repo}
+                key={v}
                 type="button"
-                onClick={() => onSelect(isSelected ? null : repo)}
+                onClick={() => onAssignViewChange(v)}
                 className={cn(
-                  "flex items-center justify-between gap-2 px-2 py-1 rounded text-[11px] font-mono transition-colors",
-                  isSelected
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  "flex-1 py-1 text-[10px] font-mono capitalize transition-colors",
+                  i > 0 && "border-l border-border",
+                  assignView === v ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                <span className="flex items-center gap-1.5 min-w-0">
-                  <Folder className="h-2.5 w-2.5 shrink-0" />
-                  <span className="truncate">{repoShortName(repo)}</span>
-                </span>
-                <span
+                {v}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="border-t border-border pt-1.5 space-y-1">
+          <p className="text-[10px] font-mono text-muted-foreground/60 uppercase tracking-widest px-1">Repo</p>
+          <div className="flex items-center gap-1.5 border border-border rounded px-2 py-1 bg-background">
+            <Search className="h-3 w-3 text-muted-foreground shrink-0" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search repos…"
+              autoFocus
+              className="flex-1 bg-transparent text-xs font-mono text-foreground outline-none placeholder:text-muted-foreground/50"
+            />
+            {search && (
+              <button type="button" onClick={() => setSearch("")}>
+                <X className="h-3 w-3 text-muted-foreground" />
+              </button>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onSelect(null)}
+            className={cn(
+              "w-full flex items-center justify-between px-2 py-1 rounded text-[11px] font-mono transition-colors",
+              !selectedRepo
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            )}
+          >
+            <span>All repos</span>
+            <span className="text-[10px]">{allRepos.reduce((s, [, its]) => s + its.length, 0)}</span>
+          </button>
+
+          <div className="flex flex-col gap-0.5 max-h-40 overflow-y-auto">
+            {filteredRepos.map(([repo, items]) => {
+              const isSelected = selectedRepo === repo;
+              const hasCritical = items.some((i) => isHighPriority(i.labels));
+              return (
+                <button
+                  key={repo}
+                  type="button"
+                  onClick={() => onSelect(isSelected ? null : repo)}
                   className={cn(
-                    "shrink-0 text-[10px]",
-                    hasCritical && !isSelected ? "text-red-400" : "",
+                    "flex items-center justify-between gap-2 px-2 py-1 rounded text-[11px] font-mono transition-colors",
+                    isSelected
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
                   )}
                 >
-                  {items.length}
-                </span>
-              </button>
-            );
-          })}
-          {filteredRepos.length === 0 && (
-            <p className="text-[10px] font-mono text-muted-foreground/50 px-2 py-1">
-              No repos match
-            </p>
-          )}
+                  <span className="flex items-center gap-1.5 min-w-0">
+                    <Folder className="h-2.5 w-2.5 shrink-0" />
+                    <span className="truncate">{repoShortName(repo)}</span>
+                  </span>
+                  <span className={cn("shrink-0 text-[10px]", hasCritical && !isSelected ? "text-red-400" : "")}>
+                    {items.length}
+                  </span>
+                </button>
+              );
+            })}
+            {filteredRepos.length === 0 && (
+              <p className="text-[10px] font-mono text-muted-foreground/50 px-2 py-1">No repos match</p>
+            )}
+          </div>
         </div>
       </PopoverContent>
     </Popover>
   );
 }
-
 // ─── Issues Triage Body ───────────────────────────────────────────────────────
 
 function OrgIssuesTriageBody({
   data,
+  allCount,
   isLoading,
   selectedRepo,
   onSelect,
+  assignView,
 }: {
-  data: IssueItem[] | undefined;
+  data: IssueItem[];
+  allCount: number;
   isLoading: boolean;
   selectedRepo: string | null;
   onSelect: (repo: string | null) => void;
+  assignView: AssignView;
 }) {
   if (isLoading) {
     return (
       <div className="flex flex-col gap-2">
         {[1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className="flex items-center gap-2 rounded px-2 py-1.5 border border-border/40"
-          >
+          <div key={i} className="flex items-center gap-2 rounded px-2 py-1.5 border border-border/40">
             <Skeleton className="h-3 w-3 rounded-full shrink-0" />
             <Skeleton className="h-3 flex-1" />
             <Skeleton className="h-2.5 w-12 shrink-0" />
@@ -503,12 +567,16 @@ function OrgIssuesTriageBody({
     );
   }
 
-  if (!data || data.length === 0) {
+  if (data.length === 0) {
     return (
       <div className="flex items-center gap-3 border border-dashed border-border rounded-md px-4 py-4">
-        <AlertCircle className="h-4 w-4 text-muted-foreground shrink-0" />
+        <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
         <p className="text-xs font-mono text-muted-foreground">
-          No open issues — all clear.
+          {assignView === "assigned"
+            ? "No assigned issues."
+            : assignView === "unassigned"
+              ? "All issues are assigned — great!"
+              : "No open issues — all clear."}
         </p>
       </div>
     );
@@ -518,21 +586,17 @@ function OrgIssuesTriageBody({
     (acc[issue.repoFullName] ??= []).push(issue);
     return acc;
   }, {});
-
-  const sortedRepos = Object.entries(grouped).sort(
-    ([, a], [, b]) => b.length - a.length,
-  );
-  const top2 = sortedRepos.slice(0, 2);
-
-  const visibleRepos = selectedRepo
-    ? sortedRepos.filter(([repo]) => repo === selectedRepo)
-    : sortedRepos;
+  const sortedRepos = Object.entries(grouped).sort(([, a], [, b]) => b.length - a.length);
+  const top3 = sortedRepos.slice(0, 3);
 
   return (
     <div className="flex flex-col gap-3 max-h-80 overflow-y-auto pr-1">
-      {/* Top-2 quick-filter chips */}
+      {/* Summary + quick-filter chips */}
       <div className="flex items-center gap-1.5 flex-wrap">
-        {top2.map(([repo, items]) => {
+        <span className="text-[10px] font-mono text-muted-foreground/50 mr-1">
+          {data.length}{allCount !== data.length ? `/${allCount}` : ""} issues
+        </span>
+        {top3.map(([repo, items]) => {
           const hasCritical = items.some((i) => isHighPriority(i.labels));
           const isSelected = selectedRepo === repo;
           return (
@@ -551,23 +615,16 @@ function OrgIssuesTriageBody({
             >
               <Folder className="h-2.5 w-2.5 shrink-0" />
               <span>{repoShortName(repo)}</span>
-              <span
-                className={cn(
-                  "font-bold px-0.5",
-                  isSelected
-                    ? "text-primary"
-                    : hasCritical
-                      ? "text-red-300"
-                      : "text-foreground",
-                )}
-              >
+              <span className={cn("font-bold px-0.5", isSelected ? "text-primary" : hasCritical ? "text-red-300" : "text-foreground")}>
                 {items.length}
               </span>
             </button>
           );
         })}
-        {/* Active filter chip if not a top-2 repo */}
-        {selectedRepo && !top2.some(([r]) => r === selectedRepo) && (
+        {sortedRepos.length > 3 && !selectedRepo && (
+          <span className="text-[10px] font-mono text-muted-foreground/50">+{sortedRepos.length - 3} more</span>
+        )}
+        {selectedRepo && !top3.some(([r]) => r === selectedRepo) && (
           <button
             type="button"
             onClick={() => onSelect(null)}
@@ -578,17 +635,11 @@ function OrgIssuesTriageBody({
             <X className="h-2.5 w-2.5" />
           </button>
         )}
-        {/* +N more repos hint */}
-        {sortedRepos.length > 2 && (
-          <span className="text-[10px] font-mono text-muted-foreground/50 px-1">
-            +{sortedRepos.length - 2} more
-          </span>
-        )}
       </div>
 
-      {/* Issue list */}
+      {/* Issue list grouped by repo */}
       <div className="flex flex-col gap-3">
-        {visibleRepos.map(([repo, items]) => (
+        {sortedRepos.map(([repo, items]) => (
           <div key={repo} className="flex flex-col gap-1">
             <div className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground/60 uppercase tracking-widest">
               <Folder className="h-2.5 w-2.5" />
@@ -596,22 +647,19 @@ function OrgIssuesTriageBody({
               <span className="text-primary/60 ml-auto">{items.length}</span>
             </div>
             <ul className="flex flex-col gap-1">
-              {(selectedRepo ? items : items.slice(0, 2)).map((issue) => {
-                const critical = isHighPriority(issue.labels);
-                return (
-                  <li key={`${repo}-${issue.number}`}>
-                    <IssueRow issue={issue} critical={critical} />
-                  </li>
-                );
-              })}
-              {!selectedRepo && items.length > 2 && (
+              {(selectedRepo ? items : items.slice(0, 3)).map((issue) => (
+                <li key={`${repo}-${issue.number}`}>
+                  <IssueRow issue={issue} critical={isHighPriority(issue.labels)} />
+                </li>
+              ))}
+              {!selectedRepo && items.length > 3 && (
                 <li>
                   <button
                     type="button"
                     onClick={() => onSelect(repo)}
                     className="text-[10px] font-mono text-muted-foreground/50 hover:text-primary transition-colors pl-1"
                   >
-                    +{items.length - 2} more →
+                    +{items.length - 3} more →
                   </button>
                 </li>
               )}
@@ -623,10 +671,20 @@ function OrgIssuesTriageBody({
   );
 }
 
-// ─── Issues Triage Section (holds state + query, exposes filter for header) ──
+// ─── Issues Triage Section ────────────────────────────────────────────────────
 
 function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
-  const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
+  const [assignView, setAssignView] = useQueryState<AssignView>(
+    "triageAssign",
+    parseAsStringLiteral(ASSIGN_VIEWS).withDefault("assigned"),
+  );
+  const [selectedRepo, setSelectedRepo] = useQueryState(
+    "triageRepo",
+    parseAsString.withDefault(""),
+  );
+
+  const repoFilter = selectedRepo || null;
+  const setRepoFilter = (r: string | null) => void setSelectedRepo(r ?? "");
 
   const { data, isLoading } = useQuery<IssueItem[]>({
     queryKey: ["org-issues", orgSlug],
@@ -634,9 +692,17 @@ function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
       const { data } = await axios.get(`/api/v1/orgs/${orgSlug}/issues`);
       return data.data ?? [];
     },
-    staleTime: 60_000,
-    refetchOnWindowFocus: true,
-    refetchInterval: 60_000,
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    refetchInterval: 10 * 60_000,
+  });
+
+  // Apply local filters
+  const filtered = (data ?? []).filter((issue) => {
+    if (repoFilter && issue.repoFullName !== repoFilter) return false;
+    if (assignView === "assigned") return (issue.assignees?.length ?? 0) > 0;
+    if (assignView === "unassigned") return (issue.assignees?.length ?? 0) === 0;
+    return true;
   });
 
   const grouped = (data ?? []).reduce<Record<string, IssueItem[]>>(
@@ -655,10 +721,12 @@ function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
       icon={<AlertCircle className="h-4 w-4 text-primary" />}
       title="Priority issues triage"
       meta={
-        <RepoFilterPopover
+        <TriageFilterPopover
           allRepos={sortedRepos}
-          selectedRepo={selectedRepo}
-          onSelect={setSelectedRepo}
+          selectedRepo={repoFilter}
+          onSelect={setRepoFilter}
+          assignView={assignView}
+          onAssignViewChange={(v) => void setAssignView(v)}
         />
       }
       footer={{
@@ -668,10 +736,12 @@ function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
       }}
     >
       <OrgIssuesTriageBody
-        data={data}
+        data={filtered}
+        allCount={data?.length ?? 0}
         isLoading={isLoading}
-        selectedRepo={selectedRepo}
-        onSelect={setSelectedRepo}
+        selectedRepo={repoFilter}
+        onSelect={setRepoFilter}
+        assignView={assignView}
       />
     </ListPanel>
   );
@@ -857,13 +927,23 @@ function TeamPanel({
   if (!membersData) {
     return (
       <div className="flex flex-col gap-3">
-        <Skeleton className="h-2.5 w-16" />
+        <Skeleton className="h-5 w-20 rounded-full" />
         {[1, 2, 3].map((i) => (
-          <div key={i} className="flex items-center gap-2.5 px-1 py-1.5">
-            <Skeleton className="w-7 h-7 rounded-full shrink-0" />
+          <div
+            key={i}
+            className="flex items-start gap-2.5 px-2.5 py-2 rounded-lg border border-border/40"
+          >
+            <Skeleton className="w-8 h-8 rounded-full shrink-0 mt-0.5" />
             <div className="flex-1 flex flex-col gap-1.5">
-              <Skeleton className="h-3 w-28" />
-              <Skeleton className="h-2 w-40" />
+              <div className="flex items-center gap-1.5">
+                <Skeleton className="h-3 w-28" />
+                <Skeleton className="h-4 w-12 rounded ml-auto" />
+              </div>
+              <Skeleton className="h-2.5 w-24" />
+              <div className="flex gap-1">
+                <Skeleton className="h-4 w-16 rounded" />
+                <Skeleton className="h-4 w-20 rounded" />
+              </div>
             </div>
           </div>
         ))}
@@ -877,9 +957,12 @@ function TeamPanel({
   return (
     <div className="flex flex-col gap-3 max-h-80 overflow-y-auto pr-1">
       {joined.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest pb-1 border-b border-border/50">
-            {joined.length} active
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-mono px-2 py-0.5 rounded-full border border-green-500/30 bg-green-500/10 text-green-400 uppercase tracking-widest">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+              {joined.length} active
+            </span>
           </div>
           <ul className="flex flex-col gap-1.5">
             {joined.map((m) => {
@@ -887,56 +970,70 @@ function TeamPanel({
               return (
                 <li
                   key={m.githubLogin}
-                  className="flex items-center gap-2.5 px-1 py-1.5 rounded-md hover:bg-card/60 transition-colors"
+                  className="flex items-start gap-2.5 px-2.5 py-2 rounded-lg border border-border/50 bg-card/40 hover:border-border hover:bg-card/60 transition-colors"
                 >
-                  <div className="relative shrink-0">
+                  <div className="relative shrink-0 mt-0.5">
                     {m.avatarUrl ? (
                       <Image
                         src={m.avatarUrl}
                         alt={m.githubLogin}
-                        width={28}
-                        height={28}
+                        width={32}
+                        height={32}
                         className="rounded-full border border-border"
                       />
                     ) : (
-                      <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-xs font-mono font-bold">
+                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-mono font-bold">
                         {(m.name ?? m.githubLogin).charAt(0).toUpperCase()}
                       </div>
                     )}
-                    <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-green-500 border border-background" />
+                    <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-green-400 border-2 border-background" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-foreground truncate">
-                      {m.name ?? m.githubLogin}
+                  <div className="flex-1 min-w-0 flex flex-col gap-1">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-sm font-medium text-foreground truncate flex-1">
+                        {m.name ?? m.githubLogin}
+                      </span>
+                      {m.role && (
+                        <span
+                          className={cn(
+                            "font-mono text-[9px] px-1.5 py-0.5 rounded border uppercase tracking-wide shrink-0",
+                            m.role === "OWNER"
+                              ? "text-primary border-primary/30 bg-primary/10"
+                              : "text-muted-foreground border-border bg-muted",
+                          )}
+                        >
+                          {m.role}
+                        </span>
+                      )}
                     </div>
                     {stats ? (
-                      <TooltipProvider delay={150}>
-                        <div className="text-[10px] font-mono text-primary/70">
-                          ↑ {stats.commits} commit
-                          {stats.commits !== 1 ? "s" : ""} · today ·{" "}
-                          {stats.repos
-                            .map((r) => (
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center gap-1 text-[10px] font-mono text-green-400/80">
+                          <GitCommitHorizontal className="h-3 w-3 shrink-0" />
+                          <span>
+                            {stats.commits} commit{stats.commits !== 1 ? "s" : ""} · 24h
+                          </span>
+                        </div>
+                        <TooltipProvider delay={150}>
+                          <div className="flex flex-wrap gap-1">
+                            {stats.repos.map((r) => (
                               <Tooltip key={r.name}>
                                 <TooltipTrigger
                                   render={
-                                    <span className="inline-flex items-center gap-1 underline decoration-dotted underline-offset-2 cursor-help" />
+                                    <span className="inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded border border-border/60 bg-background/50 text-muted-foreground hover:border-primary/40 hover:text-primary/70 cursor-help transition-colors" />
                                   }
                                 >
-                                  {r.name} (
-                                  <span className="inline-flex items-center gap-0.5">
-                                    <GitCommitHorizontal className="h-2.5 w-2.5 shrink-0" />
+                                  <Folder className="h-2.5 w-2.5 shrink-0" />
+                                  <span>{r.name}</span>
+                                  <span className="text-foreground/70 tabular-nums ml-0.5">
                                     {r.commits}
                                   </span>
                                   {r.prs ? (
-                                    <>
-                                      <span className="mx-0.5">·</span>
-                                      <span className="inline-flex items-center gap-0.5 text-primary">
-                                        <GitPullRequest className="h-2.5 w-2.5 shrink-0" />
-                                        {r.prs}
-                                      </span>
-                                    </>
+                                    <span className="inline-flex items-center gap-0.5 text-primary/60 ml-0.5">
+                                      <GitPullRequest className="h-2 w-2 shrink-0" />
+                                      {r.prs}
+                                    </span>
                                   ) : null}
-                                  )
                                 </TooltipTrigger>
                                 <TooltipContent>
                                   {r.branches?.length
@@ -944,34 +1041,18 @@ function TeamPanel({
                                     : "no branch info"}
                                 </TooltipContent>
                               </Tooltip>
-                            ))
-                            .reduce(
-                              (acc, el, i) =>
-                                i === 0 ? [el] : [...acc, ", ", el],
-                              [] as React.ReactNode[],
-                            )}
-                        </div>
-                      </TooltipProvider>
+                            ))}
+                          </div>
+                        </TooltipProvider>
+                      </div>
                     ) : memberStats !== undefined ? (
-                      <div className="text-[10px] font-mono text-muted-foreground/50 truncate">
-                        no commits today
+                      <div className="text-[10px] font-mono text-muted-foreground/40">
+                        no commits · 24h
                       </div>
                     ) : (
                       <Skeleton className="h-2.5 w-36 mt-0.5" />
                     )}
                   </div>
-                  {m.role && (
-                    <span
-                      className={cn(
-                        "font-mono text-[10px] px-1.5 py-0.5 rounded border uppercase tracking-wide shrink-0",
-                        m.role === "OWNER"
-                          ? "text-primary border-primary/30 bg-primary/10"
-                          : "text-muted-foreground border-border bg-muted",
-                      )}
-                    >
-                      {m.role}
-                    </span>
-                  )}
                 </li>
               );
             })}
@@ -981,8 +1062,11 @@ function TeamPanel({
 
       {pending.length > 0 && (
         <div className="flex flex-col gap-1.5">
-          <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest pb-1 border-b border-border/50">
-            {pending.length} not yet joined
+          <div className="flex items-center gap-2 pb-1">
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-mono px-2 py-0.5 rounded-full border border-yellow-500/30 bg-yellow-500/10 text-yellow-400 uppercase tracking-widest">
+              <span className="w-1.5 h-1.5 rounded-full bg-yellow-400" />
+              {pending.length} pending
+            </span>
           </div>
           <ul className="flex flex-col gap-1.5">
             {pending.slice(0, 4).map((m) => (
@@ -1070,7 +1154,7 @@ function PendingMemberRow({
           {stats ? (
             <TooltipProvider delay={150}>
               <div className="text-[10px] font-mono text-muted-foreground/60">
-                ↑ {stats.commits} commit{stats.commits !== 1 ? "s" : ""} · today
+                ↑ {stats.commits} commit{stats.commits !== 1 ? "s" : ""} · 24h
                 ·{" "}
                 {stats.repos
                   .map((r) => (
@@ -1212,9 +1296,9 @@ function OrgPRsOrWorkflowsPanel({ orgSlug }: { orgSlug: string }) {
       const { data } = await axios.get(`/api/v1/orgs/${orgSlug}/pull-requests`);
       return data.data ?? [];
     },
-    staleTime: 60_000,
-    refetchOnWindowFocus: true,
-    refetchInterval: 2 * 60_000,
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    refetchInterval: 10 * 60_000,
   });
 
   return (
@@ -1860,9 +1944,9 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
       const { data } = await axios.get(`/api/v1/orgs/${ctx.orgSlug}/stats`);
       return data.data;
     },
-    staleTime: 30_000,
-    refetchOnWindowFocus: true,
-    refetchInterval: 60_000,
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    refetchInterval: 10 * 60_000,
   });
 
   const { data: issues } = useQuery<IssueItem[]>({
@@ -1871,9 +1955,9 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
       const { data } = await axios.get(`/api/v1/orgs/${ctx.orgSlug}/issues`);
       return data.data ?? [];
     },
-    staleTime: 60_000,
-    refetchOnWindowFocus: true,
-    refetchInterval: 60_000,
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    refetchInterval: 10 * 60_000,
   });
 
   const { data: membersData } = useQuery<MembersData>({

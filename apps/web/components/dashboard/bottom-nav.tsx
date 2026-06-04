@@ -106,8 +106,8 @@ export function BottomNav({ user, planBadge = "none", trialDaysLeft = 0 }: Botto
         )}
 
         {/* Report Bug */}
-        <ReportButton>
-          {({ onClick, capturing }) => (
+        <ReportButton className="">
+          {({ onClick, capturing }: { onClick: () => void; capturing: boolean }) => (
             <Button
               variant="ghost"
               onClick={onClick}
@@ -166,8 +166,8 @@ export function BottomNav({ user, planBadge = "none", trialDaysLeft = 0 }: Botto
                 );
               })}
               <div className="mt-2 px-0">
-                <ReportButton>
-                  {({ onClick, capturing }) => (
+                <ReportButton className="">
+                  {({ onClick, capturing }: { onClick: () => void; capturing: boolean }) => (
                     <Button
                       variant="ghost"
                       onClick={onClick}

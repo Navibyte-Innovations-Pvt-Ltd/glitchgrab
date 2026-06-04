@@ -6,7 +6,6 @@ import nextTs from "eslint-config-next/typescript";
 import tailwindCanonical from "eslint-plugin-tailwind-canonical-classes";
 import unusedImports from "eslint-plugin-unused-imports";
 import security from "eslint-plugin-security";
-import reactHooks from "eslint-plugin-react-hooks";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,7 +18,6 @@ const eslintConfig = defineConfig([
       "tailwind-canonical": tailwindCanonical,
       "unused-imports": unusedImports,
       security,
-      "react-hooks": reactHooks,
     },
     rules: {
       // Tailwind

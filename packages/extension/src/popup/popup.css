@@ -1,0 +1,157 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #0f0f0f;
+  color: #e5e5e5;
+  width: 300px;
+}
+
+.container { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+
+/* header */
+.header { display: flex; align-items: center; justify-content: space-between; }
+.logo { font-size: 13px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
+
+.badge {
+  font-size: 9px; font-weight: 700;
+  padding: 2px 8px; border-radius: 9999px;
+  background: #222; color: #666;
+  text-transform: uppercase; letter-spacing: 0.6px;
+}
+.badge.active { background: #14281a; color: #4ade80; }
+.badge.done   { background: #16213a; color: #60a5fa; }
+.badge.ready  { background: #2a1f00; color: #fbbf24; }
+
+/* panels */
+.panel { display: flex; flex-direction: column; gap: 8px; }
+
+.status { font-size: 12px; color: #888; line-height: 1.5; }
+.recording-status { display: flex; align-items: center; gap: 6px; color: #4ade80; font-size: 12px; }
+
+.dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #4ade80;
+  animation: pulse 1.2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+kbd {
+  background: #1e1e1e; border: 1px solid #3a3a3a; border-radius: 3px;
+  padding: 1px 5px; font-size: 10px; font-family: monospace; color: #ccc;
+}
+
+/* buttons */
+.btn {
+  padding: 7px 12px; border-radius: 6px;
+  font-size: 12px; font-weight: 600;
+  cursor: pointer; border: none;
+  transition: opacity 0.15s;
+}
+.btn:hover { opacity: 0.82; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-start   { background: #2563eb; color: #fff; }
+.btn-stop    { background: #dc2626; color: #fff; }
+.btn-primary { background: #7c3aed; color: #fff; flex: 1; }
+.btn-secondary { background: #27272a; color: #d4d4d8; flex: 1; }
+.btn-ghost { background: transparent; color: #555; font-size: 11px; padding: 5px 8px; }
+
+.row { display: flex; gap: 6px; align-items: center; }
+
+/* session id */
+.result-label { font-size: 10px; color: #555; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.session-id {
+  background: #141414; border: 1px solid #2a2a2a; border-radius: 4px;
+  padding: 5px 8px; font-size: 11px; font-family: monospace;
+  color: #818cf8; word-break: break-all; line-height: 1.4;
+}
+
+.count { font-size: 11px; color: #555; }
+
+/* spinner */
+.spinner {
+  width: 20px; height: 20px; border-radius: 50%;
+  border: 2px solid #27272a; border-top-color: #7c3aed;
+  animation: spin 0.8s linear infinite;
+  align-self: center; margin: 4px 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* script output */
+.script-box {
+  width: 100%; min-height: 140px; max-height: 220px;
+  background: #141414; border: 1px solid #2a2a2a; border-radius: 6px;
+  padding: 8px 10px; font-size: 11px; color: #d4d4d8;
+  line-height: 1.6; resize: vertical; font-family: inherit;
+  outline: none;
+}
+.script-box:focus { border-color: #7c3aed; }
+
+.word-count { font-size: 10px; color: #444; text-align: right; }
+
+.conn { font-size: 8px; line-height: 1; cursor: default; }
+
+/* log toggle button */
+.btn-log {
+  background: transparent; border: none; cursor: pointer;
+  color: #555; padding: 3px; border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  transition: color 0.15s, background 0.15s;
+}
+.btn-log:hover { color: #999; background: #1e1e1e; }
+.btn-log.active { color: #818cf8; background: #1a1a2e; }
+
+/* log panel */
+.log-panel { gap: 6px; }
+
+.log-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-top: 2px;
+}
+.log-count { font-size: 10px; color: #444; }
+
+.log-list {
+  max-height: 200px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 2px;
+  scrollbar-width: thin; scrollbar-color: #2a2a2a transparent;
+}
+
+.log-empty { font-size: 11px; color: #444; padding: 6px 0; }
+
+.log-item {
+  display: flex; align-items: flex-start; gap: 6px;
+  padding: 4px 6px; border-radius: 4px;
+  background: #111; border: 1px solid #1e1e1e;
+  min-width: 0;
+}
+.log-item:hover { border-color: #2a2a2a; }
+
+.log-icon {
+  font-size: 10px; color: #555; flex-shrink: 0;
+  width: 14px; text-align: center; padding-top: 1px;
+}
+
+.log-body {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; gap: 1px;
+}
+
+.log-type {
+  font-size: 9px; font-weight: 700; color: #666;
+  text-transform: uppercase; letter-spacing: 0.4px;
+}
+
+.log-detail {
+  font-size: 10px; color: #aaa;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.log-time {
+  font-size: 9px; color: #444; flex-shrink: 0;
+  font-family: monospace; padding-top: 2px;
+}

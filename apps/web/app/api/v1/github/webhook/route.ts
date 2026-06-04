@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { dispatchWebhook } from "@/lib/webhooks";
+import { sendIssueResolvedWhatsApp, sendIssueAssignedNotification } from "@/lib/whatsapp";
 
 /**
  * POST /api/v1/github/webhook
@@ -34,6 +35,7 @@ export async function POST(request: Request) {
         state: string;
         body: string | null;
       };
+      assignee?: { login: string };
       comment?: {
         body: string;
         user: { login: string; avatar_url: string };
@@ -56,17 +58,31 @@ export async function POST(request: Request) {
     // Find the repo in our DB to get the user
     const repo = await prisma.repo.findFirst({
       where: { fullName: repoFullName },
-      select: { userId: true, fullName: true },
+      select: { id: true, userId: true, fullName: true, orgId: true },
     });
 
     if (!repo) {
       return NextResponse.json({ ok: true, skipped: "repo not tracked" });
     }
 
-    // Find the linked Glitchgrab issue
+    // Find the linked Glitchgrab issue + reporter details
     const glitchgrabIssue = await prisma.issue.findFirst({
-      where: { repoId: repo.fullName, githubNumber: issueNumber },
+      where: { repoId: repo.id, githubNumber: issueNumber },
+      include: {
+        report: { select: { reporterPhone: true, reporterName: true } },
+      },
     });
+
+    // Fetch repo owner + their org name for WA messages
+    const repoOwnerData = await prisma.user.findUnique({
+      where: { id: repo.userId },
+      select: {
+        name: true,
+        whatsappPhone: true,
+        ownedOrgs: { where: { id: repo.orgId ?? "" }, select: { name: true }, take: 1 },
+      },
+    });
+    const orgName = repoOwnerData?.ownedOrgs?.[0]?.name ?? repoOwnerData?.name ?? "the team";
 
     // Handle different GitHub events
     if (event === "issues") {
@@ -79,6 +95,21 @@ export async function POST(request: Request) {
           repoFullName,
           glitchgrabIssueId: glitchgrabIssue?.id,
         });
+
+        // Notify reporter via WhatsApp if phone is available
+        const phone = glitchgrabIssue?.report?.reporterPhone;
+        const name = glitchgrabIssue?.report?.reporterName ?? "there";
+        const title = payload.issue?.title ?? "your issue";
+        if (phone && glitchgrabIssue) {
+          sendIssueResolvedWhatsApp({
+            phone,
+            reporterName: name,
+            issueTitle: title,
+            orgName,
+            developerPhone: repoOwnerData?.whatsappPhone,
+            issueId: glitchgrabIssue.id,
+          });
+        }
       }
 
       if (payload.action === "reopened") {
@@ -101,6 +132,24 @@ export async function POST(request: Request) {
           action: payload.action,
           glitchgrabIssueId: glitchgrabIssue?.id,
         });
+      }
+
+      if (payload.action === "assigned" && payload.assignee?.login) {
+        // Find the assignee in Glitchgrab by GitHub login
+        const assigneeUser = await prisma.user.findFirst({
+          where: { githubLogin: payload.assignee.login },
+          select: { whatsappPhone: true, name: true },
+        });
+
+        if (assigneeUser?.whatsappPhone && payload.issue) {
+          sendIssueAssignedNotification({
+            phone: assigneeUser.whatsappPhone,
+            developerName: assigneeUser.name ?? payload.assignee.login,
+            issueTitle: payload.issue.title,
+            orgName,
+            githubUrl: payload.issue.html_url,
+          });
+        }
       }
     }
 

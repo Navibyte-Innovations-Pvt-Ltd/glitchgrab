@@ -6,8 +6,12 @@
       "/api/v1/billing/webhook",
       "/api/v1/sdk/reports/**",
       "/api/mcp",
-      "/api/v1/orgs/**/today-activity"
+      "/api/v1/orgs/**/today-activity",
+      "/api/v1/whatsapp/webhook",
+      "/api/v1/me",
+      "/api/v1/capture-sessions/**",
+      "/api/v1/glitchrecord/**"
     ],
-    "files": ["**/db-sync.ts", "**/components/ui/**", "**/public/favicon-48x48.png"]
+    "files": ["**/db-sync.ts", "**/components/ui/**", "**/public/favicon-48x48.png", "apps/glitchrecord/**"]
   }
 }

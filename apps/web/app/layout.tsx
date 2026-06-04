@@ -6,6 +6,7 @@ import { QueryProvider } from "@/components/providers/query-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { OrganizationJsonLd, WebSiteJsonLd } from "@/components/seo/json-ld";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
 
 const BASE_URL = "https://glitchgrab.dev";
 
@@ -92,11 +93,13 @@ export default function RootLayout({
       <body>
         <AuthSessionProvider>
           <QueryProvider>
-            <TooltipProvider delay={300}>
-              <GlitchgrabSDKProvider>
-                {children}
-              </GlitchgrabSDKProvider>
-            </TooltipProvider>
+            <NuqsAdapter>
+              <TooltipProvider delay={300}>
+                <GlitchgrabSDKProvider>
+                  {children}
+                </GlitchgrabSDKProvider>
+              </TooltipProvider>
+            </NuqsAdapter>
           </QueryProvider>
           <Toaster />
         </AuthSessionProvider>

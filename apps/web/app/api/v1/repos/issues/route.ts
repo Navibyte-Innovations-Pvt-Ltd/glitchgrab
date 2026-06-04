@@ -40,7 +40,7 @@ export async function GET() {
 
     const issues = (
       await Promise.all(
-        repos.map(async (repo) => {
+        repos.map(async (repo: { fullName: string }) => {
           try {
             const res = await fetch(
               `https://api.github.com/repos/${repo.fullName}/issues?state=open&sort=created&direction=desc&per_page=10`,

@@ -60,10 +60,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   }
 
   // Build a map: githubLogin → dbMember
-  const dbByLogin = new Map(
+  const dbByLogin = new Map<string, typeof dbMembers[number]>(
     dbMembers
-      .filter((m) => m.user.githubLogin)
-      .map((m) => [m.user.githubLogin as string, m])
+      .filter((m: typeof dbMembers[number]) => m.user.githubLogin)
+      .map((m: typeof dbMembers[number]) => [m.user.githubLogin as string, m])
   );
 
   // Merge: all GitHub members, annotated with DB state

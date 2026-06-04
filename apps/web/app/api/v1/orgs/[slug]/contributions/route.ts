@@ -58,7 +58,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   const dailyCounts = new Map<string, number>();
 
   await Promise.all(
-    repos.map(async (repo) => {
+    repos.map(async (repo: { fullName: string }) => {
       try {
         // Fetch up to 3 pages (300 commits/year per repo) — enough for most dev shops
         for (let page = 1; page <= 3; page++) {

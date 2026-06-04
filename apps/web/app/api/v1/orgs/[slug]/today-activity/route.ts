@@ -43,8 +43,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   });
 
   const logins = members
-    .map((m) => m.user.githubLogin)
-    .filter((l): l is string => !!l);
+    .map((m: { user: { githubLogin: string | null } }) => m.user.githubLogin)
+    .filter((l: string | null): l is string => !!l);
 
   if (logins.length === 0 || repos.length === 0) {
     return NextResponse.json({ success: true, data: {} });
@@ -64,7 +64,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   const counts: Record<string, { shas: Set<string>; repos: Set<string> }> = {};
 
   await Promise.all(
-    repos.map(async (repo) => {
+    repos.map(async (repo: { fullName: string }) => {
       try {
         const branchRes = await fetch(`https://api.github.com/repos/${repo.fullName}/branches?per_page=100`, { headers });
         if (!branchRes.ok) return;
@@ -75,7 +75,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
 
         await Promise.all(
           branches.flatMap((branch) =>
-            logins.map(async (login) => {
+            logins.map(async (login: string) => {
               try {
                 const url = `https://api.github.com/repos/${repo.fullName}/commits?sha=${encodeURIComponent(branch.name)}&author=${login}&since=${sinceIso}&per_page=100`;
                 const res = await fetch(url, { headers });

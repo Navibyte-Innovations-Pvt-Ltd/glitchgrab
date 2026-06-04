@@ -129,38 +129,40 @@ export function Sidebar({
       ? { text: "PRO", tone: "primary" }
       : undefined;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  type AnyIcon = React.ComponentType<any>;
   const navGroups: NavGroup[] = [
     {
       label: "Workspace",
       statusDot: "ok",
       items: [
-        { href: "/dashboard", label: "Overview", icon: LayoutGridIcon, ownerOnly: false },
-        { href: "/dashboard/chat", label: "Chat", icon: MessageSquareIcon, ownerOnly: false },
-        { href: "/dashboard/repos", label: "Repos", icon: GitForkIcon, ownerOnly: false },
+        { href: "/dashboard", label: "Overview", icon: LayoutGridIcon as unknown as AnyIcon, ownerOnly: false },
+        { href: "/dashboard/chat", label: "Chat", icon: MessageSquareIcon as unknown as AnyIcon, ownerOnly: false },
+        { href: "/dashboard/repos", label: "Repos", icon: GitForkIcon as unknown as AnyIcon, ownerOnly: false },
         {
           href: "/dashboard/reports",
           label: "Reports",
-          icon: ClipboardList,
+          icon: ClipboardList as unknown as AnyIcon,
           ownerOnly: false,
           badge: reportsBadge,
         },
-        { href: "/dashboard/analytics", label: "Analytics", icon: ActivityIcon, ownerOnly: false },
-        { href: "/dashboard/seo", label: "SEO", icon: SearchCheck, ownerOnly: true },
+        { href: "/dashboard/analytics", label: "Analytics", icon: ActivityIcon as unknown as AnyIcon, ownerOnly: false },
+        { href: "/dashboard/seo", label: "SEO", icon: SearchCheck as unknown as AnyIcon, ownerOnly: true },
       ],
     },
     {
       label: "Config",
       items: [
-        { href: "/dashboard/tokens", label: "API Tokens", icon: KeyIcon, ownerOnly: true },
+        { href: "/dashboard/tokens", label: "API Tokens", icon: KeyIcon as unknown as AnyIcon, ownerOnly: true },
         {
           href: "/dashboard/billing",
           label: "Billing",
-          icon: CreditCardIcon,
+          icon: CreditCardIcon as unknown as AnyIcon,
           ownerOnly: true,
           badge: billingBadge,
         },
-        { href: "/dashboard/settings", label: "Settings", icon: SettingsIcon, ownerOnly: true },
-        { href: "/org/setup", label: "Create Org", icon: UsersIcon, ownerOnly: true },
+        { href: "/dashboard/settings", label: "Settings", icon: SettingsIcon as unknown as AnyIcon, ownerOnly: true },
+        { href: "/org/setup", label: "Create Org", icon: UsersIcon as unknown as AnyIcon, ownerOnly: true },
       ],
     },
   ];
@@ -293,8 +295,8 @@ function ReportBugButton({ reportBtnRef }: { reportBtnRef: React.RefObject<HTMLB
   const bugIconRef = useRef<AnimHandle>(null);
 
   return (
-    <ReportButton>
-      {({ onClick, capturing }) => (
+    <ReportButton className="">
+      {({ onClick, capturing }: { onClick: () => void; capturing: boolean }) => (
         <button
           ref={reportBtnRef}
           type="button"

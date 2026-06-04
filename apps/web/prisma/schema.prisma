@@ -24,14 +24,15 @@ model Waitlist {
 // ─── Auth ────────────────────────────────────────────────
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String    @unique
-  emailVerified DateTime?
-  image         String?
-  githubLogin   String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  name           String?
+  email          String    @unique
+  emailVerified  DateTime?
+  image          String?
+  githubLogin    String?
+  whatsappPhone  String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   accounts      Account[]
   sessions      Session[]
@@ -43,6 +44,21 @@ model User {
   gscConnectSessions  GscConnectSession[]
   ownedOrgs     Organization[]
   orgMemberships OrgMember[]
+  glitchRecordTokens GlitchRecordToken[]
+  whatsappOtps  WhatsappOtp[]
+}
+
+model WhatsappOtp {
+  id        String   @id @default(cuid())
+  userId    String
+  phone     String
+  otpHash   String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Account {
@@ -324,4 +340,25 @@ model Webhook {
   updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Auth token for GlitchRecord desktop app
+model GlitchRecordToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Temporary click-capture sessions for Recordly script generation
+model CaptureSession {
+  id         String   @id @default(cuid())
+  events     Json
+  meta       Json?    // RecordingMeta from Recordly — clips, cuts, duration
+  script     String?
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
 }

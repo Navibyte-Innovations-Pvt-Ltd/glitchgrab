@@ -47,7 +47,7 @@ export default async function OrgReposPage({ params }: { params: Promise<{ slug:
       }),
     ]);
 
-    const dbByFullName = new Map(dbRepos.map((r) => [r.fullName, r]));
+    const dbByFullName = new Map<string, typeof dbRepos[number]>(dbRepos.map((r: typeof dbRepos[number]) => [r.fullName, r]));
 
     const merged = githubRepos.map((ghRepo) => {
       const db = dbByFullName.get(ghRepo.fullName);

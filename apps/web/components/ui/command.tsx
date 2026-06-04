@@ -33,6 +33,13 @@ function Command({
   )
 }
 
+// Cast to avoid @base-ui/react vs project React ReactNode type mismatch
+const TypedDialogContent = DialogContent as React.ComponentType<{
+  className?: string
+  showCloseButton?: boolean
+  children?: React.ReactNode
+}>
+
 function CommandDialog({
   title = "Command Palette",
   description = "Search for a command to run...",
@@ -53,7 +60,7 @@ function CommandDialog({
         <DialogTitle>{title}</DialogTitle>
         <DialogDescription>{description}</DialogDescription>
       </DialogHeader>
-      <DialogContent
+      <TypedDialogContent
         className={cn(
           "top-1/3 translate-y-0 overflow-hidden rounded-xl! p-0",
           className
@@ -61,7 +68,7 @@ function CommandDialog({
         showCloseButton={showCloseButton}
       >
         {children}
-      </DialogContent>
+      </TypedDialogContent>
     </Dialog>
   )
 }

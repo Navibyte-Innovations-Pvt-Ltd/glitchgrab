@@ -31,7 +31,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
 
   // Verify requester is a member
   const userId = session.user?.id as string;
-  const isMember = org.members.some((m) => m.userId === userId);
+  const isMember = org.members.some((m: { userId: string }) => m.userId === userId);
   if (!isMember) return NextResponse.json({ success: false, error: "Not a member" }, { status: 403 });
 
   return NextResponse.json({ success: true, data: org });

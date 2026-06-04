@@ -13,6 +13,7 @@ interface GithubIssue {
   labels: ({ name: string; color: string } | string)[];
   user: { login: string; avatar_url: string } | null;
   comments: number;
+  assignees: { login: string; avatar_url: string }[];
 }
 
 interface GithubPR {
@@ -21,7 +22,6 @@ interface GithubPR {
   state: string;
 }
 
-// Matches: closes/close/closed/fix/fixes/fixed/resolve/resolves/resolved #N
 const CLOSING_RE = /(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)/gi;
 
 async function getLinkedIssueNumbers(repoFullName: string, token: string): Promise<Set<number>> {
@@ -29,12 +29,7 @@ async function getLinkedIssueNumbers(repoFullName: string, token: string): Promi
   try {
     const res = await fetch(
       `https://api.github.com/repos/${repoFullName}/pulls?state=open&per_page=50`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/vnd.github+json",
-        },
-      }
+      { headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" } }
     );
     if (!res.ok) return linked;
     const prs = (await res.json()) as GithubPR[];
@@ -47,7 +42,7 @@ async function getLinkedIssueNumbers(repoFullName: string, token: string): Promi
       }
     }
   } catch {
-    // ignore — don't let PR fetch failure break issues
+    // ignore
   }
   return linked;
 }
@@ -86,18 +81,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
 
   const issues = (
     await Promise.all(
-      repos.map(async (repo) => {
+      repos.map(async (repo: { fullName: string }) => {
         try {
+          const issueUrl = `https://api.github.com/repos/${repo.fullName}/issues?state=open&sort=created&direction=desc&per_page=20`;
+
           const [issuesRes, linkedNumbers] = await Promise.all([
-            fetch(
-              `https://api.github.com/repos/${repo.fullName}/issues?state=open&sort=created&direction=desc&per_page=10`,
-              {
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                  Accept: "application/vnd.github+json",
-                },
-              }
-            ),
+            fetch(issueUrl, {
+              headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" },
+            }),
             getLinkedIssueNumbers(repo.fullName, token),
           ]);
           if (!issuesRes.ok) return [];
@@ -116,6 +107,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
                 .map((l) => (typeof l === "string" ? { name: l, color: "888888" } : l))
                 .slice(0, 3),
               repoFullName: repo.fullName,
+              assignees: (i.assignees ?? []).map((a) => ({
+                login: a.login,
+                avatarUrl: a.avatar_url,
+              })),
             }));
         } catch {
           return [];
@@ -126,5 +121,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
 
   issues.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  return NextResponse.json({ success: true, data: issues.slice(0, 30) });
+  return NextResponse.json(
+    { success: true, data: issues.slice(0, 30) },
+    { headers: { "Cache-Control": "private, max-age=300, stale-while-revalidate=60" } },
+  );
 }

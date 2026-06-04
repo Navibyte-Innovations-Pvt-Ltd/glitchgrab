@@ -13,6 +13,6 @@ export async function GET() {
 
   return NextResponse.json({
     count,
-    initials: recent.map((w) => w.email[0].toUpperCase()),
+    initials: recent.map((w: { email: string }) => w.email[0].toUpperCase()),
   });
 }

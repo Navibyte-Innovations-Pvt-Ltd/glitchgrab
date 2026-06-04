@@ -1,7 +1,6 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
@@ -25,7 +24,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
     where: { orgId: org.id },
     select: { id: true },
   });
-  const repoIds = repos.map((r) => r.id);
+  const repoIds = repos.map((r: { id: string }) => r.id);
 
   if (repoIds.length === 0) {
     return NextResponse.json({
@@ -40,11 +39,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   startDate.setUTCDate(startDate.getUTCDate() - 364);
 
   const [aggregated, failedCount, todayCount] = await Promise.all([
-    prisma.$queryRaw<{ count: bigint }[]>(Prisma.sql`
+    prisma.$queryRaw`
       SELECT COUNT(*) AS count
       FROM "Report"
       WHERE "repoId" = ANY(${repoIds}::text[]) AND "createdAt" >= ${startDate}
-    `),
+    ` as Promise<{ count: bigint }[]>,
     prisma.report.count({
       where: {
         repoId: { in: repoIds },

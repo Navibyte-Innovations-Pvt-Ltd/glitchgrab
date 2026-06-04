@@ -10,6 +10,14 @@
     {
       "path": "/api/v1/cron/seo-health",
       "schedule": "0 21 * * *"
+    },
+    {
+      "path": "/api/v1/cron/daily-reminder",
+      "schedule": "30 2 * * *"
+    },
+    {
+      "path": "/api/v1/cron/weekly-summary",
+      "schedule": "30 2 * * 1"
     }
   ]
 }

@@ -88,9 +88,10 @@ export async function GET(request: Request) {
     });
 
     // Fetch GitHub issue states
-    const issueNumbers = reports
-      .filter((r): r is typeof r & { issue: NonNullable<typeof r.issue> } => !!r.issue)
-      .map((r) => r.issue.githubNumber);
+    const issueNumbers: number[] = [];
+    for (const r of reports) {
+      if (r.issue) issueNumbers.push(r.issue.githubNumber);
+    }
 
     const issueStates: Record<number, string> = {};
     const issueCommentCounts: Record<number, number> = {};
@@ -122,7 +123,7 @@ export async function GET(request: Request) {
       }
     }
 
-    const data = reports.map((r) => ({
+    const data = reports.map((r: typeof reports[number]) => ({
       id: r.id,
       source: r.source,
       status: r.status,

@@ -20,6 +20,11 @@ module.exports = {
     "/dashboard/*",
     "/api/*",
     "/login",
+    "/llms-full.txt",
+    "/sitemap.xml",
+    "/sitemap-0.xml",
+    "/connect/*",
+    "/org/*",
   ],
   robotsTxtOptions: {
     policies: [

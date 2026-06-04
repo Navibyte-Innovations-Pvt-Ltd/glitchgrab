@@ -559,6 +559,21 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
     }
   }
 
+  const [dragOver, setDragOver] = useState(false);
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+    if (!selectedRepo) {
+      toast.error("Select a repo first");
+      return;
+    }
+    const files = Array.from(e.dataTransfer.files).filter((f) =>
+      f.type.startsWith("image/"),
+    );
+    if (files.length > 0) addFiles(files);
+  }
+
   const hasConversation = messages.length > 1;
   const filteredRepos = repos.filter((r) =>
     r.fullName.toLowerCase().includes(repoSearch.toLowerCase()),
@@ -718,7 +733,16 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
         </Dialog>
 
         {/* Composer */}
-        <div className="border border-border bg-background/60 rounded-md focus-within:border-primary/50 transition-colors">
+        <div
+          className={`border rounded-md transition-colors ${
+            dragOver
+              ? "border-primary bg-primary/5"
+              : "border-border bg-background/60 focus-within:border-primary/50"
+          }`}
+          onDrop={handleDrop}
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+        >
           {/* Toolbar */}
           <div className="flex items-center gap-1 px-2 py-1.5 border-b border-border">
             <input
@@ -743,19 +767,27 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
               context: {selectedRepoName || "—"}
             </span>
             <span className="font-mono text-[10px] text-muted-foreground/50 hidden sm:inline">
-              enter to send · shift+enter newline
+              enter to send · shift+enter newline · ⌘V / ctrl+V paste screenshot
             </span>
           </div>
 
           {/* Input row */}
-          <div className="flex items-start gap-2 px-2 py-2">
+          <div className="flex items-start gap-2 px-2 py-2 relative">
+            {dragOver && (
+              <div className="absolute inset-0 flex items-center justify-center rounded-b-md pointer-events-none">
+                <span className="font-mono text-xs text-primary/80 flex items-center gap-1.5">
+                  <ImagePlus className="h-3.5 w-3.5" />
+                  drop to attach
+                </span>
+              </div>
+            )}
             <div className="pt-1.5 pl-1 font-mono text-sm text-primary shrink-0 select-none">~ $</div>
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
-              placeholder={selectedRepoName ? "describe a bug, paste a log, or drop a screenshot..." : "select a repo above to get started..."}
+              placeholder={selectedRepoName ? "describe a bug, paste a log, or paste / drop a screenshot..." : "select a repo above to get started..."}
               rows={1}
               className="flex-1 min-w-0 resize-none bg-transparent border-0 outline-none font-mono text-sm text-foreground placeholder:text-muted-foreground/50 min-h-8 max-h-40 py-1.5 leading-relaxed"
               disabled={sending || !selectedRepoName}

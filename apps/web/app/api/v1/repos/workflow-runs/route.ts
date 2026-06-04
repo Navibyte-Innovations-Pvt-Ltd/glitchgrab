@@ -39,7 +39,7 @@ export async function GET() {
     });
 
     const results: RepoWorkflowRuns[] = await Promise.all(
-      repos.map(async (repo) => {
+      repos.map(async (repo: { id: string; fullName: string; owner: string; name: string }) => {
         try {
           // Fetch more runs than we need so the client has enough completed
           // samples to estimate median duration for in-progress workflows.

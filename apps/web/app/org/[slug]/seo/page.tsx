@@ -50,7 +50,7 @@ export default async function OrgSeoPage({
       </div>
 
       <GscPropertiesClient
-        initialProperties={properties.map((p) => ({
+        initialProperties={properties.map((p: typeof properties[number]) => ({
           id: p.id,
           siteUrl: p.siteUrl,
           repoId: p.repoId,

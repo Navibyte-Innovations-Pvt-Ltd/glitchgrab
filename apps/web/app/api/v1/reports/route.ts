@@ -18,7 +18,7 @@ export async function GET() {
     }
 
     const repos = await prisma.repo.findMany({ where: { userId }, select: { id: true } });
-    const repoIds = repos.map((r) => r.id);
+    const repoIds = repos.map((r: { id: string }) => r.id);
 
     if (repoIds.length === 0) {
       return NextResponse.json({ success: true, data: [] });
@@ -72,7 +72,7 @@ export async function GET() {
       }
     }
 
-    const data = reports.map((r) => ({
+    const data = reports.map((r: typeof reports[number]) => ({
       id: r.id,
       source: r.source,
       status: r.status,
@@ -129,9 +129,9 @@ export async function POST(request: Request) {
     }
 
     const formData = await request.formData();
-    const repoId = formData.get("repoId") as string;
-    const description = ((formData.get("description") as string) || "").trim();
-    const screenshotFiles = formData.getAll("screenshot") as File[];
+    const repoId = (formData.getAll("repoId").at(0) ?? "") as string;
+    const description = ((formData.getAll("description").at(0) ?? "") as string).trim();
+    const screenshotFiles = formData.getAll("screenshot") as unknown as File[];
 
     if (!repoId) {
       return NextResponse.json(

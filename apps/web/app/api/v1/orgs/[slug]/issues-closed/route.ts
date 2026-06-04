@@ -71,7 +71,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
   const since = startDate.toISOString();
 
   await Promise.all(
-    repos.map(async (repo) => {
+    repos.map(async (repo: { fullName: string }) => {
       try {
         let page = 1;
         while (page <= 3) {

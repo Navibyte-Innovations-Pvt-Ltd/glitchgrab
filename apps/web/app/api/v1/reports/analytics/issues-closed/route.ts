@@ -25,7 +25,7 @@ export async function GET(request: Request) {
     const days = Math.min(90, Math.max(7, parseInt(searchParams.get("days") ?? "30", 10)));
 
     const repos = await prisma.repo.findMany({ where: { userId }, select: { id: true, fullName: true } });
-    const repoIds = repos.map((r) => r.id);
+    const repoIds = repos.map((r: { id: string; fullName: string }) => r.id);
 
     const today = new Date();
     today.setUTCHours(23, 59, 59, 999);
@@ -60,7 +60,7 @@ export async function GET(request: Request) {
     const since = startDate.toISOString();
 
     await Promise.all(
-      repos.map(async (repo) => {
+      repos.map(async (repo: { id: string; fullName: string }) => {
         try {
           const headers: Record<string, string> = {
             Accept: "application/vnd.github+json",

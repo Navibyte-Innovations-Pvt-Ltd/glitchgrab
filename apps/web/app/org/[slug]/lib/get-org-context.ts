@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
-import type { OrgRole } from "@prisma/client";
+type OrgRole = "OWNER" | "MEMBER";
 
 const GITHUB_API = "https://api.github.com";
 

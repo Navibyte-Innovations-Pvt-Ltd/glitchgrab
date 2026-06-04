@@ -102,7 +102,7 @@ export default async function TokensPage() {
           </div>
 
           <div className="flex flex-col gap-1">
-            {tokens.map((token) => (
+            {tokens.map((token: typeof tokens[number]) => (
               <TokenRow
                 key={token.id}
                 id={token.id}
