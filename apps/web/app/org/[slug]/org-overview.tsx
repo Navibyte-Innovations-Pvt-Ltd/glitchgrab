@@ -384,10 +384,14 @@ function RepoFilterPopover({
   allRepos,
   selectedRepo,
   onSelect,
+  view,
+  onViewChange,
 }: {
   allRepos: [string, IssueItem[]][];
   selectedRepo: string | null;
   onSelect: (repo: string | null) => void;
+  view: TriageView;
+  onViewChange: (v: TriageView) => void;
 }) {
   const [search, setSearch] = useState("");
 
@@ -395,24 +399,53 @@ function RepoFilterPopover({
     repoShortName(repo).toLowerCase().includes(search.toLowerCase()),
   );
 
+  const isFiltered = selectedRepo !== null || view === "assigned";
+
   return (
     <Popover>
       <PopoverTrigger
         className={cn(
           "flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded border transition-colors",
-          selectedRepo
+          isFiltered
             ? "bg-primary/15 border-primary/50 text-primary"
             : "border-border text-muted-foreground hover:border-primary/50 hover:text-primary",
         )}
       >
         <SlidersHorizontal className="h-2.5 w-2.5 shrink-0" />
-        {selectedRepo ? repoShortName(selectedRepo) : "Filter"}
+        {selectedRepo ? repoShortName(selectedRepo) : view === "assigned" ? "Assigned" : "Filter"}
       </PopoverTrigger>
       <PopoverContent
         align="end"
         side="bottom"
         className="w-56 p-2 flex flex-col gap-1.5"
       >
+        {/* View toggle */}
+        <div className="flex items-center gap-1 pb-1.5 border-b border-border">
+          <span className="text-[10px] font-mono text-muted-foreground/60 mr-auto">View</span>
+          <div className="flex items-center rounded border border-border overflow-hidden">
+            <button
+              type="button"
+              onClick={() => { onViewChange("open"); onSelect(null); }}
+              className={cn(
+                "px-2 py-0.5 text-[10px] font-mono transition-colors",
+                view === "open" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              Open
+            </button>
+            <button
+              type="button"
+              onClick={() => { onViewChange("assigned"); onSelect(null); }}
+              className={cn(
+                "px-2 py-0.5 text-[10px] font-mono transition-colors border-l border-border",
+                view === "assigned" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              Assigned
+            </button>
+          </div>
+        </div>
+
         <div className="flex items-center gap-1.5 border border-border rounded px-2 py-1 bg-background">
           <Search className="h-3 w-3 text-muted-foreground shrink-0" />
           <input
@@ -689,40 +722,13 @@ function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
       icon={<AlertCircle className="h-4 w-4 text-primary" />}
       title="Priority issues triage"
       meta={
-        <div className="flex items-center gap-1.5">
-          {/* View tabs */}
-          <div className="flex items-center rounded border border-border bg-background/60 overflow-hidden">
-            <button
-              type="button"
-              onClick={() => { void setView("open"); setRepoFilter(null); }}
-              className={cn(
-                "px-2 py-0.5 text-[10px] font-mono transition-colors",
-                view === "open"
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              Open
-            </button>
-            <button
-              type="button"
-              onClick={() => { void setView("assigned"); setRepoFilter(null); }}
-              className={cn(
-                "px-2 py-0.5 text-[10px] font-mono transition-colors border-l border-border",
-                view === "assigned"
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              Assigned
-            </button>
-          </div>
-          <RepoFilterPopover
-            allRepos={sortedRepos}
-            selectedRepo={repoFilter}
-            onSelect={setRepoFilter}
-          />
-        </div>
+        <RepoFilterPopover
+          allRepos={sortedRepos}
+          selectedRepo={repoFilter}
+          onSelect={setRepoFilter}
+          view={view}
+          onViewChange={(v) => void setView(v)}
+        />
       }
       footer={{
         href: `https://github.com/orgs/${orgSlug}/repositories`,
@@ -941,9 +947,12 @@ function TeamPanel({
   return (
     <div className="flex flex-col gap-3 max-h-80 overflow-y-auto pr-1">
       {joined.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest pb-1 border-b border-border/50">
-            {joined.length} active
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-mono px-2 py-0.5 rounded-full border border-green-500/30 bg-green-500/10 text-green-400 uppercase tracking-widest">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+              {joined.length} active
+            </span>
           </div>
           <ul className="flex flex-col gap-1.5">
             {joined.map((m) => {
@@ -951,56 +960,70 @@ function TeamPanel({
               return (
                 <li
                   key={m.githubLogin}
-                  className="flex items-center gap-2.5 px-1 py-1.5 rounded-md hover:bg-card/60 transition-colors"
+                  className="flex items-start gap-2.5 px-2.5 py-2 rounded-lg border border-border/50 bg-card/40 hover:border-border hover:bg-card/60 transition-colors"
                 >
-                  <div className="relative shrink-0">
+                  <div className="relative shrink-0 mt-0.5">
                     {m.avatarUrl ? (
                       <Image
                         src={m.avatarUrl}
                         alt={m.githubLogin}
-                        width={28}
-                        height={28}
+                        width={32}
+                        height={32}
                         className="rounded-full border border-border"
                       />
                     ) : (
-                      <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-xs font-mono font-bold">
+                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-mono font-bold">
                         {(m.name ?? m.githubLogin).charAt(0).toUpperCase()}
                       </div>
                     )}
-                    <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-green-500 border border-background" />
+                    <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-green-400 border-2 border-background" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-foreground truncate">
-                      {m.name ?? m.githubLogin}
+                  <div className="flex-1 min-w-0 flex flex-col gap-1">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-sm font-medium text-foreground truncate flex-1">
+                        {m.name ?? m.githubLogin}
+                      </span>
+                      {m.role && (
+                        <span
+                          className={cn(
+                            "font-mono text-[9px] px-1.5 py-0.5 rounded border uppercase tracking-wide shrink-0",
+                            m.role === "OWNER"
+                              ? "text-primary border-primary/30 bg-primary/10"
+                              : "text-muted-foreground border-border bg-muted",
+                          )}
+                        >
+                          {m.role}
+                        </span>
+                      )}
                     </div>
                     {stats ? (
-                      <TooltipProvider delay={150}>
-                        <div className="text-[10px] font-mono text-primary/70">
-                          ↑ {stats.commits} commit
-                          {stats.commits !== 1 ? "s" : ""} · today ·{" "}
-                          {stats.repos
-                            .map((r) => (
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center gap-1 text-[10px] font-mono text-green-400/80">
+                          <GitCommitHorizontal className="h-3 w-3 shrink-0" />
+                          <span>
+                            {stats.commits} commit{stats.commits !== 1 ? "s" : ""} today
+                          </span>
+                        </div>
+                        <TooltipProvider delay={150}>
+                          <div className="flex flex-wrap gap-1">
+                            {stats.repos.map((r) => (
                               <Tooltip key={r.name}>
                                 <TooltipTrigger
                                   render={
-                                    <span className="inline-flex items-center gap-1 underline decoration-dotted underline-offset-2 cursor-help" />
+                                    <span className="inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded border border-border/60 bg-background/50 text-muted-foreground hover:border-primary/40 hover:text-primary/70 cursor-help transition-colors" />
                                   }
                                 >
-                                  {r.name} (
-                                  <span className="inline-flex items-center gap-0.5">
-                                    <GitCommitHorizontal className="h-2.5 w-2.5 shrink-0" />
+                                  <Folder className="h-2.5 w-2.5 shrink-0" />
+                                  <span>{r.name}</span>
+                                  <span className="text-foreground/70 tabular-nums ml-0.5">
                                     {r.commits}
                                   </span>
                                   {r.prs ? (
-                                    <>
-                                      <span className="mx-0.5">·</span>
-                                      <span className="inline-flex items-center gap-0.5 text-primary">
-                                        <GitPullRequest className="h-2.5 w-2.5 shrink-0" />
-                                        {r.prs}
-                                      </span>
-                                    </>
+                                    <span className="inline-flex items-center gap-0.5 text-primary/60 ml-0.5">
+                                      <GitPullRequest className="h-2 w-2 shrink-0" />
+                                      {r.prs}
+                                    </span>
                                   ) : null}
-                                  )
                                 </TooltipTrigger>
                                 <TooltipContent>
                                   {r.branches?.length
@@ -1008,34 +1031,18 @@ function TeamPanel({
                                     : "no branch info"}
                                 </TooltipContent>
                               </Tooltip>
-                            ))
-                            .reduce(
-                              (acc, el, i) =>
-                                i === 0 ? [el] : [...acc, ", ", el],
-                              [] as React.ReactNode[],
-                            )}
-                        </div>
-                      </TooltipProvider>
+                            ))}
+                          </div>
+                        </TooltipProvider>
+                      </div>
                     ) : memberStats !== undefined ? (
-                      <div className="text-[10px] font-mono text-muted-foreground/50 truncate">
+                      <div className="text-[10px] font-mono text-muted-foreground/40">
                         no commits today
                       </div>
                     ) : (
                       <Skeleton className="h-2.5 w-36 mt-0.5" />
                     )}
                   </div>
-                  {m.role && (
-                    <span
-                      className={cn(
-                        "font-mono text-[10px] px-1.5 py-0.5 rounded border uppercase tracking-wide shrink-0",
-                        m.role === "OWNER"
-                          ? "text-primary border-primary/30 bg-primary/10"
-                          : "text-muted-foreground border-border bg-muted",
-                      )}
-                    >
-                      {m.role}
-                    </span>
-                  )}
                 </li>
               );
             })}
@@ -1045,8 +1052,11 @@ function TeamPanel({
 
       {pending.length > 0 && (
         <div className="flex flex-col gap-1.5">
-          <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest pb-1 border-b border-border/50">
-            {pending.length} not yet joined
+          <div className="flex items-center gap-2 pb-1">
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-mono px-2 py-0.5 rounded-full border border-yellow-500/30 bg-yellow-500/10 text-yellow-400 uppercase tracking-widest">
+              <span className="w-1.5 h-1.5 rounded-full bg-yellow-400" />
+              {pending.length} pending
+            </span>
           </div>
           <ul className="flex flex-col gap-1.5">
             {pending.slice(0, 4).map((m) => (
