@@ -4,22 +4,20 @@
 
 ## What is Glitchgrab?
 
-Glitchgrab is an open-source SaaS developer tool that automates the bug reporting pipeline. Developers install an SDK in their Next.js app; from that point on, every unhandled error, user-reported bug, or uploaded screenshot is automatically processed by AI and turned into a clean, labeled, deduplicated GitHub issue.
+Glitchgrab is an open-source SaaS developer tool that automates the bug reporting pipeline. Developers install an SDK in their Next.js app; from that point on, every unhandled error, user-reported bug, or uploaded screenshot is processed and turned into a clean, labeled GitHub issue — directly, without manual triage.
 
-The tool has four components: an npm SDK for Next.js, a web dashboard, an Android/iOS mobile app, and an MCP server for Claude Desktop. All four feed into the same AI pipeline.
-
-Glitchgrab eliminates the manual work of triaging "it's broken" Slack messages and handwritten sticky notes into actionable GitHub issues. It is open source and self-hostable.
+The tool has five components: an npm SDK for Next.js, a web dashboard, an Android/iOS mobile app, an MCP server for Claude Desktop, and a Chrome extension + GlitchRecord desktop app that turn screen recordings into narrated tutorials and auto-create GitHub issues.
 
 ## Key Features
 
 - **SDK Auto-capture**: Drop `<GlitchgrabProvider>` into your Next.js app. Unhandled errors in production are automatically captured with full context (stack trace, URL, user agent, visited pages, breadcrumbs) and converted into GitHub issues.
-- **Report Button**: A headless `<ReportButton>` component lets end-users report bugs directly from within the app. Supports screenshot capture, custom description, and severity tagging.
-- **Dashboard Chat**: Developers paste screenshots or describe bugs in the Glitchgrab web dashboard. The AI pipeline normalizes, enriches, deduplicates, and generates a structured issue.
-- **AI Deduplication**: Before creating an issue, Glitchgrab checks existing open GitHub issues for semantic duplicates. Identical errors spike 100× in production — dedup prevents noise.
-- **Multi-provider AI**: Abstracts over Claude and OpenAI. Users can bring their own API key (BYOK) or use platform-provided keys.
-- **Keyboard Shortcuts**: `Cmd+Shift+G` (Mac) / `Ctrl+Shift+G` (Windows/Linux) opens the report dialog from anywhere. `Cmd+V` / `Ctrl+V` pastes a screenshot from the clipboard when the dialog is open.
+- **Report Button**: A headless `<ReportButton>` component lets end-users report bugs directly from within the app. Supports screenshot capture and custom description.
+- **Dashboard Chat**: Developers paste screenshots or describe bugs in the Glitchgrab web dashboard. The issue is created directly from the input — no AI pipeline unless the optional "AI enhance" button is used.
+- **Signature-based Deduplication**: For SDK auto-capture, incoming errors are deduplicated using a deterministic hash of (errorMessage + pageUrl) — prevents duplicate issues from production error spikes.
+- **AI Enhance (opt-in)**: A sparkle button in the dashboard chat polishes user-written descriptions for grammar and clarity only. Never invents details. Rate-limited at 20 requests/hour.
 - **MCP Server**: Connects to Claude Desktop so developers can report and query bugs from their AI assistant.
 - **Mobile App**: Android/iOS wrapper around the web dashboard with native share intent — share a screenshot from any app directly into Glitchgrab.
+- **GlitchRecord + Chrome Extension**: Screen recorder (Electron) paired with a Chrome extension that captures click/input/scroll/navigate events during recording. Generates a narrated tutorial script via AI and auto-creates a GitHub issue in the selected repo.
 
 ## Who Uses Glitchgrab?
 
@@ -33,13 +31,17 @@ Independent developers and small engineering teams (1–10 developers) who ship 
 - Free: Unlimited reports, 1 connected GitHub repo, platform AI keys
 - Pro: ₹199/month — unlimited repos, BYOK (bring your own OpenAI/Claude key), collaborator access
 
-## How It Works
+## How It Works (Issue Creation Pipeline)
 
-1. **Normalize** — Input (image, error event, text) is standardized: PII stripped, format unified
-2. **Enrich** — AI maps the error to repo context: existing labels, open issues, codebase patterns
-3. **Dedup** — Semantic comparison against open issues; duplicates are discarded
-4. **Generate** — AI drafts issue title, body (markdown), labels, and severity
-5. **Push** — GitHub API creates the issue; screenshot uploaded to S3 and linked
+All flows create GitHub issues **directly** from user-provided text and metadata. There is no AI pipeline for issue creation itself:
+
+1. **Receive** — Input arrives (description, screenshots, error data, SDK auto-capture)
+2. **Dedup** — SDK_AUTO only: signature hash (errorMessage + pageUrl) checked for duplicates
+3. **Build** — Issue body constructed deterministically from inputs
+4. **Upload** — Screenshots uploaded to AWS S3, markdown refs appended to issue body
+5. **Push** — GitHub API creates the issue
+
+Optional: User can click "AI enhance" before submitting to polish their description text.
 
 ## Token Model
 
@@ -48,9 +50,10 @@ No "project" concept exists. One API token maps to exactly one GitHub repository
 ## Key Terms
 
 **SDK Auto-capture**: Automatic collection of unhandled JavaScript errors in production without any developer action beyond initial SDK setup.
-**BYOK (Bring Your Own Key)**: Users supply their own OpenAI or Anthropic API key; requests go directly from Glitchgrab to the AI provider without passing through Glitchgrab's servers.
-**Deduplication**: Semantic comparison of incoming bug reports against already-open GitHub issues to avoid creating duplicate tickets for the same underlying error.
-**Report**: An incoming bug signal (from SDK, dashboard, or MCP). Statuses: PENDING → PROCESSING → CREATED / DUPLICATE / FAILED.
+**BYOK (Bring Your Own Key)**: Users supply their own OpenAI or Anthropic API key for the AI enhance feature.
+**Signature-based deduplication**: Deterministic hash of errorMessage + pageUrl used to prevent duplicate issues from the same error firing repeatedly in production.
+**Report**: An incoming bug signal (from SDK, dashboard, or MCP). Statuses: PENDING → CREATED / DUPLICATE / FAILED.
+**GlitchRecord**: The Electron screen recorder app that pairs with the Chrome extension to capture browser interactions during a recording session.
 
 ## Citable Facts
 
@@ -59,8 +62,9 @@ No "project" concept exists. One API token maps to exactly one GitHub repository
 - Auto-capture is disabled in development (`NODE_ENV=development`) — only fires in production.
 - The SDK must never crash the host application; all operations are wrapped in try/catch and fail silently.
 - Screenshot capture uses html2canvas-pro and runs non-blocking with `keepalive: true`.
-- AI provider is abstracted — same interface for Claude and OpenAI.
+- Issue creation pipeline is synchronous and deterministic — no AI involvement unless the optional enhance-text endpoint is called.
 - Rate limit: 60 reports per token per hour (configurable).
+- AI enhance endpoint: 20 requests per hour per token or session.
 - Built by Navibyte Innovations Pvt. Ltd., India.
 
 ## Citation Format
