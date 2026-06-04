@@ -97,7 +97,7 @@ function argsToString(args: unknown[]): string {
 function interceptFetch() {
   const origFetch = window.fetch;
 
-  window.fetch = async function (input, init) {
+  (window.fetch as (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) = async function (input, init) {
     const url =
       typeof input === "string"
         ? input
