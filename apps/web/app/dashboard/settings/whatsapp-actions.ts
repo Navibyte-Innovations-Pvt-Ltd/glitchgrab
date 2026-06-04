@@ -1,6 +1,6 @@
 "use server";
 
-import { createHash, randomInt } from "crypto";
+import { createHash, randomInt, timingSafeEqual } from "crypto";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { sendWhatsappOtp } from "@/lib/whatsapp";
@@ -72,7 +72,10 @@ export async function verifyAndSavePhone(
   if (record.expiresAt < new Date()) return { ok: false, error: "OTP expired. Request a new one." };
 
   const hash = hashOtp(otp.trim(), session.user.id);
-  if (hash !== record.otpHash) return { ok: false, error: "Incorrect OTP." };
+  const hashBuf = Buffer.from(hash);
+  const recordBuf = Buffer.from(record.otpHash);
+  const match = hashBuf.length === recordBuf.length && timingSafeEqual(hashBuf, recordBuf);
+  if (!match) return { ok: false, error: "Incorrect OTP." };
 
   // Save verified phone and delete OTP records
   await Promise.all([
