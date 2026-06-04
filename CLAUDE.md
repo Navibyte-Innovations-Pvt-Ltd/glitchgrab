@@ -4,6 +4,8 @@
 
 Glitchgrab is an open-source SaaS tool that converts messy bug inputs (handwritten notes, screenshots, production errors, user-reported bugs) into well-structured GitHub issues using AI (Claude or OpenAI). Components: an npm SDK for Next.js, a web dashboard, a mobile app (Android/iOS), an MCP server, a **Chrome extension** + **GlitchRecord desktop app** that together turn a screen recording into a narrated tutorial and auto-create a GitHub issue from the captured interactions.
 
+**Production URL**: `https://glitchgrab.dev` — use this as the base URL for all external links (WhatsApp templates, deep links, etc.). Example: `https://glitchgrab.dev/org/{slug}?triageAssign=assigned`.
+
 ## Monorepo structure
 
 - **apps/web** — Next.js 15 (App Router) dashboard + API routes. Deployed on Vercel.
