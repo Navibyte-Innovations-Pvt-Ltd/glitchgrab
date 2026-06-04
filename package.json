@@ -45,11 +45,15 @@
   ],
   "overrides": {
     "@tamagui/core": "2.0.0-rc.42",
-    "@tamagui/web": "2.0.0-rc.42"
+    "@tamagui/web": "2.0.0-rc.42",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3"
   },
   "resolutions": {
     "@tamagui/core": "2.0.0-rc.42",
-    "@tamagui/web": "2.0.0-rc.42"
+    "@tamagui/web": "2.0.0-rc.42",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.95.2",
