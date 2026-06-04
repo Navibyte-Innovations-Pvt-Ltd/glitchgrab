@@ -83,7 +83,7 @@ async function handleReporterSaidNo(issueId: string) {
   const issue = await prisma.issue.findUnique({
     where: { id: issueId },
     include: {
-      report: { select: { reporterName: true } },
+      report: { select: { reporterName: true, reporterPhone: true } },
       repo: { select: { owner: true, name: true, userId: true, orgId: true } },
     },
   });
@@ -133,6 +133,7 @@ async function handleReporterSaidNo(issueId: string) {
     await sendDeveloperReopenedNotification({
       phone: devUser.whatsappPhone,
       reporterName: issue.report?.reporterName ?? "Reporter",
+      reporterPhone: issue.report?.reporterPhone,
       issueTitle: issue.title,
       orgName,
       githubUrl: issue.githubUrl,
