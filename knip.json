@@ -20,7 +20,8 @@
       "ignoreDependencies": [
         "tailwindcss",
         "shadcn",
-        "tw-animate-css"
+        "tw-animate-css",
+        "eslint-plugin-react-hooks"
       ]
     },
     "apps/mobile": {
@@ -39,13 +40,19 @@
       "ignoreDependencies": [
         "expo-updates",
         "expo-system-ui",
-        "eas-cli",
         "react-dom",
         "@tamagui/toast",
         "@tamagui/portal",
         "expo-mcp",
-        "expo-clipboard"
+        "expo-clipboard",
+        "babel-plugin-module-resolver",
+        "webidl-conversions"
       ]
+    },
+    "packages/extension": {
+      "entry": ["src/background.ts", "src/content.ts", "src/popup/popup.ts"],
+      "project": ["src/**/*.ts"],
+      "ignoreDependencies": ["jsdom"]
     },
     "packages/sdk-nextjs": {
       "project": ["src/**/*.{ts,tsx}"],
@@ -73,6 +80,7 @@
     "shadcn",
     "tw-animate-css"
   ],
-  "ignoreBinaries": ["prisma", "expo", "adb", "semantic-release"],
+  "ignoreBinaries": ["prisma", "semantic-release", "wait"],
+  "ignore": ["apps/glitchrecord/**"],
   "ignoreExportsUsedInFile": true
 }
