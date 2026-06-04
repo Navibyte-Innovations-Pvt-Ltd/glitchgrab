@@ -18,9 +18,10 @@ export async function GET(request: Request) {
     select: {
       id: true,
       name: true,
+      githubLogin: true,
       whatsappPhone: true,
       repos: { select: { owner: true, name: true } },
-      ownedOrgs: { select: { name: true }, take: 1 },
+      ownedOrgs: { select: { name: true, githubOrgLogin: true }, take: 1 },
     },
   });
 
@@ -46,11 +47,20 @@ export async function GET(request: Request) {
     }
 
     const orgName = dev.ownedOrgs?.[0]?.name ?? dev.name ?? "your org";
+    const orgLogin = dev.ownedOrgs?.[0]?.githubOrgLogin;
+    const githubLogin = dev.githubLogin;
+    const githubFilterPath = orgLogin && githubLogin
+      ? `orgs/${orgLogin}/issues?q=is:issue+is:open+assignee:${githubLogin}`
+      : githubLogin
+        ? `issues?q=is:issue+is:open+assignee:${githubLogin}`
+        : null;
+
     await sendWeeklyIssueSummary({
       phone: dev.whatsappPhone,
       developerName: dev.name ?? "Developer",
       resolvedCount: totalResolved,
       orgName,
+      githubFilterPath,
     });
     notified++;
   }
