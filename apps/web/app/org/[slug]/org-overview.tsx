@@ -687,9 +687,9 @@ function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
       const { data } = await axios.get(`/api/v1/orgs/${orgSlug}/issues`);
       return data.data ?? [];
     },
-    staleTime: 60_000,
-    refetchOnWindowFocus: true,
-    refetchInterval: 60_000,
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    refetchInterval: 10 * 60_000,
   });
 
   // Apply local filters
@@ -1291,9 +1291,9 @@ function OrgPRsOrWorkflowsPanel({ orgSlug }: { orgSlug: string }) {
       const { data } = await axios.get(`/api/v1/orgs/${orgSlug}/pull-requests`);
       return data.data ?? [];
     },
-    staleTime: 60_000,
-    refetchOnWindowFocus: true,
-    refetchInterval: 2 * 60_000,
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    refetchInterval: 10 * 60_000,
   });
 
   return (
@@ -1939,9 +1939,9 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
       const { data } = await axios.get(`/api/v1/orgs/${ctx.orgSlug}/stats`);
       return data.data;
     },
-    staleTime: 30_000,
-    refetchOnWindowFocus: true,
-    refetchInterval: 60_000,
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    refetchInterval: 10 * 60_000,
   });
 
   const { data: issues } = useQuery<IssueItem[]>({
@@ -1950,9 +1950,9 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
       const { data } = await axios.get(`/api/v1/orgs/${ctx.orgSlug}/issues`);
       return data.data ?? [];
     },
-    staleTime: 60_000,
-    refetchOnWindowFocus: true,
-    refetchInterval: 60_000,
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    refetchInterval: 10 * 60_000,
   });
 
   const { data: membersData } = useQuery<MembersData>({
