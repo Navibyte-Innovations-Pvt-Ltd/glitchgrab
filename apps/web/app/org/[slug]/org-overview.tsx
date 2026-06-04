@@ -420,26 +420,28 @@ function TriageFilterPopover({
 
   return (
     <Popover>
-      <PopoverTrigger
-        className={cn(
-          "flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded border transition-colors",
-          isFiltered
-            ? "bg-primary/15 border-primary/50 text-primary"
-            : "border-border text-muted-foreground hover:border-primary/50 hover:text-primary",
-        )}
-      >
-        <SlidersHorizontal className="h-2.5 w-2.5 shrink-0" />
-        {label}
+      <div className="flex items-center">
+        <PopoverTrigger
+          className={cn(
+            "flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 border transition-colors",
+            isFiltered
+              ? "rounded-l bg-primary/15 border-primary/50 text-primary"
+              : "rounded border-border text-muted-foreground hover:border-primary/50 hover:text-primary",
+          )}
+        >
+          <SlidersHorizontal className="h-2.5 w-2.5 shrink-0" />
+          {label}
+        </PopoverTrigger>
         {isFiltered && (
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); onSelect(null); onAssignViewChange("all"); }}
-            className="ml-0.5 hover:text-destructive transition-colors"
+            onClick={() => { onSelect(null); onAssignViewChange("all"); }}
+            className="flex items-center px-1 py-0.5 rounded-r border border-l-0 bg-primary/15 border-primary/50 text-primary hover:text-destructive hover:border-destructive/40 transition-colors"
           >
             <X className="h-2.5 w-2.5" />
           </button>
         )}
-      </PopoverTrigger>
+      </div>
       <PopoverContent align="end" side="bottom" className="w-56 p-2 flex flex-col gap-1.5">
         {/* Assign filter */}
         <div className="space-y-1">
@@ -530,7 +532,6 @@ function TriageFilterPopover({
     </Popover>
   );
 }
-
 // ─── Issues Triage Body ───────────────────────────────────────────────────────
 
 function OrgIssuesTriageBody({
