@@ -11,12 +11,12 @@ const CORS = {
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
-export interface ClipRange {
+interface ClipRange {
   startMs: number;
   endMs: number;
 }
 
-export interface RecordingMeta {
+interface RecordingMeta {
   // Set by Recordly extension at export:complete
   originalDurationMs: number;   // full recording length before cuts
   finalDurationMs: number;      // duration after all cuts applied
