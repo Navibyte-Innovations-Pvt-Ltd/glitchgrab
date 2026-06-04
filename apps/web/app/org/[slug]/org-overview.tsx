@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useQueryState, parseAsString, parseAsStringLiteral } from "nuqs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import Image from "next/image";
@@ -95,6 +96,7 @@ interface IssueItem {
   comments: number;
   labels: { name: string; color: string }[];
   repoFullName: string;
+  assignees?: { login: string; avatarUrl: string }[];
 }
 
 interface DayBucket {
@@ -338,6 +340,19 @@ function IssueRow({
           {issue.comments}
         </span>
       )}
+      {issue.assignees && issue.assignees.length > 0 && (
+        <div className="flex items-center shrink-0">
+          {issue.assignees.slice(0, 2).map((a) => (
+            <img
+              key={a.login}
+              src={`${a.avatarUrl}&s=32`}
+              alt={a.login}
+              title={a.login}
+              className="h-4 w-4 rounded-full border border-border -ml-1 first:ml-0"
+            />
+          ))}
+        </div>
+      )}
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
         <button
           type="button"
@@ -480,11 +495,13 @@ function OrgIssuesTriageBody({
   isLoading,
   selectedRepo,
   onSelect,
+  view,
 }: {
   data: IssueItem[] | undefined;
   isLoading: boolean;
   selectedRepo: string | null;
   onSelect: (repo: string | null) => void;
+  view: TriageView;
 }) {
   if (isLoading) {
     return (
@@ -508,7 +525,7 @@ function OrgIssuesTriageBody({
       <div className="flex items-center gap-3 border border-dashed border-border rounded-md px-4 py-4">
         <AlertCircle className="h-4 w-4 text-muted-foreground shrink-0" />
         <p className="text-xs font-mono text-muted-foreground">
-          No open issues — all clear.
+          {view === "assigned" ? "No assigned issues — nothing in progress." : "No open issues — all clear."}
         </p>
       </div>
     );
@@ -625,13 +642,30 @@ function OrgIssuesTriageBody({
 
 // ─── Issues Triage Section (holds state + query, exposes filter for header) ──
 
+const TRIAGE_VIEWS = ["open", "assigned"] as const;
+type TriageView = (typeof TRIAGE_VIEWS)[number];
+
 function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
-  const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
+  const [view, setView] = useQueryState<TriageView>(
+    "triageView",
+    parseAsStringLiteral(TRIAGE_VIEWS).withDefault("open"),
+  );
+  const [selectedRepo, setSelectedRepo] = useQueryState(
+    "triageRepo",
+    parseAsString.withDefault(""),
+  );
+
+  const repoFilter = selectedRepo || null;
+  const setRepoFilter = (r: string | null) => void setSelectedRepo(r ?? "");
+
+  const assigned = view === "assigned";
 
   const { data, isLoading } = useQuery<IssueItem[]>({
-    queryKey: ["org-issues", orgSlug],
+    queryKey: ["org-issues", orgSlug, assigned],
     queryFn: async () => {
-      const { data } = await axios.get(`/api/v1/orgs/${orgSlug}/issues`);
+      const { data } = await axios.get(
+        `/api/v1/orgs/${orgSlug}/issues${assigned ? "?assigned=true" : ""}`,
+      );
       return data.data ?? [];
     },
     staleTime: 60_000,
@@ -655,11 +689,40 @@ function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
       icon={<AlertCircle className="h-4 w-4 text-primary" />}
       title="Priority issues triage"
       meta={
-        <RepoFilterPopover
-          allRepos={sortedRepos}
-          selectedRepo={selectedRepo}
-          onSelect={setSelectedRepo}
-        />
+        <div className="flex items-center gap-1.5">
+          {/* View tabs */}
+          <div className="flex items-center rounded border border-border bg-background/60 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => { void setView("open"); setRepoFilter(null); }}
+              className={cn(
+                "px-2 py-0.5 text-[10px] font-mono transition-colors",
+                view === "open"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              Open
+            </button>
+            <button
+              type="button"
+              onClick={() => { void setView("assigned"); setRepoFilter(null); }}
+              className={cn(
+                "px-2 py-0.5 text-[10px] font-mono transition-colors border-l border-border",
+                view === "assigned"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              Assigned
+            </button>
+          </div>
+          <RepoFilterPopover
+            allRepos={sortedRepos}
+            selectedRepo={repoFilter}
+            onSelect={setRepoFilter}
+          />
+        </div>
       }
       footer={{
         href: `https://github.com/orgs/${orgSlug}/repositories`,
@@ -670,8 +733,9 @@ function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
       <OrgIssuesTriageBody
         data={data}
         isLoading={isLoading}
-        selectedRepo={selectedRepo}
-        onSelect={setSelectedRepo}
+        selectedRepo={repoFilter}
+        onSelect={setRepoFilter}
+        view={view}
       />
     </ListPanel>
   );
