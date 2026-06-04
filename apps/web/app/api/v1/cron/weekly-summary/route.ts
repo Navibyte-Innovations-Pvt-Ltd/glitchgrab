@@ -48,19 +48,16 @@ export async function GET(request: Request) {
 
     const orgName = dev.ownedOrgs?.[0]?.name ?? dev.name ?? "your org";
     const orgLogin = dev.ownedOrgs?.[0]?.githubOrgLogin;
-    const githubLogin = dev.githubLogin;
-    const githubFilterPath = orgLogin && githubLogin
-      ? `orgs/${orgLogin}/issues?q=is:issue+is:open+assignee:${githubLogin}`
-      : githubLogin
-        ? `issues?q=is:issue+is:open+assignee:${githubLogin}`
-        : null;
+    const glitchgrabPath = orgLogin
+      ? `org/${orgLogin}?triageAssign=assigned`
+      : null;
 
     await sendWeeklyIssueSummary({
       phone: dev.whatsappPhone,
       developerName: dev.name ?? "Developer",
       resolvedCount: totalResolved,
       orgName,
-      githubFilterPath,
+      githubFilterPath: glitchgrabPath,
     });
     notified++;
   }
