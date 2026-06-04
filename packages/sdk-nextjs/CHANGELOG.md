@@ -1,3 +1,14 @@
+## [1.22.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.21.0...sdk-v1.22.0) (2026-06-04)
+
+### Features
+
+* **utils:** add default baseUrl and retry logic for captureContext ([aaad881](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/aaad8813b5a20fccd9b9783adda2d6e58cdaedb2))
+
+### Bug Fixes
+
+* **gai-watch:** update index watching logic ([bfb4d60](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/bfb4d60a67db4f76a63a72f0ae5fa774e5208172))
+* **provider:** update default base URL to use GlitchGrab's official domain ([537b559](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/537b5590eebcb140c615001ca008ae0824ccac3a))
+
 ## [1.21.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.20.1...sdk-v1.21.0) (2026-06-04)
 
 ### Features
