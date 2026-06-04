@@ -142,18 +142,21 @@ export async function sendIssueResolvedWhatsApp({
  * Notify developer that reporter said issue is NOT resolved.
  * Template "issue_reopened_dev":
  *   Body:    ⚠️ Reporter {{1}} says "{{2}}" is NOT resolved on {{3}}. Reopened on GitHub.
+ *            📞 Reporter: +{{4}} — tap to contact
  *   Button 0 (URL): View on GitHub → https://github.com/{{1}}
  *                   suffix = owner/repo/issues/number  (e.g. navibyte/app/issues/42)
  */
 export async function sendDeveloperReopenedNotification({
   phone,
   reporterName,
+  reporterPhone,
   issueTitle,
   orgName,
   githubUrl,
 }: {
   phone: string;
   reporterName: string;
+  reporterPhone: string | null | undefined;
   issueTitle: string;
   orgName: string;
   githubUrl: string;
@@ -190,6 +193,7 @@ export async function sendDeveloperReopenedNotification({
                 { type: "text", text: reporterName },
                 { type: "text", text: issueTitle },
                 { type: "text", text: orgName },
+                { type: "text", text: formatPhone(reporterPhone ?? "") || "N/A" },
               ],
             },
             {
