@@ -112,6 +112,11 @@ function connectBridge() {
     ws.onclose = () => {
       log("[GG] Bridge disconnected — retry in 3s");
       ws = null;
+      // GlitchRecord quit mid-recording — stop capture so extension doesn't record forever
+      if (state.active && state.fromBridge) {
+        log("[GG] Bridge closed while recording — stopping capture");
+        stopCapture();
+      }
       wsReconnectTimer = setTimeout(connectBridge, 3000);
     };
 
