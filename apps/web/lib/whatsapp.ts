@@ -216,6 +216,126 @@ export async function sendDeveloperReopenedNotification({
 }
 
 /**
+ * Daily reminder to developer: how many open issues.
+ * Template "daily_issue_reminder" (Utility):
+ *   Body: 👋 Hi {{1}}, you have {{2}} open issue(s) in {{3}} waiting for your attention. Keep it up!
+ */
+export async function sendDailyIssueReminder({
+  phone,
+  developerName,
+  openCount,
+  orgName,
+}: {
+  phone: string;
+  developerName: string;
+  openCount: number;
+  orgName: string;
+}): Promise<void> {
+  const phoneNumberId = process.env.META_WA_PHONE_NUMBER_ID;
+  const accessToken = process.env.META_WA_ACCESS_TOKEN;
+
+  if (!phoneNumberId || !accessToken) return;
+
+  const to = formatPhone(phone);
+  if (!to) return;
+
+  try {
+    const res = await fetch(`${META_API_BASE}/${phoneNumberId}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        type: "template",
+        template: {
+          name: "daily_issue_reminder",
+          language: { code: "en" },
+          components: [
+            {
+              type: "body",
+              parameters: [
+                { type: "text", text: developerName },
+                { type: "text", text: String(openCount) },
+                { type: "text", text: orgName },
+              ],
+            },
+          ],
+        },
+      }),
+    });
+
+    if (!res.ok) {
+      console.error("[whatsapp] daily reminder failed:", await res.text());
+    }
+  } catch (err) {
+    console.error("[whatsapp] daily reminder error:", err);
+  }
+}
+
+/**
+ * Weekly summary to developer: how many issues resolved this week.
+ * Template "weekly_issue_summary" (Utility):
+ *   Body: 📊 Weekly recap for {{1}} on {{2}}: you resolved {{3}} issue(s) this week. Great work!
+ */
+export async function sendWeeklyIssueSummary({
+  phone,
+  developerName,
+  resolvedCount,
+  orgName,
+}: {
+  phone: string;
+  developerName: string;
+  resolvedCount: number;
+  orgName: string;
+}): Promise<void> {
+  const phoneNumberId = process.env.META_WA_PHONE_NUMBER_ID;
+  const accessToken = process.env.META_WA_ACCESS_TOKEN;
+
+  if (!phoneNumberId || !accessToken) return;
+
+  const to = formatPhone(phone);
+  if (!to) return;
+
+  try {
+    const res = await fetch(`${META_API_BASE}/${phoneNumberId}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        type: "template",
+        template: {
+          name: "weekly_issue_summary",
+          language: { code: "en" },
+          components: [
+            {
+              type: "body",
+              parameters: [
+                { type: "text", text: developerName },
+                { type: "text", text: orgName },
+                { type: "text", text: String(resolvedCount) },
+              ],
+            },
+          ],
+        },
+      }),
+    });
+
+    if (!res.ok) {
+      console.error("[whatsapp] weekly summary failed:", await res.text());
+    }
+  } catch (err) {
+    console.error("[whatsapp] weekly summary error:", err);
+  }
+}
+
+/**
  * Notify a developer that a GitHub issue was assigned to them.
  * Template "issue_assigned_dev" (Utility):
  *   Body:    Hi {{1}}, issue "{{2}}" from {{3}} has been assigned to you on GitHub.
