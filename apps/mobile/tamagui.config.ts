@@ -95,7 +95,7 @@ const config = createTamagui({
   },
 });
 
-export type AppConfig = typeof config;
+type AppConfig = typeof config;
 
 declare module "@tamagui/core" {
   // eslint-disable-next-line @typescript-eslint/no-empty-object-type
