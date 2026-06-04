@@ -9,6 +9,6 @@
       "/api/v1/orgs/**/today-activity",
       "/api/v1/whatsapp/webhook"
     ],
-    "files": ["**/db-sync.ts", "**/components/ui/**", "**/public/favicon-48x48.png"]
+    "files": ["**/db-sync.ts", "**/components/ui/**", "**/public/favicon-48x48.png", "apps/glitchrecord/**"]
   }
 }
