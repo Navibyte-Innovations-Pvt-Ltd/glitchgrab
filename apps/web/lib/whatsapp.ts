@@ -218,18 +218,22 @@ export async function sendDeveloperReopenedNotification({
 /**
  * Daily reminder to developer: how many open issues.
  * Template "daily_issue_reminder" (Utility):
- *   Body: 👋 Hi {{1}}, you have {{2}} open issue(s) in {{3}} waiting for your attention. Keep it up!
+ *   Body:     👋 Hi {{1}}, you have {{2}} open issue(s) in {{3}} waiting for your attention. Keep it up!
+ *   Button 0 (URL): View on GitHub → https://github.com/{{1}}
+ *             suffix = orgs/{org}/issues?q=is:issue+is:open+assignee:{login}
  */
 export async function sendDailyIssueReminder({
   phone,
   developerName,
   openCount,
   orgName,
+  glitchgrabPath,
 }: {
   phone: string;
   developerName: string;
   openCount: number;
   orgName: string;
+  glitchgrabPath: string | null;
 }): Promise<void> {
   const phoneNumberId = process.env.META_WA_PHONE_NUMBER_ID;
   const accessToken = process.env.META_WA_ACCESS_TOKEN;
@@ -238,6 +242,26 @@ export async function sendDailyIssueReminder({
 
   const to = formatPhone(phone);
   if (!to) return;
+
+  const components: object[] = [
+    {
+      type: "body",
+      parameters: [
+        { type: "text", text: developerName },
+        { type: "text", text: String(openCount) },
+        { type: "text", text: orgName },
+      ],
+    },
+  ];
+
+  if (glitchgrabPath) {
+    components.push({
+      type: "button",
+      sub_type: "url",
+      index: "0",
+      parameters: [{ type: "text", text: glitchgrabPath }],
+    });
+  }
 
   try {
     const res = await fetch(`${META_API_BASE}/${phoneNumberId}/messages`, {
@@ -253,16 +277,7 @@ export async function sendDailyIssueReminder({
         template: {
           name: "daily_issue_reminder",
           language: { code: "en" },
-          components: [
-            {
-              type: "body",
-              parameters: [
-                { type: "text", text: developerName },
-                { type: "text", text: String(openCount) },
-                { type: "text", text: orgName },
-              ],
-            },
-          ],
+          components,
         },
       }),
     });
@@ -278,18 +293,22 @@ export async function sendDailyIssueReminder({
 /**
  * Weekly summary to developer: how many issues resolved this week.
  * Template "weekly_issue_summary" (Utility):
- *   Body: 📊 Weekly recap for {{1}} on {{2}}: you resolved {{3}} issue(s) this week. Great work!
+ *   Body:     📊 Weekly recap for {{1}} on {{2}}: you resolved {{3}} issue(s) this week. Great work!
+ *   Button 0 (URL): View on GitHub → https://github.com/{{1}}
+ *             suffix = orgs/{org}/issues?q=is:issue+is:open+assignee:{login}
  */
 export async function sendWeeklyIssueSummary({
   phone,
   developerName,
   resolvedCount,
   orgName,
+  glitchgrabPath,
 }: {
   phone: string;
   developerName: string;
   resolvedCount: number;
   orgName: string;
+  glitchgrabPath: string | null;
 }): Promise<void> {
   const phoneNumberId = process.env.META_WA_PHONE_NUMBER_ID;
   const accessToken = process.env.META_WA_ACCESS_TOKEN;
@@ -298,6 +317,26 @@ export async function sendWeeklyIssueSummary({
 
   const to = formatPhone(phone);
   if (!to) return;
+
+  const components: object[] = [
+    {
+      type: "body",
+      parameters: [
+        { type: "text", text: developerName },
+        { type: "text", text: orgName },
+        { type: "text", text: String(resolvedCount) },
+      ],
+    },
+  ];
+
+  if (glitchgrabPath) {
+    components.push({
+      type: "button",
+      sub_type: "url",
+      index: "0",
+      parameters: [{ type: "text", text: glitchgrabPath }],
+    });
+  }
 
   try {
     const res = await fetch(`${META_API_BASE}/${phoneNumberId}/messages`, {
@@ -313,16 +352,7 @@ export async function sendWeeklyIssueSummary({
         template: {
           name: "weekly_issue_summary",
           language: { code: "en" },
-          components: [
-            {
-              type: "body",
-              parameters: [
-                { type: "text", text: developerName },
-                { type: "text", text: orgName },
-                { type: "text", text: String(resolvedCount) },
-              ],
-            },
-          ],
+          components,
         },
       }),
     });
