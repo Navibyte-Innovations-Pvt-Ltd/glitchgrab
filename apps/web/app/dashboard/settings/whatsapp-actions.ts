@@ -30,8 +30,8 @@ export async function sendOtp(phone: string): Promise<{ ok: boolean; error?: str
   if (!session?.user?.id) return { ok: false, error: "Unauthorized" };
 
   const cleaned = cleanPhone(phone);
-  if (!cleaned || cleaned.length < 7 || cleaned.length > 15) {
-    return { ok: false, error: "Enter a valid phone number with country code (e.g. 919876543210)" };
+  if (!cleaned || cleaned.length < 11 || cleaned.length > 15) {
+    return { ok: false, error: "Include country code — digits only, 11–15 chars (e.g. 919876543210 for India)" };
   }
 
   // Delete previous OTPs for this user
