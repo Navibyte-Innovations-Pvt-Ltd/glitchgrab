@@ -6,6 +6,7 @@ export function OrganizationJsonLd() {
     "@context": "https://schema.org",
     "@type": "Organization",
     name: ORG_NAME,
+    alternateName: "Glitchgrab by Navibyte Innovations",
     url: BASE_URL,
     logo: {
       "@type": "ImageObject",
@@ -14,8 +15,19 @@ export function OrganizationJsonLd() {
       height: 192,
     },
     description:
-      "Convert screenshots, production errors, and user complaints into well-structured GitHub issues. Powered by AI. Open source.",
+      "Open-source developer tool that converts screenshots, production errors, and user bug reports into well-structured GitHub issues. Built for Next.js teams.",
     foundingDate: "2026",
+    founder: {
+      "@type": "Person",
+      name: "Naresh Bhosale",
+      jobTitle: "Founder",
+      worksFor: { "@type": "Organization", name: "Navibyte Innovations Pvt. Ltd." },
+    },
+    parentOrganization: {
+      "@type": "Organization",
+      name: "Navibyte Innovations Pvt. Ltd.",
+      url: "https://navibyte.in",
+    },
     contactPoint: {
       "@type": "ContactPoint",
       contactType: "customer support",
