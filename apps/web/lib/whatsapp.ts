@@ -57,9 +57,9 @@ function formatPhone(phone: string): string {
  * Send issue-resolved notification to reporter.
  * Template "issue_resolved":
  *   Body:    Hi {{1}}, your issue "{{2}}" reported to {{3}} has been resolved! Was the fix helpful?
- *   Button 0 (URL):         Contact Developer → https://wa.me/{{1}}
- *   Button 1 (quick_reply): ✅ Yes, fixed!   payload: gg_yes_{issueId}
- *   Button 2 (quick_reply): ❌ No, reopen    payload: gg_no_{issueId}
+ *            📞 Developer (WhatsApp): +{{4}} — tap to chat
+ *   Button 0 (quick_reply): ✅ Yes, fixed!   payload: gg_yes_{issueId}
+ *   Button 1 (quick_reply): ❌ No, reopen    payload: gg_no_{issueId}
  */
 export async function sendIssueResolvedWhatsApp({
   phone,
@@ -85,6 +85,8 @@ export async function sendIssueResolvedWhatsApp({
   const to = formatPhone(phone);
   if (!to) return;
 
+  const devPhone = formatPhone(developerPhone ?? "") || "N/A";
+
   const components: object[] = [
     {
       type: "body",
@@ -92,24 +94,19 @@ export async function sendIssueResolvedWhatsApp({
         { type: "text", text: reporterName },
         { type: "text", text: issueTitle },
         { type: "text", text: orgName },
+        { type: "text", text: devPhone },
       ],
     },
     {
       type: "button",
-      sub_type: "url",
-      index: "0",
-      parameters: [{ type: "text", text: formatPhone(developerPhone ?? "0") || "0" }],
-    },
-    {
-      type: "button",
       sub_type: "quick_reply",
-      index: "1",
+      index: "0",
       parameters: [{ type: "payload", payload: `gg_yes_${issueId}` }],
     },
     {
       type: "button",
       sub_type: "quick_reply",
-      index: "2",
+      index: "1",
       parameters: [{ type: "payload", payload: `gg_no_${issueId}` }],
     },
   ];
