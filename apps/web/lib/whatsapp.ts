@@ -56,7 +56,7 @@ function formatPhone(phone: string): string {
 /**
  * Send issue-resolved notification to reporter.
  * Template "issue_resolved":
- *   Body:    Hi {{1}}, your issue "{{2}}" has been resolved! Was the fix helpful?
+ *   Body:    Hi {{1}}, your issue "{{2}}" reported to {{3}} has been resolved! Was the fix helpful?
  *   Button 0 (URL):         Contact Developer → https://wa.me/{{1}}
  *   Button 1 (quick_reply): ✅ Yes, fixed!   payload: gg_yes_{issueId}
  *   Button 2 (quick_reply): ❌ No, reopen    payload: gg_no_{issueId}
@@ -65,12 +65,14 @@ export async function sendIssueResolvedWhatsApp({
   phone,
   reporterName,
   issueTitle,
+  orgName,
   developerPhone,
   issueId,
 }: {
   phone: string;
   reporterName: string;
   issueTitle: string;
+  orgName: string;
   developerPhone: string | null | undefined;
   issueId: string;
 }): Promise<void> {
@@ -89,6 +91,7 @@ export async function sendIssueResolvedWhatsApp({
       parameters: [
         { type: "text", text: reporterName },
         { type: "text", text: issueTitle },
+        { type: "text", text: orgName },
       ],
     },
     {
@@ -141,7 +144,7 @@ export async function sendIssueResolvedWhatsApp({
 /**
  * Notify developer that reporter said issue is NOT resolved.
  * Template "issue_reopened_dev":
- *   Body:    ⚠️ Reporter {{1}} says "{{2}}" is NOT resolved. Reopened on GitHub.
+ *   Body:    ⚠️ Reporter {{1}} says "{{2}}" is NOT resolved on {{3}}. Reopened on GitHub.
  *   Button 0 (URL): View on GitHub → https://github.com/{{1}}
  *                   suffix = owner/repo/issues/number  (e.g. navibyte/app/issues/42)
  */
@@ -149,11 +152,13 @@ export async function sendDeveloperReopenedNotification({
   phone,
   reporterName,
   issueTitle,
+  orgName,
   githubUrl,
 }: {
   phone: string;
   reporterName: string;
   issueTitle: string;
+  orgName: string;
   githubUrl: string;
 }): Promise<void> {
   const phoneNumberId = process.env.META_WA_PHONE_NUMBER_ID;
@@ -187,6 +192,7 @@ export async function sendDeveloperReopenedNotification({
               parameters: [
                 { type: "text", text: reporterName },
                 { type: "text", text: issueTitle },
+                { type: "text", text: orgName },
               ],
             },
             {
@@ -211,7 +217,7 @@ export async function sendDeveloperReopenedNotification({
 /**
  * Notify a developer that a GitHub issue was assigned to them.
  * Template "issue_assigned_dev" (Utility):
- *   Body:    👋 {{1}}, issue "{{2}}" has been assigned to you on GitHub.
+ *   Body:    👋 {{1}}, issue "{{2}}" from {{3}} has been assigned to you on GitHub.
  *   Button 0 (URL): View Issue → https://github.com/{{1}}
  *                   suffix = owner/repo/issues/number
  */
@@ -219,11 +225,13 @@ export async function sendIssueAssignedNotification({
   phone,
   developerName,
   issueTitle,
+  orgName,
   githubUrl,
 }: {
   phone: string;
   developerName: string;
   issueTitle: string;
+  orgName: string;
   githubUrl: string;
 }): Promise<void> {
   const phoneNumberId = process.env.META_WA_PHONE_NUMBER_ID;
@@ -256,6 +264,7 @@ export async function sendIssueAssignedNotification({
               parameters: [
                 { type: "text", text: developerName },
                 { type: "text", text: issueTitle },
+                { type: "text", text: orgName },
               ],
             },
             {
