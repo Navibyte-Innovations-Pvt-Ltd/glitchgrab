@@ -47,15 +47,13 @@ async function getLinkedIssueNumbers(repoFullName: string, token: string): Promi
   return linked;
 }
 
-export async function GET(req: Request, { params }: { params: Promise<{ slug: string }> }) {
+export async function GET(_req: Request, { params }: { params: Promise<{ slug: string }> }) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
 
   const { slug } = await params;
-  const { searchParams } = new URL(req.url);
-  const assigned = searchParams.get("assigned") === "true";
 
   const org = await prisma.organization.findUnique({ where: { githubOrgLogin: slug } });
   if (!org) return NextResponse.json({ success: false, error: "Org not found" }, { status: 404 });
@@ -85,9 +83,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
     await Promise.all(
       repos.map(async (repo: { fullName: string }) => {
         try {
-          const issueUrl = assigned
-            ? `https://api.github.com/repos/${repo.fullName}/issues?state=open&assignee=*&sort=created&direction=desc&per_page=20`
-            : `https://api.github.com/repos/${repo.fullName}/issues?state=open&sort=created&direction=desc&per_page=10`;
+          const issueUrl = `https://api.github.com/repos/${repo.fullName}/issues?state=open&sort=created&direction=desc&per_page=20`;
 
           const [issuesRes, linkedNumbers] = await Promise.all([
             fetch(issueUrl, {
