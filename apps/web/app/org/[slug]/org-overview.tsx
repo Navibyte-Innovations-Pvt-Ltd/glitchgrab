@@ -343,11 +343,13 @@ function IssueRow({
       {issue.assignees && issue.assignees.length > 0 ? (
         <div className="flex items-center gap-1 shrink-0">
           {issue.assignees.slice(0, 2).map((a) => (
-            <img
+            <Image
               key={a.login}
               src={`${a.avatarUrl}&s=32`}
               alt={a.login}
               title={`@${a.login}`}
+              width={16}
+              height={16}
               className="h-4 w-4 rounded-full border border-border/60"
             />
           ))}
