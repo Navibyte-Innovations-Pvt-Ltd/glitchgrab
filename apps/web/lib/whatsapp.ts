@@ -218,7 +218,7 @@ export async function sendDeveloperReopenedNotification({
 /**
  * Notify a developer that a GitHub issue was assigned to them.
  * Template "issue_assigned_dev" (Utility):
- *   Body:    👋 {{1}}, issue "{{2}}" from {{3}} has been assigned to you on GitHub.
+ *   Body:    Hi {{1}}, issue "{{2}}" from {{3}} has been assigned to you on GitHub.
  *   Button 0 (URL): View Issue → https://github.com/{{1}}
  *                   suffix = owner/repo/issues/number
  */
