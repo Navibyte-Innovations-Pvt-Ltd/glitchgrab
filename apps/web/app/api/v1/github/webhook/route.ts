@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     // Find the repo in our DB to get the user
     const repo = await prisma.repo.findFirst({
       where: { fullName: repoFullName },
-      select: { id: true, userId: true, fullName: true },
+      select: { id: true, userId: true, fullName: true, orgId: true },
     });
 
     if (!repo) {
@@ -73,11 +73,16 @@ export async function POST(request: Request) {
       },
     });
 
-    // Fetch developer's WhatsApp number for use in reporter notification
-    const repoOwner = await prisma.user.findUnique({
+    // Fetch repo owner + their org name for WA messages
+    const repoOwnerData = await prisma.user.findUnique({
       where: { id: repo.userId },
-      select: { whatsappPhone: true },
+      select: {
+        name: true,
+        whatsappPhone: true,
+        ownedOrgs: { where: { id: repo.orgId ?? "" }, select: { name: true }, take: 1 },
+      },
     });
+    const orgName = repoOwnerData?.ownedOrgs?.[0]?.name ?? repoOwnerData?.name ?? "the team";
 
     // Handle different GitHub events
     if (event === "issues") {
@@ -100,7 +105,8 @@ export async function POST(request: Request) {
             phone,
             reporterName: name,
             issueTitle: title,
-            developerPhone: repoOwner?.whatsappPhone,
+            orgName,
+            developerPhone: repoOwnerData?.whatsappPhone,
             issueId: glitchgrabIssue.id,
           });
         }
@@ -140,6 +146,7 @@ export async function POST(request: Request) {
             phone: assigneeUser.whatsappPhone,
             developerName: assigneeUser.name ?? payload.assignee.login,
             issueTitle: payload.issue.title,
+            orgName,
             githubUrl: payload.issue.html_url,
           });
         }
