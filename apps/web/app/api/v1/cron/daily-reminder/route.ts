@@ -16,7 +16,6 @@ export async function GET(request: Request) {
     select: {
       id: true,
       name: true,
-      githubLogin: true,
       whatsappPhone: true,
       repos: { select: { owner: true, name: true }, where: { userId: { not: "" } } },
       ownedOrgs: { select: { name: true, githubOrgLogin: true }, take: 1 },
@@ -52,7 +51,7 @@ export async function GET(request: Request) {
       developerName: dev.name ?? "Developer",
       openCount: totalOpen,
       orgName,
-      githubFilterPath: glitchgrabPath,
+      glitchgrabPath,
     });
     notified++;
   }
