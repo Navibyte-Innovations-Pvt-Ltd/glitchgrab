@@ -411,12 +411,14 @@ function TriageFilterPopover({
     repoShortName(repo).toLowerCase().includes(search.toLowerCase()),
   );
 
-  const isFiltered = selectedRepo !== null || assignView !== "all";
+  const isFiltered = selectedRepo !== null || assignView !== "assigned";
   const label = selectedRepo
     ? repoShortName(selectedRepo)
-    : assignView !== "all"
-      ? assignView === "assigned" ? "Assigned" : "Unassigned"
-      : "Filter";
+    : assignView === "all"
+      ? "All issues"
+      : assignView === "unassigned"
+        ? "Unassigned"
+        : "Filter";
 
   return (
     <Popover>
@@ -672,7 +674,7 @@ function OrgIssuesTriageBody({
 function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
   const [assignView, setAssignView] = useQueryState<AssignView>(
     "triageAssign",
-    parseAsStringLiteral(ASSIGN_VIEWS).withDefault("all"),
+    parseAsStringLiteral(ASSIGN_VIEWS).withDefault("assigned"),
   );
   const [selectedRepo, setSelectedRepo] = useQueryState(
     "triageRepo",
