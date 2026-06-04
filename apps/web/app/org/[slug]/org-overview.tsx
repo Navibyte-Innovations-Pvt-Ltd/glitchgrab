@@ -340,18 +340,27 @@ function IssueRow({
           {issue.comments}
         </span>
       )}
-      {issue.assignees && issue.assignees.length > 0 && (
-        <div className="flex items-center shrink-0">
+      {issue.assignees && issue.assignees.length > 0 ? (
+        <div className="flex items-center gap-1 shrink-0">
           {issue.assignees.slice(0, 2).map((a) => (
             <img
               key={a.login}
               src={`${a.avatarUrl}&s=32`}
               alt={a.login}
-              title={a.login}
-              className="h-4 w-4 rounded-full border border-border -ml-1 first:ml-0"
+              title={`@${a.login}`}
+              className="h-4 w-4 rounded-full border border-border/60"
             />
           ))}
+          {issue.assignees.length === 1 && (
+            <span className="text-[10px] font-mono text-muted-foreground/60 hidden group-hover:inline">
+              @{issue.assignees[0].login}
+            </span>
+          )}
         </div>
+      ) : (
+        <span className="text-[10px] font-mono text-muted-foreground/30 shrink-0 hidden group-hover:inline">
+          unassigned
+        </span>
       )}
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
         <button
@@ -380,18 +389,21 @@ function IssueRow({
 
 // ─── Repo Filter Popover (header button) ─────────────────────────────────────
 
-function RepoFilterPopover({
+const ASSIGN_VIEWS = ["all", "assigned", "unassigned"] as const;
+type AssignView = (typeof ASSIGN_VIEWS)[number];
+
+function TriageFilterPopover({
   allRepos,
   selectedRepo,
   onSelect,
-  view,
-  onViewChange,
+  assignView,
+  onAssignViewChange,
 }: {
   allRepos: [string, IssueItem[]][];
   selectedRepo: string | null;
   onSelect: (repo: string | null) => void;
-  view: TriageView;
-  onViewChange: (v: TriageView) => void;
+  assignView: AssignView;
+  onAssignViewChange: (v: AssignView) => void;
 }) {
   const [search, setSearch] = useState("");
 
@@ -399,7 +411,12 @@ function RepoFilterPopover({
     repoShortName(repo).toLowerCase().includes(search.toLowerCase()),
   );
 
-  const isFiltered = selectedRepo !== null || view === "assigned";
+  const isFiltered = selectedRepo !== null || assignView !== "all";
+  const label = selectedRepo
+    ? repoShortName(selectedRepo)
+    : assignView !== "all"
+      ? assignView === "assigned" ? "Assigned" : "Unassigned"
+      : "Filter";
 
   return (
     <Popover>
@@ -412,109 +429,102 @@ function RepoFilterPopover({
         )}
       >
         <SlidersHorizontal className="h-2.5 w-2.5 shrink-0" />
-        {selectedRepo ? repoShortName(selectedRepo) : view === "assigned" ? "Assigned" : "Filter"}
+        {label}
+        {isFiltered && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onSelect(null); onAssignViewChange("all"); }}
+            className="ml-0.5 hover:text-destructive transition-colors"
+          >
+            <X className="h-2.5 w-2.5" />
+          </button>
+        )}
       </PopoverTrigger>
-      <PopoverContent
-        align="end"
-        side="bottom"
-        className="w-56 p-2 flex flex-col gap-1.5"
-      >
-        {/* View toggle */}
-        <div className="flex items-center gap-1 pb-1.5 border-b border-border">
-          <span className="text-[10px] font-mono text-muted-foreground/60 mr-auto">View</span>
-          <div className="flex items-center rounded border border-border overflow-hidden">
-            <button
-              type="button"
-              onClick={() => { onViewChange("open"); onSelect(null); }}
-              className={cn(
-                "px-2 py-0.5 text-[10px] font-mono transition-colors",
-                view === "open" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              Open
-            </button>
-            <button
-              type="button"
-              onClick={() => { onViewChange("assigned"); onSelect(null); }}
-              className={cn(
-                "px-2 py-0.5 text-[10px] font-mono transition-colors border-l border-border",
-                view === "assigned" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              Assigned
-            </button>
+      <PopoverContent align="end" side="bottom" className="w-56 p-2 flex flex-col gap-1.5">
+        {/* Assign filter */}
+        <div className="space-y-1">
+          <p className="text-[10px] font-mono text-muted-foreground/60 uppercase tracking-widest px-1">Assignment</p>
+          <div className="flex rounded border border-border overflow-hidden">
+            {ASSIGN_VIEWS.map((v, i) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => onAssignViewChange(v)}
+                className={cn(
+                  "flex-1 py-1 text-[10px] font-mono capitalize transition-colors",
+                  i > 0 && "border-l border-border",
+                  assignView === v ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {v}
+              </button>
+            ))}
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 border border-border rounded px-2 py-1 bg-background">
-          <Search className="h-3 w-3 text-muted-foreground shrink-0" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search repos…"
-            autoFocus
-            className="flex-1 bg-transparent text-xs font-mono text-foreground outline-none placeholder:text-muted-foreground/50"
-          />
-          {search && (
-            <button type="button" onClick={() => setSearch("")}>
-              <X className="h-3 w-3 text-muted-foreground" />
-            </button>
-          )}
-        </div>
+        <div className="border-t border-border pt-1.5 space-y-1">
+          <p className="text-[10px] font-mono text-muted-foreground/60 uppercase tracking-widest px-1">Repo</p>
+          <div className="flex items-center gap-1.5 border border-border rounded px-2 py-1 bg-background">
+            <Search className="h-3 w-3 text-muted-foreground shrink-0" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search repos…"
+              autoFocus
+              className="flex-1 bg-transparent text-xs font-mono text-foreground outline-none placeholder:text-muted-foreground/50"
+            />
+            {search && (
+              <button type="button" onClick={() => setSearch("")}>
+                <X className="h-3 w-3 text-muted-foreground" />
+              </button>
+            )}
+          </div>
 
-        <button
-          type="button"
-          onClick={() => onSelect(null)}
-          className={cn(
-            "flex items-center justify-between px-2 py-1 rounded text-[11px] font-mono transition-colors",
-            !selectedRepo
-              ? "bg-primary/10 text-primary"
-              : "text-muted-foreground hover:bg-muted hover:text-foreground",
-          )}
-        >
-          <span>All repos</span>
-          <span className="text-[10px]">
-            {allRepos.reduce((s, [, its]) => s + its.length, 0)}
-          </span>
-        </button>
+          <button
+            type="button"
+            onClick={() => onSelect(null)}
+            className={cn(
+              "w-full flex items-center justify-between px-2 py-1 rounded text-[11px] font-mono transition-colors",
+              !selectedRepo
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            )}
+          >
+            <span>All repos</span>
+            <span className="text-[10px]">{allRepos.reduce((s, [, its]) => s + its.length, 0)}</span>
+          </button>
 
-        <div className="flex flex-col gap-0.5 max-h-48 overflow-y-auto">
-          {filteredRepos.map(([repo, items]) => {
-            const isSelected = selectedRepo === repo;
-            const hasCritical = items.some((i) => isHighPriority(i.labels));
-            return (
-              <button
-                key={repo}
-                type="button"
-                onClick={() => onSelect(isSelected ? null : repo)}
-                className={cn(
-                  "flex items-center justify-between gap-2 px-2 py-1 rounded text-[11px] font-mono transition-colors",
-                  isSelected
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                )}
-              >
-                <span className="flex items-center gap-1.5 min-w-0">
-                  <Folder className="h-2.5 w-2.5 shrink-0" />
-                  <span className="truncate">{repoShortName(repo)}</span>
-                </span>
-                <span
+          <div className="flex flex-col gap-0.5 max-h-40 overflow-y-auto">
+            {filteredRepos.map(([repo, items]) => {
+              const isSelected = selectedRepo === repo;
+              const hasCritical = items.some((i) => isHighPriority(i.labels));
+              return (
+                <button
+                  key={repo}
+                  type="button"
+                  onClick={() => onSelect(isSelected ? null : repo)}
                   className={cn(
-                    "shrink-0 text-[10px]",
-                    hasCritical && !isSelected ? "text-red-400" : "",
+                    "flex items-center justify-between gap-2 px-2 py-1 rounded text-[11px] font-mono transition-colors",
+                    isSelected
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
                   )}
                 >
-                  {items.length}
-                </span>
-              </button>
-            );
-          })}
-          {filteredRepos.length === 0 && (
-            <p className="text-[10px] font-mono text-muted-foreground/50 px-2 py-1">
-              No repos match
-            </p>
-          )}
+                  <span className="flex items-center gap-1.5 min-w-0">
+                    <Folder className="h-2.5 w-2.5 shrink-0" />
+                    <span className="truncate">{repoShortName(repo)}</span>
+                  </span>
+                  <span className={cn("shrink-0 text-[10px]", hasCritical && !isSelected ? "text-red-400" : "")}>
+                    {items.length}
+                  </span>
+                </button>
+              );
+            })}
+            {filteredRepos.length === 0 && (
+              <p className="text-[10px] font-mono text-muted-foreground/50 px-2 py-1">No repos match</p>
+            )}
+          </div>
         </div>
       </PopoverContent>
     </Popover>
@@ -525,25 +535,24 @@ function RepoFilterPopover({
 
 function OrgIssuesTriageBody({
   data,
+  allCount,
   isLoading,
   selectedRepo,
   onSelect,
-  view,
+  assignView,
 }: {
-  data: IssueItem[] | undefined;
+  data: IssueItem[];
+  allCount: number;
   isLoading: boolean;
   selectedRepo: string | null;
   onSelect: (repo: string | null) => void;
-  view: TriageView;
+  assignView: AssignView;
 }) {
   if (isLoading) {
     return (
       <div className="flex flex-col gap-2">
         {[1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className="flex items-center gap-2 rounded px-2 py-1.5 border border-border/40"
-          >
+          <div key={i} className="flex items-center gap-2 rounded px-2 py-1.5 border border-border/40">
             <Skeleton className="h-3 w-3 rounded-full shrink-0" />
             <Skeleton className="h-3 flex-1" />
             <Skeleton className="h-2.5 w-12 shrink-0" />
@@ -553,12 +562,16 @@ function OrgIssuesTriageBody({
     );
   }
 
-  if (!data || data.length === 0) {
+  if (data.length === 0) {
     return (
       <div className="flex items-center gap-3 border border-dashed border-border rounded-md px-4 py-4">
-        <AlertCircle className="h-4 w-4 text-muted-foreground shrink-0" />
+        <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
         <p className="text-xs font-mono text-muted-foreground">
-          {view === "assigned" ? "No assigned issues — nothing in progress." : "No open issues — all clear."}
+          {assignView === "assigned"
+            ? "No assigned issues."
+            : assignView === "unassigned"
+              ? "All issues are assigned — great!"
+              : "No open issues — all clear."}
         </p>
       </div>
     );
@@ -568,21 +581,17 @@ function OrgIssuesTriageBody({
     (acc[issue.repoFullName] ??= []).push(issue);
     return acc;
   }, {});
-
-  const sortedRepos = Object.entries(grouped).sort(
-    ([, a], [, b]) => b.length - a.length,
-  );
-  const top2 = sortedRepos.slice(0, 2);
-
-  const visibleRepos = selectedRepo
-    ? sortedRepos.filter(([repo]) => repo === selectedRepo)
-    : sortedRepos;
+  const sortedRepos = Object.entries(grouped).sort(([, a], [, b]) => b.length - a.length);
+  const top3 = sortedRepos.slice(0, 3);
 
   return (
     <div className="flex flex-col gap-3 max-h-80 overflow-y-auto pr-1">
-      {/* Top-2 quick-filter chips */}
+      {/* Summary + quick-filter chips */}
       <div className="flex items-center gap-1.5 flex-wrap">
-        {top2.map(([repo, items]) => {
+        <span className="text-[10px] font-mono text-muted-foreground/50 mr-1">
+          {data.length}{allCount !== data.length ? `/${allCount}` : ""} issues
+        </span>
+        {top3.map(([repo, items]) => {
           const hasCritical = items.some((i) => isHighPriority(i.labels));
           const isSelected = selectedRepo === repo;
           return (
@@ -601,23 +610,16 @@ function OrgIssuesTriageBody({
             >
               <Folder className="h-2.5 w-2.5 shrink-0" />
               <span>{repoShortName(repo)}</span>
-              <span
-                className={cn(
-                  "font-bold px-0.5",
-                  isSelected
-                    ? "text-primary"
-                    : hasCritical
-                      ? "text-red-300"
-                      : "text-foreground",
-                )}
-              >
+              <span className={cn("font-bold px-0.5", isSelected ? "text-primary" : hasCritical ? "text-red-300" : "text-foreground")}>
                 {items.length}
               </span>
             </button>
           );
         })}
-        {/* Active filter chip if not a top-2 repo */}
-        {selectedRepo && !top2.some(([r]) => r === selectedRepo) && (
+        {sortedRepos.length > 3 && !selectedRepo && (
+          <span className="text-[10px] font-mono text-muted-foreground/50">+{sortedRepos.length - 3} more</span>
+        )}
+        {selectedRepo && !top3.some(([r]) => r === selectedRepo) && (
           <button
             type="button"
             onClick={() => onSelect(null)}
@@ -628,17 +630,11 @@ function OrgIssuesTriageBody({
             <X className="h-2.5 w-2.5" />
           </button>
         )}
-        {/* +N more repos hint */}
-        {sortedRepos.length > 2 && (
-          <span className="text-[10px] font-mono text-muted-foreground/50 px-1">
-            +{sortedRepos.length - 2} more
-          </span>
-        )}
       </div>
 
-      {/* Issue list */}
+      {/* Issue list grouped by repo */}
       <div className="flex flex-col gap-3">
-        {visibleRepos.map(([repo, items]) => (
+        {sortedRepos.map(([repo, items]) => (
           <div key={repo} className="flex flex-col gap-1">
             <div className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground/60 uppercase tracking-widest">
               <Folder className="h-2.5 w-2.5" />
@@ -646,22 +642,19 @@ function OrgIssuesTriageBody({
               <span className="text-primary/60 ml-auto">{items.length}</span>
             </div>
             <ul className="flex flex-col gap-1">
-              {(selectedRepo ? items : items.slice(0, 2)).map((issue) => {
-                const critical = isHighPriority(issue.labels);
-                return (
-                  <li key={`${repo}-${issue.number}`}>
-                    <IssueRow issue={issue} critical={critical} />
-                  </li>
-                );
-              })}
-              {!selectedRepo && items.length > 2 && (
+              {(selectedRepo ? items : items.slice(0, 3)).map((issue) => (
+                <li key={`${repo}-${issue.number}`}>
+                  <IssueRow issue={issue} critical={isHighPriority(issue.labels)} />
+                </li>
+              ))}
+              {!selectedRepo && items.length > 3 && (
                 <li>
                   <button
                     type="button"
                     onClick={() => onSelect(repo)}
                     className="text-[10px] font-mono text-muted-foreground/50 hover:text-primary transition-colors pl-1"
                   >
-                    +{items.length - 2} more →
+                    +{items.length - 3} more →
                   </button>
                 </li>
               )}
@@ -673,15 +666,12 @@ function OrgIssuesTriageBody({
   );
 }
 
-// ─── Issues Triage Section (holds state + query, exposes filter for header) ──
-
-const TRIAGE_VIEWS = ["open", "assigned"] as const;
-type TriageView = (typeof TRIAGE_VIEWS)[number];
+// ─── Issues Triage Section ────────────────────────────────────────────────────
 
 function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
-  const [view, setView] = useQueryState<TriageView>(
-    "triageView",
-    parseAsStringLiteral(TRIAGE_VIEWS).withDefault("open"),
+  const [assignView, setAssignView] = useQueryState<AssignView>(
+    "triageAssign",
+    parseAsStringLiteral(ASSIGN_VIEWS).withDefault("all"),
   );
   const [selectedRepo, setSelectedRepo] = useQueryState(
     "triageRepo",
@@ -691,19 +681,23 @@ function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
   const repoFilter = selectedRepo || null;
   const setRepoFilter = (r: string | null) => void setSelectedRepo(r ?? "");
 
-  const assigned = view === "assigned";
-
   const { data, isLoading } = useQuery<IssueItem[]>({
-    queryKey: ["org-issues", orgSlug, assigned],
+    queryKey: ["org-issues", orgSlug],
     queryFn: async () => {
-      const { data } = await axios.get(
-        `/api/v1/orgs/${orgSlug}/issues${assigned ? "?assigned=true" : ""}`,
-      );
+      const { data } = await axios.get(`/api/v1/orgs/${orgSlug}/issues`);
       return data.data ?? [];
     },
     staleTime: 60_000,
     refetchOnWindowFocus: true,
     refetchInterval: 60_000,
+  });
+
+  // Apply local filters
+  const filtered = (data ?? []).filter((issue) => {
+    if (repoFilter && issue.repoFullName !== repoFilter) return false;
+    if (assignView === "assigned") return (issue.assignees?.length ?? 0) > 0;
+    if (assignView === "unassigned") return (issue.assignees?.length ?? 0) === 0;
+    return true;
   });
 
   const grouped = (data ?? []).reduce<Record<string, IssueItem[]>>(
@@ -722,12 +716,12 @@ function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
       icon={<AlertCircle className="h-4 w-4 text-primary" />}
       title="Priority issues triage"
       meta={
-        <RepoFilterPopover
+        <TriageFilterPopover
           allRepos={sortedRepos}
           selectedRepo={repoFilter}
           onSelect={setRepoFilter}
-          view={view}
-          onViewChange={(v) => void setView(v)}
+          assignView={assignView}
+          onAssignViewChange={(v) => void setAssignView(v)}
         />
       }
       footer={{
@@ -737,11 +731,12 @@ function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
       }}
     >
       <OrgIssuesTriageBody
-        data={data}
+        data={filtered}
+        allCount={data?.length ?? 0}
         isLoading={isLoading}
         selectedRepo={repoFilter}
         onSelect={setRepoFilter}
-        view={view}
+        assignView={assignView}
       />
     </ListPanel>
   );
@@ -927,13 +922,23 @@ function TeamPanel({
   if (!membersData) {
     return (
       <div className="flex flex-col gap-3">
-        <Skeleton className="h-2.5 w-16" />
+        <Skeleton className="h-5 w-20 rounded-full" />
         {[1, 2, 3].map((i) => (
-          <div key={i} className="flex items-center gap-2.5 px-1 py-1.5">
-            <Skeleton className="w-7 h-7 rounded-full shrink-0" />
+          <div
+            key={i}
+            className="flex items-start gap-2.5 px-2.5 py-2 rounded-lg border border-border/40"
+          >
+            <Skeleton className="w-8 h-8 rounded-full shrink-0 mt-0.5" />
             <div className="flex-1 flex flex-col gap-1.5">
-              <Skeleton className="h-3 w-28" />
-              <Skeleton className="h-2 w-40" />
+              <div className="flex items-center gap-1.5">
+                <Skeleton className="h-3 w-28" />
+                <Skeleton className="h-4 w-12 rounded ml-auto" />
+              </div>
+              <Skeleton className="h-2.5 w-24" />
+              <div className="flex gap-1">
+                <Skeleton className="h-4 w-16 rounded" />
+                <Skeleton className="h-4 w-20 rounded" />
+              </div>
             </div>
           </div>
         ))}
