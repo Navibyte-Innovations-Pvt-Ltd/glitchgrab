@@ -15,7 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import React from "react";
 import { FieldValues, useFormContext } from "react-hook-form";
-import { BaseInputProps } from "../InputField";
+import { BaseInputProps } from "../InputField.types";
 
 const InputOTPController = <T extends FieldValues>({
   label,
@@ -55,7 +55,7 @@ const InputOTPController = <T extends FieldValues>({
           <FormControl>
             <div className="w-full">
               <InputOTP
-                maxLength={4}
+                maxLength={6}
                 value={field.value}
                 onChange={field.onChange}
                 disabled={disabled}
@@ -65,7 +65,7 @@ const InputOTPController = <T extends FieldValues>({
                 }}
               >
                 <InputOTPGroup className="w-full gap-2">
-                  {Array.from({ length: 4 }).map((_, index) => (
+                  {Array.from({ length: 6 }).map((_, index) => (
                     <InputOTPSlot
                       key={index}
                       index={index}
