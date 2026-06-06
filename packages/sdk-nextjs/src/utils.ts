@@ -135,6 +135,12 @@ export async function sendReport(
   }
 }
 
+export interface EnhanceContext {
+  url?: string;
+  visitedPages?: string[];
+  breadcrumbs?: Array<{ type: string; message: string }>;
+}
+
 /**
  * Polish raw description text via the Glitchgrab AI enhance endpoint.
  * Returns the polished text on success, or the original text on any failure.
@@ -144,7 +150,8 @@ export async function enhanceText(
   text: string,
   token: string,
   baseUrl?: string,
-  screenshot?: string | null
+  screenshot?: string | null,
+  context?: EnhanceContext | null
 ): Promise<string> {
   try {
     const trimmed = text.trim();
@@ -156,7 +163,11 @@ export async function enhanceText(
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ text: trimmed, ...(screenshot ? { screenshot } : {}) }),
+      body: JSON.stringify({
+        text: trimmed,
+        ...(screenshot ? { screenshot } : {}),
+        ...(context ? { context } : {}),
+      }),
     });
     if (!response.ok) return text;
     const envelope = (await response.json()) as {
