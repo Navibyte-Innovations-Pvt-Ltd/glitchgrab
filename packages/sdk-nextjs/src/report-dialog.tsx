@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useRef, useEffect, type CSSProperties, type ReactNode } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 // @ts-expect-error react-dom types handled by host app
 import { createPortal } from "react-dom";
 import type { ReportType, ReportSeverity, UseGlitchgrabReturn } from "./types";
@@ -12,11 +18,17 @@ function useIsDark(): boolean {
     // Check body then html — most sites set background on html, not body
     for (const el of [document.body, document.documentElement]) {
       const bg = getComputedStyle(el).backgroundColor;
-      const match = bg.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?\s*\)/);
+      const match = bg.match(
+        /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?\s*\)/,
+      );
       if (match) {
         const alpha = match[4] !== undefined ? parseFloat(match[4]) : 1;
         if (alpha < 0.05) continue; // transparent — skip to next element
-        const [r, g, b] = [Number(match[1]), Number(match[2]), Number(match[3])];
+        const [r, g, b] = [
+          Number(match[1]),
+          Number(match[2]),
+          Number(match[3]),
+        ];
         return (r * 299 + g * 587 + b * 114) / 1000 < 128;
       }
     }
@@ -34,7 +46,9 @@ function hslToHex(h: number, s: number, l: number): string {
   const f = (n: number) => {
     const k = (n + h / 30) % 12;
     const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-    return Math.round(255 * color).toString(16).padStart(2, "0");
+    return Math.round(255 * color)
+      .toString(16)
+      .padStart(2, "0");
   };
   return `#${f(0)}${f(8)}${f(4)}`;
 }
@@ -48,18 +62,30 @@ function parseColorToRgb(value: string): [number, number, number] | null {
     const hexMatch = trimmed.match(/^#([0-9a-f]{3,8})$/i);
     if (hexMatch) {
       let hex = hexMatch[1];
-      if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
-      return [parseInt(hex.slice(0, 2), 16), parseInt(hex.slice(2, 4), 16), parseInt(hex.slice(4, 6), 16)];
+      if (hex.length === 3)
+        hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+      return [
+        parseInt(hex.slice(0, 2), 16),
+        parseInt(hex.slice(2, 4), 16),
+        parseInt(hex.slice(4, 6), 16),
+      ];
     }
 
     // rgb(r, g, b) or rgba(r, g, b, a)
     const rgbMatch = trimmed.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
-    if (rgbMatch) return [Number(rgbMatch[1]), Number(rgbMatch[2]), Number(rgbMatch[3])];
+    if (rgbMatch)
+      return [Number(rgbMatch[1]), Number(rgbMatch[2]), Number(rgbMatch[3])];
 
     // hsl(h, s%, l%) or hsla(h, s%, l%, a)
-    const hslMatch = trimmed.match(/hsla?\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%/);
+    const hslMatch = trimmed.match(
+      /hsla?\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%/,
+    );
     if (hslMatch) {
-      const hex = hslToHex(Number(hslMatch[1]), Number(hslMatch[2]), Number(hslMatch[3]));
+      const hex = hslToHex(
+        Number(hslMatch[1]),
+        Number(hslMatch[2]),
+        Number(hslMatch[3]),
+      );
       return parseColorToRgb(hex);
     }
 
@@ -103,9 +129,16 @@ function detectHostAccent(): { accent: string; accentText: string } | null {
       // shadcn/ui style: space-separated HSL values like "243 75% 59%"
       const hslSpaceMatch = raw.match(/^([\d.]+)\s+([\d.]+)%\s+([\d.]+)%$/);
       if (hslSpaceMatch) {
-        const hex = hslToHex(Number(hslSpaceMatch[1]), Number(hslSpaceMatch[2]), Number(hslSpaceMatch[3]));
+        const hex = hslToHex(
+          Number(hslSpaceMatch[1]),
+          Number(hslSpaceMatch[2]),
+          Number(hslSpaceMatch[3]),
+        );
         const rgb = parseColorToRgb(hex);
-        return { accent: hex, accentText: rgb ? getContrastText(...rgb) : "#ffffff" };
+        return {
+          accent: hex,
+          accentText: rgb ? getContrastText(...rgb) : "#ffffff",
+        };
       }
 
       // Standard color values (hex, rgb, hsl)
@@ -125,8 +158,28 @@ function detectHostAccent(): { accent: string; accentText: string } | null {
 function getTheme(dark: boolean) {
   const hostAccent = detectHostAccent();
   const defaults = dark
-    ? { bg: "#1c1c1e", bgSecondary: "#27272a", border: "#2c2c2e", text: "#fafafa", textMuted: "#a1a1aa", accent: "#22d3ee", accentText: "#09090b", inputBg: "#27272a", inputBorder: "#3f3f46" }
-    : { bg: "#ffffff", bgSecondary: "#f4f4f5", border: "#e4e4e7", text: "#18181b", textMuted: "#71717a", accent: "#0891b2", accentText: "#ffffff", inputBg: "#fafafa", inputBorder: "#d4d4d8" };
+    ? {
+        bg: "#1c1c1e",
+        bgSecondary: "#27272a",
+        border: "#2c2c2e",
+        text: "#fafafa",
+        textMuted: "#a1a1aa",
+        accent: "#22d3ee",
+        accentText: "#09090b",
+        inputBg: "#27272a",
+        inputBorder: "#3f3f46",
+      }
+    : {
+        bg: "#ffffff",
+        bgSecondary: "#f4f4f5",
+        border: "#e4e4e7",
+        text: "#18181b",
+        textMuted: "#71717a",
+        accent: "#0891b2",
+        accentText: "#ffffff",
+        inputBg: "#fafafa",
+        inputBorder: "#d4d4d8",
+      };
 
   if (hostAccent) {
     defaults.accent = hostAccent.accent;
@@ -218,14 +271,18 @@ export function ReportDialog({
 }: ReportDialogProps) {
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [isEnhanced, setIsEnhanced] = useState(false);
-  const [originalDescription, setOriginalDescription] = useState<string | null>(null);
+  const [originalDescription, setOriginalDescription] = useState<string | null>(
+    null,
+  );
   const [isListening, setIsListening] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [screenshotDragOver, setScreenshotDragOver] = useState(false);
   // Prevent hydration mismatch — render nothing until after hydration
   const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const [isOpen, setIsOpen] = useState(false);
   const [description, setDescription] = useState("");
@@ -235,6 +292,7 @@ export function ReportDialog({
   const [previewOpen, setPreviewOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const spaceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -245,7 +303,9 @@ export function ReportDialog({
   useEffect(() => {
     if (!isOpen) return;
     const dialogs = Array.from(
-      document.querySelectorAll<HTMLElement>('[role="dialog"][data-state="open"]')
+      document.querySelectorAll<HTMLElement>(
+        '[role="dialog"][data-state="open"]',
+      ),
     );
     dialogs.forEach((d) => d.setAttribute("inert", ""));
     return () => dialogs.forEach((d) => d.removeAttribute("inert"));
@@ -257,7 +317,12 @@ export function ReportDialog({
   const [severity, setSeverity] = useState<ReportSeverity>("medium");
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  const availableTypes: ReportType[] = types ?? ["BUG", "FEATURE_REQUEST", "QUESTION", "OTHER"];
+  const availableTypes: ReportType[] = types ?? [
+    "BUG",
+    "FEATURE_REQUEST",
+    "QUESTION",
+    "OTHER",
+  ];
 
   const isDark = useIsDark();
   const t = getTheme(isDark);
@@ -373,7 +438,11 @@ export function ReportDialog({
     // Null the stream first — rolling loop checks this to know when to stop
     const stream = streamRef.current;
     streamRef.current = null;
-    try { mediaRecorderRef.current?.stop(); } catch { /* ignore */ }
+    try {
+      mediaRecorderRef.current?.stop();
+    } catch {
+      /* ignore */
+    }
     mediaRecorderRef.current = null;
     stream?.getTracks().forEach((t) => t.stop());
     setIsListening(false);
@@ -393,7 +462,10 @@ export function ReportDialog({
   };
 
   const toggleVoice = async () => {
-    if (isListening) { stopVoice(); return; }
+    if (isListening) {
+      stopVoice();
+      return;
+    }
     if (!transcribeAudio) return;
     setVoiceError(null);
     let stream: MediaStream;
@@ -414,19 +486,27 @@ export function ReportDialog({
       const rec = new MediaRecorder(activeStream);
       mediaRecorderRef.current = rec;
 
-      rec.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+      rec.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
 
       rec.onstop = async () => {
         if (chunks.length > 0 && transcribeAudio) {
           setIsTranscribing(true);
           try {
-            const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
+            const blob = new Blob(chunks, {
+              type: rec.mimeType || "audio/webm",
+            });
             const text = await transcribeAudio(blob);
             if (text.trim()) {
-              setDescription((prev) => prev + (prev.trim() ? " " : "") + text.trim());
+              setDescription(
+                (prev) => prev + (prev.trim() ? " " : "") + text.trim(),
+              );
               setValidationError(null);
             }
-          } catch { /* ignore */ }
+          } catch {
+            /* ignore */
+          }
           setIsTranscribing(false);
         }
         // If stream still active, start next round immediately
@@ -435,7 +515,13 @@ export function ReportDialog({
 
       rec.start();
       // Stop and collect after 3 s
-      setTimeout(() => { try { if (rec.state === "recording") rec.stop(); } catch { /* ignore */ } }, 3000);
+      setTimeout(() => {
+        try {
+          if (rec.state === "recording") rec.stop();
+        } catch {
+          /* ignore */
+        }
+      }, 3000);
     };
 
     recordRound(stream);
@@ -462,7 +548,19 @@ export function ReportDialog({
       clearTimeout(spaceTimerRef.current);
       spaceTimerRef.current = null;
       if (!isPushToTalkRef.current) {
-        setDescription((prev) => prev + " ");
+        // Insert space at current cursor position, not at end
+        const ta = textareaRef.current;
+        const pos = ta
+          ? (ta.selectionStart ?? description.length)
+          : description.length;
+        setDescription((prev) => prev.slice(0, pos) + " " + prev.slice(pos));
+        // Restore cursor after React re-render
+        requestAnimationFrame(() => {
+          if (textareaRef.current) {
+            textareaRef.current.selectionStart = pos + 1;
+            textareaRef.current.selectionEnd = pos + 1;
+          }
+        });
       }
     }
     if (isPushToTalkRef.current) {
@@ -489,7 +587,11 @@ export function ReportDialog({
         metadata.severity = severity;
       }
 
-      const result = await report(reportType, description.trim(), Object.keys(metadata).length > 0 ? metadata : undefined);
+      const result = await report(
+        reportType,
+        description.trim(),
+        Object.keys(metadata).length > 0 ? metadata : undefined,
+      );
 
       if (result) {
         setSubmitted(true);
@@ -512,621 +614,964 @@ export function ReportDialog({
   return (
     <>
       {/* Keyframes for REC pulse — injected once when open */}
-      {isOpen && createPortal(
-        <style>{`
+      {isOpen &&
+        createPortal(
+          <style>{`
           @keyframes gg-pulse{0%,100%{opacity:1}50%{opacity:0.35}}
           @keyframes gg-b1{0%,100%{height:3px}40%{height:13px}}
           @keyframes gg-b2{0%,100%{height:8px}50%{height:3px}}
           @keyframes gg-b3{0%,100%{height:4px}30%{height:14px}70%{height:5px}}
           @keyframes gg-b4{0%,100%{height:6px}60%{height:13px}}
         `}</style>,
-        document.body
-      )}
+          document.body,
+        )}
       {/* Report modal */}
-      {isOpen && createPortal(
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 2147483647,
-            pointerEvents: "auto",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: "rgba(0,0,0,0.5)",
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-          }}
-          onClick={() => { if (!previewOpen) handleClose(); }}
-          onPointerDown={(e) => e.stopPropagation()}
-          onFocus={(e) => e.stopPropagation()}
-        >
+      {isOpen &&
+        createPortal(
           <div
-            ref={modalRef}
-            onClick={(e) => e.stopPropagation()}
             style={{
-              position: "relative",
+              position: "fixed",
+              inset: 0,
               zIndex: 2147483647,
-              width: "340px",
-              maxWidth: "calc(100% - 32px)",
-              backgroundColor: t.bg,
-              borderRadius: "12px",
-              boxShadow:
-                "0 20px 60px rgba(0, 0, 0, 0.2), 0 4px 16px rgba(0, 0, 0, 0.1)",
+              pointerEvents: "auto",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "rgba(0,0,0,0.5)",
               fontFamily:
                 '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-              overflow: "hidden",
-              color: t.text,
-              isolation: "isolate",
             }}
+            onClick={() => {
+              if (!previewOpen) handleClose();
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+            onFocus={(e) => e.stopPropagation()}
           >
-            {/* Header */}
             <div
+              ref={modalRef}
+              onClick={(e) => e.stopPropagation()}
               style={{
-                padding: "16px 16px 12px",
-                borderBottom: `1px solid ${t.border}`,
+                position: "relative",
+                zIndex: 2147483647,
+                width: "340px",
+                maxWidth: "calc(100% - 32px)",
+                backgroundColor: t.bg,
+                borderRadius: "12px",
+                boxShadow:
+                  "0 20px 60px rgba(0, 0, 0, 0.2), 0 4px 16px rgba(0, 0, 0, 0.1)",
+                fontFamily:
+                  '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                overflow: "hidden",
+                color: t.text,
+                isolation: "isolate",
               }}
             >
+              {/* Header */}
               <div
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
+                  padding: "16px 16px 12px",
+                  borderBottom: `1px solid ${t.border}`,
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  {step > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => setStep((s) => (s - 1) as 1 | 2)}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        padding: "2px",
-                        display: "flex",
-                        alignItems: "center",
-                      }}
-                      aria-label="Back"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path d="M10 3L5 8L10 13" stroke={t.textMuted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
-                  )}
-                  <span
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <div
                     style={{
-                      fontSize: "15px",
-                      fontWeight: 600,
-                      color: t.text,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
                     }}
                   >
-                    {step === 1 ? "What's on your mind?" : "Tell us more"}
-                  </span>
+                    {step > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setStep((s) => (s - 1) as 1 | 2)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          padding: "2px",
+                          display: "flex",
+                          alignItems: "center",
+                        }}
+                        aria-label="Back"
+                      >
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                        >
+                          <path
+                            d="M10 3L5 8L10 13"
+                            stroke={t.textMuted}
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </button>
+                    )}
+                    <span
+                      style={{
+                        fontSize: "15px",
+                        fontWeight: 600,
+                        color: t.text,
+                      }}
+                    >
+                      {step === 1 ? "What's on your mind?" : "Tell us more"}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleClose}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      padding: "4px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                    aria-label="Close"
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      style={{ display: "block" }}
+                    >
+                      <path
+                        d="M4 4L12 12M12 4L4 12"
+                        stroke={t.textMuted}
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleClose}
+                <div
                   style={{
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    padding: "4px",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                  }}
-                  aria-label="Close"
-                >
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display: "block" }}>
-                    <path d="M4 4L12 12M12 4L4 12" stroke={t.textMuted} strokeWidth="2" strokeLinecap="round" />
-                  </svg>
-                </button>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0", marginTop: "12px" }}>
-                {[1, 2].map((s, i) => (
-                  <div key={s} style={{ display: "flex", alignItems: "center" }}>
-                    <div style={{
-                      width: "8px",
-                      height: "8px",
-                      borderRadius: "50%",
-                      backgroundColor: s <= step ? t.accent : t.inputBorder,
-                      transition: "background-color 0.2s ease",
-                    }} />
-                    {i < 1 && (
-                      <div style={{
-                        width: "40px",
-                        height: "2px",
-                        backgroundColor: s < step ? t.accent : t.inputBorder,
-                        transition: "background-color 0.2s ease",
-                      }} />
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Body */}
-            <div style={{ padding: "16px" }}>
-              {submitted ? (
-                <div
-                  style={{
-                    textAlign: "center",
-                    padding: "20px 0",
-                    color: t.accent,
-                    fontSize: "14px",
-                    fontWeight: 500,
+                    gap: "0",
+                    marginTop: "12px",
                   }}
                 >
-                  {getTypeLabel(reportType)} sent. Thank you!
-                </div>
-              ) : (
-                <>
-                  {/* Step 1: Category */}
-                  {step === 1 && (
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-                      {availableTypes.map((type) => (
-                        <button
-                          key={type}
-                          type="button"
-                          onClick={() => {
-                            setReportType(type);
-                            setStep(2);
-                          }}
-                          style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                            gap: "8px",
-                            padding: "16px 8px",
-                            borderRadius: "8px",
-                            border: `1px solid ${t.inputBorder}`,
-                            background: t.inputBg,
-                            cursor: "pointer",
-                            color: t.text,
-                            fontFamily: "inherit",
-                            transition: "border-color 0.15s ease",
-                          }}
-                          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = t.accent; }}
-                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = t.inputBorder; }}
-                        >
-                          {getTypeIcon(type, t.accent)}
-                          <span style={{ fontSize: "13px", fontWeight: 600 }}>{getTypeLabel(type)}</span>
-                          <span style={{ fontSize: "11px", color: t.textMuted, lineHeight: "1.3" }}>{getTypeSubtitle(type)}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Step 2: Details */}
-                  {step === 2 && (
-                    <>
-                      <div style={{ position: "relative" }}>
-                        <textarea
-                          value={description}
-                          onChange={(e) => {
-                            setDescription(e.target.value);
-                            if (validationError) setValidationError(null);
-                            if (isEnhanced) { setIsEnhanced(false); setOriginalDescription(null); }
-                          }}
-                          placeholder={isTranscribing ? "Transcribing your speech…" : isListening ? "Listening… speak now" : getPlaceholder(reportType)}
-                          style={{
-                            width: "100%",
-                            minHeight: "100px",
-                            padding: enhanceText ? "28px 12px 36px" : transcribeAudio ? "10px 12px 36px" : "10px 12px",
-                            borderRadius: "8px",
-                            border: `1px solid ${isTranscribing ? "#f59e0b" : isListening ? t.accent : t.inputBorder}`,
-                            fontSize: "14px",
-                            fontFamily: "inherit",
-                            resize: "none",
-                            outline: "none",
-                            boxSizing: "border-box",
-                            color: t.text,
-                            backgroundColor: t.inputBg,
-                            transition: "border-color 0.2s ease",
-                          }}
-                          onKeyDown={handleSpaceDown}
-                          onKeyUp={handleSpaceUp}
-                          onFocus={(e) => { (e.target as HTMLTextAreaElement).style.borderColor = t.accent; }}
-                          onBlur={(e) => { if (!isListening && !isTranscribing) (e.target as HTMLTextAreaElement).style.borderColor = t.inputBorder; }}
-                          autoFocus
-                        />
-                        {/* Bottom-left: REC / Transcribing badge (same row as mic button) */}
-                        {(isListening || isTranscribing) && (
-                          <span style={{
-                            position: "absolute",
-                            bottom: "10px",
-                            left: "10px",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "4px",
-                            fontSize: "10px",
-                            fontWeight: 700,
-                            letterSpacing: "0.04em",
-                            color: isTranscribing ? "#f59e0b" : "#ef4444",
-                            pointerEvents: "none",
-                            zIndex: 1,
-                          }}>
-                            <span style={{
-                              width: "6px",
-                              height: "6px",
-                              borderRadius: "50%",
-                              backgroundColor: "currentColor",
-                              animation: "gg-pulse 1.2s ease-in-out infinite",
-                              display: "inline-block",
-                              flexShrink: 0,
-                            }} />
-                            {isTranscribing ? "Transcribing…" : "REC"}
-                            {isListening && !isTranscribing && (
-                              <span style={{ display: "inline-flex", alignItems: "flex-end", gap: "2px", height: "14px", marginLeft: "3px" }}>
-                                {[
-                                  { anim: "gg-b1", dur: "0.6s", delay: "0s" },
-                                  { anim: "gg-b2", dur: "0.5s", delay: "0.1s" },
-                                  { anim: "gg-b3", dur: "0.7s", delay: "0.05s" },
-                                  { anim: "gg-b4", dur: "0.55s", delay: "0.15s" },
-                                ].map((b, i) => (
-                                  <span key={i} style={{
-                                    width: "2.5px",
-                                    height: "4px",
-                                    borderRadius: "1px",
-                                    backgroundColor: "#ef4444",
-                                    animation: `${b.anim} ${b.dur} ease-in-out ${b.delay} infinite`,
-                                    display: "inline-block",
-                                    alignSelf: "center",
-                                  }} />
-                                ))}
-                              </span>
-                            )}
-                          </span>
-                        )}
-                        {/* Top-right: AI enhance */}
-                        {enhanceText && (
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              if (!description.trim() || isEnhancing) return;
-                              setIsEnhancing(true);
-                              try {
-                                const polished = await enhanceText(description, screenshot);
-                                if (polished && polished !== description) {
-                                  setOriginalDescription(description);
-                                  setDescription(polished);
-                                  setIsEnhanced(true);
-                                  if (validationError) setValidationError(null);
-                                }
-                              } finally {
-                                setIsEnhancing(false);
-                              }
-                            }}
-                            disabled={!description.trim() || isEnhancing || isEnhanced}
-                            style={{
-                              position: "absolute",
-                              top: "6px",
-                              right: "6px",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "4px",
-                              background: t.inputBg,
-                              border: "none",
-                              padding: "2px 6px",
-                              borderRadius: "4px",
-                              fontFamily: "inherit",
-                              fontSize: "11px",
-                              color: t.textMuted,
-                              cursor: !description.trim() || isEnhancing ? "default" : "pointer",
-                              opacity: !description.trim() ? 0.5 : 1,
-                              zIndex: 1,
-                            }}
-                            title="Polish grammar — preserves your meaning"
-                          >
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                              <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3zM19 15l.75 2.25L22 18l-2.25.75L19 21l-.75-2.25L16 18l2.25-.75L19 15z" stroke={t.textMuted} strokeWidth="1.5" strokeLinejoin="round" />
-                            </svg>
-                            {isEnhancing ? "Enhancing..." : "AI enhance"}
-                          </button>
-                        )}
-                        {/* Bottom-right: mic icon only, outlined */}
-                        {transcribeAudio && <button
-                          type="button"
-                          onClick={() => { void toggleVoice(); }}
-                          title={isListening ? "Stop recording" : "Speak your report"}
-                          style={{
-                            position: "absolute",
-                            bottom: "7px",
-                            right: "7px",
-                            width: "26px",
-                            height: "26px",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            background: "transparent",
-                            border: `1.5px solid ${isListening ? "#ef4444" : t.inputBorder}`,
-                            borderRadius: "6px",
-                            color: isListening ? "#ef4444" : t.textMuted,
-                            cursor: "pointer",
-                            zIndex: 1,
-                            padding: 0,
-                            transition: "border-color 0.2s ease, color 0.2s ease",
-                          }}
-                        >
-                          {isListening ? (
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                              <rect x="6" y="6" width="12" height="12" rx="2" />
-                            </svg>
-                          ) : (
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                              <rect x="9" y="2" width="6" height="12" rx="3" stroke="currentColor" strokeWidth="1.8" />
-                              <path d="M5 10a7 7 0 0014 0M12 19v3M9 22h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                            </svg>
-                          )}
-                        </button>}
-                      </div>
-                      {isEnhanced && originalDescription !== null && (
-                        <div style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "6px",
-                          marginTop: "6px",
-                          padding: "6px 8px",
-                          borderRadius: "6px",
-                          background: isDark ? "rgba(34,211,238,0.06)" : "rgba(8,145,178,0.05)",
-                          border: `1px solid ${t.accent}40`,
-                        }}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
-                            <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z" stroke={t.accent} strokeWidth="1.5" strokeLinejoin="round" />
-                          </svg>
-                          <span style={{ fontSize: "11px", color: t.textMuted, flex: 1 }}>AI enhanced</span>
-                          <button
-                            type="button"
-                            onClick={() => { setIsEnhanced(false); setOriginalDescription(null); }}
-                            style={{
-                              padding: "2px 8px",
-                              borderRadius: "4px",
-                              border: `1px solid ${t.accent}`,
-                              background: t.accent,
-                              color: t.accentText,
-                              fontSize: "11px",
-                              fontWeight: 600,
-                              cursor: "pointer",
-                              fontFamily: "inherit",
-                            }}
-                          >
-                            Keep
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setDescription(originalDescription);
-                              setIsEnhanced(false);
-                              setOriginalDescription(null);
-                            }}
-                            style={{
-                              padding: "2px 8px",
-                              borderRadius: "4px",
-                              border: `1px solid ${t.inputBorder}`,
-                              background: "transparent",
-                              color: t.textMuted,
-                              fontSize: "11px",
-                              fontWeight: 600,
-                              cursor: "pointer",
-                              fontFamily: "inherit",
-                            }}
-                          >
-                            Restore
-                          </button>
-                        </div>
-                      )}
-                      {voiceError && (
-                        <p style={{ color: "#ef4444", fontSize: "11px", marginTop: "4px", marginBottom: 0 }}>
-                          {voiceError}
-                        </p>
-                      )}
-
-                      {/* Screenshot section */}
-                      <div style={{ marginTop: "10px" }}>
-                        <span style={{ fontSize: "12px", color: t.textMuted, marginBottom: "6px", display: "block", fontWeight: 500 }}>
-                          Screenshot
-                        </span>
-                        {screenshot ? (
-                          <div>
-                            {/* Thumbnail — click to preview */}
-                            <div style={{ position: "relative" }}>
-                              <img
-                                src={screenshot}
-                                alt="Page screenshot"
-                                onClick={() => setPreviewOpen(true)}
-                                style={{
-                                  width: "100%",
-                                  borderRadius: "6px",
-                                  border: `1px solid ${t.border}`,
-                                  maxHeight: "64px",
-                                  objectFit: "cover",
-                                  objectPosition: "top",
-                                  cursor: "zoom-in",
-                                  display: "block",
-                                }}
-                              />
-                              <span style={{
-                                position: "absolute",
-                                bottom: "5px",
-                                left: "6px",
-                                background: "rgba(0,0,0,0.55)",
-                                color: "#fff",
-                                fontSize: "10px",
-                                padding: "1px 5px",
-                                borderRadius: "3px",
-                                pointerEvents: "none",
-                              }}>
-                                click to preview
-                              </span>
-                            </div>
-                            {/* Action row */}
-                            <div style={{ display: "flex", gap: "6px", marginTop: "6px" }}>
-                              <button
-                                type="button"
-                                onClick={() => setScreenshot(null)}
-                                style={{
-                                  flex: 1,
-                                  padding: "6px 0",
-                                  borderRadius: "6px",
-                                  border: `1px solid ${t.inputBorder}`,
-                                  background: "transparent",
-                                  color: "#ef4444",
-                                  fontSize: "12px",
-                                  fontWeight: 500,
-                                  cursor: "pointer",
-                                  fontFamily: "inherit",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  gap: "4px",
-                                }}
-                              >
-                                <svg width="11" height="11" viewBox="0 0 10 10" fill="none"><path d="M1 1L9 9M9 1L1 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
-                                Remove
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => fileInputRef.current?.click()}
-                                style={{
-                                  flex: 1,
-                                  padding: "6px 0",
-                                  borderRadius: "6px",
-                                  border: `1px solid ${t.inputBorder}`,
-                                  background: "transparent",
-                                  color: t.textMuted,
-                                  fontSize: "12px",
-                                  fontWeight: 500,
-                                  cursor: "pointer",
-                                  fontFamily: "inherit",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  gap: "4px",
-                                }}
-                              >
-                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                                Replace
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          /* Drop zone */
-                          <div
-                            onClick={() => fileInputRef.current?.click()}
-                            onDrop={(e) => {
-                              e.preventDefault();
-                              setScreenshotDragOver(false);
-                              const file = Array.from(e.dataTransfer.files).find((f) => f.type.startsWith("image/"));
-                              if (!file) return;
-                              const reader = new FileReader();
-                              reader.onload = () => setScreenshot(reader.result as string);
-                              reader.readAsDataURL(file);
-                            }}
-                            onDragOver={(e) => { e.preventDefault(); setScreenshotDragOver(true); }}
-                            onDragLeave={() => setScreenshotDragOver(false)}
-                            style={{
-                              border: `1.5px dashed ${screenshotDragOver ? t.accent : t.inputBorder}`,
-                              borderRadius: "8px",
-                              padding: "18px 12px",
-                              textAlign: "center",
-                              cursor: "pointer",
-                              background: screenshotDragOver ? (isDark ? "rgba(34,211,238,0.06)" : "rgba(8,145,178,0.04)") : "transparent",
-                              transition: "border-color 0.15s ease, background 0.15s ease",
-                            }}
-                          >
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" style={{ margin: "0 auto 6px", display: "block", opacity: 0.45 }}>
-                              <rect x="3" y="3" width="18" height="18" rx="2" stroke={t.textMuted} strokeWidth="1.5" />
-                              <circle cx="8.5" cy="8.5" r="1.5" stroke={t.textMuted} strokeWidth="1.5" />
-                              <path d="M21 15l-5-5L5 21" stroke={t.textMuted} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                            <p style={{ margin: 0, fontSize: "12px", fontWeight: 600, color: t.text }}>
-                              {screenshotDragOver ? "Drop to attach" : "Add a screenshot"}
-                            </p>
-                            <p style={{ margin: "3px 0 0", fontSize: "11px", color: t.textMuted }}>
-                              Drag & drop · Paste ⌘V / Ctrl+V · Click to browse
-                            </p>
-                          </div>
-                        )}
-                      </div>
-
-                      {showSeverity && reportType === "BUG" && (
-                        <div style={{ marginTop: "10px" }}>
-                          <span style={{ fontSize: "12px", color: t.textMuted, marginBottom: "6px", display: "block" }}>Severity</span>
-                          <div style={{ display: "flex", gap: "6px" }}>
-                            {(["low", "medium", "high"] as ReportSeverity[]).map((s) => (
-                              <button
-                                key={s}
-                                type="button"
-                                onClick={() => setSeverity(s)}
-                                style={{
-                                  flex: 1,
-                                  padding: "6px 0",
-                                  borderRadius: "6px",
-                                  border: `1px solid ${severity === s ? t.accent : t.inputBorder}`,
-                                  background: severity === s ? t.accent : "transparent",
-                                  color: severity === s ? t.accentText : t.text,
-                                  fontSize: "12px",
-                                  fontWeight: 600,
-                                  cursor: "pointer",
-                                  fontFamily: "inherit",
-                                  textTransform: "capitalize",
-                                  transition: "all 0.15s ease",
-                                }}
-                              >
-                                {s}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {validationError && (
-                        <p style={{ color: "#ef4444", fontSize: "12px", marginTop: "6px" }}>
-                          {validationError}
-                        </p>
-                      )}
-                      <button
-                        type="button"
-                        onClick={handleSubmit}
-                        disabled={!description.trim() || isSubmitting}
+                  {[1, 2].map((s, i) => (
+                    <div
+                      key={s}
+                      style={{ display: "flex", alignItems: "center" }}
+                    >
+                      <div
                         style={{
-                          marginTop: "12px",
-                          width: "100%",
-                          padding: "10px",
-                          borderRadius: "8px",
-                          border: "none",
-                          backgroundColor: !description.trim() || isSubmitting ? t.bgSecondary : t.accent,
-                          color: !description.trim() || isSubmitting ? t.textMuted : t.accentText,
-                          fontSize: "14px",
-                          fontWeight: 600,
-                          cursor: !description.trim() || isSubmitting ? "not-allowed" : "pointer",
-                          fontFamily: "inherit",
-                          transition: "background-color 0.15s ease",
+                          width: "8px",
+                          height: "8px",
+                          borderRadius: "50%",
+                          backgroundColor: s <= step ? t.accent : t.inputBorder,
+                          transition: "background-color 0.2s ease",
+                        }}
+                      />
+                      {i < 1 && (
+                        <div
+                          style={{
+                            width: "40px",
+                            height: "2px",
+                            backgroundColor:
+                              s < step ? t.accent : t.inputBorder,
+                            transition: "background-color 0.2s ease",
+                          }}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Body */}
+              <div style={{ padding: "16px" }}>
+                {submitted ? (
+                  <div
+                    style={{
+                      textAlign: "center",
+                      padding: "20px 0",
+                      color: t.accent,
+                      fontSize: "14px",
+                      fontWeight: 500,
+                    }}
+                  >
+                    {getTypeLabel(reportType)} sent. Thank you!
+                  </div>
+                ) : (
+                  <>
+                    {/* Step 1: Category */}
+                    {step === 1 && (
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr 1fr",
+                          gap: "8px",
                         }}
                       >
-                        {isSubmitting ? "Sending..." : "Send Report"}
-                      </button>
-                    </>
-                  )}
-                </>
-              )}
-            </div>
+                        {availableTypes.map((type) => (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => {
+                              setReportType(type);
+                              setStep(2);
+                            }}
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              gap: "8px",
+                              padding: "16px 8px",
+                              borderRadius: "8px",
+                              border: `1px solid ${t.inputBorder}`,
+                              background: t.inputBg,
+                              cursor: "pointer",
+                              color: t.text,
+                              fontFamily: "inherit",
+                              transition: "border-color 0.15s ease",
+                            }}
+                            onMouseEnter={(e) => {
+                              (
+                                e.currentTarget as HTMLElement
+                              ).style.borderColor = t.accent;
+                            }}
+                            onMouseLeave={(e) => {
+                              (
+                                e.currentTarget as HTMLElement
+                              ).style.borderColor = t.inputBorder;
+                            }}
+                          >
+                            {getTypeIcon(type, t.accent)}
+                            <span style={{ fontSize: "13px", fontWeight: 600 }}>
+                              {getTypeLabel(type)}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: "11px",
+                                color: t.textMuted,
+                                lineHeight: "1.3",
+                              }}
+                            >
+                              {getTypeSubtitle(type)}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
 
-            {/* Footer */}
-            <div
-              style={{
-                padding: "8px 16px 10px",
-                borderTop: `1px solid ${t.border}`,
-                textAlign: "center",
-              }}
-            >
-              <span style={{ fontSize: "11px", color: t.textMuted }}>
-                Powered by Glitchgrab
-              </span>
+                    {/* Step 2: Details */}
+                    {step === 2 && (
+                      <>
+                        <div style={{ position: "relative" }}>
+                          <textarea
+                            ref={textareaRef}
+                            value={description}
+                            onChange={(e) => {
+                              setDescription(e.target.value);
+                              if (validationError) setValidationError(null);
+                              if (isEnhanced) {
+                                setIsEnhanced(false);
+                                setOriginalDescription(null);
+                              }
+                            }}
+                            placeholder={
+                              isTranscribing
+                                ? "Transcribing your speech…"
+                                : isListening
+                                  ? "Listening… speak now"
+                                  : getPlaceholder(reportType)
+                            }
+                            style={{
+                              width: "100%",
+                              minHeight: "100px",
+                              padding: enhanceText
+                                ? "28px 12px 36px"
+                                : transcribeAudio
+                                  ? "10px 12px 36px"
+                                  : "10px 12px",
+                              borderRadius: "8px",
+                              border: `1px solid ${isTranscribing ? "#f59e0b" : isListening ? t.accent : t.inputBorder}`,
+                              fontSize: "14px",
+                              fontFamily: "inherit",
+                              resize: "none",
+                              outline: "none",
+                              boxSizing: "border-box",
+                              color: t.text,
+                              backgroundColor: t.inputBg,
+                              transition: "border-color 0.2s ease",
+                            }}
+                            onKeyDown={handleSpaceDown}
+                            onKeyUp={handleSpaceUp}
+                            onFocus={(e) => {
+                              (
+                                e.target as HTMLTextAreaElement
+                              ).style.borderColor = t.accent;
+                            }}
+                            onBlur={(e) => {
+                              if (!isListening && !isTranscribing)
+                                (
+                                  e.target as HTMLTextAreaElement
+                                ).style.borderColor = t.inputBorder;
+                            }}
+                            autoFocus
+                          />
+                          {/* Bottom-left: REC / Transcribing badge (same row as mic button) */}
+                          {(isListening || isTranscribing) && (
+                            <span
+                              style={{
+                                position: "absolute",
+                                bottom: "10px",
+                                left: "10px",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                fontSize: "10px",
+                                fontWeight: 700,
+                                letterSpacing: "0.04em",
+                                color: isTranscribing ? "#f59e0b" : "#ef4444",
+                                pointerEvents: "none",
+                                zIndex: 1,
+                              }}
+                            >
+                              <span
+                                style={{
+                                  width: "6px",
+                                  height: "6px",
+                                  borderRadius: "50%",
+                                  backgroundColor: "currentColor",
+                                  animation:
+                                    "gg-pulse 1.2s ease-in-out infinite",
+                                  display: "inline-block",
+                                  flexShrink: 0,
+                                }}
+                              />
+                              {isTranscribing ? "Transcribing…" : "REC"}
+                              {isListening && !isTranscribing && (
+                                <span
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "flex-end",
+                                    gap: "2px",
+                                    height: "14px",
+                                    marginLeft: "3px",
+                                  }}
+                                >
+                                  {[
+                                    { anim: "gg-b1", dur: "0.6s", delay: "0s" },
+                                    {
+                                      anim: "gg-b2",
+                                      dur: "0.5s",
+                                      delay: "0.1s",
+                                    },
+                                    {
+                                      anim: "gg-b3",
+                                      dur: "0.7s",
+                                      delay: "0.05s",
+                                    },
+                                    {
+                                      anim: "gg-b4",
+                                      dur: "0.55s",
+                                      delay: "0.15s",
+                                    },
+                                  ].map((b, i) => (
+                                    <span
+                                      key={i}
+                                      style={{
+                                        width: "2.5px",
+                                        height: "4px",
+                                        borderRadius: "1px",
+                                        backgroundColor: "#ef4444",
+                                        animation: `${b.anim} ${b.dur} ease-in-out ${b.delay} infinite`,
+                                        display: "inline-block",
+                                        alignSelf: "center",
+                                      }}
+                                    />
+                                  ))}
+                                </span>
+                              )}
+                            </span>
+                          )}
+                          {/* Top-right: AI enhance */}
+                          {enhanceText && (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (!description.trim() || isEnhancing) return;
+                                setIsEnhancing(true);
+                                try {
+                                  const polished = await enhanceText(
+                                    description,
+                                    screenshot,
+                                  );
+                                  if (polished && polished !== description) {
+                                    setOriginalDescription(description);
+                                    setDescription(polished);
+                                    setIsEnhanced(true);
+                                    if (validationError)
+                                      setValidationError(null);
+                                  }
+                                } finally {
+                                  setIsEnhancing(false);
+                                }
+                              }}
+                              disabled={
+                                !description.trim() || isEnhancing || isEnhanced
+                              }
+                              style={{
+                                position: "absolute",
+                                top: "6px",
+                                right: "6px",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                background: t.inputBg,
+                                border: "none",
+                                padding: "2px 6px",
+                                borderRadius: "4px",
+                                fontFamily: "inherit",
+                                fontSize: "11px",
+                                color: t.textMuted,
+                                cursor:
+                                  !description.trim() || isEnhancing
+                                    ? "default"
+                                    : "pointer",
+                                opacity: !description.trim() ? 0.5 : 1,
+                                zIndex: 1,
+                              }}
+                              title="Polish grammar — preserves your meaning"
+                            >
+                              <svg
+                                width="11"
+                                height="11"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                aria-hidden="true"
+                              >
+                                <path
+                                  d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3zM19 15l.75 2.25L22 18l-2.25.75L19 21l-.75-2.25L16 18l2.25-.75L19 15z"
+                                  stroke={t.textMuted}
+                                  strokeWidth="1.5"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                              {isEnhancing ? "Enhancing..." : "AI enhance"}
+                            </button>
+                          )}
+                          {/* Bottom-right: mic icon only, outlined */}
+                          {transcribeAudio && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                void toggleVoice();
+                              }}
+                              title={
+                                isListening
+                                  ? "Stop recording"
+                                  : "Speak your report"
+                              }
+                              style={{
+                                position: "absolute",
+                                bottom: "12px",
+                                right: "7px",
+                                width: "26px",
+                                height: "26px",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                background: "transparent",
+                                border: `1.5px solid ${isListening ? "#ef4444" : t.inputBorder}`,
+                                borderRadius: "6px",
+                                color: isListening ? "#ef4444" : t.textMuted,
+                                cursor: "pointer",
+                                zIndex: 1,
+                                padding: 0,
+                                transition:
+                                  "border-color 0.2s ease, color 0.2s ease",
+                              }}
+                            >
+                              {isListening ? (
+                                <svg
+                                  width="12"
+                                  height="12"
+                                  viewBox="0 0 24 24"
+                                  fill="currentColor"
+                                  aria-hidden="true"
+                                >
+                                  <rect
+                                    x="6"
+                                    y="6"
+                                    width="12"
+                                    height="12"
+                                    rx="2"
+                                  />
+                                </svg>
+                              ) : (
+                                <svg
+                                  width="13"
+                                  height="13"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  aria-hidden="true"
+                                >
+                                  <rect
+                                    x="9"
+                                    y="2"
+                                    width="6"
+                                    height="12"
+                                    rx="3"
+                                    stroke="currentColor"
+                                    strokeWidth="1.8"
+                                  />
+                                  <path
+                                    d="M5 10a7 7 0 0014 0M12 19v3M9 22h6"
+                                    stroke="currentColor"
+                                    strokeWidth="1.8"
+                                    strokeLinecap="round"
+                                  />
+                                </svg>
+                              )}
+                            </button>
+                          )}
+                        </div>
+                        {isEnhanced && originalDescription !== null && (
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              marginTop: "6px",
+                              padding: "6px 8px",
+                              borderRadius: "6px",
+                              background: isDark
+                                ? "rgba(34,211,238,0.06)"
+                                : "rgba(8,145,178,0.05)",
+                              border: `1px solid ${t.accent}40`,
+                            }}
+                          >
+                            <svg
+                              width="12"
+                              height="12"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              style={{ flexShrink: 0 }}
+                            >
+                              <path
+                                d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"
+                                stroke={t.accent}
+                                strokeWidth="1.5"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                            <span
+                              style={{
+                                fontSize: "11px",
+                                color: t.textMuted,
+                                flex: 1,
+                              }}
+                            >
+                              AI enhanced
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsEnhanced(false);
+                                setOriginalDescription(null);
+                              }}
+                              style={{
+                                padding: "2px 8px",
+                                borderRadius: "4px",
+                                border: `1px solid ${t.accent}`,
+                                background: t.accent,
+                                color: t.accentText,
+                                fontSize: "11px",
+                                fontWeight: 600,
+                                cursor: "pointer",
+                                fontFamily: "inherit",
+                              }}
+                            >
+                              Keep
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDescription(originalDescription);
+                                setIsEnhanced(false);
+                                setOriginalDescription(null);
+                              }}
+                              style={{
+                                padding: "2px 8px",
+                                borderRadius: "4px",
+                                border: `1px solid ${t.inputBorder}`,
+                                background: "transparent",
+                                color: t.textMuted,
+                                fontSize: "11px",
+                                fontWeight: 600,
+                                cursor: "pointer",
+                                fontFamily: "inherit",
+                              }}
+                            >
+                              Restore
+                            </button>
+                          </div>
+                        )}
+                        {voiceError && (
+                          <p
+                            style={{
+                              color: "#ef4444",
+                              fontSize: "11px",
+                              marginTop: "4px",
+                              marginBottom: 0,
+                            }}
+                          >
+                            {voiceError}
+                          </p>
+                        )}
+
+                        {/* Screenshot section */}
+                        <div style={{ marginTop: "10px" }}>
+                          <span
+                            style={{
+                              fontSize: "12px",
+                              color: t.textMuted,
+                              marginBottom: "6px",
+                              display: "block",
+                              fontWeight: 500,
+                            }}
+                          >
+                            Screenshot
+                          </span>
+                          {screenshot ? (
+                            <div>
+                              {/* Thumbnail — click to preview */}
+                              <div style={{ position: "relative" }}>
+                                <img
+                                  src={screenshot}
+                                  alt="Page screenshot"
+                                  onClick={() => setPreviewOpen(true)}
+                                  style={{
+                                    width: "100%",
+                                    borderRadius: "6px",
+                                    border: `1px solid ${t.border}`,
+                                    maxHeight: "64px",
+                                    objectFit: "cover",
+                                    objectPosition: "top",
+                                    cursor: "zoom-in",
+                                    display: "block",
+                                  }}
+                                />
+                                <span
+                                  style={{
+                                    position: "absolute",
+                                    bottom: "5px",
+                                    left: "6px",
+                                    background: "rgba(0,0,0,0.55)",
+                                    color: "#fff",
+                                    fontSize: "10px",
+                                    padding: "1px 5px",
+                                    borderRadius: "3px",
+                                    pointerEvents: "none",
+                                  }}
+                                >
+                                  click to preview
+                                </span>
+                              </div>
+                              {/* Action row */}
+                              <div
+                                style={{
+                                  display: "flex",
+                                  gap: "6px",
+                                  marginTop: "6px",
+                                }}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => setScreenshot(null)}
+                                  style={{
+                                    flex: 1,
+                                    padding: "6px 0",
+                                    borderRadius: "6px",
+                                    border: `1px solid ${t.inputBorder}`,
+                                    background: "transparent",
+                                    color: "#ef4444",
+                                    fontSize: "12px",
+                                    fontWeight: 500,
+                                    cursor: "pointer",
+                                    fontFamily: "inherit",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    gap: "4px",
+                                  }}
+                                >
+                                  <svg
+                                    width="11"
+                                    height="11"
+                                    viewBox="0 0 10 10"
+                                    fill="none"
+                                  >
+                                    <path
+                                      d="M1 1L9 9M9 1L1 9"
+                                      stroke="currentColor"
+                                      strokeWidth="1.5"
+                                      strokeLinecap="round"
+                                    />
+                                  </svg>
+                                  Remove
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => fileInputRef.current?.click()}
+                                  style={{
+                                    flex: 1,
+                                    padding: "6px 0",
+                                    borderRadius: "6px",
+                                    border: `1px solid ${t.inputBorder}`,
+                                    background: "transparent",
+                                    color: t.textMuted,
+                                    fontSize: "12px",
+                                    fontWeight: 500,
+                                    cursor: "pointer",
+                                    fontFamily: "inherit",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    gap: "4px",
+                                  }}
+                                >
+                                  <svg
+                                    width="11"
+                                    height="11"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                  >
+                                    <path
+                                      d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    />
+                                  </svg>
+                                  Replace
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            /* Drop zone */
+                            <div
+                              onClick={() => fileInputRef.current?.click()}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                setScreenshotDragOver(false);
+                                const file = Array.from(
+                                  e.dataTransfer.files,
+                                ).find((f) => f.type.startsWith("image/"));
+                                if (!file) return;
+                                const reader = new FileReader();
+                                reader.onload = () =>
+                                  setScreenshot(reader.result as string);
+                                reader.readAsDataURL(file);
+                              }}
+                              onDragOver={(e) => {
+                                e.preventDefault();
+                                setScreenshotDragOver(true);
+                              }}
+                              onDragLeave={() => setScreenshotDragOver(false)}
+                              style={{
+                                border: `1.5px dashed ${screenshotDragOver ? t.accent : t.inputBorder}`,
+                                borderRadius: "8px",
+                                padding: "18px 12px",
+                                textAlign: "center",
+                                cursor: "pointer",
+                                background: screenshotDragOver
+                                  ? isDark
+                                    ? "rgba(34,211,238,0.06)"
+                                    : "rgba(8,145,178,0.04)"
+                                  : "transparent",
+                                transition:
+                                  "border-color 0.15s ease, background 0.15s ease",
+                              }}
+                            >
+                              <svg
+                                width="22"
+                                height="22"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                style={{
+                                  margin: "0 auto 6px",
+                                  display: "block",
+                                  opacity: 0.45,
+                                }}
+                              >
+                                <rect
+                                  x="3"
+                                  y="3"
+                                  width="18"
+                                  height="18"
+                                  rx="2"
+                                  stroke={t.textMuted}
+                                  strokeWidth="1.5"
+                                />
+                                <circle
+                                  cx="8.5"
+                                  cy="8.5"
+                                  r="1.5"
+                                  stroke={t.textMuted}
+                                  strokeWidth="1.5"
+                                />
+                                <path
+                                  d="M21 15l-5-5L5 21"
+                                  stroke={t.textMuted}
+                                  strokeWidth="1.5"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                              <p
+                                style={{
+                                  margin: 0,
+                                  fontSize: "12px",
+                                  fontWeight: 600,
+                                  color: t.text,
+                                }}
+                              >
+                                {screenshotDragOver
+                                  ? "Drop to attach"
+                                  : "Add a screenshot"}
+                              </p>
+                              <p
+                                style={{
+                                  margin: "3px 0 0",
+                                  fontSize: "11px",
+                                  color: t.textMuted,
+                                }}
+                              >
+                                Drag & drop · Paste ⌘V / Ctrl+V · Click to
+                                browse
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        {showSeverity && reportType === "BUG" && (
+                          <div style={{ marginTop: "10px" }}>
+                            <span
+                              style={{
+                                fontSize: "12px",
+                                color: t.textMuted,
+                                marginBottom: "6px",
+                                display: "block",
+                              }}
+                            >
+                              Severity
+                            </span>
+                            <div style={{ display: "flex", gap: "6px" }}>
+                              {(
+                                ["low", "medium", "high"] as ReportSeverity[]
+                              ).map((s) => (
+                                <button
+                                  key={s}
+                                  type="button"
+                                  onClick={() => setSeverity(s)}
+                                  style={{
+                                    flex: 1,
+                                    padding: "6px 0",
+                                    borderRadius: "6px",
+                                    border: `1px solid ${severity === s ? t.accent : t.inputBorder}`,
+                                    background:
+                                      severity === s ? t.accent : "transparent",
+                                    color:
+                                      severity === s ? t.accentText : t.text,
+                                    fontSize: "12px",
+                                    fontWeight: 600,
+                                    cursor: "pointer",
+                                    fontFamily: "inherit",
+                                    textTransform: "capitalize",
+                                    transition: "all 0.15s ease",
+                                  }}
+                                >
+                                  {s}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {validationError && (
+                          <p
+                            style={{
+                              color: "#ef4444",
+                              fontSize: "12px",
+                              marginTop: "6px",
+                            }}
+                          >
+                            {validationError}
+                          </p>
+                        )}
+                        <button
+                          type="button"
+                          onClick={handleSubmit}
+                          disabled={!description.trim() || isSubmitting}
+                          style={{
+                            marginTop: "12px",
+                            width: "100%",
+                            padding: "10px",
+                            borderRadius: "8px",
+                            border: "none",
+                            backgroundColor:
+                              !description.trim() || isSubmitting
+                                ? t.bgSecondary
+                                : t.accent,
+                            color:
+                              !description.trim() || isSubmitting
+                                ? t.textMuted
+                                : t.accentText,
+                            fontSize: "14px",
+                            fontWeight: 600,
+                            cursor:
+                              !description.trim() || isSubmitting
+                                ? "not-allowed"
+                                : "pointer",
+                            fontFamily: "inherit",
+                            transition: "background-color 0.15s ease",
+                          }}
+                        >
+                          {isSubmitting ? "Sending..." : "Send Report"}
+                        </button>
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div
+                style={{
+                  padding: "8px 16px 10px",
+                  borderTop: `1px solid ${t.border}`,
+                  textAlign: "center",
+                }}
+              >
+                <span style={{ fontSize: "11px", color: t.textMuted }}>
+                  Powered by Glitchgrab
+                </span>
+              </div>
             </div>
-          </div>
-        </div>,
-        document.body
-      )}
+          </div>,
+          document.body,
+        )}
 
       {/* Hidden file input */}
       <input
@@ -1138,47 +1583,52 @@ export function ReportDialog({
       />
 
       {/* Full-screen screenshot preview */}
-      {previewOpen && screenshot && createPortal(
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 2147483647,
-            backgroundColor: "rgba(0,0,0,0.85)",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "16px",
-            cursor: "pointer",
-          }}
-          onClick={(e) => { e.stopPropagation(); setPreviewOpen(false); }}
-          onMouseDown={(e) => e.stopPropagation()}
-        >
-          <img
-            src={screenshot}
-            alt="Screenshot preview"
-            onClick={(e) => e.stopPropagation()}
+      {previewOpen &&
+        screenshot &&
+        createPortal(
+          <div
             style={{
-              maxWidth: "100%",
-              maxHeight: "calc(100vh - 80px)",
-              borderRadius: "8px",
-              objectFit: "contain",
-              cursor: "default",
+              position: "fixed",
+              inset: 0,
+              zIndex: 2147483647,
+              backgroundColor: "rgba(0,0,0,0.85)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "16px",
+              cursor: "pointer",
             }}
-          />
-          <span
-            style={{
-              marginTop: "12px",
-              color: t.textMuted,
-              fontSize: "12px",
+            onClick={(e) => {
+              e.stopPropagation();
+              setPreviewOpen(false);
             }}
+            onMouseDown={(e) => e.stopPropagation()}
           >
-            Click outside to close
-          </span>
-        </div>,
-        document.body
-      )}
+            <img
+              src={screenshot}
+              alt="Screenshot preview"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                maxWidth: "100%",
+                maxHeight: "calc(100vh - 80px)",
+                borderRadius: "8px",
+                objectFit: "contain",
+                cursor: "default",
+              }}
+            />
+            <span
+              style={{
+                marginTop: "12px",
+                color: t.textMuted,
+                fontSize: "12px",
+              }}
+            >
+              Click outside to close
+            </span>
+          </div>,
+          document.body,
+        )}
     </>
   );
 }
@@ -1187,41 +1637,97 @@ export function ReportDialog({
 
 function getTypeLabel(type: ReportType): string {
   switch (type) {
-    case "BUG": return "Bug Report";
-    case "FEATURE_REQUEST": return "Feature Request";
-    case "QUESTION": return "Question";
-    case "OTHER": return "Other";
+    case "BUG":
+      return "Bug Report";
+    case "FEATURE_REQUEST":
+      return "Feature Request";
+    case "QUESTION":
+      return "Question";
+    case "OTHER":
+      return "Other";
   }
 }
 
 function getTypeSubtitle(type: ReportType): string {
   switch (type) {
-    case "BUG": return "Something isn't working";
-    case "FEATURE_REQUEST": return "Suggest an improvement";
-    case "QUESTION": return "Ask a question";
-    case "OTHER": return "General feedback";
+    case "BUG":
+      return "Something isn't working";
+    case "FEATURE_REQUEST":
+      return "Suggest an improvement";
+    case "QUESTION":
+      return "Ask a question";
+    case "OTHER":
+      return "General feedback";
   }
 }
 
 function getPlaceholder(type: ReportType): string {
   switch (type) {
-    case "BUG": return "What went wrong?";
-    case "FEATURE_REQUEST": return "Describe the feature you'd like...";
-    case "QUESTION": return "What would you like to know?";
-    case "OTHER": return "Tell us what's on your mind...";
+    case "BUG":
+      return "What went wrong?";
+    case "FEATURE_REQUEST":
+      return "Describe the feature you'd like...";
+    case "QUESTION":
+      return "What would you like to know?";
+    case "OTHER":
+      return "Tell us what's on your mind...";
   }
 }
 
 function getTypeIcon(type: ReportType, color: string, size = 24): ReactNode {
-  const props = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", style: { flexShrink: 0 } as CSSProperties };
+  const props = {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    style: { flexShrink: 0 } as CSSProperties,
+  };
   switch (type) {
     case "BUG":
-      return <svg {...props}><path d="M8 2L6.5 3.5M16 2L17.5 3.5M3 9H7M17 9H21M12 2a5 5 0 015 5v4a5 5 0 01-10 0V7a5 5 0 015-5zM7 16l-2 3M17 16l2 3" stroke={color} strokeWidth="1.5" strokeLinecap="round" /></svg>;
+      return (
+        <svg {...props}>
+          <path
+            d="M8 2L6.5 3.5M16 2L17.5 3.5M3 9H7M17 9H21M12 2a5 5 0 015 5v4a5 5 0 01-10 0V7a5 5 0 015-5zM7 16l-2 3M17 16l2 3"
+            stroke={color}
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </svg>
+      );
     case "FEATURE_REQUEST":
-      return <svg {...props}><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2z" stroke={color} strokeWidth="1.5" strokeLinejoin="round" /></svg>;
+      return (
+        <svg {...props}>
+          <path
+            d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2z"
+            stroke={color}
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+        </svg>
+      );
     case "QUESTION":
-      return <svg {...props}><circle cx="12" cy="12" r="10" stroke={color} strokeWidth="1.5" /><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="10" stroke={color} strokeWidth="1.5" />
+          <path
+            d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01"
+            stroke={color}
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      );
     case "OTHER":
-      return <svg {...props}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2v10z" stroke={color} strokeWidth="1.5" strokeLinejoin="round" /></svg>;
+      return (
+        <svg {...props}>
+          <path
+            d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2v10z"
+            stroke={color}
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+        </svg>
+      );
   }
 }
