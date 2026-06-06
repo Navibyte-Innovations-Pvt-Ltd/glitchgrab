@@ -5,6 +5,7 @@ import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { MessageCircle, Send, ShieldCheck, Loader2, Check } from "lucide-react";
+import axios from "axios";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -15,7 +16,6 @@ import {
 } from "@/components/ui/dialog";
 import InputPhone from "@/components/AppInputFields/components/InputPhone";
 import InputOTPController from "@/components/AppInputFields/components/InputOTP";
-import { sendOtp, verifyAndSavePhone } from "@/app/dashboard/settings/whatsapp-actions";
 
 const phoneSchema = z.object({
   phone: z.string().min(1, "Phone number required"),
@@ -47,26 +47,32 @@ export function PhonePromptDialog({ hasPhone }: { hasPhone: boolean }) {
 
   function onPhoneSubmit(values: PhoneForm) {
     startTransition(async () => {
-      const res = await sendOtp(values.phone);
-      if (res.ok) {
+      try {
+        await axios.post("/api/v1/whatsapp/otp/send", { phone: values.phone });
         setSubmittedPhone(values.phone);
         setStep("otp");
         toast.success("OTP sent to your WhatsApp");
-      } else {
-        phoneForm.setError("phone", { message: res.error ?? "Failed to send OTP" });
+      } catch (err) {
+        const msg = axios.isAxiosError(err)
+          ? (err.response?.data as { error?: string })?.error ?? "Failed to send OTP"
+          : "Failed to send OTP";
+        phoneForm.setError("phone", { message: msg });
       }
     });
   }
 
   function onOtpSubmit(values: OtpForm) {
     startTransition(async () => {
-      const res = await verifyAndSavePhone(submittedPhone, values.otp);
-      if (res.ok) {
+      try {
+        await axios.post("/api/v1/whatsapp/otp/verify", { phone: submittedPhone, otp: values.otp });
         setStep("done");
         toast.success("WhatsApp number verified");
         setTimeout(() => setOpen(false), 1200);
-      } else {
-        otpForm.setError("otp", { message: res.error ?? "Verification failed" });
+      } catch (err) {
+        const msg = axios.isAxiosError(err)
+          ? (err.response?.data as { error?: string })?.error ?? "Verification failed"
+          : "Verification failed";
+        otpForm.setError("otp", { message: msg });
       }
     });
   }
@@ -140,7 +146,7 @@ export function PhonePromptDialog({ hasPhone }: { hasPhone: boolean }) {
               <div className="flex items-center justify-center gap-3">
                 <button
                   type="button"
-                  onClick={() => phoneForm.handleSubmit(onPhoneSubmit)()}
+                  onClick={() => onPhoneSubmit({ phone: submittedPhone })}
                   disabled={pending}
                   className="font-mono text-[10px] text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
                 >
