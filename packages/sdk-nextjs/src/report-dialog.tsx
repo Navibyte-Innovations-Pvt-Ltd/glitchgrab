@@ -365,10 +365,12 @@ export function ReportDialog({
   }, [isOpen]);
 
   const stopVoice = () => {
-    try { mediaRecorderRef.current?.stop(); } catch { /* ignore */ }
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    mediaRecorderRef.current = null;
+    // Null the stream first — rolling loop checks this to know when to stop
+    const stream = streamRef.current;
     streamRef.current = null;
+    try { mediaRecorderRef.current?.stop(); } catch { /* ignore */ }
+    mediaRecorderRef.current = null;
+    stream?.getTracks().forEach((t) => t.stop());
     setIsListening(false);
   };
 
@@ -394,26 +396,39 @@ export function ReportDialog({
       return;
     }
     streamRef.current = stream;
-    const recorder = new MediaRecorder(stream);
-    mediaRecorderRef.current = recorder;
-    recorder.ondataavailable = async (e) => {
-      if (e.data.size === 0) return;
-      try {
-        const text = await transcribeAudio(e.data);
-        if (text.trim()) {
-          setDescription((prev) => prev + (prev.trim() ? " " : "") + text.trim());
-          setValidationError(null);
-        }
-      } catch { /* ignore chunk errors */ }
-    };
-    recorder.onstop = () => {
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-      mediaRecorderRef.current = null;
-      setIsListening(false);
-    };
-    recorder.start(3000);
     setIsListening(true);
+
+    // Rolling 3-second recorder: each round produces a complete audio file Sarvam can decode.
+    // timeslice chunks are partial WebM and fail STT parsing.
+    const recordRound = (activeStream: MediaStream) => {
+      if (!streamRef.current) return; // user stopped
+      const chunks: Blob[] = [];
+      const rec = new MediaRecorder(activeStream);
+      mediaRecorderRef.current = rec;
+
+      rec.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+
+      rec.onstop = async () => {
+        if (chunks.length > 0 && transcribeAudio) {
+          try {
+            const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
+            const text = await transcribeAudio(blob);
+            if (text.trim()) {
+              setDescription((prev) => prev + (prev.trim() ? " " : "") + text.trim());
+              setValidationError(null);
+            }
+          } catch { /* ignore */ }
+        }
+        // If stream still active, start next round immediately
+        if (streamRef.current) recordRound(activeStream);
+      };
+
+      rec.start();
+      // Stop and collect after 3 s
+      setTimeout(() => { try { if (rec.state === "recording") rec.stop(); } catch { /* ignore */ } }, 3000);
+    };
+
+    recordRound(stream);
   };
 
   const handleSubmit = async () => {
