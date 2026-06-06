@@ -5,14 +5,14 @@ const META_API_BASE = "https://graph.facebook.com/v19.0";
  * Template "wa_otp" (Utility):
  *   Body: Your Glitchgrab verification code is *{{1}}*. Valid for 10 minutes.
  */
-export async function sendWhatsappOtp(phone: string, otp: string): Promise<boolean> {
+export async function sendWhatsappOtp(phone: string, otp: string): Promise<{ ok: boolean; error?: string }> {
   const phoneNumberId = process.env.META_WA_PHONE_NUMBER_ID;
   const accessToken = process.env.META_WA_ACCESS_TOKEN;
 
-  if (!phoneNumberId || !accessToken) return false;
+  if (!phoneNumberId || !accessToken) return { ok: false, error: "META_WA_PHONE_NUMBER_ID or META_WA_ACCESS_TOKEN not set" };
 
   const to = phone.replace(/\D/g, "");
-  if (!to) return false;
+  if (!to) return { ok: false, error: "Invalid phone number" };
 
   try {
     const res = await fetch(`${META_API_BASE}/${phoneNumberId}/messages`, {
@@ -39,13 +39,19 @@ export async function sendWhatsappOtp(phone: string, otp: string): Promise<boole
     });
 
     if (!res.ok) {
-      console.error("[whatsapp] otp send failed:", await res.text());
-      return false;
+      const body = await res.text();
+      console.error("[whatsapp] otp send failed:", res.status, body);
+      let message = `Meta API error ${res.status}`;
+      try {
+        const json = JSON.parse(body) as { error?: { message?: string } };
+        if (json.error?.message) message = json.error.message;
+      } catch { /* non-JSON body */ }
+      return { ok: false, error: message };
     }
-    return true;
+    return { ok: true };
   } catch (err) {
     console.error("[whatsapp] otp send error:", err);
-    return false;
+    return { ok: false, error: err instanceof Error ? err.message : "Network error" };
   }
 }
 
