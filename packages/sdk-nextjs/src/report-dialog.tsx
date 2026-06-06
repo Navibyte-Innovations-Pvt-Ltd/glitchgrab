@@ -662,7 +662,7 @@ export function ReportDialog({
                             border: `1px solid ${isListening ? t.accent : t.inputBorder}`,
                             fontSize: "14px",
                             fontFamily: "inherit",
-                            resize: "vertical",
+                            resize: "none",
                             outline: "none",
                             boxSizing: "border-box",
                             color: t.text,
