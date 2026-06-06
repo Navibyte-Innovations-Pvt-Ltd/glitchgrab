@@ -498,8 +498,9 @@ export function ReportDialog({
     let stream: MediaStream | null = null;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch {
-      if (!SpeechRec) { setVoiceError("Microphone access denied"); return; }
+    } catch (err) {
+      const isDenied = err instanceof DOMException && (err.name === "NotAllowedError" || err.name === "PermissionDeniedError");
+      if (!SpeechRec || isDenied) { setVoiceError("Microphone access denied"); return; }
     }
 
     if (stream && transcribeAudio) {
@@ -579,7 +580,8 @@ export function ReportDialog({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       recognition.onerror = (event: any) => {
         if (event.error === "aborted" || event.error === "no-speech") return;
-        setVoiceError("Speech recognition not available — try Chrome");
+        const isDenied = event.error === "not-allowed" || event.error === "audio-capture";
+        setVoiceError(isDenied ? "Microphone access denied" : "Speech recognition not available — try Chrome");
         usingWebSpeechRef.current = false;
         recognitionRef.current = null;
         setIsListening(false);
