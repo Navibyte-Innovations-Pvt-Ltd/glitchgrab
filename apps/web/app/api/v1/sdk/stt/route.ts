@@ -69,7 +69,7 @@ export async function POST(request: Request) {
     const sarvamForm = new FormData();
     sarvamForm.append("file", file, "audio.webm");
     sarvamForm.append("model", "saarika:v2");
-    sarvamForm.append("language_code", "unknown");
+    // No language_code — let Sarvam auto-detect
 
     const sarvamRes = await fetch(SARVAM_STT_URL, {
       method: "POST",
@@ -78,6 +78,8 @@ export async function POST(request: Request) {
     });
 
     if (!sarvamRes.ok) {
+      const errText = await sarvamRes.text().catch(() => "");
+      console.error("[stt] Sarvam error", sarvamRes.status, errText);
       return NextResponse.json(
         { success: false, error: `Sarvam error: ${sarvamRes.status}` },
         { status: 502, headers: CORS_HEADERS }
@@ -85,6 +87,7 @@ export async function POST(request: Request) {
     }
 
     const sarvamData = (await sarvamRes.json()) as { transcript?: string };
+    console.log("[stt] transcript:", sarvamData.transcript);
     const transcript = sarvamData.transcript ?? "";
 
     return NextResponse.json(
