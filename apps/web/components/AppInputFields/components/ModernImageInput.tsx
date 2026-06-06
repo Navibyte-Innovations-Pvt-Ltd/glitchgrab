@@ -54,22 +54,24 @@ const ModernImageField = <T extends FieldValues = FieldValues>({
   // Combine local error and form error
   const errorMessage = localError || fieldState?.error?.message;
 
-  // Show default image if present
+  // Show default image if present — deferred to avoid synchronous setState in effect body
   useEffect(() => {
     const value = field.value;
-    if (typeof value === "string" && value) {
-      // Append timestamp to bust cache for string URLs
-      // Check if it's not a blob URL to avoid appending to local previews if they somehow get here as strings
-      if (!value.startsWith("blob:")) {
-        setImagePreview(`${value}?t=${Date.now()}`);
+    let objectUrl: string | null = null;
+    const id = setTimeout(() => {
+      if (typeof value === "string" && value) {
+        setImagePreview(value.startsWith("blob:") ? value : `${value}?v=1`);
+      } else if ((value as unknown) instanceof File) {
+        objectUrl = URL.createObjectURL(value as File);
+        setImagePreview(objectUrl);
       } else {
-        setImagePreview(value);
+        setImagePreview(null);
       }
-    } else if ((value as unknown) instanceof File) {
-      setImagePreview(URL.createObjectURL(value as File));
-    } else {
-      setImagePreview(null);
-    }
+    }, 0);
+    return () => {
+      clearTimeout(id);
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
   }, [field.value]);
 
   // Validate image file
