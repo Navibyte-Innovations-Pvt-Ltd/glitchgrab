@@ -31,7 +31,11 @@ function getGemini() {
   return genAI.getGenerativeModel({
     model: "gemini-2.5-flash-lite",
     systemInstruction: ENHANCE_SYSTEM_PROMPT,
-    generationConfig: { maxOutputTokens: MAX_OUTPUT_TOKENS },
+    generationConfig: {
+      maxOutputTokens: MAX_OUTPUT_TOKENS,
+      temperature: 0,
+      topP: 0.1,
+    },
   });
 }
 
@@ -75,7 +79,9 @@ export async function enhanceText(
     }
   }
 
-  parts.push(`${contextBlock}Text to polish:\n${trimmed}`);
+  parts.push(
+    `${contextBlock}Fix ONLY grammar and spelling in the text below. Do NOT change any words, UI element names, or meaning. Do NOT add or remove information. Return ONLY the corrected text with no commentary.\n\nText:\n${trimmed}`
+  );
 
   const result = await model.generateContent(parts);
   const text = result.response.text().trim();
