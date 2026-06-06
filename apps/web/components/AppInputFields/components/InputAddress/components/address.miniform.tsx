@@ -55,7 +55,7 @@ const AddressInput = ({ field, inputProps }: Props) => {
   const [locationError, setLocationError] = useState<string | null>(null);
   const [hasAttemptedAutoDetection, setHasAttemptedAutoDetection] =
     useState(false);
-  const [isAutoDetected, setIsAutoDetected] = useState(false);
+  const [autoDetectedAddress, setAutoDetectedAddress] = useState<string | null>(null);
   const [userDisabledAutoDetection, setUserDisabledAutoDetection] =
     useState(false);
 
@@ -210,7 +210,7 @@ const AddressInput = ({ field, inputProps }: Props) => {
 
     setSearchValue("");
     setOpen(false);
-    setIsAutoDetected(false);
+    setAutoDetectedAddress(null);
   };
 
   // Handle manual address entry (no Google match, or user skips lookup)
@@ -225,7 +225,7 @@ const AddressInput = ({ field, inputProps }: Props) => {
 
     setSearchValue("");
     setOpen(false);
-    setIsAutoDetected(false);
+    setAutoDetectedAddress(null);
   };
 
   // Extract field.onChange to avoid dependency issues
@@ -241,6 +241,8 @@ const AddressInput = ({ field, inputProps }: Props) => {
 
   // Extract field value to avoid dependency issues
   const fieldValueAddress = field?.value?.address;
+  // isAutoDetected is derived — no effect needed; resets automatically when address changes
+  const isAutoDetected = !!autoDetectedAddress && fieldValueAddress === autoDetectedAddress;
 
   // Auto-location detection effect
   useEffect(() => {
@@ -276,7 +278,7 @@ const AddressInput = ({ field, inputProps }: Props) => {
           },
         });
 
-        setIsAutoDetected(true);
+        setAutoDetectedAddress(address);
       } catch (error) {
         console.warn(error);
         // Gracefully handle location detection fallback
@@ -294,15 +296,6 @@ const AddressInput = ({ field, inputProps }: Props) => {
     handleFieldChange,
     userDisabledAutoDetection,
   ]);
-
-  // Clear auto-detected status if address changes externally (e.g., via Quick Search)
-  useEffect(() => {
-    if (fieldValueAddress && isAutoDetected) {
-      // If the address changes to something else, it's no longer the "auto-detected" one
-      // We don't reset it if it was just cleared, only if it's set to a new value
-      setIsAutoDetected(false);
-    }
-  }, [fieldValueAddress, isAutoDetected]); // Only run when the address string changes or if it was auto-detected
 
   return (
     <FormItem
@@ -341,7 +334,7 @@ const AddressInput = ({ field, inputProps }: Props) => {
                 variant="link"
                 size="sm"
                 onClick={() => {
-                  setIsAutoDetected(false);
+                  setAutoDetectedAddress(null);
                   setUserDisabledAutoDetection(true);
                   setSearchValue("");
                   handleFieldChange({
