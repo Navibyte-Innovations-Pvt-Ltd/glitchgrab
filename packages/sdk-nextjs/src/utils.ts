@@ -170,3 +170,36 @@ export async function enhanceText(
     return text;
   }
 }
+
+/**
+ * Send an audio Blob to the Glitchgrab STT proxy (which calls Sarvam).
+ * Returns the transcript string, or "" on any failure. Never throws.
+ */
+export async function transcribeAudio(
+  blob: Blob,
+  token: string,
+  baseUrl?: string
+): Promise<string> {
+  try {
+    if (blob.size === 0) return "";
+    const url = `${baseUrl ?? DEFAULT_BASE_URL}/api/v1/sdk/stt`;
+    const form = new FormData();
+    form.append("file", blob, "audio.webm");
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    if (!response.ok) return "";
+    const envelope = (await response.json()) as {
+      success: boolean;
+      data?: { transcript?: string };
+    };
+    if (envelope?.success && typeof envelope.data?.transcript === "string") {
+      return envelope.data.transcript;
+    }
+    return "";
+  } catch {
+    return "";
+  }
+}
