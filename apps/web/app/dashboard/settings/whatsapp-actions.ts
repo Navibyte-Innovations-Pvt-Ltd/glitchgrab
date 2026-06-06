@@ -37,7 +37,7 @@ export async function sendOtp(phone: string): Promise<{ ok: boolean; error?: str
   // Delete previous OTPs for this user
   await prisma.whatsappOtp.deleteMany({ where: { userId: session.user.id } });
 
-  const otp = String(randomInt(100000, 999999));
+  const otp = String(randomInt(1000, 9999));
   const otpHash = hashOtp(otp, session.user.id);
   const expiresAt = new Date(Date.now() + OTP_TTL_MS);
 
