@@ -46,9 +46,9 @@ export async function sendOtp(phone: string): Promise<{ ok: boolean; error?: str
   });
 
   const sent = await sendWhatsappOtp(cleaned, otp);
-  if (!sent) {
+  if (!sent.ok) {
     await prisma.whatsappOtp.deleteMany({ where: { userId: session.user.id } });
-    return { ok: false, error: "Failed to send OTP. Check your WhatsApp credentials." };
+    return { ok: false, error: sent.error ?? "Failed to send OTP" };
   }
 
   return { ok: true };
