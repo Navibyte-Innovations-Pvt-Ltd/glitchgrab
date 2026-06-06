@@ -55,7 +55,7 @@ const InputOTPController = <T extends FieldValues>({
           <FormControl>
             <div className="w-full">
               <InputOTP
-                maxLength={6}
+                maxLength={4}
                 value={field.value}
                 onChange={field.onChange}
                 disabled={disabled}
@@ -65,7 +65,7 @@ const InputOTPController = <T extends FieldValues>({
                 }}
               >
                 <InputOTPGroup className="w-full gap-2">
-                  {Array.from({ length: 6 }).map((_, index) => (
+                  {Array.from({ length: 4 }).map((_, index) => (
                     <InputOTPSlot
                       key={index}
                       index={index}
