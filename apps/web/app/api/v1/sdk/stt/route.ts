@@ -71,7 +71,7 @@ export async function POST(request: Request) {
 
     const sarvamForm = new FormData();
     sarvamForm.append("file", cleanBlob, "audio.webm");
-    sarvamForm.append("model", "saarika:v2");
+    sarvamForm.append("model", "saarika:v2.5");
     // No language_code — let Sarvam auto-detect
 
     const sarvamRes = await fetch(SARVAM_STT_URL, {
