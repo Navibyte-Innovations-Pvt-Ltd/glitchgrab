@@ -214,3 +214,20 @@ html {
 }
 
 /* WebView GPU fixes and pull-to-refresh are handled by injected style tag (#glitchgrab-webview) from the mobile app */
+
+/* AppInputFields custom border/icon/placeholder utilities */
+:root {
+  --app-input-border: var(--border);
+}
+@layer utilities {
+  .app-input-border-color {
+    border-color: var(--app-input-border);
+  }
+  .app-input-icon {
+    color: var(--app-input-border);
+  }
+  .app-input-placeholder::placeholder {
+    color: var(--app-input-border);
+    opacity: 0.5;
+  }
+}
