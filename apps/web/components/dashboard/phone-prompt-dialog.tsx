@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useForm, FormProvider } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { MessageCircle, Send, ShieldCheck, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -10,38 +13,60 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import InputPhone from "@/components/AppInputFields/components/InputPhone";
+import InputOTPController from "@/components/AppInputFields/components/InputOTP";
 import { sendOtp, verifyAndSavePhone } from "@/app/dashboard/settings/whatsapp-actions";
 
-type Step = "idle" | "otp-sent" | "done";
+const phoneSchema = z.object({
+  phone: z.string().min(1, "Phone number required"),
+});
+
+const otpSchema = z.object({
+  otp: z.string().length(6, "Enter the 6-digit OTP"),
+});
+
+type PhoneForm = z.infer<typeof phoneSchema>;
+type OtpForm = z.infer<typeof otpSchema>;
+type Step = "phone" | "otp" | "done";
 
 export function PhonePromptDialog({ hasPhone }: { hasPhone: boolean }) {
   const [open, setOpen] = useState(!hasPhone);
-  const [step, setStep] = useState<Step>("idle");
-  const [phone, setPhone] = useState("");
-  const [otp, setOtp] = useState("");
+  const [step, setStep] = useState<Step>("phone");
+  const [submittedPhone, setSubmittedPhone] = useState("");
   const [pending, startTransition] = useTransition();
 
-  function handleSendOtp() {
+  const phoneForm = useForm<PhoneForm>({
+    resolver: zodResolver(phoneSchema),
+    defaultValues: { phone: "" },
+  });
+
+  const otpForm = useForm<OtpForm>({
+    resolver: zodResolver(otpSchema),
+    defaultValues: { otp: "" },
+  });
+
+  function onPhoneSubmit(values: PhoneForm) {
     startTransition(async () => {
-      const res = await sendOtp(phone);
+      const res = await sendOtp(values.phone);
       if (res.ok) {
-        setStep("otp-sent");
+        setSubmittedPhone(values.phone);
+        setStep("otp");
         toast.success("OTP sent to your WhatsApp");
       } else {
-        toast.error(res.error ?? "Failed to send OTP");
+        phoneForm.setError("phone", { message: res.error ?? "Failed to send OTP" });
       }
     });
   }
 
-  function handleVerify() {
+  function onOtpSubmit(values: OtpForm) {
     startTransition(async () => {
-      const res = await verifyAndSavePhone(phone, otp);
+      const res = await verifyAndSavePhone(submittedPhone, values.otp);
       if (res.ok) {
         setStep("done");
         toast.success("WhatsApp number verified");
         setTimeout(() => setOpen(false), 1200);
       } else {
-        toast.error(res.error ?? "Verification failed");
+        otpForm.setError("otp", { message: res.error ?? "Verification failed" });
       }
     });
   }
@@ -59,70 +84,63 @@ export function PhonePromptDialog({ hasPhone }: { hasPhone: boolean }) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3">
-          {step === "idle" && (
-            <>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 border border-border rounded bg-background/60 focus-within:border-primary/50 transition-colors">
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="919876543210 — country code + number"
-                    className="w-full bg-transparent px-3 py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={handleSendOtp}
-                  disabled={pending || !phone.trim()}
-                  className="font-mono text-[10px] uppercase tracking-widest text-primary border border-primary/40 bg-primary/5 hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-2 rounded inline-flex items-center gap-1.5 transition-colors shrink-0"
-                >
-                  {pending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
-                  {pending ? "Sending..." : "Send OTP"}
-                </button>
-              </div>
+        {step === "phone" && (
+          <FormProvider {...phoneForm}>
+            <form onSubmit={phoneForm.handleSubmit(onPhoneSubmit)} className="space-y-4">
+              <InputPhone
+                type="phone"
+                name="phone"
+                label="WhatsApp number"
+                placeholder="Enter phone number"
+                required
+              />
+              <button
+                type="submit"
+                disabled={pending}
+                className="w-full font-mono text-[10px] uppercase tracking-widest text-primary border border-primary/40 bg-primary/5 hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-2 rounded inline-flex items-center justify-center gap-1.5 transition-colors"
+              >
+                {pending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                {pending ? "Sending..." : "Send OTP"}
+              </button>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
                 className="w-full font-mono text-[10px] text-muted-foreground hover:text-foreground transition-colors text-center py-1"
               >
-                Skip for now — I'll set this in Settings
+                Skip for now — I&apos;ll set this in Settings
               </button>
-            </>
-          )}
+            </form>
+          </FormProvider>
+        )}
 
-          {step === "otp-sent" && (
-            <div className="space-y-3">
+        {step === "otp" && (
+          <FormProvider {...otpForm}>
+            <form onSubmit={otpForm.handleSubmit(onOtpSubmit)} className="space-y-4">
               <p className="font-mono text-[10px] text-muted-foreground">
-                OTP sent to <span className="text-foreground">+{phone.replace(/\D/g, "")}</span>. Check WhatsApp.
+                OTP sent to <span className="text-foreground">+{submittedPhone.replace(/\D/g, "")}</span>. Check WhatsApp.
               </p>
-              <div className="flex items-center gap-2">
-                <div className="border border-border rounded bg-background/60 focus-within:border-primary/50 transition-colors w-40">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={6}
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                    placeholder="6-digit OTP"
-                    className="w-full bg-transparent px-3 py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none tracking-[0.3em]"
-                  />
-                </div>
+              <InputOTPController
+                type="OTP"
+                name="otp"
+                label="Enter OTP"
+                required
+                onComplete={(val) => {
+                  otpForm.setValue("otp", val);
+                  otpForm.handleSubmit(onOtpSubmit)();
+                }}
+              />
+              <button
+                type="submit"
+                disabled={pending}
+                className="w-full font-mono text-[10px] uppercase tracking-widest text-primary border border-primary/40 bg-primary/5 hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-2 rounded inline-flex items-center justify-center gap-1.5 transition-colors"
+              >
+                {pending ? <Loader2 className="h-3 w-3 animate-spin" /> : <ShieldCheck className="h-3 w-3" />}
+                {pending ? "Verifying..." : "Verify"}
+              </button>
+              <div className="flex items-center justify-center gap-3">
                 <button
                   type="button"
-                  onClick={handleVerify}
-                  disabled={pending || otp.length < 6}
-                  className="font-mono text-[10px] uppercase tracking-widest text-primary border border-primary/40 bg-primary/5 hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed px-3 py-2 rounded inline-flex items-center gap-1.5 transition-colors shrink-0"
-                >
-                  {pending ? <Loader2 className="h-3 w-3 animate-spin" /> : <ShieldCheck className="h-3 w-3" />}
-                  {pending ? "Verifying..." : "Verify"}
-                </button>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleSendOtp}
+                  onClick={() => phoneForm.handleSubmit(onPhoneSubmit)()}
                   disabled={pending}
                   className="font-mono text-[10px] text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
                 >
@@ -137,16 +155,16 @@ export function PhonePromptDialog({ hasPhone }: { hasPhone: boolean }) {
                   Skip for now
                 </button>
               </div>
-            </div>
-          )}
+            </form>
+          </FormProvider>
+        )}
 
-          {step === "done" && (
-            <div className="flex items-center justify-center gap-2 py-3 font-mono text-sm text-emerald-400">
-              <Check className="h-4 w-4" />
-              Verified! You&apos;ll receive WhatsApp alerts.
-            </div>
-          )}
-        </div>
+        {step === "done" && (
+          <div className="flex items-center justify-center gap-2 py-3 font-mono text-sm text-emerald-400">
+            <Check className="h-4 w-4" />
+            Verified! You&apos;ll receive WhatsApp alerts.
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
