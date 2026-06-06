@@ -22,7 +22,7 @@ const phoneSchema = z.object({
 });
 
 const otpSchema = z.object({
-  otp: z.string().length(6, "Enter the 6-digit OTP"),
+  otp: z.string().length(4, "Enter the 4-digit OTP"),
 });
 
 type PhoneForm = z.infer<typeof phoneSchema>;
