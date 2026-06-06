@@ -1,5 +1,4 @@
-import { getClaude } from "@/lib/claude/client";
-import type Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const ENHANCE_SYSTEM_PROMPT = `You polish bug-report text. When a screenshot is provided, use it only to clarify what the user already described — do not invent new issues or add facts not visible in the screenshot or text.
 
@@ -14,6 +13,17 @@ Rules:
 const MAX_INPUT_CHARS = 5000;
 const MAX_OUTPUT_TOKENS = 1024;
 
+function getGemini() {
+  const key = process.env.GOOGLE_AI_API_KEY;
+  if (!key) throw new Error("GOOGLE_AI_API_KEY is not configured");
+  const genAI = new GoogleGenerativeAI(key);
+  return genAI.getGenerativeModel({
+    model: "gemini-2.5-flash-lite",
+    systemInstruction: ENHANCE_SYSTEM_PROMPT,
+    generationConfig: { maxOutputTokens: MAX_OUTPUT_TOKENS },
+  });
+}
+
 export async function enhanceText(input: string, screenshotDataUrl?: string | null): Promise<string> {
   const trimmed = input.trim();
   if (!trimmed) return trimmed;
@@ -21,30 +31,21 @@ export async function enhanceText(input: string, screenshotDataUrl?: string | nu
     throw new Error(`Text too long — max ${MAX_INPUT_CHARS} characters`);
   }
 
-  const claude = getClaude();
+  const model = getGemini();
 
-  let userContent: Anthropic.MessageParam["content"] = trimmed;
+  type Part = string | { inlineData: { data: string; mimeType: string } };
+  const parts: Part[] = [];
+
   if (screenshotDataUrl) {
     const match = screenshotDataUrl.match(/^data:(image\/[a-z+]+);base64,(.+)$/);
     if (match) {
-      const mediaType = match[1] as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
-      userContent = [
-        { type: "image", source: { type: "base64", media_type: mediaType, data: match[2] } },
-        { type: "text", text: trimmed },
-      ];
+      parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
     }
   }
+  parts.push(trimmed);
 
-  const response = await claude.messages.create({
-    model: "claude-haiku-4-5",
-    max_tokens: MAX_OUTPUT_TOKENS,
-    system: ENHANCE_SYSTEM_PROMPT,
-    messages: [{ role: "user", content: userContent }],
-  });
-
-  const block = response.content.find((b) => b.type === "text");
-  if (!block || block.type !== "text") {
-    throw new Error("AI returned no text");
-  }
-  return block.text.trim();
+  const result = await model.generateContent(parts);
+  const text = result.response.text().trim();
+  if (!text) throw new Error("AI returned no text");
+  return text;
 }
