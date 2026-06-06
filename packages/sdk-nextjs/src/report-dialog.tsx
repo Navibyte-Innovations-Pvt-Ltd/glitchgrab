@@ -1084,7 +1084,7 @@ export function ReportDialog({
                               }
                               style={{
                                 position: "absolute",
-                                bottom: "12px",
+                                bottom: "14px",
                                 right: "7px",
                                 width: "26px",
                                 height: "26px",
