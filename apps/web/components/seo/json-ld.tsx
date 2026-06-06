@@ -1,6 +1,30 @@
 const BASE_URL = "https://glitchgrab.dev";
 const ORG_NAME = "Glitchgrab";
 
+export function FounderPersonJsonLd() {
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    name: "Naresh Bhosale",
+    jobTitle: "Founder & Developer",
+    worksFor: {
+      "@type": "Organization",
+      name: "Navibyte Innovations Pvt. Ltd.",
+      url: "https://navibyte.in",
+    },
+    knowsAbout: ["Next.js", "TypeScript", "Developer Tools", "GitHub Issues", "Bug Tracking"],
+    nationality: { "@type": "Country", name: "India" },
+    email: "bhosalenaresh73@gmail.com",
+    url: BASE_URL,
+  };
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
+}
+
 export function OrganizationJsonLd() {
   const schema = {
     "@context": "https://schema.org",
@@ -38,6 +62,7 @@ export function OrganizationJsonLd() {
     sameAs: [
       "https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab",
       "https://www.npmjs.com/package/glitchgrab",
+      "https://glitchgrab.dev",
     ],
   };
   return (
