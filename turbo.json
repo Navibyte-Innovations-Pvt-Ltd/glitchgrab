@@ -24,7 +24,8 @@
         "GITHUB_MOBILE_CLIENT_SECRET",
         "GOOGLE_CLIENT_ID",
         "GOOGLE_CLIENT_SECRET",
-        "NEXT_PUBLIC_APP_URL"
+        "NEXT_PUBLIC_APP_URL",
+        "SARVAM_API_KEY"
       ]
     },
     "dev": {
@@ -49,7 +50,8 @@
         "GITHUB_MOBILE_CLIENT_SECRET",
         "GOOGLE_CLIENT_ID",
         "GOOGLE_CLIENT_SECRET",
-        "NEXT_PUBLIC_APP_URL"
+        "NEXT_PUBLIC_APP_URL",
+        "SARVAM_API_KEY"
       ]
     },
     "lint": {
