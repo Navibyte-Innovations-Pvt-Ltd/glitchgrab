@@ -49,11 +49,7 @@ const InputSelect: React.FC<Omit<InputFieldProps, "form">> = (props) => {
     isSearchable = false,
   } = props;
   const form = useFormContext();
-  const [mounted, setMounted] = React.useState(false);
-
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = React.useSyncExternalStore(() => () => {}, () => true, () => false);
 
   if (!form) {
     throw new Error("InputSelect must be used within a FormProvider");
