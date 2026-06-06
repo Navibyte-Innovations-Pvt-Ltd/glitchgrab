@@ -449,7 +449,7 @@ export default function FeaturesPage() {
                   <span className="text-primary">$</span> bun add glitchgrab
                 </div>
                 <div className="text-muted-foreground/60">
-                  <span className="text-primary/50">// </span>wrap layout with GlitchgrabProvider
+                  <span className="text-primary/50">{"// "}</span>wrap layout with GlitchgrabProvider
                 </div>
                 <div className="text-green-400/70">✓ auto-capture active</div>
               </div>
