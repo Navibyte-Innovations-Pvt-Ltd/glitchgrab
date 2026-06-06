@@ -28,7 +28,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Auth: Bearer gg_ token OR dashboard session
+    // Auth: Bearer gg_ token OR dashboard session (session is fallback for both cases)
+    let authed = false;
     const authHeader = request.headers.get("authorization");
     if (authHeader?.startsWith("Bearer gg_")) {
       const plainToken = authHeader.replace("Bearer ", "");
@@ -37,16 +38,14 @@ export async function POST(request: Request) {
         where: { tokenHash },
         select: { id: true },
       });
-      if (!apiToken) {
-        return NextResponse.json(
-          { success: false, error: "Invalid API token" },
-          { status: 401, headers: CORS_HEADERS }
-        );
+      if (apiToken) {
+        prisma.apiToken
+          .update({ where: { id: apiToken.id }, data: { lastUsed: new Date() } })
+          .catch(() => {});
+        authed = true;
       }
-      prisma.apiToken
-        .update({ where: { id: apiToken.id }, data: { lastUsed: new Date() } })
-        .catch(() => {});
-    } else {
+    }
+    if (!authed) {
       const session = await auth();
       if (!session?.user?.id) {
         return NextResponse.json(
