@@ -4,11 +4,11 @@
 export const INPUT_BORDER_COLOR = "app-input-border-color"; // defined in globals.css — border-color: var(--app-input-border)
 export const INPUT_BORDER_HEX = "var(--app-input-border)"; // works in react-select inline styles too
 
-export const INPUT_BORDER_HOVER = "hover:border-primary/30";
-export const INPUT_BORDER_FOCUS = "focus:border-primary";
-export const INPUT_BORDER_FOCUS_VISIBLE = "focus-visible:border-primary";
+export const INPUT_BORDER_HOVER = "hover:border-primary/20";
+export const INPUT_BORDER_FOCUS = "focus:border-primary/40";
+export const INPUT_BORDER_FOCUS_VISIBLE = "focus-visible:border-primary/40";
 /** @public */
-export const INPUT_FOCUS_RING = "focus:ring-1 focus:ring-primary/20";
+export const INPUT_FOCUS_RING = "focus:ring-1 focus:ring-primary/10";
 /** @public */
 export const INPUT_SHADOW = "shadow-none";
 export const INPUT_ICON_SIZE = "size-5"; // use size-* (not h-*/w-*) — shadcn Button overrides h-4 w-4 on SVGs
