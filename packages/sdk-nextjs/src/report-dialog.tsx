@@ -295,6 +295,8 @@ export function ReportDialog({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const abandonRef = useRef(false);
   const spaceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isPushToTalkRef = useRef(false);
 
@@ -435,16 +437,18 @@ export function ReportDialog({
   }, [isOpen]);
 
   const stopVoice = () => {
-    // Null the stream first — rolling loop checks this to know when to stop
+    // Cleanup only — abandons recording without transcribing
+    abandonRef.current = true;
+    chunksRef.current = [];
     const stream = streamRef.current;
     streamRef.current = null;
+    stream?.getTracks().forEach((t) => t.stop());
     try {
       mediaRecorderRef.current?.stop();
     } catch {
       /* ignore */
     }
     mediaRecorderRef.current = null;
-    stream?.getTracks().forEach((t) => t.stop());
     setIsListening(false);
     setIsTranscribing(false);
   };
@@ -463,7 +467,9 @@ export function ReportDialog({
 
   const toggleVoice = async () => {
     if (isListening) {
-      stopVoice();
+      // Stop and transcribe — onstop handles the rest
+      abandonRef.current = false;
+      try { mediaRecorderRef.current?.stop(); } catch { /* ignore */ }
       return;
     }
     if (!transcribeAudio) return;
@@ -476,55 +482,37 @@ export function ReportDialog({
       return;
     }
     streamRef.current = stream;
+    chunksRef.current = [];
+    abandonRef.current = false;
     setIsListening(true);
 
-    // Rolling 3-second recorder: each round produces a complete audio file Sarvam can decode.
-    // timeslice chunks are partial WebM and fail STT parsing.
-    const recordRound = (activeStream: MediaStream) => {
-      if (!streamRef.current) return; // user stopped
-      const chunks: Blob[] = [];
-      const rec = new MediaRecorder(activeStream);
-      mediaRecorderRef.current = rec;
-
-      rec.ondataavailable = (e) => {
-        if (e.data.size > 0) chunks.push(e.data);
-      };
-
-      rec.onstop = async () => {
-        if (chunks.length > 0 && transcribeAudio) {
-          setIsTranscribing(true);
-          try {
-            const blob = new Blob(chunks, {
-              type: rec.mimeType || "audio/webm",
-            });
-            const text = await transcribeAudio(blob);
-            if (text.trim()) {
-              setDescription(
-                (prev) => prev + (prev.trim() ? " " : "") + text.trim(),
-              );
-              setValidationError(null);
-            }
-          } catch {
-            /* ignore */
-          }
-          setIsTranscribing(false);
+    const rec = new MediaRecorder(stream);
+    mediaRecorderRef.current = rec;
+    rec.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+    rec.onstop = async () => {
+      stream.getTracks().forEach((t) => t.stop());
+      if (streamRef.current === stream) streamRef.current = null;
+      mediaRecorderRef.current = null;
+      setIsListening(false);
+      const abandon = abandonRef.current;
+      const chunks = chunksRef.current;
+      chunksRef.current = [];
+      abandonRef.current = false;
+      if (abandon || !chunks.length || !transcribeAudio) { setIsTranscribing(false); return; }
+      setIsTranscribing(true);
+      try {
+        const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
+        const text = await transcribeAudio(blob);
+        if (text.trim()) {
+          setDescription((prev) => prev + (prev.trim() ? " " : "") + text.trim());
+          setValidationError(null);
         }
-        // If stream still active, start next round immediately
-        if (streamRef.current) recordRound(activeStream);
-      };
-
-      rec.start();
-      // Stop and collect after 3 s
-      setTimeout(() => {
-        try {
-          if (rec.state === "recording") rec.stop();
-        } catch {
-          /* ignore */
-        }
-      }, 3000);
+      } catch {
+        /* ignore */
+      }
+      setIsTranscribing(false);
     };
-
-    recordRound(stream);
+    rec.start();
   };
 
   const handleSpaceDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -565,7 +553,9 @@ export function ReportDialog({
     }
     if (isPushToTalkRef.current) {
       isPushToTalkRef.current = false;
-      stopVoice();
+      // Stop recorder and transcribe — don't call stopVoice (that abandons)
+      abandonRef.current = false;
+      try { mediaRecorderRef.current?.stop(); } catch { /* ignore */ }
     }
   };
 
