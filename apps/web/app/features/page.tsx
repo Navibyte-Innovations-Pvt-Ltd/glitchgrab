@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PublicNav } from "@/components/public-nav";
 import { Footer } from "@/components/footer";
+import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import {
   CheckCircle2,
   ChevronsRight,
@@ -136,6 +137,12 @@ function ImagePlaceholder({ path, label }: { path: string; label: string }) {
 export default function FeaturesPage() {
   return (
     <main className="min-h-screen relative">
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", url: "https://glitchgrab.dev" },
+          { name: "Features", url: "https://glitchgrab.dev/features" },
+        ]}
+      />
       {/* Grid background */}
       <div
         aria-hidden
