@@ -122,7 +122,7 @@ const FEATURES_GRID = [
 
 function ImagePlaceholder({ path, label }: { path: string; label: string }) {
   return (
-    <div className="w-full aspect-[16/9] border border-dashed border-border/60 bg-card/30 flex flex-col items-center justify-center gap-3 rounded-b-lg">
+    <div className="w-full aspect-video border border-dashed border-border/60 bg-card/30 flex flex-col items-center justify-center gap-3 rounded-b-lg">
       <div className="w-8 h-8 rounded-full border border-border flex items-center justify-center">
         <Video className="h-4 w-4 text-muted-foreground/40" />
       </div>
