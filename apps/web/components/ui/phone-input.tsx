@@ -36,12 +36,23 @@ const PhoneInput = React.forwardRef<HTMLInputElement, PhoneInputProps>(
         defaultCountry={defaultCountry}
         value={value}
         onChange={onChange ?? (() => {})}
+        style={
+          {
+            "--PhoneInputCountryFlag-borderColor": "transparent",
+            "--PhoneInputCountryFlag-borderColor--focus": "transparent",
+            "--PhoneInputCountrySelectArrow-color": "currentColor",
+            "--PhoneInputCountrySelectArrow-opacity": "0.25",
+            "--PhoneInput-color--focus": "transparent",
+          } as React.CSSProperties
+        }
         className={cn(
-          "flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
-          "focus-within:ring-1 focus-within:ring-primary/10 focus-within:border-primary/40",
-          "[&_.PhoneInputInput]:bg-transparent [&_.PhoneInputInput]:outline-none [&_.PhoneInputInput]:flex-1 [&_.PhoneInputInput]:min-w-0",
-          "[&_.PhoneInputCountrySelect]:bg-background [&_.PhoneInputCountrySelect]:border-0 [&_.PhoneInputCountrySelect]:outline-none [&_.PhoneInputCountrySelect]:text-sm [&_.PhoneInputCountrySelect]:mr-2",
-          "[&_.PhoneInputCountryIcon]:w-6 [&_.PhoneInputCountryIcon]:h-4 [&_.PhoneInputCountryIcon]:mr-1",
+          "flex h-11 w-full rounded-md border border-zinc-700 bg-background px-3 py-2 text-sm gap-2",
+          "transition-colors duration-150",
+          "focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/10",
+          "[&_.PhoneInputInput]:bg-transparent [&_.PhoneInputInput]:outline-none [&_.PhoneInputInput]:flex-1 [&_.PhoneInputInput]:min-w-0 [&_.PhoneInputInput]:text-foreground",
+          "[&_.PhoneInputCountry]:flex [&_.PhoneInputCountry]:items-center [&_.PhoneInputCountry]:gap-1",
+          "[&_.PhoneInputCountrySelect]:absolute [&_.PhoneInputCountrySelect]:inset-0 [&_.PhoneInputCountrySelect]:opacity-0 [&_.PhoneInputCountrySelect]:cursor-pointer",
+          "[&_.PhoneInputCountryIcon--border]:shadow-none [&_.PhoneInputCountryIcon--border]:bg-transparent",
           className
         )}
         inputComponent={CustomInput}
