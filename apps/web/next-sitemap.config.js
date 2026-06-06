@@ -11,6 +11,7 @@ const AI_BOTS = [
   "cohere-ai", "CCBot", "Diffbot",
   "Meta-ExternalAgent", "FacebookBot",
   "YouBot", "Mistral-AI-User",
+  "Bytespider",
 ];
 
 // Pages that should rank high — high priority, weekly changefreq
