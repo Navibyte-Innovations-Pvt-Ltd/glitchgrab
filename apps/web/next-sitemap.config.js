@@ -13,6 +13,9 @@ const AI_BOTS = [
   "YouBot", "Mistral-AI-User",
 ];
 
+// Pages that should rank high — high priority, weekly changefreq
+const HIGH_PRIORITY_PATHS = ["/", "/features", "/docs"];
+
 module.exports = {
   siteUrl: "https://glitchgrab.dev",
   generateRobotsTxt: true,
@@ -26,6 +29,13 @@ module.exports = {
     "/connect/*",
     "/org/*",
   ],
+  transform: async (config, path) => ({
+    loc: path,
+    changefreq: HIGH_PRIORITY_PATHS.includes(path) ? "weekly" : "monthly",
+    priority: HIGH_PRIORITY_PATHS.includes(path) ? 0.9 : 0.7,
+    lastmod: new Date().toISOString(),
+    alternateRefs: [],
+  }),
   robotsTxtOptions: {
     policies: [
       { userAgent: "*", allow: "/", disallow: PRIVATE_PATHS },
