@@ -24,12 +24,14 @@ export async function OPTIONS() {
 
 interface EnhanceBody {
   text?: string;
+  screenshot?: string;
 }
 
 export async function POST(request: Request) {
   try {
     const body = (await request.json().catch(() => ({}))) as EnhanceBody;
     const text = (body.text ?? "").trim();
+    const screenshot = body.screenshot ?? null;
 
     if (!text) {
       return NextResponse.json(
@@ -89,7 +91,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const enhanced = await enhanceText(text);
+    const enhanced = await enhanceText(text, screenshot);
 
     return NextResponse.json(
       { success: true, data: { text: enhanced } },
