@@ -297,6 +297,7 @@ export function ReportDialog({
   const recognitionRef = useRef<any>(null);
   const voiceBaseRef = useRef("");
   const usingWebSpeechRef = useRef(false);
+  const textBeforeVoiceRef = useRef("");
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const sarvamChunksRef = useRef<Blob[]>([]);
@@ -440,20 +441,25 @@ export function ReportDialog({
   }, [isOpen]);
 
   const stopVoice = () => {
-    if (usingWebSpeechRef.current) {
-      usingWebSpeechRef.current = false;
-      recognitionRef.current?.stop();
-      recognitionRef.current = null;
-    } else {
-      sarvamChunksRef.current = [];
-      const stream = streamRef.current;
-      streamRef.current = null;
-      stream?.getTracks().forEach((t) => t.stop());
-      try { mediaRecorderRef.current?.stop(); } catch { /* ignore */ }
-      mediaRecorderRef.current = null;
-    }
+    usingWebSpeechRef.current = false;
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+    sarvamChunksRef.current = [];
+    const stream = streamRef.current;
+    streamRef.current = null;
+    stream?.getTracks().forEach((t) => t.stop());
+    try { mediaRecorderRef.current?.stop(); } catch { /* ignore */ }
+    mediaRecorderRef.current = null;
     setIsListening(false);
     setIsTranscribing(false);
+  };
+
+  const stopListeningAndTranscribe = () => {
+    usingWebSpeechRef.current = false;
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+    setIsListening(false);
+    try { mediaRecorderRef.current?.stop(); } catch { /* ignore */ }
   };
 
   const handleClose = () => {
@@ -470,17 +476,7 @@ export function ReportDialog({
 
   const toggleVoice = async () => {
     if (isListening) {
-      if (usingWebSpeechRef.current) {
-        usingWebSpeechRef.current = false;
-        recognitionRef.current?.stop();
-        recognitionRef.current = null;
-        setIsListening(false);
-      } else {
-        const stream = streamRef.current;
-        streamRef.current = null;
-        stream?.getTracks().forEach((t) => t.stop());
-        try { mediaRecorderRef.current?.stop(); } catch { /* ignore */ }
-      }
+      stopListeningAndTranscribe();
       return;
     }
 
@@ -489,10 +485,52 @@ export function ReportDialog({
       ? ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
       : undefined;
 
+    // Get mic stream for MediaRecorder (Sarvam final accurate result)
+    let stream: MediaStream | null = null;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      if (!SpeechRec) { setVoiceError("Microphone access denied"); return; }
+    }
+
+    if (stream && transcribeAudio) {
+      streamRef.current = stream;
+      sarvamChunksRef.current = [];
+      textBeforeVoiceRef.current = description;
+
+      const rec = new MediaRecorder(stream);
+      mediaRecorderRef.current = rec;
+      rec.ondataavailable = (e) => { if (e.data.size > 0) sarvamChunksRef.current.push(e.data); };
+      rec.onstop = async () => {
+        stream!.getTracks().forEach((t) => t.stop());
+        if (streamRef.current === stream) streamRef.current = null;
+        mediaRecorderRef.current = null;
+        const chunks = sarvamChunksRef.current;
+        sarvamChunksRef.current = [];
+        if (!chunks.length || !transcribeAudio) return;
+        setIsTranscribing(true);
+        try {
+          const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
+          const text = await transcribeAudio(blob);
+          if (text.trim()) {
+            const sep = textBeforeVoiceRef.current.trim() ? " " : "";
+            // Replace live Web Speech preview with accurate Sarvam result
+            setDescription(textBeforeVoiceRef.current + sep + text.trim());
+            setValidationError(null);
+            setIsEnhanced(false);
+            setOriginalDescription(null);
+          }
+        } catch { /* keep Web Speech result on failure */ }
+        setIsTranscribing(false);
+      };
+      rec.start();
+    }
+
     if (SpeechRec) {
+      setVoiceError(null);
       usingWebSpeechRef.current = true;
       voiceBaseRef.current = description;
-      setVoiceError(null);
+      textBeforeVoiceRef.current = description;
       const recognition = new SpeechRec();
       recognition.lang = "en-IN";
       recognition.interimResults = true;
@@ -507,11 +545,8 @@ export function ReportDialog({
         let interimText = "";
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const text = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            finalText += text;
-          } else {
-            interimText += text;
-          }
+          if (event.results[i].isFinal) finalText += text;
+          else interimText += text;
         }
         if (finalText) {
           const sep = voiceBaseRef.current.trim() ? " " : "";
@@ -522,8 +557,6 @@ export function ReportDialog({
           : voiceBaseRef.current;
         setDescription(liveText);
         setValidationError(null);
-        setIsEnhanced(false);
-        setOriginalDescription(null);
       };
 
       recognition.onend = () => {
@@ -544,47 +577,11 @@ export function ReportDialog({
       };
 
       recognition.start();
-      return;
+    } else if (stream) {
+      // Firefox: Sarvam-only, no live preview
+      setVoiceError(null);
+      setIsListening(true);
     }
-
-    // Sarvam fallback (Firefox / no Web Speech API)
-    if (!transcribeAudio) return;
-    setVoiceError(null);
-    usingWebSpeechRef.current = false;
-    let stream: MediaStream;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch {
-      setVoiceError("Microphone access denied");
-      return;
-    }
-    streamRef.current = stream;
-    sarvamChunksRef.current = [];
-    setIsListening(true);
-
-    const rec = new MediaRecorder(stream);
-    mediaRecorderRef.current = rec;
-    rec.ondataavailable = (e) => { if (e.data.size > 0) sarvamChunksRef.current.push(e.data); };
-    rec.onstop = async () => {
-      stream.getTracks().forEach((t) => t.stop());
-      if (streamRef.current === stream) streamRef.current = null;
-      mediaRecorderRef.current = null;
-      setIsListening(false);
-      const chunks = sarvamChunksRef.current;
-      sarvamChunksRef.current = [];
-      if (!chunks.length || !transcribeAudio) return;
-      setIsTranscribing(true);
-      try {
-        const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
-        const text = await transcribeAudio(blob);
-        if (text.trim()) {
-          setDescription((prev) => prev + (prev.trim() ? " " : "") + text.trim());
-          setValidationError(null);
-        }
-      } catch { /* ignore */ }
-      setIsTranscribing(false);
-    };
-    rec.start();
   };
 
   const handleSpaceDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -625,17 +622,7 @@ export function ReportDialog({
     }
     if (isPushToTalkRef.current) {
       isPushToTalkRef.current = false;
-      if (usingWebSpeechRef.current) {
-        usingWebSpeechRef.current = false;
-        recognitionRef.current?.stop();
-        recognitionRef.current = null;
-        setIsListening(false);
-      } else {
-        const stream = streamRef.current;
-        streamRef.current = null;
-        stream?.getTracks().forEach((t) => t.stop());
-        try { mediaRecorderRef.current?.stop(); } catch { /* ignore */ }
-      }
+      stopListeningAndTranscribe();
     }
   };
 
