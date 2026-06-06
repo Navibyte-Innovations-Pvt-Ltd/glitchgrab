@@ -296,7 +296,12 @@ export function ReportDialog({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const abandonRef = useRef(false);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const maxTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recordModeRef = useRef<"active" | "stopping" | "abandon">("abandon");
+  const transcribingCountRef = useRef(0);
   const spaceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isPushToTalkRef = useRef(false);
 
@@ -436,19 +441,32 @@ export function ReportDialog({
     return () => window.removeEventListener("paste", handlePaste);
   }, [isOpen]);
 
+  const SILENCE_THRESHOLD = 12;
+  const SILENCE_DELAY_MS = 700;
+  const MAX_CHUNK_MS = 8000;
+
+  const clearVadTimers = () => {
+    if (silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null; }
+    if (maxTimerRef.current) { clearTimeout(maxTimerRef.current); maxTimerRef.current = null; }
+  };
+
+  const stopVad = () => {
+    clearVadTimers();
+    analyserRef.current = null;
+    audioCtxRef.current?.close().catch(() => {});
+    audioCtxRef.current = null;
+  };
+
   const stopVoice = () => {
-    // Cleanup only — abandons recording without transcribing
-    abandonRef.current = true;
+    stopVad();
+    recordModeRef.current = "abandon";
     chunksRef.current = [];
     const stream = streamRef.current;
     streamRef.current = null;
     stream?.getTracks().forEach((t) => t.stop());
-    try {
-      mediaRecorderRef.current?.stop();
-    } catch {
-      /* ignore */
-    }
+    try { mediaRecorderRef.current?.stop(); } catch { /* ignore */ }
     mediaRecorderRef.current = null;
+    transcribingCountRef.current = 0;
     setIsListening(false);
     setIsTranscribing(false);
   };
@@ -465,10 +483,87 @@ export function ReportDialog({
     setOriginalDescription(null);
   };
 
+  const startSegment = (stream: MediaStream, mimeType: string, ta: typeof transcribeAudio) => {
+    if (recordModeRef.current === "abandon") return;
+    chunksRef.current = [];
+    const rec = new MediaRecorder(stream, MediaRecorder.isTypeSupported("audio/webm") ? { mimeType: "audio/webm" } : {});
+    mediaRecorderRef.current = rec;
+    rec.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+    rec.onstop = async () => {
+      const mode = recordModeRef.current;
+      const chunks = chunksRef.current;
+      chunksRef.current = [];
+
+      if (mode !== "abandon" && chunks.length > 0 && ta) {
+        transcribingCountRef.current++;
+        setIsTranscribing(true);
+        const blob = new Blob(chunks, { type: mimeType || "audio/webm" });
+        ta(blob)
+          .then((text) => {
+            if (text.trim()) {
+              setDescription((prev) => prev + (prev.trim() ? " " : "") + text.trim());
+              setValidationError(null);
+            }
+          })
+          .catch(() => {})
+          .finally(() => {
+            transcribingCountRef.current--;
+            if (transcribingCountRef.current === 0) setIsTranscribing(false);
+          });
+      }
+
+      if (mode === "active" && streamRef.current) {
+        startSegment(stream, mimeType, ta);
+        maxTimerRef.current = setTimeout(() => {
+          if (recordModeRef.current === "active") try { mediaRecorderRef.current?.stop(); } catch { /* ignore */ }
+        }, MAX_CHUNK_MS);
+      } else {
+        stream.getTracks().forEach((t) => t.stop());
+        if (streamRef.current === stream) streamRef.current = null;
+        mediaRecorderRef.current = null;
+        setIsListening(false);
+        if (transcribingCountRef.current === 0) setIsTranscribing(false);
+      }
+    };
+    rec.start();
+  };
+
+  const startVadPolling = (stream: MediaStream) => {
+    let audioCtx = audioCtxRef.current;
+    if (!audioCtx || audioCtx.state === "closed") {
+      audioCtx = new AudioContext();
+      audioCtxRef.current = audioCtx;
+    }
+    const source = audioCtx.createMediaStreamSource(stream);
+    const analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 512;
+    source.connect(analyser);
+    analyserRef.current = analyser;
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    let hasSpeech = false;
+
+    const poll = () => {
+      if (!analyserRef.current || recordModeRef.current !== "active") return;
+      analyser.getByteFrequencyData(dataArray);
+      const rms = Math.sqrt(dataArray.reduce((s, v) => s + v * v, 0) / dataArray.length);
+      if (rms >= SILENCE_THRESHOLD) {
+        hasSpeech = true;
+        if (silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null; }
+      } else if (hasSpeech && !silenceTimerRef.current) {
+        silenceTimerRef.current = setTimeout(() => {
+          silenceTimerRef.current = null;
+          if (recordModeRef.current === "active") try { mediaRecorderRef.current?.stop(); } catch { /* ignore */ }
+        }, SILENCE_DELAY_MS);
+      }
+      requestAnimationFrame(poll);
+    };
+    requestAnimationFrame(poll);
+  };
+
   const toggleVoice = async () => {
     if (isListening) {
-      // Stop and transcribe — onstop handles the rest
-      abandonRef.current = false;
+      stopVad();
+      recordModeRef.current = "stopping";
       try { mediaRecorderRef.current?.stop(); } catch { /* ignore */ }
       return;
     }
@@ -482,37 +577,15 @@ export function ReportDialog({
       return;
     }
     streamRef.current = stream;
-    chunksRef.current = [];
-    abandonRef.current = false;
+    recordModeRef.current = "active";
+    transcribingCountRef.current = 0;
     setIsListening(true);
-
-    const rec = new MediaRecorder(stream);
-    mediaRecorderRef.current = rec;
-    rec.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-    rec.onstop = async () => {
-      stream.getTracks().forEach((t) => t.stop());
-      if (streamRef.current === stream) streamRef.current = null;
-      mediaRecorderRef.current = null;
-      setIsListening(false);
-      const abandon = abandonRef.current;
-      const chunks = chunksRef.current;
-      chunksRef.current = [];
-      abandonRef.current = false;
-      if (abandon || !chunks.length || !transcribeAudio) { setIsTranscribing(false); return; }
-      setIsTranscribing(true);
-      try {
-        const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
-        const text = await transcribeAudio(blob);
-        if (text.trim()) {
-          setDescription((prev) => prev + (prev.trim() ? " " : "") + text.trim());
-          setValidationError(null);
-        }
-      } catch {
-        /* ignore */
-      }
-      setIsTranscribing(false);
-    };
-    rec.start();
+    const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "";
+    startSegment(stream, mimeType, transcribeAudio);
+    startVadPolling(stream);
+    maxTimerRef.current = setTimeout(() => {
+      if (recordModeRef.current === "active") try { mediaRecorderRef.current?.stop(); } catch { /* ignore */ }
+    }, MAX_CHUNK_MS);
   };
 
   const handleSpaceDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -553,8 +626,8 @@ export function ReportDialog({
     }
     if (isPushToTalkRef.current) {
       isPushToTalkRef.current = false;
-      // Stop recorder and transcribe — don't call stopVoice (that abandons)
-      abandonRef.current = false;
+      stopVad();
+      recordModeRef.current = "stopping";
       try { mediaRecorderRef.current?.stop(); } catch { /* ignore */ }
     }
   };
