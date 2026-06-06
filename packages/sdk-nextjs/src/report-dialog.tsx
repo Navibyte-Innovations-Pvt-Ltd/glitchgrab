@@ -778,7 +778,7 @@ export function ReportDialog({
                               if (!description.trim() || isEnhancing) return;
                               setIsEnhancing(true);
                               try {
-                                const polished = await enhanceText(description);
+                                const polished = await enhanceText(description, screenshot);
                                 if (polished && polished !== description) {
                                   setDescription(polished);
                                   if (validationError) setValidationError(null);
