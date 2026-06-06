@@ -350,6 +350,8 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const abandonRef = useRef(false);
   const spaceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isPushToTalkRef = useRef(false);
 
@@ -581,17 +583,25 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
   }
 
   function stopVoice() {
+    // Cleanup only — abandons recording without transcribing
+    abandonRef.current = true;
+    chunksRef.current = [];
     const stream = streamRef.current;
     streamRef.current = null;
+    stream?.getTracks().forEach((t) => t.stop());
     try { mediaRecorderRef.current?.stop(); } catch { /* ignore */ }
     mediaRecorderRef.current = null;
-    stream?.getTracks().forEach((t) => t.stop());
     setIsListening(false);
     setIsTranscribing(false);
   }
 
   async function toggleVoice() {
-    if (isListening) { stopVoice(); return; }
+    if (isListening) {
+      // Stop and transcribe — onstop handles the rest
+      abandonRef.current = false;
+      try { mediaRecorderRef.current?.stop(); } catch { /* ignore */ }
+      return;
+    }
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -600,55 +610,56 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
       return;
     }
     streamRef.current = stream;
+    chunksRef.current = [];
+    abandonRef.current = false;
     setIsListening(true);
 
-    const recordRound = (activeStream: MediaStream) => {
-      if (!streamRef.current) return;
-      const chunks: Blob[] = [];
-      const rec = new MediaRecorder(activeStream);
-      mediaRecorderRef.current = rec;
-      rec.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-      rec.onstop = async () => {
-        if (chunks.length > 0) {
-          setIsTranscribing(true);
-          try {
-            const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
-            const form = new FormData();
-            form.append("file", blob, "audio.webm");
-            const { data } = await axios.post("/api/v1/sdk/stt", form);
-            if (data?.success && typeof data.data?.transcript === "string" && data.data.transcript.trim()) {
-              const transcript = data.data.transcript.trim();
-              const ta = textareaRef.current;
-              const pos = ta ? (ta.selectionStart ?? undefined) : undefined;
-              setInput((prev) => {
-                if (pos !== undefined) {
-                  const sep = prev.slice(0, pos).trim() ? " " : "";
-                  return prev.slice(0, pos) + sep + transcript + prev.slice(pos);
-                }
-                return prev + (prev.trim() ? " " : "") + transcript;
-              });
-              if (pos !== undefined) {
-                const sepLen = (ta && ta.value.slice(0, pos).trim()) ? 1 : 0;
-                requestAnimationFrame(() => {
-                  if (textareaRef.current) {
-                    const newPos = pos + sepLen + transcript.length;
-                    textareaRef.current.selectionStart = newPos;
-                    textareaRef.current.selectionEnd = newPos;
-                  }
-                });
-              }
-              if (isEnhanced) { setIsEnhanced(false); setOriginalInput(null); }
+    const rec = new MediaRecorder(stream);
+    mediaRecorderRef.current = rec;
+    rec.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+    rec.onstop = async () => {
+      stream.getTracks().forEach((t) => t.stop());
+      if (streamRef.current === stream) streamRef.current = null;
+      mediaRecorderRef.current = null;
+      setIsListening(false);
+      const abandon = abandonRef.current;
+      const chunks = chunksRef.current;
+      chunksRef.current = [];
+      abandonRef.current = false;
+      if (abandon || !chunks.length) { setIsTranscribing(false); return; }
+      setIsTranscribing(true);
+      try {
+        const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
+        const form = new FormData();
+        form.append("file", blob, "audio.webm");
+        const { data } = await axios.post("/api/v1/sdk/stt", form);
+        if (data?.success && typeof data.data?.transcript === "string" && data.data.transcript.trim()) {
+          const transcript = data.data.transcript.trim();
+          const ta = textareaRef.current;
+          const pos = ta ? (ta.selectionStart ?? undefined) : undefined;
+          setInput((prev) => {
+            if (pos !== undefined) {
+              const sep = prev.slice(0, pos).trim() ? " " : "";
+              return prev.slice(0, pos) + sep + transcript + prev.slice(pos);
             }
-          } catch { /* ignore */ }
-          setIsTranscribing(false);
+            return prev + (prev.trim() ? " " : "") + transcript;
+          });
+          if (pos !== undefined) {
+            const sepLen = (ta && ta.value.slice(0, pos).trim()) ? 1 : 0;
+            requestAnimationFrame(() => {
+              if (textareaRef.current) {
+                const newPos = pos + sepLen + transcript.length;
+                textareaRef.current.selectionStart = newPos;
+                textareaRef.current.selectionEnd = newPos;
+              }
+            });
+          }
+          if (isEnhanced) { setIsEnhanced(false); setOriginalInput(null); }
         }
-        if (streamRef.current) recordRound(activeStream);
-      };
-      rec.start();
-      setTimeout(() => { try { if (rec.state === "recording") rec.stop(); } catch { /* ignore */ } }, 3000);
+      } catch { /* ignore */ }
+      setIsTranscribing(false);
     };
-
-    recordRound(stream);
+    rec.start();
   }
 
   // Stop voice when component unmounts
@@ -696,7 +707,9 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
     }
     if (isPushToTalkRef.current) {
       isPushToTalkRef.current = false;
-      stopVoice();
+      // Stop recorder and transcribe — don't call stopVoice (that abandons)
+      abandonRef.current = false;
+      try { mediaRecorderRef.current?.stop(); } catch { /* ignore */ }
     }
   }
 
