@@ -235,6 +235,8 @@ export function ReportDialog({
   const modalRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const spaceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isPushToTalkRef = useRef(false);
 
   // When open, set inert on any host Radix/shadcn dialogs so their FocusScope
   // doesn't steal focus back from GlitchGrab's textarea via focusout interception.
@@ -435,6 +437,36 @@ export function ReportDialog({
     recordRound(stream);
   };
 
+  const handleSpaceDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.code !== "Space") return;
+    // Block ALL repeat space events while timer pending or recording active
+    if (spaceTimerRef.current || isListening || isPushToTalkRef.current) {
+      e.preventDefault();
+      return;
+    }
+    if (e.repeat || !transcribeAudio || isTranscribing) return;
+    e.preventDefault();
+    spaceTimerRef.current = setTimeout(() => {
+      isPushToTalkRef.current = true;
+      void toggleVoice();
+    }, 400);
+  };
+
+  const handleSpaceUp = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.code !== "Space") return;
+    if (spaceTimerRef.current) {
+      clearTimeout(spaceTimerRef.current);
+      spaceTimerRef.current = null;
+      if (!isPushToTalkRef.current) {
+        setDescription((prev) => prev + " ");
+      }
+    }
+    if (isPushToTalkRef.current) {
+      isPushToTalkRef.current = false;
+      stopVoice();
+    }
+  };
+
   const handleSubmit = async () => {
     try {
       if (!description.trim() || isSubmitting) return;
@@ -477,7 +509,13 @@ export function ReportDialog({
     <>
       {/* Keyframes for REC pulse — injected once when open */}
       {isOpen && createPortal(
-        <style>{`@keyframes gg-pulse{0%,100%{opacity:1}50%{opacity:0.35}}`}</style>,
+        <style>{`
+          @keyframes gg-pulse{0%,100%{opacity:1}50%{opacity:0.35}}
+          @keyframes gg-b1{0%,100%{height:3px}40%{height:13px}}
+          @keyframes gg-b2{0%,100%{height:8px}50%{height:3px}}
+          @keyframes gg-b3{0%,100%{height:4px}30%{height:14px}70%{height:5px}}
+          @keyframes gg-b4{0%,100%{height:6px}60%{height:13px}}
+        `}</style>,
         document.body
       )}
       {/* Report modal */}
@@ -666,7 +704,7 @@ export function ReportDialog({
                           style={{
                             width: "100%",
                             minHeight: "100px",
-                            padding: enhanceText ? "28px 12px 36px" : "10px 12px 36px",
+                            padding: enhanceText ? "28px 12px 36px" : transcribeAudio ? "10px 12px 36px" : "10px 12px",
                             borderRadius: "8px",
                             border: `1px solid ${isTranscribing ? "#f59e0b" : isListening ? t.accent : t.inputBorder}`,
                             fontSize: "14px",
@@ -678,16 +716,18 @@ export function ReportDialog({
                             backgroundColor: t.inputBg,
                             transition: "border-color 0.2s ease",
                           }}
+                          onKeyDown={handleSpaceDown}
+                          onKeyUp={handleSpaceUp}
                           onFocus={(e) => { (e.target as HTMLTextAreaElement).style.borderColor = t.accent; }}
                           onBlur={(e) => { if (!isListening && !isTranscribing) (e.target as HTMLTextAreaElement).style.borderColor = t.inputBorder; }}
                           autoFocus
                         />
-                        {/* Top-left: REC / Transcribing badge */}
+                        {/* Bottom-left: REC / Transcribing badge (same row as mic button) */}
                         {(isListening || isTranscribing) && (
                           <span style={{
                             position: "absolute",
-                            top: "7px",
-                            left: "8px",
+                            bottom: "10px",
+                            left: "10px",
                             display: "inline-flex",
                             alignItems: "center",
                             gap: "4px",
@@ -708,6 +748,26 @@ export function ReportDialog({
                               flexShrink: 0,
                             }} />
                             {isTranscribing ? "Transcribing…" : "REC"}
+                            {isListening && !isTranscribing && (
+                              <span style={{ display: "inline-flex", alignItems: "flex-end", gap: "2px", height: "14px", marginLeft: "3px" }}>
+                                {[
+                                  { anim: "gg-b1", dur: "0.6s", delay: "0s" },
+                                  { anim: "gg-b2", dur: "0.5s", delay: "0.1s" },
+                                  { anim: "gg-b3", dur: "0.7s", delay: "0.05s" },
+                                  { anim: "gg-b4", dur: "0.55s", delay: "0.15s" },
+                                ].map((b, i) => (
+                                  <span key={i} style={{
+                                    width: "2.5px",
+                                    height: "4px",
+                                    borderRadius: "1px",
+                                    backgroundColor: "#ef4444",
+                                    animation: `${b.anim} ${b.dur} ease-in-out ${b.delay} infinite`,
+                                    display: "inline-block",
+                                    alignSelf: "center",
+                                  }} />
+                                ))}
+                              </span>
+                            )}
                           </span>
                         )}
                         {/* Top-right: AI enhance */}
