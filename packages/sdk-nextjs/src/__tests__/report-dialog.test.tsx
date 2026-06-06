@@ -212,7 +212,7 @@ describe("ReportDialog", () => {
       });
 
       expect(screen.getByText("Tell us more")).toBeInTheDocument();
-      expect(screen.getByPlaceholderText("What went wrong?")).toBeInTheDocument();
+      expect(screen.getByPlaceholderText("What went wrong? Describe it or paste an error...")).toBeInTheDocument();
     });
 
     it("shows severity picker for BUG type", async () => {
@@ -288,7 +288,7 @@ describe("ReportDialog", () => {
       ).toBeInTheDocument();
     });
 
-    it("Next button is disabled when description is empty", async () => {
+    it("Send Report button is disabled when description is empty", async () => {
       render(<ReportDialog report={mockReport} />);
 
       await act(async () => {
@@ -302,10 +302,10 @@ describe("ReportDialog", () => {
         fireEvent.click(screen.getByText("Bug Report"));
       });
 
-      expect(screen.getByText("Next")).toBeDisabled();
+      expect(screen.getByText("Send Report")).toBeDisabled();
     });
 
-    it("advances to step 3 review", async () => {
+    it("Send Report button is enabled after filling description", async () => {
       render(<ReportDialog report={mockReport} />);
 
       await act(async () => {
@@ -320,18 +320,12 @@ describe("ReportDialog", () => {
       });
 
       await act(async () => {
-        fireEvent.change(screen.getByPlaceholderText("What went wrong?"), {
+        fireEvent.change(screen.getByPlaceholderText("What went wrong? Describe it or paste an error..."), {
           target: { value: "App crashes on login" },
         });
       });
 
-      await act(async () => {
-        fireEvent.click(screen.getByText("Next"));
-      });
-
-      expect(screen.getByText("Review & Send")).toBeInTheDocument();
-      expect(screen.getByText("App crashes on login")).toBeInTheDocument();
-      expect(screen.getByText("Bug Report")).toBeInTheDocument();
+      expect(screen.getByText("Send Report")).not.toBeDisabled();
     });
 
     it("back button navigates to previous step", async () => {
@@ -383,10 +377,6 @@ describe("ReportDialog", () => {
       });
 
       await act(async () => {
-        fireEvent.click(screen.getByText("Next"));
-      });
-
-      await act(async () => {
         fireEvent.click(screen.getByText("Send Report"));
       });
 
@@ -417,13 +407,9 @@ describe("ReportDialog", () => {
       });
 
       await act(async () => {
-        fireEvent.change(screen.getByPlaceholderText("What went wrong?"), {
+        fireEvent.change(screen.getByPlaceholderText("What went wrong? Describe it or paste an error..."), {
           target: { value: "Login crashes" },
         });
-      });
-
-      await act(async () => {
-        fireEvent.click(screen.getByText("Next"));
       });
 
       await act(async () => {
@@ -450,13 +436,9 @@ describe("ReportDialog", () => {
       });
 
       await act(async () => {
-        fireEvent.change(screen.getByPlaceholderText("What went wrong?"), {
+        fireEvent.change(screen.getByPlaceholderText("What went wrong? Describe it or paste an error..."), {
           target: { value: "Something broke" },
         });
-      });
-
-      await act(async () => {
-        fireEvent.click(screen.getByText("Next"));
       });
 
       await act(async () => {
