@@ -1115,15 +1115,20 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
               </kbd>
             </div>
           </div>
-          {/* REC badge */}
-          {(isListening || isTranscribing) && (
+          {/* REC badge / voice hint */}
+          {(isListening || isTranscribing) ? (
             <div className="flex items-center gap-1.5 px-3 pb-1.5">
               <span className={`inline-block h-1.5 w-1.5 rounded-full animate-pulse ${isTranscribing ? "bg-amber-400" : "bg-red-500"}`} />
               <span className={`font-mono text-[10px] ${isTranscribing ? "text-amber-400" : "text-red-400"}`}>
                 {isTranscribing ? "transcribing…" : "REC — speak now"}
               </span>
             </div>
-          )}
+          ) : selectedRepoName ? (
+            <div className="flex items-center gap-1.5 px-3 pb-1.5">
+              <Mic className="h-2.5 w-2.5 text-muted-foreground/35" />
+              <span className="font-mono text-[10px] text-muted-foreground/35">hold ⎵ to speak</span>
+            </div>
+          ) : null}
 
           {/* AI enhance accept/reject bar */}
           {isEnhanced && originalInput !== null && (
