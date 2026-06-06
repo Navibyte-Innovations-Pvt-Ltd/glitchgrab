@@ -33,6 +33,37 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+interface SpeechRecognitionResult {
+  readonly isFinal: boolean;
+  readonly 0: { readonly transcript: string };
+}
+interface SpeechRecognitionResultList {
+  readonly length: number;
+  [index: number]: SpeechRecognitionResult;
+}
+interface SpeechRecognitionEvent {
+  readonly resultIndex: number;
+  readonly results: SpeechRecognitionResultList;
+}
+interface SpeechRecognitionErrorEvent {
+  readonly error: string;
+}
+interface SpeechRecognitionInstance {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  onstart: (() => void) | null;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onend: (() => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  start(): void;
+  stop(): void;
+}
+type SpeechRecognitionCtor = new () => SpeechRecognitionInstance;
+interface SpeechRecognitionWindow {
+  SpeechRecognition?: SpeechRecognitionCtor;
+  webkitSpeechRecognition?: SpeechRecognitionCtor;
+}
 
 async function compressImage(
   file: File,
@@ -350,8 +381,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   // Web Speech API (Chrome/Edge — live word-by-word preview)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const voiceBaseRef = useRef(""); // committed final words from Web Speech so far
   const usingWebSpeechRef = useRef(false);
   const textBeforeVoiceRef = useRef(""); // textarea content before voice session started
@@ -526,7 +556,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
     }
 
     const userMsg: Message = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       role: "user",
       content: input.trim(),
       screenshots: screenshots.length > 0 ? [...screenshots] : undefined,
@@ -620,9 +650,9 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
       return;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const SpeechRec: (new () => any) | undefined = (typeof window !== "undefined")
-      ? ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
+    const SpeechRec: SpeechRecognitionCtor | undefined = (typeof window !== "undefined")
+      ? ((window as unknown as SpeechRecognitionWindow).SpeechRecognition ??
+         (window as unknown as SpeechRecognitionWindow).webkitSpeechRecognition)
       : undefined;
 
     // Get mic stream for MediaRecorder (Sarvam final result)
@@ -639,12 +669,13 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
       sarvamChunksRef.current = [];
       textBeforeVoiceRef.current = input;
 
+      const capturedStream = stream;
       const rec = new MediaRecorder(stream);
       mediaRecorderRef.current = rec;
       rec.ondataavailable = (e) => { if (e.data.size > 0) sarvamChunksRef.current.push(e.data); };
       rec.onstop = async () => {
-        stream!.getTracks().forEach((t) => t.stop());
-        if (streamRef.current === stream) streamRef.current = null;
+        capturedStream.getTracks().forEach((t) => t.stop());
+        if (streamRef.current === capturedStream) streamRef.current = null;
         mediaRecorderRef.current = null;
         const chunks = sarvamChunksRef.current;
         sarvamChunksRef.current = [];
@@ -682,8 +713,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
 
       recognition.onstart = () => setIsListening(true);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      recognition.onresult = (event: any) => {
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
         let finalText = "";
         let interimText = "";
         for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -709,8 +739,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
         }
       };
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      recognition.onerror = (event: any) => {
+      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
         if (event.error === "aborted" || event.error === "no-speech") return;
         toast.error("Speech recognition not available");
         usingWebSpeechRef.current = false;
