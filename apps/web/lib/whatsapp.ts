@@ -33,6 +33,12 @@ export async function sendWhatsappOtp(phone: string, otp: string): Promise<{ ok:
               type: "body",
               parameters: [{ type: "text", text: otp }],
             },
+            {
+              type: "button",
+              sub_type: "url",
+              index: "0",
+              parameters: [{ type: "text", text: otp }],
+            },
           ],
         },
       }),
