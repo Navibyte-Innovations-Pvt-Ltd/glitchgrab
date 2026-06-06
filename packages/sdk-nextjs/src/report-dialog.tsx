@@ -218,6 +218,7 @@ export function ReportDialog({
 }: ReportDialogProps) {
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [screenshotDragOver, setScreenshotDragOver] = useState(false);
   // Prevent hydration mismatch — render nothing until after hydration
@@ -372,6 +373,7 @@ export function ReportDialog({
     mediaRecorderRef.current = null;
     stream?.getTracks().forEach((t) => t.stop());
     setIsListening(false);
+    setIsTranscribing(false);
   };
 
   const handleClose = () => {
@@ -410,6 +412,7 @@ export function ReportDialog({
 
       rec.onstop = async () => {
         if (chunks.length > 0 && transcribeAudio) {
+          setIsTranscribing(true);
           try {
             const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
             const text = await transcribeAudio(blob);
@@ -418,6 +421,7 @@ export function ReportDialog({
               setValidationError(null);
             }
           } catch { /* ignore */ }
+          setIsTranscribing(false);
         }
         // If stream still active, start next round immediately
         if (streamRef.current) recordRound(activeStream);
@@ -471,6 +475,11 @@ export function ReportDialog({
 
   return (
     <>
+      {/* Keyframes for REC pulse — injected once when open */}
+      {isOpen && createPortal(
+        <style>{`@keyframes gg-pulse{0%,100%{opacity:1}50%{opacity:0.35}}`}</style>,
+        document.body
+      )}
       {/* Report modal */}
       {isOpen && createPortal(
         <div
@@ -653,13 +662,13 @@ export function ReportDialog({
                         <textarea
                           value={description}
                           onChange={(e) => { setDescription(e.target.value); if (validationError) setValidationError(null); }}
-                          placeholder={isListening ? "Listening… speak now" : getPlaceholder(reportType)}
+                          placeholder={isTranscribing ? "Transcribing your speech…" : isListening ? "Listening… speak now" : getPlaceholder(reportType)}
                           style={{
                             width: "100%",
                             minHeight: "100px",
                             padding: enhanceText ? "28px 12px 36px" : "10px 12px 36px",
                             borderRadius: "8px",
-                            border: `1px solid ${isListening ? t.accent : t.inputBorder}`,
+                            border: `1px solid ${isTranscribing ? "#f59e0b" : isListening ? t.accent : t.inputBorder}`,
                             fontSize: "14px",
                             fontFamily: "inherit",
                             resize: "none",
@@ -670,9 +679,37 @@ export function ReportDialog({
                             transition: "border-color 0.2s ease",
                           }}
                           onFocus={(e) => { (e.target as HTMLTextAreaElement).style.borderColor = t.accent; }}
-                          onBlur={(e) => { if (!isListening) (e.target as HTMLTextAreaElement).style.borderColor = t.inputBorder; }}
+                          onBlur={(e) => { if (!isListening && !isTranscribing) (e.target as HTMLTextAreaElement).style.borderColor = t.inputBorder; }}
                           autoFocus
                         />
+                        {/* Top-left: REC / Transcribing badge */}
+                        {(isListening || isTranscribing) && (
+                          <span style={{
+                            position: "absolute",
+                            top: "7px",
+                            left: "8px",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            fontSize: "10px",
+                            fontWeight: 700,
+                            letterSpacing: "0.04em",
+                            color: isTranscribing ? "#f59e0b" : "#ef4444",
+                            pointerEvents: "none",
+                            zIndex: 1,
+                          }}>
+                            <span style={{
+                              width: "6px",
+                              height: "6px",
+                              borderRadius: "50%",
+                              backgroundColor: "currentColor",
+                              animation: "gg-pulse 1.2s ease-in-out infinite",
+                              display: "inline-block",
+                              flexShrink: 0,
+                            }} />
+                            {isTranscribing ? "Transcribing…" : "REC"}
+                          </span>
+                        )}
                         {/* Top-right: AI enhance */}
                         {enhanceText && (
                           <button
