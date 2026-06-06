@@ -994,6 +994,30 @@ export function ReportDialog({
                             }}
                             autoFocus
                           />
+                          {/* Bottom-left: idle voice hint */}
+                          {transcribeAudio && !isListening && !isTranscribing && (
+                            <span
+                              style={{
+                                position: "absolute",
+                                bottom: "10px",
+                                left: "10px",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                fontSize: "10px",
+                                color: t.textMuted,
+                                opacity: 0.5,
+                                pointerEvents: "none",
+                                zIndex: 1,
+                                userSelect: "none",
+                              }}
+                            >
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/>
+                              </svg>
+                              hold ⎵ to speak
+                            </span>
+                          )}
                           {/* Bottom-left: REC / Transcribing badge (same row as mic button) */}
                           {(isListening || isTranscribing) && (
                             <span
