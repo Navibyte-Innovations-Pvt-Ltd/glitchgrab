@@ -349,12 +349,13 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  // Web Speech API (Chrome/Edge — live word-by-word)
+  // Web Speech API (Chrome/Edge — live word-by-word preview)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
-  const voiceBaseRef = useRef(""); // committed text so far in this voice session
+  const voiceBaseRef = useRef(""); // committed final words from Web Speech so far
   const usingWebSpeechRef = useRef(false);
-  // Sarvam fallback (Firefox — send full audio on stop)
+  const textBeforeVoiceRef = useRef(""); // textarea content before voice session started
+  // MediaRecorder — records full audio for Sarvam final accurate result
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const sarvamChunksRef = useRef<Blob[]>([]);
@@ -589,49 +590,90 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
   }
 
   function stopVoice() {
-    if (usingWebSpeechRef.current) {
-      usingWebSpeechRef.current = false;
-      recognitionRef.current?.stop();
-      recognitionRef.current = null;
-    } else {
-      sarvamChunksRef.current = [];
-      const stream = streamRef.current;
-      streamRef.current = null;
-      stream?.getTracks().forEach((t) => t.stop());
-      try { mediaRecorderRef.current?.stop(); } catch { /* ignore */ }
-      mediaRecorderRef.current = null;
-    }
+    // Cleanup — abandon both Web Speech and MediaRecorder without transcribing
+    usingWebSpeechRef.current = false;
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+    sarvamChunksRef.current = [];
+    const stream = streamRef.current;
+    streamRef.current = null;
+    stream?.getTracks().forEach((t) => t.stop());
+    try { mediaRecorderRef.current?.stop(); } catch { /* ignore */ }
+    mediaRecorderRef.current = null;
     setIsListening(false);
     setIsTranscribing(false);
   }
 
+  function stopListeningAndTranscribe() {
+    // Stop Web Speech preview
+    usingWebSpeechRef.current = false;
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+    setIsListening(false);
+    // Stop MediaRecorder → onstop sends full audio to Sarvam for accurate final result
+    try { mediaRecorderRef.current?.stop(); } catch { /* ignore */ }
+  }
+
   async function toggleVoice() {
     if (isListening) {
-      if (usingWebSpeechRef.current) {
-        usingWebSpeechRef.current = false;
-        recognitionRef.current?.stop();
-        recognitionRef.current = null;
-        setIsListening(false);
-      } else {
-        // Sarvam: stop and transcribe final audio
-        const stream = streamRef.current;
-        streamRef.current = null;
-        stream?.getTracks().forEach((t) => t.stop());
-        try { mediaRecorderRef.current?.stop(); } catch { /* ignore */ }
-        // onstop handles transcription + setIsListening(false)
-      }
+      stopListeningAndTranscribe();
       return;
     }
 
-    // Try Web Speech API first (Chrome/Edge)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const SpeechRec: (new () => any) | undefined = (typeof window !== "undefined")
       ? ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
       : undefined;
 
+    // Get mic stream for MediaRecorder (Sarvam final result)
+    let stream: MediaStream | null = null;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      if (!SpeechRec) { toast.error("Microphone access denied"); return; }
+      // No stream but Web Speech works — proceed without Sarvam correction
+    }
+
+    if (stream) {
+      streamRef.current = stream;
+      sarvamChunksRef.current = [];
+      textBeforeVoiceRef.current = input;
+
+      const rec = new MediaRecorder(stream);
+      mediaRecorderRef.current = rec;
+      rec.ondataavailable = (e) => { if (e.data.size > 0) sarvamChunksRef.current.push(e.data); };
+      rec.onstop = async () => {
+        stream!.getTracks().forEach((t) => t.stop());
+        if (streamRef.current === stream) streamRef.current = null;
+        mediaRecorderRef.current = null;
+        const chunks = sarvamChunksRef.current;
+        sarvamChunksRef.current = [];
+        if (!chunks.length) return;
+        setIsTranscribing(true);
+        try {
+          const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
+          const form = new FormData();
+          form.append("file", blob, "audio.webm");
+          const { data } = await axios.post("/api/v1/sdk/stt", form);
+          if (data?.success && typeof data.data?.transcript === "string" && data.data.transcript.trim()) {
+            const transcript = data.data.transcript.trim();
+            const sep = textBeforeVoiceRef.current.trim() ? " " : "";
+            // Replace live Web Speech preview with accurate Sarvam result
+            setInput(textBeforeVoiceRef.current + sep + transcript);
+            setIsEnhanced(false);
+            setOriginalInput(null);
+          }
+        } catch { /* keep Web Speech result on Sarvam failure */ }
+        setIsTranscribing(false);
+      };
+      rec.start();
+    }
+
     if (SpeechRec) {
+      // Web Speech for live preview
       usingWebSpeechRef.current = true;
       voiceBaseRef.current = input;
+      textBeforeVoiceRef.current = input;
       const recognition = new SpeechRec();
       recognition.lang = "en-IN";
       recognition.interimResults = true;
@@ -646,11 +688,8 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
         let interimText = "";
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const text = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            finalText += text;
-          } else {
-            interimText += text;
-          }
+          if (event.results[i].isFinal) finalText += text;
+          else interimText += text;
         }
         if (finalText) {
           const sep = voiceBaseRef.current.trim() ? " " : "";
@@ -660,14 +699,11 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
           ? voiceBaseRef.current + (voiceBaseRef.current.trim() ? " " : "") + interimText
           : voiceBaseRef.current;
         setInput(liveText);
-        setIsEnhanced(false);
-        setOriginalInput(null);
       };
 
       recognition.onend = () => {
-        // Auto-restarted by browser (no-speech timeout) — keep alive if user hasn't stopped
         if (usingWebSpeechRef.current && recognitionRef.current === recognition) {
-          try { recognition.start(); } catch { /* permissions revoked or already started */ }
+          try { recognition.start(); } catch { /* ignore */ }
         } else {
           setIsListening(false);
         }
@@ -683,49 +719,12 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
       };
 
       recognition.start();
-      return;
-    }
-
-    // Sarvam fallback (Firefox)
-    usingWebSpeechRef.current = false;
-    let stream: MediaStream;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch {
+    } else if (!stream) {
       toast.error("Microphone access denied");
-      return;
+    } else {
+      // Firefox: Sarvam-only, no live preview
+      setIsListening(true);
     }
-    streamRef.current = stream;
-    sarvamChunksRef.current = [];
-    setIsListening(true);
-
-    const rec = new MediaRecorder(stream);
-    mediaRecorderRef.current = rec;
-    rec.ondataavailable = (e) => { if (e.data.size > 0) sarvamChunksRef.current.push(e.data); };
-    rec.onstop = async () => {
-      stream.getTracks().forEach((t) => t.stop());
-      if (streamRef.current === stream) streamRef.current = null;
-      mediaRecorderRef.current = null;
-      setIsListening(false);
-      const chunks = sarvamChunksRef.current;
-      sarvamChunksRef.current = [];
-      if (!chunks.length) return;
-      setIsTranscribing(true);
-      try {
-        const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
-        const form = new FormData();
-        form.append("file", blob, "audio.webm");
-        const { data } = await axios.post("/api/v1/sdk/stt", form);
-        if (data?.success && typeof data.data?.transcript === "string" && data.data.transcript.trim()) {
-          const transcript = data.data.transcript.trim();
-          setInput((prev) => prev + (prev.trim() ? " " : "") + transcript);
-          setIsEnhanced(false);
-          setOriginalInput(null);
-        }
-      } catch { /* ignore */ }
-      setIsTranscribing(false);
-    };
-    rec.start();
   }
 
   // Stop voice when component unmounts
@@ -773,17 +772,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
     }
     if (isPushToTalkRef.current) {
       isPushToTalkRef.current = false;
-      if (usingWebSpeechRef.current) {
-        usingWebSpeechRef.current = false;
-        recognitionRef.current?.stop();
-        recognitionRef.current = null;
-        setIsListening(false);
-      } else {
-        const stream = streamRef.current;
-        streamRef.current = null;
-        stream?.getTracks().forEach((t) => t.stop());
-        try { mediaRecorderRef.current?.stop(); } catch { /* ignore */ }
-      }
+      stopListeningAndTranscribe();
     }
   }
 
