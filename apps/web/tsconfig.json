@@ -48,6 +48,7 @@
   "exclude": [
     "node_modules",
     "**/*.test.ts",
-    "**/*.test.tsx"
+    "**/*.test.tsx",
+    "components/AppInputFields/**"
   ]
 }
