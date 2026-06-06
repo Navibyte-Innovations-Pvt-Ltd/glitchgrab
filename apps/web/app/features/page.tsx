@@ -19,11 +19,47 @@ import {
   Terminal,
 } from "lucide-react";
 
+const PAGE_URL = "https://glitchgrab.dev/features";
+const PAGE_TITLE = "Features — Glitchgrab";
+const PAGE_DESC =
+  "Everything in Glitchgrab: SDK auto-capture, report button, dashboard chat, GlitchRecord screen recording, WhatsApp alerts, MCP server, mobile app, analytics, and SEO — all in one platform.";
+
 export const metadata: Metadata = {
-  title: "Features — Glitchgrab",
-  description:
-    "Everything in Glitchgrab: SDK auto-capture, report button, dashboard chat, screen recording, WhatsApp alerts, MCP server, mobile app, analytics, and SEO — all in one place.",
-  alternates: { canonical: "https://glitchgrab.dev/features" },
+  title: PAGE_TITLE,
+  description: PAGE_DESC,
+  keywords: [
+    "glitchgrab features",
+    "bug tracking features",
+    "github issue automation",
+    "screen recording bug report",
+    "whatsapp bug alert",
+    "nextjs sdk auto-capture",
+    "developer tools features",
+    "ai bug tracker",
+    "chrome extension bug capture",
+    "mcp server github issues",
+    "mobile bug reporting app",
+    "issue velocity analytics",
+    "seo management developer tool",
+  ],
+  alternates: { canonical: PAGE_URL },
+  openGraph: {
+    type: "website",
+    url: PAGE_URL,
+    title: PAGE_TITLE,
+    description: PAGE_DESC,
+    images: [{ url: "https://glitchgrab.dev/og-image.png", width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: PAGE_TITLE,
+    description: PAGE_DESC,
+    images: ["https://glitchgrab.dev/og-image.png"],
+  },
+  other: {
+    "geo.region": "IN",
+    "geo.placename": "India",
+  },
 };
 
 const FEATURES_GRID = [
