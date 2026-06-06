@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, memo } from "react";
+import { useState, useRef, useEffect, memo } from "react";
 import axios from "axios";
 import {
   Popover,
@@ -22,6 +22,8 @@ import {
   GitFork,
   ImagePlus,
   Loader2,
+  Mic,
+  MicOff,
   Paperclip,
   RotateCcw,
   Sparkles,
@@ -338,9 +340,18 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
   ]);
   const [sending, setSending] = useState(false);
   const [enhancing, setEnhancing] = useState(false);
+  const [isEnhanced, setIsEnhanced] = useState(false);
+  const [originalInput, setOriginalInput] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const [stagedPreview, setStagedPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const spaceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isPushToTalkRef = useRef(false);
 
   function addFiles(files: FileList | File[]) {
     const newFiles: File[] = [];
@@ -532,12 +543,18 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
 
   async function handleEnhance() {
     const text = input.trim();
-    if (!text || enhancing || sending) return;
+    if (!text || enhancing || sending || isEnhanced) return;
     setEnhancing(true);
     try {
-      const { data } = await axios.post("/api/v1/ai/enhance-text", { text });
+      const context = { url: typeof window !== "undefined" ? window.location.href : undefined };
+      const { data } = await axios.post("/api/v1/ai/enhance-text", { text, context });
       if (data?.success && typeof data.data?.text === "string") {
-        setInput(data.data.text);
+        const enhanced = data.data.text;
+        if (enhanced !== text) {
+          setOriginalInput(text);
+          setInput(enhanced);
+          setIsEnhanced(true);
+        }
       } else {
         toast.error(data?.error ?? "Couldn't enhance text");
       }
@@ -552,10 +569,134 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
     }
   }
 
-  function handleKeyDown(e: React.KeyboardEvent) {
+  function acceptEnhance() {
+    setIsEnhanced(false);
+    setOriginalInput(null);
+  }
+
+  function restoreOriginal() {
+    if (originalInput !== null) setInput(originalInput);
+    setIsEnhanced(false);
+    setOriginalInput(null);
+  }
+
+  function stopVoice() {
+    const stream = streamRef.current;
+    streamRef.current = null;
+    try { mediaRecorderRef.current?.stop(); } catch { /* ignore */ }
+    mediaRecorderRef.current = null;
+    stream?.getTracks().forEach((t) => t.stop());
+    setIsListening(false);
+    setIsTranscribing(false);
+  }
+
+  async function toggleVoice() {
+    if (isListening) { stopVoice(); return; }
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      toast.error("Microphone access denied");
+      return;
+    }
+    streamRef.current = stream;
+    setIsListening(true);
+
+    const recordRound = (activeStream: MediaStream) => {
+      if (!streamRef.current) return;
+      const chunks: Blob[] = [];
+      const rec = new MediaRecorder(activeStream);
+      mediaRecorderRef.current = rec;
+      rec.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+      rec.onstop = async () => {
+        if (chunks.length > 0) {
+          setIsTranscribing(true);
+          try {
+            const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
+            const form = new FormData();
+            form.append("file", blob, "audio.webm");
+            const { data } = await axios.post("/api/v1/sdk/stt", form);
+            if (data?.success && typeof data.data?.transcript === "string" && data.data.transcript.trim()) {
+              const transcript = data.data.transcript.trim();
+              const ta = textareaRef.current;
+              const pos = ta ? (ta.selectionStart ?? undefined) : undefined;
+              setInput((prev) => {
+                if (pos !== undefined) {
+                  const sep = prev.slice(0, pos).trim() ? " " : "";
+                  return prev.slice(0, pos) + sep + transcript + prev.slice(pos);
+                }
+                return prev + (prev.trim() ? " " : "") + transcript;
+              });
+              if (pos !== undefined) {
+                const sepLen = (ta && ta.value.slice(0, pos).trim()) ? 1 : 0;
+                requestAnimationFrame(() => {
+                  if (textareaRef.current) {
+                    const newPos = pos + sepLen + transcript.length;
+                    textareaRef.current.selectionStart = newPos;
+                    textareaRef.current.selectionEnd = newPos;
+                  }
+                });
+              }
+              if (isEnhanced) { setIsEnhanced(false); setOriginalInput(null); }
+            }
+          } catch { /* ignore */ }
+          setIsTranscribing(false);
+        }
+        if (streamRef.current) recordRound(activeStream);
+      };
+      rec.start();
+      setTimeout(() => { try { if (rec.state === "recording") rec.stop(); } catch { /* ignore */ } }, 3000);
+    };
+
+    recordRound(stream);
+  }
+
+  // Stop voice when component unmounts
+  useEffect(() => () => { stopVoice(); }, []);
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+      return;
+    }
+
+    if (e.code === "Space") {
+      // Block all repeat space events while timer pending or recording active
+      if (spaceTimerRef.current || isListening || isPushToTalkRef.current) {
+        e.preventDefault();
+        return;
+      }
+      if (e.repeat || isTranscribing) return;
+      e.preventDefault();
+      spaceTimerRef.current = setTimeout(() => {
+        isPushToTalkRef.current = true;
+        void toggleVoice();
+      }, 400);
+    }
+  }
+
+  function handleKeyUp(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.code !== "Space") return;
+    if (spaceTimerRef.current) {
+      clearTimeout(spaceTimerRef.current);
+      spaceTimerRef.current = null;
+      if (!isPushToTalkRef.current) {
+        // Insert space at cursor, not at end
+        const ta = textareaRef.current;
+        const pos = ta ? (ta.selectionStart ?? input.length) : input.length;
+        setInput((prev) => prev.slice(0, pos) + " " + prev.slice(pos));
+        requestAnimationFrame(() => {
+          if (textareaRef.current) {
+            textareaRef.current.selectionStart = pos + 1;
+            textareaRef.current.selectionEnd = pos + 1;
+          }
+        });
+      }
+    }
+    if (isPushToTalkRef.current) {
+      isPushToTalkRef.current = false;
+      stopVoice();
     }
   }
 
@@ -783,11 +924,21 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
             )}
             <div className="pt-1.5 pl-1 font-mono text-sm text-primary shrink-0 select-none">~ $</div>
             <textarea
+              ref={textareaRef}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => {
+                setInput(e.target.value);
+                if (isEnhanced) { setIsEnhanced(false); setOriginalInput(null); }
+              }}
               onKeyDown={handleKeyDown}
+              onKeyUp={handleKeyUp}
               onPaste={handlePaste}
-              placeholder={selectedRepoName ? "describe a bug, paste a log, or paste / drop a screenshot..." : "select a repo above to get started..."}
+              placeholder={
+                isTranscribing ? "Transcribing…" :
+                isListening ? "Listening… speak now" :
+                selectedRepoName ? "describe a bug, paste a log, or paste / drop a screenshot..." :
+                "select a repo above to get started..."
+              }
               rows={1}
               className="flex-1 min-w-0 resize-none bg-transparent border-0 outline-none font-mono text-sm text-foreground placeholder:text-muted-foreground/50 min-h-8 max-h-40 py-1.5 leading-relaxed"
               disabled={sending || !selectedRepoName}
@@ -796,7 +947,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
               <button
                 type="button"
                 onClick={handleEnhance}
-                disabled={enhancing || sending || !input.trim()}
+                disabled={enhancing || sending || !input.trim() || isEnhanced}
                 className="flex items-center justify-center h-7 w-7 rounded bg-muted/40 text-muted-foreground hover:text-foreground border border-border hover:border-muted-foreground/40 transition-colors disabled:opacity-40 disabled:hover:text-muted-foreground disabled:hover:border-border"
                 title="AI enhance — polish your text"
               >
@@ -804,6 +955,25 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
                   <Sparkles className="h-3.5 w-3.5" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={toggleVoice}
+                disabled={sending || !selectedRepoName}
+                className={`flex items-center justify-center h-7 w-7 rounded border transition-colors disabled:opacity-40 ${
+                  isListening
+                    ? "bg-red-500/10 text-red-400 border-red-500/40 hover:bg-red-500/20"
+                    : "bg-muted/40 text-muted-foreground hover:text-foreground border-border hover:border-muted-foreground/40"
+                }`}
+                title={isListening ? "Stop recording" : "Voice input"}
+              >
+                {isTranscribing ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : isListening ? (
+                  <MicOff className="h-3.5 w-3.5" />
+                ) : (
+                  <Mic className="h-3.5 w-3.5" />
                 )}
               </button>
               <button
@@ -824,6 +994,37 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
               </kbd>
             </div>
           </div>
+          {/* REC badge */}
+          {(isListening || isTranscribing) && (
+            <div className="flex items-center gap-1.5 px-3 pb-1.5">
+              <span className={`inline-block h-1.5 w-1.5 rounded-full animate-pulse ${isTranscribing ? "bg-amber-400" : "bg-red-500"}`} />
+              <span className={`font-mono text-[10px] ${isTranscribing ? "text-amber-400" : "text-red-400"}`}>
+                {isTranscribing ? "transcribing…" : "REC — speak now"}
+              </span>
+            </div>
+          )}
+
+          {/* AI enhance accept/reject bar */}
+          {isEnhanced && originalInput !== null && (
+            <div className="flex items-center gap-2 px-3 pb-2">
+              <Sparkles className="h-3 w-3 text-primary/70 shrink-0" />
+              <span className="font-mono text-[10px] text-muted-foreground flex-1">AI enhanced</span>
+              <button
+                type="button"
+                onClick={acceptEnhance}
+                className="font-mono text-[10px] px-2 py-0.5 rounded border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+              >
+                Keep
+              </button>
+              <button
+                type="button"
+                onClick={restoreOriginal}
+                className="font-mono text-[10px] px-2 py-0.5 rounded border border-border text-muted-foreground hover:text-foreground hover:border-muted-foreground/40 transition-colors"
+              >
+                Restore
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
