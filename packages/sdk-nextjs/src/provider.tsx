@@ -311,9 +311,9 @@ function GlitchgrabProviderInner({
   );
 
   const enhance = useCallback(
-    async (text: string): Promise<string> => {
+    async (text: string, screenshot?: string | null): Promise<string> => {
       try {
-        return await enhanceText(text, token, baseUrl);
+        return await enhanceText(text, token, baseUrl, screenshot);
       } catch {
         return text;
       }
