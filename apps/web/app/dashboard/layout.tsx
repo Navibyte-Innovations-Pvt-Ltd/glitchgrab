@@ -7,6 +7,7 @@ import { getUserPlan, getTrialStatus } from "@/lib/billing";
 import type { PlanBadgeType } from "@/components/dashboard/plan-badge";
 import { PaywallGuard } from "@/components/dashboard/paywall-guard";
 import { DashboardStatusBar } from "@/components/dashboard/dashboard-status-bar";
+import { PhonePromptDialog } from "@/components/dashboard/phone-prompt-dialog";
 import { prisma } from "@/lib/db";
 
 export default async function DashboardLayout({
@@ -35,6 +36,13 @@ export default async function DashboardLayout({
       }
     }
   }
+
+  const dbUser = session.user.id
+    ? await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { whatsappPhone: true },
+      })
+    : null;
 
   const user = {
     name: session.user.name,
@@ -65,6 +73,7 @@ export default async function DashboardLayout({
         <main className="flex-1 overflow-y-auto p-4 pb-20 md:p-6 md:pb-6">
           <PaywallGuard>{children}</PaywallGuard>
         </main>
+        <PhonePromptDialog hasPhone={!!dbUser?.whatsappPhone} />
         <BottomNav user={user} planBadge={planBadge} trialDaysLeft={trialDaysLeft} />
       </div>
     </div>
