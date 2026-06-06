@@ -104,6 +104,13 @@ async function compressImage(
   }
 }
 
+const CHAT_PLACEHOLDERS = [
+  "What's broken? Type, paste a log, or drop a screenshot",
+  "Hold Space to speak — we'll transcribe it",
+  "Paste a stack trace or error message",
+  "Drop or paste a screenshot",
+];
+
 function formatBytes(n: number) {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)} MB`;
   if (n >= 1_000) return `${Math.round(n / 1_000)} KB`;
@@ -391,6 +398,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
   const sarvamChunksRef = useRef<Blob[]>([]);
   const spaceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isPushToTalkRef = useRef(false);
+  const [placeholderIdx, setPlaceholderIdx] = useState(0);
 
   function addFiles(files: FileList | File[]) {
     const newFiles: File[] = [];
@@ -759,6 +767,14 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
   // Stop voice when component unmounts
   useEffect(() => () => { stopVoice(); }, []);
 
+  useEffect(() => {
+    if (!selectedRepoName) return;
+    const id = setInterval(() => {
+      setPlaceholderIdx((i) => (i + 1) % CHAT_PLACEHOLDERS.length);
+    }, 3000);
+    return () => clearInterval(id);
+  }, [selectedRepoName]);
+
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -1041,7 +1057,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
               placeholder={
                 isTranscribing ? "Transcribing…" :
                 isListening ? "Listening… speak now" :
-                selectedRepoName ? "describe a bug, paste a log, or paste / drop a screenshot..." :
+                selectedRepoName ? CHAT_PLACEHOLDERS[placeholderIdx] :
                 "select a repo above to get started..."
               }
               rows={1}
