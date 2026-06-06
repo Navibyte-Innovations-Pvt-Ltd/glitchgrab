@@ -215,9 +215,16 @@ html {
 
 /* WebView GPU fixes and pull-to-refresh are handled by injected style tag (#glitchgrab-webview) from the mobile app */
 
+/* Phone input country divider */
+.PhoneInputCountry {
+  border-right: 1px solid #3f3f46;
+  padding-right: 0.5rem;
+  margin-right: 0.5rem;
+}
+
 /* AppInputFields custom border/icon/placeholder utilities */
 :root {
-  --app-input-border: var(--border);
+  --app-input-border: var(--color-border-bright);
 }
 @layer utilities {
   .app-input-border-color {
