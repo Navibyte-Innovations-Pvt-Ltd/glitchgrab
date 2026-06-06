@@ -217,6 +217,8 @@ export function ReportDialog({
   showSeverity = true,
 }: ReportDialogProps) {
   const [isEnhancing, setIsEnhancing] = useState(false);
+  const [isEnhanced, setIsEnhanced] = useState(false);
+  const [originalDescription, setOriginalDescription] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
@@ -386,6 +388,8 @@ export function ReportDialog({
     setSeverity("medium");
     setValidationError(null);
     setVoiceError(null);
+    setIsEnhanced(false);
+    setOriginalDescription(null);
   };
 
   const toggleVoice = async () => {
@@ -699,7 +703,11 @@ export function ReportDialog({
                       <div style={{ position: "relative" }}>
                         <textarea
                           value={description}
-                          onChange={(e) => { setDescription(e.target.value); if (validationError) setValidationError(null); }}
+                          onChange={(e) => {
+                            setDescription(e.target.value);
+                            if (validationError) setValidationError(null);
+                            if (isEnhanced) { setIsEnhanced(false); setOriginalDescription(null); }
+                          }}
                           placeholder={isTranscribing ? "Transcribing your speech…" : isListening ? "Listening… speak now" : getPlaceholder(reportType)}
                           style={{
                             width: "100%",
@@ -780,14 +788,16 @@ export function ReportDialog({
                               try {
                                 const polished = await enhanceText(description, screenshot);
                                 if (polished && polished !== description) {
+                                  setOriginalDescription(description);
                                   setDescription(polished);
+                                  setIsEnhanced(true);
                                   if (validationError) setValidationError(null);
                                 }
                               } finally {
                                 setIsEnhancing(false);
                               }
                             }}
-                            disabled={!description.trim() || isEnhancing}
+                            disabled={!description.trim() || isEnhancing || isEnhanced}
                             style={{
                               position: "absolute",
                               top: "6px",
@@ -850,6 +860,61 @@ export function ReportDialog({
                           )}
                         </button>}
                       </div>
+                      {isEnhanced && originalDescription !== null && (
+                        <div style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          marginTop: "6px",
+                          padding: "6px 8px",
+                          borderRadius: "6px",
+                          background: isDark ? "rgba(34,211,238,0.06)" : "rgba(8,145,178,0.05)",
+                          border: `1px solid ${t.accent}40`,
+                        }}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+                            <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z" stroke={t.accent} strokeWidth="1.5" strokeLinejoin="round" />
+                          </svg>
+                          <span style={{ fontSize: "11px", color: t.textMuted, flex: 1 }}>AI enhanced</span>
+                          <button
+                            type="button"
+                            onClick={() => { setIsEnhanced(false); setOriginalDescription(null); }}
+                            style={{
+                              padding: "2px 8px",
+                              borderRadius: "4px",
+                              border: `1px solid ${t.accent}`,
+                              background: t.accent,
+                              color: t.accentText,
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              fontFamily: "inherit",
+                            }}
+                          >
+                            Keep
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDescription(originalDescription);
+                              setIsEnhanced(false);
+                              setOriginalDescription(null);
+                            }}
+                            style={{
+                              padding: "2px 8px",
+                              borderRadius: "4px",
+                              border: `1px solid ${t.inputBorder}`,
+                              background: "transparent",
+                              color: t.textMuted,
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              fontFamily: "inherit",
+                            }}
+                          >
+                            Restore
+                          </button>
+                        </div>
+                      )}
                       {voiceError && (
                         <p style={{ color: "#ef4444", fontSize: "11px", marginTop: "4px", marginBottom: 0 }}>
                           {voiceError}
