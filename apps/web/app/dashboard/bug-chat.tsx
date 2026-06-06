@@ -1125,8 +1125,8 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
             </div>
           ) : selectedRepoName ? (
             <div className="flex items-center gap-1.5 px-3 pb-1.5">
-              <Mic className="h-2.5 w-2.5 text-muted-foreground/35" />
-              <span className="font-mono text-[10px] text-muted-foreground/35">hold ⎵ to speak</span>
+              <Mic className="h-2.5 w-2.5 text-foreground/60" />
+              <span className="font-mono text-[10px] text-foreground/60">hold ⎵ to speak</span>
             </div>
           ) : null}
 
