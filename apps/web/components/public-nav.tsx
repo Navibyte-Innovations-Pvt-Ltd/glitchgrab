@@ -21,7 +21,7 @@ export function PublicNav() {
 
         <div className="hidden md:flex items-center gap-8 h-full border-x border-border px-8">
           <Link
-            href="/#how-it-works"
+            href="/features"
             className="font-mono text-xs uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors"
           >
             /features
