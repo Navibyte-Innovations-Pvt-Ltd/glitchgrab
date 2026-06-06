@@ -200,6 +200,7 @@ function isLowQualityText(text: string): string | null {
 interface ReportDialogProps {
   report: UseGlitchgrabReturn["report"];
   enhanceText?: UseGlitchgrabReturn["enhanceText"];
+  transcribeAudio?: (blob: Blob) => Promise<string>;
   types?: ReportType[];
   showSeverity?: boolean;
 }
@@ -211,10 +212,13 @@ interface ReportDialogProps {
 export function ReportDialog({
   report,
   enhanceText,
+  transcribeAudio,
   types,
   showSeverity = true,
 }: ReportDialogProps) {
   const [isEnhancing, setIsEnhancing] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
   const [screenshotDragOver, setScreenshotDragOver] = useState(false);
   // Prevent hydration mismatch — render nothing until after hydration
   const [mounted, setMounted] = useState(false);
@@ -228,6 +232,8 @@ export function ReportDialog({
   const [previewOpen, setPreviewOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   // When open, set inert on any host Radix/shadcn dialogs so their FocusScope
   // doesn't steal focus back from GlitchGrab's textarea via focusout interception.
@@ -241,7 +247,7 @@ export function ReportDialog({
   }, [isOpen]);
 
   // Stepper state
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState<1 | 2>(1);
   const [reportType, setReportType] = useState<ReportType>("BUG");
   const [severity, setSeverity] = useState<ReportSeverity>("medium");
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -358,12 +364,56 @@ export function ReportDialog({
     return () => window.removeEventListener("paste", handlePaste);
   }, [isOpen]);
 
+  const stopVoice = () => {
+    try { mediaRecorderRef.current?.stop(); } catch { /* ignore */ }
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    mediaRecorderRef.current = null;
+    streamRef.current = null;
+    setIsListening(false);
+  };
+
   const handleClose = () => {
+    stopVoice();
     setIsOpen(false);
     setStep(1);
     setReportType("BUG");
     setSeverity("medium");
     setValidationError(null);
+    setVoiceError(null);
+  };
+
+  const toggleVoice = async () => {
+    if (isListening) { stopVoice(); return; }
+    if (!transcribeAudio) return;
+    setVoiceError(null);
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      setVoiceError("Microphone access denied");
+      return;
+    }
+    streamRef.current = stream;
+    const recorder = new MediaRecorder(stream);
+    mediaRecorderRef.current = recorder;
+    recorder.ondataavailable = async (e) => {
+      if (e.data.size === 0) return;
+      try {
+        const text = await transcribeAudio(e.data);
+        if (text.trim()) {
+          setDescription((prev) => prev + (prev.trim() ? " " : "") + text.trim());
+          setValidationError(null);
+        }
+      } catch { /* ignore chunk errors */ }
+    };
+    recorder.onstop = () => {
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+      mediaRecorderRef.current = null;
+      setIsListening(false);
+    };
+    recorder.start(3000);
+    setIsListening(true);
   };
 
   const handleSubmit = async () => {
@@ -461,7 +511,7 @@ export function ReportDialog({
                   {step > 1 && (
                     <button
                       type="button"
-                      onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3)}
+                      onClick={() => setStep((s) => (s - 1) as 1 | 2)}
                       style={{
                         background: "none",
                         border: "none",
@@ -484,7 +534,7 @@ export function ReportDialog({
                       color: t.text,
                     }}
                   >
-                    {step === 1 ? "What's on your mind?" : step === 2 ? "Tell us more" : "Review & Send"}
+                    {step === 1 ? "What's on your mind?" : "Tell us more"}
                   </span>
                 </div>
                 <button
@@ -507,7 +557,7 @@ export function ReportDialog({
                 </button>
               </div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0", marginTop: "12px" }}>
-                {[1, 2, 3].map((s, i) => (
+                {[1, 2].map((s, i) => (
                   <div key={s} style={{ display: "flex", alignItems: "center" }}>
                     <div style={{
                       width: "8px",
@@ -516,7 +566,7 @@ export function ReportDialog({
                       backgroundColor: s <= step ? t.accent : t.inputBorder,
                       transition: "background-color 0.2s ease",
                     }} />
-                    {i < 2 && (
+                    {i < 1 && (
                       <div style={{
                         width: "40px",
                         height: "2px",
@@ -588,13 +638,13 @@ export function ReportDialog({
                         <textarea
                           value={description}
                           onChange={(e) => { setDescription(e.target.value); if (validationError) setValidationError(null); }}
-                          placeholder={getPlaceholder(reportType)}
+                          placeholder={isListening ? "Listening… speak now" : getPlaceholder(reportType)}
                           style={{
                             width: "100%",
                             minHeight: "100px",
-                            padding: enhanceText ? "28px 12px 10px" : "10px 12px",
+                            padding: enhanceText ? "28px 12px 36px" : "10px 12px 36px",
                             borderRadius: "8px",
-                            border: `1px solid ${t.inputBorder}`,
+                            border: `1px solid ${isListening ? t.accent : t.inputBorder}`,
                             fontSize: "14px",
                             fontFamily: "inherit",
                             resize: "vertical",
@@ -602,11 +652,13 @@ export function ReportDialog({
                             boxSizing: "border-box",
                             color: t.text,
                             backgroundColor: t.inputBg,
+                            transition: "border-color 0.2s ease",
                           }}
                           onFocus={(e) => { (e.target as HTMLTextAreaElement).style.borderColor = t.accent; }}
-                          onBlur={(e) => { (e.target as HTMLTextAreaElement).style.borderColor = t.inputBorder; }}
+                          onBlur={(e) => { if (!isListening) (e.target as HTMLTextAreaElement).style.borderColor = t.inputBorder; }}
                           autoFocus
                         />
+                        {/* Top-right: AI enhance */}
                         {enhanceText && (
                           <button
                             type="button"
@@ -650,7 +702,47 @@ export function ReportDialog({
                             {isEnhancing ? "Enhancing..." : "AI enhance"}
                           </button>
                         )}
+                        {/* Bottom-right: mic icon only, outlined */}
+                        {transcribeAudio && <button
+                          type="button"
+                          onClick={() => { void toggleVoice(); }}
+                          title={isListening ? "Stop recording" : "Speak your report"}
+                          style={{
+                            position: "absolute",
+                            bottom: "7px",
+                            right: "7px",
+                            width: "26px",
+                            height: "26px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            background: "transparent",
+                            border: `1.5px solid ${isListening ? "#ef4444" : t.inputBorder}`,
+                            borderRadius: "6px",
+                            color: isListening ? "#ef4444" : t.textMuted,
+                            cursor: "pointer",
+                            zIndex: 1,
+                            padding: 0,
+                            transition: "border-color 0.2s ease, color 0.2s ease",
+                          }}
+                        >
+                          {isListening ? (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                              <rect x="6" y="6" width="12" height="12" rx="2" />
+                            </svg>
+                          ) : (
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                              <rect x="9" y="2" width="6" height="12" rx="3" stroke="currentColor" strokeWidth="1.8" />
+                              <path d="M5 10a7 7 0 0014 0M12 19v3M9 22h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                            </svg>
+                          )}
+                        </button>}
                       </div>
+                      {voiceError && (
+                        <p style={{ color: "#ef4444", fontSize: "11px", marginTop: "4px", marginBottom: 0 }}>
+                          {voiceError}
+                        </p>
+                      )}
 
                       {/* Screenshot section */}
                       <div style={{ marginTop: "10px" }}>
@@ -817,121 +909,19 @@ export function ReportDialog({
                       )}
                       <button
                         type="button"
-                        onClick={() => {
-                          const err = isLowQualityText(description);
-                          if (err) { setValidationError(err); return; }
-                          setValidationError(null);
-                          setStep(3);
-                        }}
-                        disabled={!description.trim()}
+                        onClick={handleSubmit}
+                        disabled={!description.trim() || isSubmitting}
                         style={{
                           marginTop: "12px",
                           width: "100%",
                           padding: "10px",
                           borderRadius: "8px",
                           border: "none",
-                          backgroundColor: !description.trim() ? t.bgSecondary : t.accent,
-                          color: !description.trim() ? t.textMuted : t.accentText,
+                          backgroundColor: !description.trim() || isSubmitting ? t.bgSecondary : t.accent,
+                          color: !description.trim() || isSubmitting ? t.textMuted : t.accentText,
                           fontSize: "14px",
                           fontWeight: 600,
-                          cursor: !description.trim() ? "not-allowed" : "pointer",
-                          fontFamily: "inherit",
-                          transition: "background-color 0.15s ease",
-                        }}
-                      >
-                        Next
-                      </button>
-                    </>
-                  )}
-
-                  {/* Step 3: Review & Send */}
-                  {step === 3 && (
-                    <>
-                      {/* Summary chips */}
-                      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "12px" }}>
-                        <span style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "4px",
-                          padding: "4px 10px",
-                          borderRadius: "12px",
-                          fontSize: "12px",
-                          fontWeight: 600,
-                          backgroundColor: t.bgSecondary,
-                          color: t.text,
-                          border: `1px solid ${t.border}`,
-                        }}>
-                          {getTypeIcon(reportType, t.accent, 12)}
-                          {getTypeLabel(reportType)}
-                        </span>
-                        {showSeverity && reportType === "BUG" && (
-                          <span style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            padding: "4px 10px",
-                            borderRadius: "12px",
-                            fontSize: "12px",
-                            fontWeight: 600,
-                            backgroundColor: severity === "high" ? "#fef2f2" : severity === "medium" ? "#fffbeb" : "#f0fdf4",
-                            color: severity === "high" ? "#dc2626" : severity === "medium" ? "#d97706" : "#16a34a",
-                            border: `1px solid ${severity === "high" ? "#fecaca" : severity === "medium" ? "#fde68a" : "#bbf7d0"}`,
-                            textTransform: "capitalize",
-                          }}>
-                            {severity}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Description preview */}
-                      <div style={{
-                        padding: "10px 12px",
-                        borderRadius: "8px",
-                        border: `1px solid ${t.inputBorder}`,
-                        backgroundColor: t.inputBg,
-                        fontSize: "13px",
-                        color: t.text,
-                        marginBottom: "10px",
-                        maxHeight: "80px",
-                        overflow: "hidden",
-                        lineHeight: "1.4",
-                      }}>
-                        {description.length > 200 ? description.slice(0, 200) + "..." : description}
-                      </div>
-
-                      {/* Screenshot preview (managed on Step 2) */}
-                      {screenshot && (
-                        <div style={{ marginBottom: "10px", position: "relative" }}>
-                          <img
-                            src={screenshot}
-                            alt="Page screenshot"
-                            onClick={() => setPreviewOpen(true)}
-                            style={{
-                              width: "100%",
-                              borderRadius: "6px",
-                              border: `1px solid ${t.border}`,
-                              maxHeight: "80px",
-                              objectFit: "cover",
-                              objectPosition: "top",
-                              cursor: "pointer",
-                            }}
-                          />
-                        </div>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={handleSubmit}
-                        disabled={isSubmitting}
-                        style={{
-                          width: "100%",
-                          padding: "10px",
-                          borderRadius: "8px",
-                          border: "none",
-                          backgroundColor: isSubmitting ? t.bgSecondary : t.accent,
-                          color: isSubmitting ? t.textMuted : t.accentText,
-                          fontSize: "14px",
-                          fontWeight: 600,
-                          cursor: isSubmitting ? "not-allowed" : "pointer",
+                          cursor: !description.trim() || isSubmitting ? "not-allowed" : "pointer",
                           fontFamily: "inherit",
                           transition: "background-color 0.15s ease",
                         }}
