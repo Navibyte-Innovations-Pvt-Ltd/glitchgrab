@@ -19,6 +19,9 @@
       "next": {
         "entry": ["next.config.{js,ts,cjs,mjs}"]
       },
+      "ignore": [
+        "components/AppInputFields/**"
+      ],
       "ignoreDependencies": [
         "tailwindcss",
         "shadcn",
@@ -80,7 +83,8 @@
     "@tailwindcss/postcss",
     "tailwindcss",
     "shadcn",
-    "tw-animate-css"
+    "tw-animate-css",
+    "axios"
   ],
   "ignoreBinaries": ["prisma", "semantic-release", "wait"],
   "ignore": ["apps/glitchrecord/**"],
