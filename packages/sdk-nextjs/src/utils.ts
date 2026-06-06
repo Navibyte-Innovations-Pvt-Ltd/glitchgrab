@@ -143,7 +143,8 @@ export async function sendReport(
 export async function enhanceText(
   text: string,
   token: string,
-  baseUrl?: string
+  baseUrl?: string,
+  screenshot?: string | null
 ): Promise<string> {
   try {
     const trimmed = text.trim();
@@ -155,7 +156,7 @@ export async function enhanceText(
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ text: trimmed }),
+      body: JSON.stringify({ text: trimmed, ...(screenshot ? { screenshot } : {}) }),
     });
     if (!response.ok) return text;
     const envelope = (await response.json()) as {
