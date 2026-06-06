@@ -610,7 +610,7 @@ const InputEditorV2 = (props: InputEditorV2Props) => {
         const err = await res.json();
         throw new Error(err.error || "Failed to generate content");
       }
-      return await res.json();
+      return res.json();
     },
     onSuccess: (result) => {
       if (result.success && result.content && editor) {
