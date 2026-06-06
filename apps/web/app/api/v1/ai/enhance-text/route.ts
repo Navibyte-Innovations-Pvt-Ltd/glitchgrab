@@ -22,9 +22,16 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
 }
 
+interface EnhanceContext {
+  url?: string;
+  visitedPages?: string[];
+  breadcrumbs?: Array<{ type: string; message: string }>;
+}
+
 interface EnhanceBody {
   text?: string;
   screenshot?: string;
+  context?: EnhanceContext;
 }
 
 export async function POST(request: Request) {
@@ -32,6 +39,7 @@ export async function POST(request: Request) {
     const body = (await request.json().catch(() => ({}))) as EnhanceBody;
     const text = (body.text ?? "").trim();
     const screenshot = body.screenshot ?? null;
+    const context = body.context ?? null;
 
     if (!text) {
       return NextResponse.json(
@@ -43,6 +51,8 @@ export async function POST(request: Request) {
     // Auth: either a Bearer gg_ token OR a dashboard session.
     // Anonymous traffic is rejected with 401.
     let rateLimitKey: string | null = null;
+    let apiTokenId: string | null = null;
+    let userId: string | null = null;
 
     const authHeader = request.headers.get("authorization");
     if (authHeader?.startsWith("Bearer gg_")) {
@@ -52,18 +62,18 @@ export async function POST(request: Request) {
         where: { tokenHash },
         select: { id: true },
       });
-      if (!apiToken) {
-        return NextResponse.json(
-          { success: false, error: "Invalid API token" },
-          { status: 401, headers: CORS_HEADERS }
-        );
+      if (apiToken) {
+        // Bump lastUsed (don't await — non-critical)
+        prisma.apiToken
+          .update({ where: { id: apiToken.id }, data: { lastUsed: new Date() } })
+          .catch(() => {});
+        rateLimitKey = `token:${tokenHash}`;
+        apiTokenId = apiToken.id;
       }
-      // Bump lastUsed (don't await — non-critical)
-      prisma.apiToken
-        .update({ where: { id: apiToken.id }, data: { lastUsed: new Date() } })
-        .catch(() => {});
-      rateLimitKey = `token:${tokenHash}`;
-    } else {
+    }
+
+    // Fall through to session auth if token not found (e.g. dashboard using SDK with its own token)
+    if (!rateLimitKey) {
       const session = await auth();
       if (!session?.user?.id) {
         return NextResponse.json(
@@ -72,6 +82,7 @@ export async function POST(request: Request) {
         );
       }
       rateLimitKey = `user:${session.user.id}`;
+      userId = session.user.id;
     }
 
     const rl = checkRateLimit(rateLimitKey, ENHANCE_LIMIT, ENHANCE_WINDOW_MS);
@@ -91,7 +102,19 @@ export async function POST(request: Request) {
       );
     }
 
-    const enhanced = await enhanceText(text, screenshot);
+    const enhanced = await enhanceText(text, screenshot, context);
+
+    // Save enhance log async — fire-and-forget, never blocks the response
+    prisma.aiEnhanceLog.create({
+      data: {
+        originalText: text,
+        enhancedText: enhanced,
+        changed: enhanced !== text,
+        pageUrl: context?.url ?? null,
+        apiTokenId,
+        userId,
+      },
+    }).catch(() => {});
 
     return NextResponse.json(
       { success: true, data: { text: enhanced } },
