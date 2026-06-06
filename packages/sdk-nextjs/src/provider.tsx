@@ -17,7 +17,7 @@ import type {
 } from "./types";
 import { GlitchgrabErrorBoundary } from "./error-boundary";
 import { ReportDialog } from "./report-dialog";
-import { sanitizeUrl, captureContext, sendReport, captureDeviceInfo, enhanceText, transcribeAudio } from "./utils";
+import { sanitizeUrl, captureContext, sendReport, captureDeviceInfo, enhanceText, transcribeAudio, type EnhanceContext } from "./utils";
 import { computeSignature, shouldSkipDuplicate } from "./dedup";
 import {
   initBreadcrumbs,
@@ -313,7 +313,13 @@ function GlitchgrabProviderInner({
   const enhance = useCallback(
     async (text: string, screenshot?: string | null): Promise<string> => {
       try {
-        return await enhanceText(text, token, baseUrl, screenshot);
+        const ctx = captureContext(visitedPagesRef.current);
+        const context: EnhanceContext = {
+          url: ctx.url,
+          visitedPages: ctx.visitedPages.slice(-5),
+          breadcrumbs: ctx.breadcrumbs.slice(-10).map((b) => ({ type: b.type, message: b.message })),
+        };
+        return await enhanceText(text, token, baseUrl, screenshot, context);
       } catch {
         return text;
       }
