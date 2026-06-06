@@ -1,3 +1,5 @@
+"use client";
+
 import {
   FormControl,
   FormField,
@@ -8,7 +10,7 @@ import {
 import { PhoneInput } from "@/components/ui/phone-input";
 import { cn } from "@/lib/utils";
 import { useFormContext } from "react-hook-form";
-import { InputFieldProps } from "../InputField";
+import { InputFieldProps } from "../InputField.types";
 
 const InputPhone = (props: Omit<InputFieldProps, "form">) => {
   const {
