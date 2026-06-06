@@ -65,8 +65,12 @@ export async function POST(request: Request) {
       );
     }
 
+    // Sarvam rejects 'audio/webm;codecs=opus' — strip codec param, keep 'audio/webm'
+    const audioBuffer = await file.arrayBuffer();
+    const cleanBlob = new Blob([audioBuffer], { type: "audio/webm" });
+
     const sarvamForm = new FormData();
-    sarvamForm.append("file", file, "audio.webm");
+    sarvamForm.append("file", cleanBlob, "audio.webm");
     sarvamForm.append("model", "saarika:v2");
     // No language_code — let Sarvam auto-detect
 
