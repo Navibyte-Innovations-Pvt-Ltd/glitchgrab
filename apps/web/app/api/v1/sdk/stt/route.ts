@@ -90,7 +90,6 @@ export async function POST(request: Request) {
     }
 
     const sarvamData = (await sarvamRes.json()) as { transcript?: string };
-    console.log("[stt] transcript:", sarvamData.transcript);
     const transcript = sarvamData.transcript ?? "";
 
     return NextResponse.json(
