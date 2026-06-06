@@ -1,6 +1,9 @@
 import { getOrgContext } from "./lib/get-org-context";
 import { OrgSidebar } from "./org-sidebar";
 import { OrgBottomNav } from "./org-bottom-nav";
+import { PhonePromptDialog } from "@/components/dashboard/phone-prompt-dialog";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 
 export default async function OrgLayout({
   children,
@@ -10,7 +13,13 @@ export default async function OrgLayout({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const ctx = await getOrgContext(slug);
+  const [ctx, session] = await Promise.all([getOrgContext(slug), auth()]);
+  const dbUser = session?.user?.id
+    ? await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { whatsappPhone: true },
+      })
+    : null;
 
   return (
     <div className="flex h-(--app-height,100vh) bg-background transition-[height] duration-100">
@@ -21,6 +30,7 @@ export default async function OrgLayout({
         </main>
       </div>
       <OrgBottomNav ctx={ctx} />
+      <PhonePromptDialog hasPhone={!!dbUser?.whatsappPhone} />
     </div>
   );
 }

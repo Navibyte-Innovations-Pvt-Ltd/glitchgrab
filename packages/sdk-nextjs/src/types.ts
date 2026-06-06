@@ -143,7 +143,7 @@ export interface UseGlitchgrabReturn {
    * Fixes grammar / clarity only — never invents details or changes meaning.
    * Returns the polished text, or the original text on any failure (never throws).
    */
-  enhanceText: (text: string) => Promise<string>;
+  enhanceText: (text: string, screenshot?: string | null) => Promise<string>;
   /** The token being used */
   token: string;
   /** The base URL of the Glitchgrab API */

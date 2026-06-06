@@ -1,6 +1,30 @@
 const BASE_URL = "https://glitchgrab.dev";
 const ORG_NAME = "Glitchgrab";
 
+export function FounderPersonJsonLd() {
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    name: "Naresh Bhosale",
+    jobTitle: "Founder & Developer",
+    worksFor: {
+      "@type": "Organization",
+      name: "Navibyte Innovations Pvt. Ltd.",
+      url: "https://navibyte.in",
+    },
+    knowsAbout: ["Next.js", "TypeScript", "Developer Tools", "GitHub Issues", "Bug Tracking"],
+    nationality: { "@type": "Country", name: "India" },
+    email: "bhosalenaresh73@gmail.com",
+    url: BASE_URL,
+  };
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
+}
+
 export function OrganizationJsonLd() {
   const schema = {
     "@context": "https://schema.org",
@@ -38,6 +62,7 @@ export function OrganizationJsonLd() {
     sameAs: [
       "https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab",
       "https://www.npmjs.com/package/glitchgrab",
+      "https://glitchgrab.dev",
     ],
   };
   return (
@@ -110,6 +135,70 @@ export function FAQJsonLd({
         text: faq.answer,
       },
     })),
+  };
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
+}
+
+export function DemoVideoJsonLd() {
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "VideoObject",
+    name: "Glitchgrab Demo — Auto-create GitHub Issues from Next.js Errors",
+    description:
+      "45-second walkthrough showing how Glitchgrab captures a production error and automatically creates a structured GitHub issue with title, steps, labels, and severity.",
+    thumbnailUrl: `${BASE_URL}/og-image.png`,
+    contentUrl: "https://cdn.glitchgrab.dev/meta/Timeline.mp4",
+    embedUrl: `${BASE_URL}/#how-it-works`,
+    uploadDate: "2026-01-01",
+    duration: "PT45S",
+    publisher: {
+      "@type": "Organization",
+      name: ORG_NAME,
+      logo: { "@type": "ImageObject", url: `${BASE_URL}/logo.png` },
+    },
+  };
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
+}
+
+export function SdkProductJsonLd() {
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareSourceCode",
+    name: "glitchgrab npm package",
+    description:
+      "Drop-in Next.js SDK that auto-captures unhandled errors and turns them into structured GitHub issues. Supports Next.js 13, 14, and 15.",
+    codeRepository: "https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab",
+    programmingLanguage: "TypeScript",
+    runtimePlatform: "Node.js",
+    targetProduct: {
+      "@type": "SoftwareApplication",
+      name: "Glitchgrab",
+      applicationCategory: "DeveloperApplication",
+      operatingSystem: "Any",
+      offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "USD",
+        description: "Free tier — unlimited reports, 1 GitHub repo",
+      },
+    },
+    author: {
+      "@type": "Organization",
+      name: "Navibyte Innovations Pvt. Ltd.",
+      url: "https://navibyte.in",
+    },
+    license: "https://opensource.org/licenses/MIT",
+    url: "https://www.npmjs.com/package/glitchgrab",
   };
   return (
     <script

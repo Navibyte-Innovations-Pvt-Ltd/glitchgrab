@@ -45,6 +45,7 @@ model User {
   ownedOrgs     Organization[]
   orgMemberships OrgMember[]
   glitchRecordTokens GlitchRecordToken[]
+  aiEnhanceLogs      AiEnhanceLog[]
   whatsappOtps  WhatsappOtp[]
 }
 
@@ -131,8 +132,9 @@ model ApiToken {
   expiresAt DateTime?
   createdAt DateTime  @default(now())
 
-  repo    Repo     @relation(fields: [repoId], references: [id], onDelete: Cascade)
-  reports Report[]
+  repo           Repo           @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  reports        Report[]
+  aiEnhanceLogs  AiEnhanceLog[]
 }
 
 // ─── Reports & Issues ────────────────────────────────────
@@ -351,6 +353,21 @@ model GlitchRecordToken {
   expiresAt DateTime
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// AI enhance before/after log — for auditing whether AI is preserving user intent
+model AiEnhanceLog {
+  id           String   @id @default(cuid())
+  originalText String
+  enhancedText String
+  changed      Boolean  // false = AI returned same text
+  pageUrl      String?
+  apiTokenId   String?  // set when called from SDK
+  userId       String?  // set when called from dashboard session
+  createdAt    DateTime @default(now())
+
+  apiToken ApiToken? @relation(fields: [apiTokenId], references: [id], onDelete: SetNull)
+  user     User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
 
 // Temporary click-capture sessions for Recordly script generation

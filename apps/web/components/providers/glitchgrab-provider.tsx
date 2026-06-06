@@ -18,9 +18,13 @@ export function GlitchgrabSDKProvider({
       }
     : null;
 
+  // Use current origin so API calls (STT, enhance) hit the right server in both dev and prod
+  const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://glitchgrab.dev";
+
   return (
     <GlitchgrabProvider
       token={process.env.NEXT_PUBLIC_GLITCHGRAB_TOKEN ?? ""}
+      baseUrl={baseUrl}
       session={session}
     >
       {children}

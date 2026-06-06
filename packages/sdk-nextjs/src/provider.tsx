@@ -17,7 +17,7 @@ import type {
 } from "./types";
 import { GlitchgrabErrorBoundary } from "./error-boundary";
 import { ReportDialog } from "./report-dialog";
-import { sanitizeUrl, captureContext, sendReport, captureDeviceInfo, enhanceText } from "./utils";
+import { sanitizeUrl, captureContext, sendReport, captureDeviceInfo, enhanceText, transcribeAudio, type EnhanceContext } from "./utils";
 import { computeSignature, shouldSkipDuplicate } from "./dedup";
 import {
   initBreadcrumbs,
@@ -311,11 +311,28 @@ function GlitchgrabProviderInner({
   );
 
   const enhance = useCallback(
-    async (text: string): Promise<string> => {
+    async (text: string, screenshot?: string | null): Promise<string> => {
       try {
-        return await enhanceText(text, token, baseUrl);
+        const ctx = captureContext(visitedPagesRef.current);
+        const context: EnhanceContext = {
+          url: ctx.url,
+          visitedPages: ctx.visitedPages.slice(-5),
+          breadcrumbs: ctx.breadcrumbs.slice(-10).map((b) => ({ type: b.type, message: b.message })),
+        };
+        return await enhanceText(text, token, baseUrl, screenshot, context);
       } catch {
         return text;
+      }
+    },
+    [token, baseUrl]
+  );
+
+  const transcribe = useCallback(
+    async (blob: Blob): Promise<string> => {
+      try {
+        return await transcribeAudio(blob, token, baseUrl);
+      } catch {
+        return "";
       }
     },
     [token, baseUrl]
@@ -366,7 +383,7 @@ function GlitchgrabProviderInner({
       >
         {children}
       </GlitchgrabErrorBoundary>
-      <ReportDialog report={report} enhanceText={enhance} types={types} showSeverity={showSeverity} />
+      <ReportDialog report={report} enhanceText={enhance} transcribeAudio={transcribe} types={types} showSeverity={showSeverity} />
     </GlitchgrabContext.Provider>
   );
 }

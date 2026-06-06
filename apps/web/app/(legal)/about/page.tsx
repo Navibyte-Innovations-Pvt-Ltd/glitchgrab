@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Github, ArrowRight } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "About",
+  title: "About Glitchgrab — Open-Source Bug Tracker for Next.js",
   description:
     "Glitchgrab is an open-source AI bug capture tool built by Navibyte Innovations. Learn who built it, why, and what we're working toward.",
   alternates: {

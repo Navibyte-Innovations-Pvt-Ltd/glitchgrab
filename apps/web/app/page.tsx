@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { version } from "../package.json";
 import { softwareApplicationSchema } from "@/lib/schema";
-import { BreadcrumbJsonLd, FAQJsonLd } from "@/components/seo/json-ld";
+import { BreadcrumbJsonLd, FAQJsonLd, DemoVideoJsonLd, SdkProductJsonLd } from "@/components/seo/json-ld";
 import { PublicNav } from "@/components/public-nav";
 
 import { WaitlistForm } from "./waitlist-form";
@@ -76,6 +76,8 @@ export default function LandingPage() {
       />
       <BreadcrumbJsonLd items={[{ name: "Home", url: "https://glitchgrab.dev" }]} />
       <FAQJsonLd faqs={FAQS} />
+      <DemoVideoJsonLd />
+      <SdkProductJsonLd />
       {/* Global grid background */}
       <div
         aria-hidden

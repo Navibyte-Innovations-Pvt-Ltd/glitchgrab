@@ -12,6 +12,6 @@
       "/api/v1/capture-sessions/**",
       "/api/v1/glitchrecord/**"
     ],
-    "files": ["**/db-sync.ts", "**/components/ui/**", "**/public/favicon-48x48.png", "apps/glitchrecord/**"]
+    "files": ["**/db-sync.ts", "**/components/ui/**", "**/components/AppInputFields/**", "**/public/favicon-48x48.png", "apps/glitchrecord/**"]
   }
 }

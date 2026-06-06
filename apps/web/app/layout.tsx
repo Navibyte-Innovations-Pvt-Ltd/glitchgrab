@@ -4,7 +4,7 @@ import { AuthSessionProvider } from "@/components/providers/session-provider";
 import { GlitchgrabSDKProvider } from "@/components/providers/glitchgrab-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { Toaster } from "@/components/ui/sonner";
-import { OrganizationJsonLd, WebSiteJsonLd } from "@/components/seo/json-ld";
+import { OrganizationJsonLd, WebSiteJsonLd, FounderPersonJsonLd } from "@/components/seo/json-ld";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
@@ -89,6 +89,7 @@ export default function RootLayout({
         />
         <OrganizationJsonLd />
         <WebSiteJsonLd />
+        <FounderPersonJsonLd />
       </head>
       <body>
         <AuthSessionProvider>

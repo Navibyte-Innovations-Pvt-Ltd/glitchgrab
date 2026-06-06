@@ -135,6 +135,12 @@ export async function sendReport(
   }
 }
 
+export interface EnhanceContext {
+  url?: string;
+  visitedPages?: string[];
+  breadcrumbs?: Array<{ type: string; message: string }>;
+}
+
 /**
  * Polish raw description text via the Glitchgrab AI enhance endpoint.
  * Returns the polished text on success, or the original text on any failure.
@@ -143,7 +149,9 @@ export async function sendReport(
 export async function enhanceText(
   text: string,
   token: string,
-  baseUrl?: string
+  baseUrl?: string,
+  screenshot?: string | null,
+  context?: EnhanceContext | null
 ): Promise<string> {
   try {
     const trimmed = text.trim();
@@ -155,7 +163,11 @@ export async function enhanceText(
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ text: trimmed }),
+      body: JSON.stringify({
+        text: trimmed,
+        ...(screenshot ? { screenshot } : {}),
+        ...(context ? { context } : {}),
+      }),
     });
     if (!response.ok) return text;
     const envelope = (await response.json()) as {
@@ -168,5 +180,38 @@ export async function enhanceText(
     return text;
   } catch {
     return text;
+  }
+}
+
+/**
+ * Send an audio Blob to the Glitchgrab STT proxy (which calls Sarvam).
+ * Returns the transcript string, or "" on any failure. Never throws.
+ */
+export async function transcribeAudio(
+  blob: Blob,
+  token: string,
+  baseUrl?: string
+): Promise<string> {
+  try {
+    if (blob.size === 0) return "";
+    const url = `${baseUrl ?? DEFAULT_BASE_URL}/api/v1/sdk/stt`;
+    const form = new FormData();
+    form.append("file", blob, "audio.webm");
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    if (!response.ok) return "";
+    const envelope = (await response.json()) as {
+      success: boolean;
+      data?: { transcript?: string };
+    };
+    if (envelope?.success && typeof envelope.data?.transcript === "string") {
+      return envelope.data.transcript;
+    }
+    return "";
+  } catch {
+    return "";
   }
 }

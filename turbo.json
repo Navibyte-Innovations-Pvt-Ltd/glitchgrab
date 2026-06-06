@@ -24,7 +24,13 @@
         "GITHUB_MOBILE_CLIENT_SECRET",
         "GOOGLE_CLIENT_ID",
         "GOOGLE_CLIENT_SECRET",
-        "NEXT_PUBLIC_APP_URL"
+        "NEXT_PUBLIC_APP_URL",
+        "SARVAM_API_KEY",
+        "GOOGLE_AI_API_KEY",
+        "META_WA_PHONE_NUMBER_ID",
+        "META_WA_ACCESS_TOKEN",
+        "META_WA_APP_SECRET",
+        "META_WA_VERIFY_TOKEN"
       ]
     },
     "dev": {
@@ -49,7 +55,13 @@
         "GITHUB_MOBILE_CLIENT_SECRET",
         "GOOGLE_CLIENT_ID",
         "GOOGLE_CLIENT_SECRET",
-        "NEXT_PUBLIC_APP_URL"
+        "NEXT_PUBLIC_APP_URL",
+        "SARVAM_API_KEY",
+        "GOOGLE_AI_API_KEY",
+        "META_WA_PHONE_NUMBER_ID",
+        "META_WA_ACCESS_TOKEN",
+        "META_WA_APP_SECRET",
+        "META_WA_VERIFY_TOKEN"
       ]
     },
     "lint": {

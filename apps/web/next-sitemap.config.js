@@ -11,7 +11,11 @@ const AI_BOTS = [
   "cohere-ai", "CCBot", "Diffbot",
   "Meta-ExternalAgent", "FacebookBot",
   "YouBot", "Mistral-AI-User",
+  "Bytespider",
 ];
+
+// Pages that should rank high — high priority, weekly changefreq
+const HIGH_PRIORITY_PATHS = ["/", "/features", "/docs"];
 
 module.exports = {
   siteUrl: "https://glitchgrab.dev",
@@ -26,6 +30,13 @@ module.exports = {
     "/connect/*",
     "/org/*",
   ],
+  transform: async (config, path) => ({
+    loc: path,
+    changefreq: HIGH_PRIORITY_PATHS.includes(path) ? "weekly" : "monthly",
+    priority: HIGH_PRIORITY_PATHS.includes(path) ? 0.9 : 0.7,
+    lastmod: new Date().toISOString(),
+    alternateRefs: [],
+  }),
   robotsTxtOptions: {
     policies: [
       { userAgent: "*", allow: "/", disallow: PRIVATE_PATHS },

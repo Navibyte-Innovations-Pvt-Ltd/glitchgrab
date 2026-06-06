@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, memo } from "react";
+import { useState, useRef, useEffect, memo } from "react";
+import { useQueryState, parseAsString } from "nuqs";
 import axios from "axios";
 import {
   Popover,
@@ -22,6 +23,8 @@ import {
   GitFork,
   ImagePlus,
   Loader2,
+  Mic,
+  MicOff,
   Paperclip,
   RotateCcw,
   Sparkles,
@@ -30,6 +33,37 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+interface SpeechRecognitionResult {
+  readonly isFinal: boolean;
+  readonly 0: { readonly transcript: string };
+}
+interface SpeechRecognitionResultList {
+  readonly length: number;
+  [index: number]: SpeechRecognitionResult;
+}
+interface SpeechRecognitionEvent {
+  readonly resultIndex: number;
+  readonly results: SpeechRecognitionResultList;
+}
+interface SpeechRecognitionErrorEvent {
+  readonly error: string;
+}
+interface SpeechRecognitionInstance {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  onstart: (() => void) | null;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onend: (() => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  start(): void;
+  stop(): void;
+}
+type SpeechRecognitionCtor = new () => SpeechRecognitionInstance;
+interface SpeechRecognitionWindow {
+  SpeechRecognition?: SpeechRecognitionCtor;
+  webkitSpeechRecognition?: SpeechRecognitionCtor;
+}
 
 async function compressImage(
   file: File,
@@ -69,6 +103,13 @@ async function compressImage(
     return file;
   }
 }
+
+const CHAT_PLACEHOLDERS = [
+  "What's broken? Type, paste a log, or drop a screenshot",
+  "Hold Space to speak — we'll transcribe it",
+  "Paste a stack trace or error message",
+  "Drop or paste a screenshot",
+];
 
 function formatBytes(n: number) {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)} MB`;
@@ -322,7 +363,7 @@ const MessageBlock = memo(function MessageBlock({
 /* ---------- Main component ---------- */
 
 export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }) {
-  const [selectedRepoName, setSelectedRepoName] = useState("");
+  const [selectedRepoName, setSelectedRepoName] = useQueryState("repo", parseAsString.withDefault(""));
   const selectedRepo = repos.find((r) => r.fullName === selectedRepoName)?.id ?? "";
   const [input, setInput] = useState("");
   const [screenshots, setScreenshots] = useState<string[]>([]);
@@ -338,9 +379,26 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
   ]);
   const [sending, setSending] = useState(false);
   const [enhancing, setEnhancing] = useState(false);
+  const [isEnhanced, setIsEnhanced] = useState(false);
+  const [originalInput, setOriginalInput] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const [stagedPreview, setStagedPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  // Web Speech API (Chrome/Edge — live word-by-word preview)
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  const voiceBaseRef = useRef(""); // committed final words from Web Speech so far
+  const usingWebSpeechRef = useRef(false);
+  const textBeforeVoiceRef = useRef(""); // textarea content before voice session started
+  // MediaRecorder — records full audio for Sarvam final accurate result
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const sarvamChunksRef = useRef<Blob[]>([]);
+  const spaceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isPushToTalkRef = useRef(false);
+  const [placeholderIdx, setPlaceholderIdx] = useState(0);
 
   function addFiles(files: FileList | File[]) {
     const newFiles: File[] = [];
@@ -506,7 +564,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
     }
 
     const userMsg: Message = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       role: "user",
       content: input.trim(),
       screenshots: screenshots.length > 0 ? [...screenshots] : undefined,
@@ -532,12 +590,18 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
 
   async function handleEnhance() {
     const text = input.trim();
-    if (!text || enhancing || sending) return;
+    if (!text || enhancing || sending || isEnhanced) return;
     setEnhancing(true);
     try {
-      const { data } = await axios.post("/api/v1/ai/enhance-text", { text });
+      const context = { url: typeof window !== "undefined" ? window.location.href : undefined };
+      const { data } = await axios.post("/api/v1/ai/enhance-text", { text, context });
       if (data?.success && typeof data.data?.text === "string") {
-        setInput(data.data.text);
+        const enhanced = data.data.text;
+        if (enhanced !== text) {
+          setOriginalInput(text);
+          setInput(enhanced);
+          setIsEnhanced(true);
+        }
       } else {
         toast.error(data?.error ?? "Couldn't enhance text");
       }
@@ -552,10 +616,208 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
     }
   }
 
-  function handleKeyDown(e: React.KeyboardEvent) {
+  function acceptEnhance() {
+    setIsEnhanced(false);
+    setOriginalInput(null);
+  }
+
+  function restoreOriginal() {
+    if (originalInput !== null) setInput(originalInput);
+    setIsEnhanced(false);
+    setOriginalInput(null);
+  }
+
+  function stopVoice() {
+    // Cleanup — abandon both Web Speech and MediaRecorder without transcribing
+    usingWebSpeechRef.current = false;
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+    sarvamChunksRef.current = [];
+    const stream = streamRef.current;
+    streamRef.current = null;
+    stream?.getTracks().forEach((t) => t.stop());
+    try { mediaRecorderRef.current?.stop(); } catch { /* ignore */ }
+    mediaRecorderRef.current = null;
+    setIsListening(false);
+    setIsTranscribing(false);
+  }
+
+  function stopListeningAndTranscribe() {
+    // Stop Web Speech preview
+    usingWebSpeechRef.current = false;
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+    setIsListening(false);
+    // Stop MediaRecorder → onstop sends full audio to Sarvam for accurate final result
+    try { mediaRecorderRef.current?.stop(); } catch { /* ignore */ }
+  }
+
+  async function toggleVoice() {
+    if (isListening) {
+      stopListeningAndTranscribe();
+      return;
+    }
+
+    const SpeechRec: SpeechRecognitionCtor | undefined = (typeof window !== "undefined")
+      ? ((window as unknown as SpeechRecognitionWindow).SpeechRecognition ??
+         (window as unknown as SpeechRecognitionWindow).webkitSpeechRecognition)
+      : undefined;
+
+    // Get mic stream for MediaRecorder (Sarvam final result)
+    let stream: MediaStream | null = null;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      if (!SpeechRec) { toast.error("Microphone access denied"); return; }
+      // No stream but Web Speech works — proceed without Sarvam correction
+    }
+
+    if (stream) {
+      streamRef.current = stream;
+      sarvamChunksRef.current = [];
+      textBeforeVoiceRef.current = input;
+
+      const capturedStream = stream;
+      const rec = new MediaRecorder(stream);
+      mediaRecorderRef.current = rec;
+      rec.ondataavailable = (e) => { if (e.data.size > 0) sarvamChunksRef.current.push(e.data); };
+      rec.onstop = async () => {
+        capturedStream.getTracks().forEach((t) => t.stop());
+        if (streamRef.current === capturedStream) streamRef.current = null;
+        mediaRecorderRef.current = null;
+        const chunks = sarvamChunksRef.current;
+        sarvamChunksRef.current = [];
+        if (!chunks.length) return;
+        setIsTranscribing(true);
+        try {
+          const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
+          const form = new FormData();
+          form.append("file", blob, "audio.webm");
+          const { data } = await axios.post("/api/v1/sdk/stt", form);
+          if (data?.success && typeof data.data?.transcript === "string" && data.data.transcript.trim()) {
+            const transcript = data.data.transcript.trim();
+            const sep = textBeforeVoiceRef.current.trim() ? " " : "";
+            // Replace live Web Speech preview with accurate Sarvam result
+            setInput(textBeforeVoiceRef.current + sep + transcript);
+            setIsEnhanced(false);
+            setOriginalInput(null);
+          }
+        } catch { /* keep Web Speech result on Sarvam failure */ }
+        setIsTranscribing(false);
+      };
+      rec.start();
+    }
+
+    if (SpeechRec) {
+      // Web Speech for live preview
+      usingWebSpeechRef.current = true;
+      voiceBaseRef.current = input;
+      textBeforeVoiceRef.current = input;
+      const recognition = new SpeechRec();
+      recognition.lang = "en-IN";
+      recognition.interimResults = true;
+      recognition.continuous = true;
+      recognitionRef.current = recognition;
+
+      recognition.onstart = () => setIsListening(true);
+
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
+        let finalText = "";
+        let interimText = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const text = event.results[i][0].transcript;
+          if (event.results[i].isFinal) finalText += text;
+          else interimText += text;
+        }
+        if (finalText) {
+          const sep = voiceBaseRef.current.trim() ? " " : "";
+          voiceBaseRef.current += sep + finalText.trim();
+        }
+        const liveText = interimText
+          ? voiceBaseRef.current + (voiceBaseRef.current.trim() ? " " : "") + interimText
+          : voiceBaseRef.current;
+        setInput(liveText);
+      };
+
+      recognition.onend = () => {
+        if (usingWebSpeechRef.current && recognitionRef.current === recognition) {
+          try { recognition.start(); } catch { /* ignore */ }
+        } else {
+          setIsListening(false);
+        }
+      };
+
+      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+        if (event.error === "aborted" || event.error === "no-speech") return;
+        toast.error("Speech recognition not available");
+        usingWebSpeechRef.current = false;
+        recognitionRef.current = null;
+        setIsListening(false);
+      };
+
+      recognition.start();
+    } else if (!stream) {
+      toast.error("Microphone access denied");
+    } else {
+      // Firefox: Sarvam-only, no live preview
+      setIsListening(true);
+    }
+  }
+
+  // Stop voice when component unmounts
+  useEffect(() => () => { stopVoice(); }, []);
+
+  useEffect(() => {
+    if (!selectedRepoName) return;
+    const id = setInterval(() => {
+      setPlaceholderIdx((i) => (i + 1) % CHAT_PLACEHOLDERS.length);
+    }, 3000);
+    return () => clearInterval(id);
+  }, [selectedRepoName]);
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+      return;
+    }
+
+    if (e.code === "Space") {
+      // Block all repeat space events while timer pending or recording active
+      if (spaceTimerRef.current || isListening || isPushToTalkRef.current) {
+        e.preventDefault();
+        return;
+      }
+      if (e.repeat || isTranscribing) return;
+      e.preventDefault();
+      spaceTimerRef.current = setTimeout(() => {
+        isPushToTalkRef.current = true;
+        void toggleVoice();
+      }, 400);
+    }
+  }
+
+  function handleKeyUp(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.code !== "Space") return;
+    if (spaceTimerRef.current) {
+      clearTimeout(spaceTimerRef.current);
+      spaceTimerRef.current = null;
+      if (!isPushToTalkRef.current) {
+        // Insert space at cursor, not at end
+        const ta = textareaRef.current;
+        const pos = ta ? (ta.selectionStart ?? input.length) : input.length;
+        setInput((prev) => prev.slice(0, pos) + " " + prev.slice(pos));
+        requestAnimationFrame(() => {
+          if (textareaRef.current) {
+            textareaRef.current.selectionStart = pos + 1;
+            textareaRef.current.selectionEnd = pos + 1;
+          }
+        });
+      }
+    }
+    if (isPushToTalkRef.current) {
+      isPushToTalkRef.current = false;
+      stopListeningAndTranscribe();
     }
   }
 
@@ -631,7 +893,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
                         if (repo.fullName !== selectedRepoName) {
                           handleNewChat();
                         }
-                        setSelectedRepoName(repo.fullName);
+                        void setSelectedRepoName(repo.fullName);
                         setRepoPickerOpen(false);
                         setRepoSearch("");
                       }}
@@ -783,11 +1045,21 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
             )}
             <div className="pt-1.5 pl-1 font-mono text-sm text-primary shrink-0 select-none">~ $</div>
             <textarea
+              ref={textareaRef}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => {
+                setInput(e.target.value);
+                if (isEnhanced) { setIsEnhanced(false); setOriginalInput(null); }
+              }}
               onKeyDown={handleKeyDown}
+              onKeyUp={handleKeyUp}
               onPaste={handlePaste}
-              placeholder={selectedRepoName ? "describe a bug, paste a log, or paste / drop a screenshot..." : "select a repo above to get started..."}
+              placeholder={
+                isTranscribing ? "Transcribing…" :
+                isListening ? "Listening… speak now" :
+                selectedRepoName ? CHAT_PLACEHOLDERS[placeholderIdx] :
+                "select a repo above to get started..."
+              }
               rows={1}
               className="flex-1 min-w-0 resize-none bg-transparent border-0 outline-none font-mono text-sm text-foreground placeholder:text-muted-foreground/50 min-h-8 max-h-40 py-1.5 leading-relaxed"
               disabled={sending || !selectedRepoName}
@@ -796,7 +1068,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
               <button
                 type="button"
                 onClick={handleEnhance}
-                disabled={enhancing || sending || !input.trim()}
+                disabled={enhancing || sending || !input.trim() || isEnhanced}
                 className="flex items-center justify-center h-7 w-7 rounded bg-muted/40 text-muted-foreground hover:text-foreground border border-border hover:border-muted-foreground/40 transition-colors disabled:opacity-40 disabled:hover:text-muted-foreground disabled:hover:border-border"
                 title="AI enhance — polish your text"
               >
@@ -804,6 +1076,25 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
                   <Sparkles className="h-3.5 w-3.5" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={toggleVoice}
+                disabled={sending || !selectedRepoName}
+                className={`flex items-center justify-center h-7 w-7 rounded border transition-colors disabled:opacity-40 ${
+                  isListening
+                    ? "bg-red-500/10 text-red-400 border-red-500/40 hover:bg-red-500/20"
+                    : "bg-muted/40 text-muted-foreground hover:text-foreground border-border hover:border-muted-foreground/40"
+                }`}
+                title={isListening ? "Stop recording" : "Voice input"}
+              >
+                {isTranscribing ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : isListening ? (
+                  <MicOff className="h-3.5 w-3.5" />
+                ) : (
+                  <Mic className="h-3.5 w-3.5" />
                 )}
               </button>
               <button
@@ -824,6 +1115,42 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
               </kbd>
             </div>
           </div>
+          {/* REC badge / voice hint */}
+          {(isListening || isTranscribing) ? (
+            <div className="flex items-center gap-1.5 px-3 pb-1.5">
+              <span className={`inline-block h-1.5 w-1.5 rounded-full animate-pulse ${isTranscribing ? "bg-amber-400" : "bg-red-500"}`} />
+              <span className={`font-mono text-[10px] ${isTranscribing ? "text-amber-400" : "text-red-400"}`}>
+                {isTranscribing ? "transcribing…" : "REC — speak now"}
+              </span>
+            </div>
+          ) : selectedRepoName ? (
+            <div className="flex items-center gap-1.5 px-3 pb-1.5">
+              <Mic className="h-2.5 w-2.5 text-foreground/60" />
+              <span className="font-mono text-[10px] text-foreground/60">hold ⎵ to speak</span>
+            </div>
+          ) : null}
+
+          {/* AI enhance accept/reject bar */}
+          {isEnhanced && originalInput !== null && (
+            <div className="flex items-center gap-2 px-3 pb-2">
+              <Sparkles className="h-3 w-3 text-primary/70 shrink-0" />
+              <span className="font-mono text-[10px] text-muted-foreground flex-1">AI enhanced</span>
+              <button
+                type="button"
+                onClick={acceptEnhance}
+                className="font-mono text-[10px] px-2 py-0.5 rounded border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+              >
+                Keep
+              </button>
+              <button
+                type="button"
+                onClick={restoreOriginal}
+                className="font-mono text-[10px] px-2 py-0.5 rounded border border-border text-muted-foreground hover:text-foreground hover:border-muted-foreground/40 transition-colors"
+              >
+                Restore
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

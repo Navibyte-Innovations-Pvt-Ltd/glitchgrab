@@ -19,6 +19,22 @@ The tool has five components: an npm SDK for Next.js, a web dashboard, an Androi
 - **Mobile App**: Android/iOS wrapper around the web dashboard with native share intent — share a screenshot from any app directly into Glitchgrab.
 - **GlitchRecord + Chrome Extension**: Screen recorder (Electron) paired with a Chrome extension that captures click/input/scroll/navigate events during recording. Generates a narrated tutorial script via AI and auto-creates a GitHub issue in the selected repo.
 
+## Features Overview
+
+Glitchgrab has nine core features:
+
+1. **SDK Auto-capture** — Unhandled JavaScript errors in production are automatically captured (stack trace, URL, device info, breadcrumbs) and turned into GitHub issues. Disabled in development. Works without any developer action beyond initial setup.
+2. **Report Button** — A headless `<ReportButton>` component lets end-users report bugs from within the host app. Screenshot is auto-captured. Issue is filed to GitHub immediately.
+3. **Dashboard Chat** — Developers paste screenshots or describe bugs in plain text. Glitchgrab creates the structured GitHub issue directly. Optional "AI enhance" button polishes text before submission.
+4. **GlitchRecord** — Electron desktop screen recorder (macOS). Paired with the Chrome extension, it captures every click, keystroke, scroll, and navigation event during a recording. AI generates a narrated step-by-step script and auto-creates a GitHub issue.
+5. **Chrome Extension** — MV3 browser extension that captures DOM interaction events (click, input, scroll, navigate, copy, paste, select, keydown) with rich element context (role, label, href, section, selector). Works silently during GlitchRecord sessions.
+6. **WhatsApp Alerts** — Via Meta Cloud API: developers get notified when issues are assigned; reporters get a quick-reply message when their issue is resolved (tap to confirm or reopen); daily open-issue reminders; weekly resolved-issue summaries.
+7. **MCP Server** — Connects to Claude Desktop. Developers file and query GitHub issues using natural language from their AI assistant.
+8. **Mobile App** — Android/iOS native shell wrapping the web dashboard. Share screenshots from any app directly into Glitchgrab via share intent. Secure token storage.
+9. **Analytics + SEO** — Issue velocity dashboard (closed per day, avg velocity, 7d/30d/90d). SEO management for all connected domains including meta tags, sitemaps, structured data, and Google Search Console indexing health.
+
+Features page: https://glitchgrab.dev/features
+
 ## Who Uses Glitchgrab?
 
 Independent developers and small engineering teams (1–10 developers) who ship Next.js applications and use GitHub for issue tracking. Particularly useful for:
