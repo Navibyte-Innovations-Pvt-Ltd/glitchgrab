@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, memo } from "react";
+import { useQueryState, parseAsString } from "nuqs";
 import axios from "axios";
 import {
   Popover,
@@ -324,7 +325,7 @@ const MessageBlock = memo(function MessageBlock({
 /* ---------- Main component ---------- */
 
 export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }) {
-  const [selectedRepoName, setSelectedRepoName] = useState("");
+  const [selectedRepoName, setSelectedRepoName] = useQueryState("repo", parseAsString.withDefault(""));
   const selectedRepo = repos.find((r) => r.fullName === selectedRepoName)?.id ?? "";
   const [input, setInput] = useState("");
   const [screenshots, setScreenshots] = useState<string[]>([]);
@@ -853,7 +854,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
                         if (repo.fullName !== selectedRepoName) {
                           handleNewChat();
                         }
-                        setSelectedRepoName(repo.fullName);
+                        void setSelectedRepoName(repo.fullName);
                         setRepoPickerOpen(false);
                         setRepoSearch("");
                       }}
