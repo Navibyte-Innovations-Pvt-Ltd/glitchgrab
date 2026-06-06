@@ -1,3 +1,9 @@
+## [1.23.1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.23.0...sdk-v1.23.1) (2026-06-06)
+
+### Bug Fixes
+
+* **report-dialog:** use microphone access error to show more meaningful error message ([16b93c2](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/16b93c20a7474b7251b643c9ebefc94b9b7cf585))
+
 ## [1.23.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.22.0...sdk-v1.23.0) (2026-06-06)
 
 ### Features
