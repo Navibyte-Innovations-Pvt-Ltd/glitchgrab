@@ -322,6 +322,7 @@ export function ReportDialog({
   const [reportType, setReportType] = useState<ReportType>("BUG");
   const [severity, setSeverity] = useState<ReportSeverity>("medium");
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [placeholderIdx, setPlaceholderIdx] = useState(0);
 
   const availableTypes: ReportType[] = types ?? [
     "BUG",
@@ -439,6 +440,14 @@ export function ReportDialog({
     window.addEventListener("paste", handlePaste);
     return () => window.removeEventListener("paste", handlePaste);
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !transcribeAudio) return;
+    const id = setInterval(() => {
+      setPlaceholderIdx((i) => (i + 1) % 2);
+    }, 3000);
+    return () => clearInterval(id);
+  }, [isOpen, transcribeAudio]);
 
   const stopVoice = () => {
     usingWebSpeechRef.current = false;
@@ -949,7 +958,7 @@ export function ReportDialog({
                                 ? "Transcribing your speech…"
                                 : isListening
                                   ? "Listening… speak now"
-                                  : getPlaceholder(reportType)
+                                  : getPlaceholder(reportType, placeholderIdx, !!transcribeAudio)
                             }
                             style={{
                               width: "100%",
@@ -1718,10 +1727,11 @@ function getTypeSubtitle(type: ReportType): string {
   }
 }
 
-function getPlaceholder(type: ReportType): string {
+function getPlaceholder(type: ReportType, idx = 0, hasVoice = false): string {
+  if (hasVoice && idx === 1) return "Hold Space to speak — we'll transcribe it";
   switch (type) {
     case "BUG":
-      return "What went wrong?";
+      return "What went wrong? Describe it or paste an error...";
     case "FEATURE_REQUEST":
       return "Describe the feature you'd like...";
     case "QUESTION":
