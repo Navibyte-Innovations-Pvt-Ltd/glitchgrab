@@ -32,24 +32,26 @@ interface NoteQuestion {
   options: string[];
 }
 
-const QUESTION_SYSTEM_PROMPT = `The user recorded a screen flow and HELD SHIFT over specific elements to flag "I want to explain THIS here." For each flagged element you are given its label + metadata.
+const QUESTION_SYSTEM_PROMPT = `The user recorded a screen flow and HELD SHIFT over elements to flag "I want to explain THIS here." The notes are pre-GROUPED: each group is one or more sibling elements the user marked together (e.g. the Google / Phone / Email sign-up buttons).
 
-For EACH note, produce:
-- a short, friendly question asking what they want to explain at that spot (reference the element by name), and
-- exactly 3 likely answer options, grounded in the element — concise phrases the user can pick.
+For EACH group, produce:
+- a short, friendly question asking what they want to explain there.
+- exactly 3 likely answer options — concise phrases the user can pick.
 
-IMPORTANT — use ALL the metadata, especially meta.controls (child buttons inside the element, e.g. "Add", "Claim") and meta.fullText. If an element has multiple sub-actions (like an "Add" button AND a "Claim" button), the question and options MUST be about THOSE distinct actions (e.g. "Add = register a new library from Google; Claim = take ownership of one already in our database"). Don't give generic options when the metadata reveals specific sub-features.
+GROUP RULES:
+- If a group has MULTIPLE elements (e.g. Google, Phone, Email), the question is about the SET ("...about the sign-up options?") and at least one option should explain WHAT EACH ONE DOES (e.g. "Explain each: Google = one-tap, Phone = OTP via SMS, Email = email + password"). Do NOT ask three separate questions for siblings.
+- Use ALL metadata, especially meta.controls (child buttons inside the element, e.g. "Add", "Claim") and meta.fullText. If an element exposes distinct sub-actions (Add AND Claim), the options MUST be about those (e.g. "Add = register a new library from Google; Claim = take ownership of one already in our database"). No generic options when the metadata reveals specific features.
 
-Return ONLY valid JSON: an array of objects { "id": string, "question": string, "options": [string, string, string] }. Use the provided id for each. No prose, no markdown fences.`;
+Return ONLY valid JSON: an array of objects { "id": string, "question": string, "options": [string, string, string] }. Use the provided group id for each. No prose, no markdown fences.`;
 
 // Deterministic fallback if the AI output can't be parsed.
-function fallback(notes: Array<{ id: string; tMs: number; label: string }>): NoteQuestion[] {
-  return notes.map((n) => ({
-    id: n.id,
-    tMs: n.tMs,
-    label: n.label,
-    question: `What do you want to explain at "${n.label}"?`,
-    options: ["What it is and what it does", "Why it matters / when to use it", "Just mention it briefly"],
+function fallback(groups: Array<{ id: string; tMs: number; label: string }>): NoteQuestion[] {
+  return groups.map((g) => ({
+    id: g.id,
+    tMs: g.tMs,
+    label: g.label,
+    question: `What do you want to explain about ${g.label}?`,
+    options: ["Explain what each one does", "Why it matters / when to use it", "Just mention it briefly"],
   }));
 }
 
@@ -69,48 +71,77 @@ export async function POST(_req: Request, { params }: RouteParams) {
 
     const events = (session.events as NoteEvent[]) ?? [];
     const notes = events
-      .map((e, i) => ({ e, i }))
-      .filter(({ e }) => e.type === "note")
-      .map(({ e, i }) => ({
-        id: `note-${i}`,
+      .filter((e) => e.type === "note")
+      .map((e) => ({
         tMs: Math.round(e.t ?? 0),
         label: (e.label ?? "this element").toString(),
-        meta: e.meta ?? {},
+        meta: (e.meta ?? {}) as Record<string, unknown>,
       }));
 
     if (notes.length === 0) {
       return NextResponse.json({ success: true, data: { questions: [] } }, { headers: CORS_HEADERS });
     }
 
-    const promptNotes = notes.map((n) => ({ id: n.id, label: n.label, meta: n.meta }));
+    // Group consecutive sibling notes: same element class signature AND within
+    // ~6s of the previous one = the user marking a set (e.g. Google/Phone/Email).
+    const CLUSTER_GAP_MS = 6000;
+    const groups: Array<{ id: string; tMs: number; members: typeof notes }> = [];
+    for (const note of notes) {
+      const last = groups[groups.length - 1];
+      const lastMember = last?.members[last.members.length - 1];
+      const sameSig =
+        lastMember &&
+        String(lastMember.meta.classes ?? "") === String(note.meta.classes ?? "") &&
+        note.tMs - lastMember.tMs <= CLUSTER_GAP_MS;
+      if (sameSig && last) last.members.push(note);
+      else groups.push({ id: `group-${groups.length}`, tMs: note.tMs, members: [note] });
+    }
+
+    const groupLabel = (g: (typeof groups)[number]) =>
+      Array.from(new Set(g.members.map((m) => m.label))).join(", ");
+
+    const promptGroups = groups.map((g) => ({
+      id: g.id,
+      elements: g.members.map((m) => ({ label: m.label, meta: m.meta })),
+    }));
+
     let questions: NoteQuestion[];
     try {
       const raw = await deepseekChat({
         maxTokens: 2048,
         messages: [
           { role: "system", content: QUESTION_SYSTEM_PROMPT },
-          { role: "user", content: `Notes:\n${JSON.stringify(promptNotes, null, 2)}` },
+          { role: "user", content: `Note groups:\n${JSON.stringify(promptGroups, null, 2)}` },
         ],
       });
       const json = raw.slice(raw.indexOf("["), raw.lastIndexOf("]") + 1);
       const parsed = JSON.parse(json) as Array<{ id: string; question: string; options: string[] }>;
-      questions = parsed
-        .map((p) => {
-          const note = notes.find((n) => n.id === p.id);
-          if (!note) return null;
-          const options = Array.isArray(p.options) ? p.options.filter((o) => typeof o === "string").slice(0, 3) : [];
+      questions = groups
+        .map((g) => {
+          const p = parsed.find((x) => x.id === g.id);
+          const label = groupLabel(g);
+          const options = Array.isArray(p?.options)
+            ? p.options.filter((o) => typeof o === "string").slice(0, 3)
+            : [];
           return {
-            id: note.id,
-            tMs: note.tMs,
-            label: note.label,
-            question: typeof p.question === "string" && p.question ? p.question : `What do you want to explain at "${note.label}"?`,
-            options: options.length === 3 ? options : ["What it is", "Why it matters", "Mention briefly"],
+            id: g.id,
+            tMs: g.tMs,
+            label,
+            question:
+              typeof p?.question === "string" && p.question
+                ? p.question
+                : `What do you want to explain about ${label}?`,
+            options:
+              options.length === 3
+                ? options
+                : ["Explain what each one does", "Why it matters", "Mention briefly"],
           };
         })
         .filter((q): q is NoteQuestion => q !== null);
-      if (questions.length === 0) questions = fallback(notes);
+      if (questions.length === 0)
+        questions = fallback(groups.map((g) => ({ id: g.id, tMs: g.tMs, label: groupLabel(g) })));
     } catch {
-      questions = fallback(notes);
+      questions = fallback(groups.map((g) => ({ id: g.id, tMs: g.tMs, label: groupLabel(g) })));
     }
 
     return NextResponse.json({ success: true, data: { questions } }, { headers: CORS_HEADERS });
