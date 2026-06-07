@@ -12,20 +12,26 @@ interface ChatParams {
   messages: ChatMessage[];
   maxTokens?: number;
   temperature?: number;
+  // "deepseek-chat" (V3, fast) or "deepseek-reasoner" (R1, thinks before answering).
+  model?: "deepseek-chat" | "deepseek-reasoner";
 }
 
 /**
- * Call DeepSeek-V3 and return the assistant text. Retries 3x with exponential
- * backoff on transient (5xx / network) failures.
+ * Call DeepSeek and return the assistant text (the final answer in
+ * message.content; reasoning_content from the reasoner is ignored). Retries 3x
+ * with exponential backoff on transient (5xx / network) failures.
  */
 export async function deepseekChat(params: ChatParams): Promise<string> {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) throw new Error("DEEPSEEK_API_KEY is not configured");
 
+  const model = params.model ?? "deepseek-chat";
+  // The reasoner spends tokens thinking before the answer — give it headroom.
+  const defaultMaxTokens = model === "deepseek-reasoner" ? 8192 : 2048;
   const body = JSON.stringify({
-    model: "deepseek-chat",
+    model,
     messages: params.messages,
-    max_tokens: params.maxTokens ?? 2048,
+    max_tokens: params.maxTokens ?? defaultMaxTokens,
     temperature: params.temperature ?? 0.7,
     stream: false,
   });
