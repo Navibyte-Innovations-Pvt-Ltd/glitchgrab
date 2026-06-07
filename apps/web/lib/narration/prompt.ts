@@ -105,19 +105,25 @@ export function recordingContext(durationSec?: number, zooms?: ZoomCtx[]): strin
 // Build the language/voice directive appended to the user message.
 export function languageDirective(lang?: string, gender?: string): string {
   const g = gender === "male" ? "male" : "female";
-  const genderNote =
-    g === "male"
-      ? "Male narrator — slightly more assertive phrasing (e.g. \"hum dekhenge\", \"chalo\")."
-      : "Female narrator — warm, welcoming phrasing (e.g. \"aao dekhte hain\"); avoid \"bhai\".";
-
   if (lang === "en") {
+    const genderNote =
+      g === "male"
+        ? "Male narrator — slightly more assertive."
+        : "Female narrator — warm, welcoming; avoid \"bhai\".";
     return `\n\nWrite the script in clear, conversational, warm ENGLISH. Active voice, short sentences. ${genderNote}`;
   }
   // Default: Hindi, Devanagari, code-mixed (what the Sarvam Hindi voice wants).
-  return `\n\nWrite the script in HINDI using DEVANAGARI script, code-mixed:
-- Hindi words in Devanagari (नमस्ते, हम, आपका, स्वागत, देखेंगे…).
-- Keep English / technical / product terms in LATIN script inline — dashboard, button, repo, token, OTP, plan, the product name. Do NOT transliterate them into Devanagari.
-- Natural code-mixing, exactly how people speak. Reference style: "नमस्ते! इस video में हम देखेंगे कि signup कैसे करते हैं। सबसे पहले हम \"Sign Up Free\" button पर click करते हैं…"
-- Spoken/conversational Hindi, not textbook. Numbers can stay as digits.
+  const genderNote =
+    g === "male"
+      ? "Male narrator — थोड़ा confident tone (जैसे \"हम देखेंगे\", \"चलिए\")."
+      : "Female narrator — warm, welcoming (जैसे \"आइए देखते हैं\"); \"bhai\" मत use करना.";
+  return `\n\nWrite the script in HINDI in the DEVANAGARI script (code-mixed). THIS IS CRITICAL AND THE #1 RULE:
+- EVERY Hindi word must be in Devanagari — for the ENTIRE script, not just the first sentence. NEVER write Hindi words in Roman/Latin letters (this is the most common failure).
+- WRONG (Roman Hindi — never do this): "Is video mein hum dekhenge. Phone sabse fast hai – number daalo, OTP verify, bas. Agar aapki library listed hai to claim karo."
+- RIGHT (Devanagari Hindi + Latin only for English/tech terms): "इस video में हम देखेंगे। Phone सबसे fast है — number डालो, OTP verify करो, बस। अगर आपकी library listed है तो claim करो।"
+- ONLY English / technical / product words stay in Latin script (video, signup, button, Phone, OTP, Google, Email, plan, dashboard, Library Owner, Start Free Trial, the product name). EVERYTHING else — हर हिंदी शब्द — in Devanagari.
+- Hindi connective/verb/common words like hum→हम, mein→में, hai→है, karte→करते, dekhenge→देखेंगे, sabse→सबसे, daalo→डालो, agar→अगर, phir→फिर, aur→और, choose karo→choose करो — ALWAYS Devanagari, never Roman.
+- Spoken/conversational, not textbook. Numbers can stay as digits.
+- BEFORE finishing, re-read your script: if you find ANY Hindi word written in Roman/Latin letters, rewrite it in Devanagari. No Roman Hindi anywhere.
 ${genderNote}`;
 }
