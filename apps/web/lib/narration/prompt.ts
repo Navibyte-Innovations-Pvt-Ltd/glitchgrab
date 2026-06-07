@@ -33,8 +33,13 @@ LENGTH — MATCH THE VIDEO, DON'T OVERFLOW (critical):
 - Cover the whole journey, but tightly — never a paragraph for a routine click.
 
 NOTES = THE BACKBONE (spend most of the budget here):
-- A note event = the user HELD SHIFT (often moving the cursor to point) to say "EXPLAIN THIS." These are the ONLY places to slow down and explain in depth: what the element is, what it does, why it matters. Bigger durationMs = more important.
-- Never skip a note. Everything between notes is connective tissue — keep it short.
+- A note event = the user HELD SHIFT (often moving the cursor to point) to say "EXPLAIN THIS." These are the ONLY places to slow down and explain in depth. Never skip a note. Everything between notes is connective tissue — keep it short.
+- CLUSTER consecutive notes on sibling elements — notes within a few seconds of each other on elements that share the same parent path / same classes (e.g. several "button.group" in the same container) are ONE emphasis set: the user is saying "point out that there are MULTIPLE options here." Narrate the SET as a group, naming each option, and take your time.
+  - Example: notes on "Google", then "Phone", then "Email" buttons (all sibling sign-up buttons within seconds) → "yahaan teen tarike se sign up kar sakte ho — Google se, Phone OTP se, ya Email se." Do NOT collapse this into "let's log in with the phone number" — that throws away what the user marked.
+  - Example: notes on "Student" then "Library Owner" (sibling role buttons) → "yahaan aap apna role choose karte ho — agar aap padhne aaye ho toh Student, aur agar library manage karni hai toh Library Owner." Name BOTH; explain when to pick which.
+  - Example: notes on "MICRO" and "PRO" plan cards → present them as the plan choices, each with who it's for.
+- A note label may be imperfect (the captured element under the cursor isn't always the exact button the user meant). Use the note's meta.section + surrounding events to infer what the user was pointing at, and explain the CONCEPT of that area, not just the literal label. (e.g. notes around a library-search box where the user marked list rows → explain "yahaan apni library Google se search karo; agar pehle se listed hai toh use claim karo, warna nayi add karo" — the add-vs-claim choice, even if the literal label was a result name.)
+- SINGLE note (not part of a cluster) → deep-explain that one element: what it is, what it does, why it matters. Slow down here; the user can hold longer / slow the video at this spot.
 
 SELECT events are NOT actions:
 - A select event = the user highlighted on-screen text for VISUAL emphasis only (pointing with the cursor). Do NOT narrate it as "we select/click X." Ignore it — UNLESS a note covers the same spot, then explain that spot.
