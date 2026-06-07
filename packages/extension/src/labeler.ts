@@ -118,7 +118,9 @@ export function describeElement(target: Element): ElementMeta {
   const role = attr(el, "role") || implicitRole(el);
   if (role) meta.role = role;
   if (el.tagName === "INPUT") meta.inputType = (el as HTMLInputElement).type;
-  const text = firstLine((el.innerText || "").replace(/\s+/g, " ").trim());
+  // firstLine FIRST (on raw text so newlines still delimit), THEN collapse
+  // spaces. Collapsing before would erase newlines and return the whole blob.
+  const text = cleanLabel(firstLine(el.innerText || ""));
   if (text) meta.text = text.slice(0, 100);
   const aria = attr(el, "aria-label"); if (aria) meta.ariaLabel = aria.slice(0, 80);
   const title = attr(el, "title"); if (title) meta.title = title.slice(0, 80);
@@ -166,18 +168,26 @@ function labelFromElement(el: Element): string {
     if (txt) return txt;
   }
 
-  // 3. Visible text (first line)
-  const text = firstLine(cleanLabel((el as HTMLElement).innerText));
+  // 3. Visible text (first line) — firstLine on RAW text, then clean, so a
+  // multi-child container resolves to its own first line, not the whole blob.
+  const text = cleanLabel(firstLine((el as HTMLElement).innerText));
   if (text && text.length >= 1 && text.length <= 60) return text;
 
-  // 4. Child with a label (icon buttons often wrap a labelled svg/img/span)
-  const labelledChild = el.querySelector("[aria-label],[title],img[alt]");
-  if (labelledChild) {
-    const childLabel =
-      cleanLabel(labelledChild.getAttribute("aria-label")) ||
-      cleanLabel(labelledChild.getAttribute("title")) ||
-      cleanLabel(labelledChild.getAttribute("alt"));
-    if (childLabel) return childLabel;
+  // 4. Child with a label (icon buttons wrap a labelled svg/img/span). ONLY for
+  // small/interactive elements — on a big container this would scrape an
+  // unrelated descendant's alt (e.g. a card logo) far from where the user clicked.
+  const isInteractiveOrIcon = el.matches(
+    'button, a, [role="button"], [role="link"], [role="menuitem"], [role="tab"], [role="option"], summary, label'
+  );
+  if (isInteractiveOrIcon) {
+    const labelledChild = el.querySelector("[aria-label],[title],img[alt]");
+    if (labelledChild) {
+      const childLabel =
+        cleanLabel(labelledChild.getAttribute("aria-label")) ||
+        cleanLabel(labelledChild.getAttribute("title")) ||
+        cleanLabel(labelledChild.getAttribute("alt"));
+      if (childLabel) return childLabel;
+    }
   }
 
   // 5. SVG <title>
@@ -210,28 +220,34 @@ function structuralHint(el: Element): string {
   return "";
 }
 
-export function getClickLabel(target: Element): { label: string; tag: string } {
-  const interactive = target.closest(
+// `interactive` = the click landed on/inside a real control. `weak` = no proper
+// label was found (only a structural hint or none) — callers use !interactive &&
+// weak to drop pure-layout clicks (clicking blank container area).
+export function getClickLabel(
+  target: Element
+): { label: string; tag: string; interactive: boolean; weak: boolean } {
+  const interactiveEl = target.closest(
     'button, a, [role="button"], [role="link"], [role="menuitem"], [role="tab"], [role="option"], [role="checkbox"], [role="switch"], input, select, label, summary'
   );
+  const interactive = !!interactiveEl;
   // Try the interactive ancestor first, then the exact target, then walk up.
   const ordered: Element[] = [];
-  if (interactive) ordered.push(interactive);
+  if (interactiveEl) ordered.push(interactiveEl);
   ordered.push(target);
-  let up: Element | null = (interactive ?? target).parentElement;
+  let up: Element | null = (interactiveEl ?? target).parentElement;
   for (let i = 0; i < 4 && up; i++) { ordered.push(up); up = up.parentElement; }
 
   for (const el of ordered) {
     const label = labelFromElement(el);
-    if (label) return { label: label.slice(0, 80), tag: el.tagName.toLowerCase() };
+    if (label) return { label: label.slice(0, 80), tag: el.tagName.toLowerCase(), interactive, weak: false };
   }
 
-  // Structural fallback (href / id / class) before generic placeholder
+  // Structural fallback (href / id / class) before generic placeholder — weak.
   for (const el of ordered) {
     const hint = structuralHint(el);
-    if (hint) return { label: hint, tag: el.tagName.toLowerCase() };
+    if (hint) return { label: hint, tag: el.tagName.toLowerCase(), interactive, weak: true };
   }
 
-  const base = interactive ?? target;
-  return { label: `${base.tagName.toLowerCase()} (no label)`, tag: base.tagName.toLowerCase() };
+  const base = interactiveEl ?? target;
+  return { label: `${base.tagName.toLowerCase()} (no label)`, tag: base.tagName.toLowerCase(), interactive, weak: true };
 }
