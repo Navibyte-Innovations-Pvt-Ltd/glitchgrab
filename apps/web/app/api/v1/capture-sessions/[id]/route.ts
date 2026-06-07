@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getClaude } from "@/lib/claude/client";
+import { deepseekChat } from "@/lib/deepseek/client";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -107,24 +107,16 @@ export async function POST(_req: Request, { params }: RouteParams) {
       ? `\n\nRecording metadata (cuts made in Recordly):\n${JSON.stringify(session.meta, null, 2)}`
       : "";
 
-    const claude = getClaude();
-    const response = await claude.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 2048,
-      system: SCRIPT_SYSTEM_PROMPT,
+    const script = await deepseekChat({
+      maxTokens: 2048,
       messages: [
+        { role: "system", content: SCRIPT_SYSTEM_PROMPT },
         {
           role: "user",
           content: `Generate a narration script for this screen recording.\n\nEvents:\n${eventsJson}${metaSection}`,
         },
       ],
     });
-
-    const block = response.content.find((b) => b.type === "text");
-    if (!block || block.type !== "text") {
-      throw new Error("AI returned no text");
-    }
-    const script = block.text.trim();
 
     await prisma.captureSession.update({
       where: { id },
