@@ -37,10 +37,20 @@ IDENTIFY THE PRODUCT FIRST, open with it:
 - Before narrating actions, figure out WHAT the product is from the event text/meta — the landing/hero events (url ending in "/") carry the tagline and headings in meta.text (e.g. a hero saying "India's #1 platform to discover, compare, and book study rooms").
 - Open the script with a one-line intro naming the product and what it does, grounded in that hero text. Do NOT invent a name or features not present in the events.
 
-COVER THE WHOLE RECORDING, fill the duration:
-- Total length ≈ t of the LAST event. The narration should roughly FILL that, not summarize. Long recording → write more, explain each section.
-- If events span signup → plans → dashboard, cover the whole journey, not just the first screen.
-- note events = the user HELD SHIFT to flag "explain THIS" — never skip one; slow down and explain that element properly.
+LENGTH — MATCH THE VIDEO, DON'T OVERFLOW (critical):
+- A target video duration and a word budget are given below. Read aloud at a natural pace, the script MUST fit within the video length. A script longer than the video is the #1 failure — be concise. Do NOT pad.
+- Spend the budget UNEVENLY: terse on routine steps (one short line, or skip), MOST words on the note moments. Cut filler entirely.
+- Cover the whole journey, but tightly — never a paragraph for a routine click.
+
+NOTES = THE BACKBONE (spend most of the budget here):
+- A note event = the user HELD SHIFT (often moving the cursor to point) to say "EXPLAIN THIS." These are the ONLY places to slow down and explain in depth: what the element is, what it does, why it matters. Bigger durationMs = more important.
+- Never skip a note. Everything between notes is connective tissue — keep it short.
+
+SELECT events are NOT actions:
+- A select event = the user highlighted on-screen text for VISUAL emphasis only (pointing with the cursor). Do NOT narrate it as "we select/click X." Ignore it — UNLESS a note covers the same spot, then explain that spot.
+
+ZOOMS = emphasis the editor added:
+- A zooms list (below, if present) gives time ranges where the video zooms in. Spend a beat there and, using the events near that timestamp, naturally focus the narration on what's emphasized. Don't announce "we zoom in" — just talk about that element.
 
 SPEAKABLE TEXT (it is read aloud):
 - NEVER include raw URLs/paths, tokens/code identifiers, markdown (**bold**, bullets, ### headings), or stiff command phrasing ("ye karo, wo karo").
@@ -52,12 +62,41 @@ PER-EVENT (ground in meta):
 - click button → "[label] par click karte hain…" / "We click [label]…".
 - click link (has meta.href) → "[label] par click karne se [target] par jaate hain…".
 - input → describe field from meta.placeholder/label; mention typed value from preview only if clearly demo data (never read passwords/tokens/cards).
-- select → user is pointing at something; "yahaan dekho…" using the selected label. Skip incidental selection.
+- select → NOT an action (see rule above). Ignore unless a note covers the same spot.
 - scroll → only if it reveals new content.
 - idle <5s: skip / "phir…"; 5–15s: "ek second ruk ke…"; >15s: "yahaan thoda ruk ke samajhte hain…".
 - Group rapid identical clicks into one sentence.
 
 OUTPUT: only the narration text (optional [SECTION] headers + prose). No JSON, no timestamps, no SRT, no markdown.`;
+
+interface ZoomCtx {
+  startMs: number;
+  endMs: number;
+  depth?: number;
+  cx?: number;
+  cy?: number;
+}
+
+// Build the duration + word-budget + zoom context appended to the user message.
+function recordingContext(durationSec?: number, zooms?: ZoomCtx[]): string {
+  const lines: string[] = [];
+  if (durationSec && durationSec > 0) {
+    // ~140 words/min spoken → keep the script inside the video length.
+    const budget = Math.max(20, Math.round(durationSec * 2.3));
+    lines.push(
+      `Target video duration: ~${Math.round(durationSec)}s. Word budget: ~${budget} words TOTAL — read aloud this must fit within ${Math.round(durationSec)}s. Do NOT exceed it; shorter is fine.`
+    );
+  }
+  if (zooms?.length) {
+    const fmt = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
+    const z = zooms
+      .slice(0, 30)
+      .map((r) => `  - ${fmt(r.startMs)}–${fmt(r.endMs)}${r.depth ? ` (depth ${r.depth})` : ""}`)
+      .join("\n");
+    lines.push(`Zoom-in ranges (emphasis the editor added):\n${z}`);
+  }
+  return lines.length ? `\n\nRecording context:\n${lines.join("\n")}` : "";
+}
 
 // Build the language/voice directive appended to the user message.
 function languageDirective(lang?: string, gender?: string): string {
@@ -124,9 +163,11 @@ export async function GET(_req: Request, { params }: RouteParams) {
 export async function POST(req: Request, { params }: RouteParams) {
   const { id } = await params;
   try {
-    const { lang, gender } = (await req.json().catch(() => ({}))) as {
+    const { lang, gender, durationSec, zooms } = (await req.json().catch(() => ({}))) as {
       lang?: string;
       gender?: string;
+      durationSec?: number;
+      zooms?: ZoomCtx[];
     };
     const session = await prisma.captureSession.findUnique({
       where: { id },
@@ -158,7 +199,7 @@ export async function POST(req: Request, { params }: RouteParams) {
         { role: "system", content: SCRIPT_SYSTEM_PROMPT },
         {
           role: "user",
-          content: `Generate a narration script for this screen recording.\n\nEvents:\n${eventsJson}${metaSection}${languageDirective(lang, gender)}`,
+          content: `Generate a narration script for this screen recording.\n\nEvents:\n${eventsJson}${metaSection}${recordingContext(durationSec, zooms)}${languageDirective(lang, gender)}`,
         },
       ],
     });
