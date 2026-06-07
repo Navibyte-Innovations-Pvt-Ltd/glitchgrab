@@ -17,6 +17,8 @@ export interface ElementMeta {
   selector?: string;       // short CSS-ish path to the element
   placeholder?: string;
   checked?: string;        // "true"/"false" for checkbox/radio/switch
+  fullText?: string;       // full visible text of the element (not just first line)
+  controls?: string;       // labels of child buttons/links inside it (e.g. "Add", "Claim")
 }
 
 function firstLine(text: string): string {
@@ -142,6 +144,22 @@ export function describeElement(target: Element): ElementMeta {
   if (["checkbox", "radio"].includes(inputEl.type) || role === "switch" || role === "checkbox") {
     meta.checked = String(inputEl.checked ?? attr(el, "aria-checked") === "true");
   }
+
+  // Richer context — the full text of the element + the labels of any child
+  // buttons/links inside it (e.g. "Add" vs "Claim"). Helps explain what an
+  // element offers when the short label alone (a row title) isn't enough.
+  const fullText = cleanLabel((el as HTMLElement).innerText);
+  if (fullText && fullText !== meta.text) meta.fullText = fullText.slice(0, 240);
+  const controlEls = Array.from(
+    el.querySelectorAll('button, a, [role="button"], [role="link"], [role="menuitem"]'),
+  ).slice(0, 8);
+  const controlLabels = controlEls
+    .map((c) => labelFromElement(c) || detectIcon(c))
+    .map((l) => cleanLabel(l))
+    .filter((l) => l && l.length <= 40);
+  const uniqueControls = Array.from(new Set(controlLabels));
+  if (uniqueControls.length) meta.controls = uniqueControls.join(", ").slice(0, 160);
+
   return meta;
 }
 
