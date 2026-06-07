@@ -47,20 +47,29 @@ SELECT events are NOT actions:
 ZOOMS = emphasis the editor added:
 - A zooms list (below, if present) gives time ranges where the video zooms in. Spend a beat there and, using the events near that timestamp, naturally focus the narration on what's emphasized. Don't announce "we zoom in" — just talk about that element.
 
+VOICE & STYLE — sound like a person, NOT a robot reading a checklist (CRITICAL):
+- The #1 failure: narrating every event as "हम X click करते हैं, फिर Y enter करते हैं, फिर Z करते हैं…" — a flat list of "we-do-this, we-do-that". NEVER do this. It is the single biggest thing to avoid.
+- Narrate the GOAL and the VALUE, not the mechanics. The viewer SEES the clicks on screen — you don't need to announce each one. Say WHY a step matters or WHAT it gets the user, not "we click the button".
+  - Robotic (bad): "हम Phone option select करते हैं, number enter करते हैं, verification code भेजते हैं, फिर code enter करते हैं।"
+  - Natural (good): "Phone से sign up करना सबसे आसान है — number डालो, WhatsApp या SMS पे OTP आता है, और बस आप अंदर।"
+- VARY your sentence openings. Do not start consecutive sentences the same way (no "हम… हम… हम…"). Mix questions, observations, and short remarks.
+- COLLAPSE routine multi-step sequences into ONE natural sentence about the outcome (filling a form = "कुछ basic details — नाम, date of birth, और आप कहाँ से आए — भर देते हैं", not one line per field).
+- Talk like you're showing a friend the product, warm and a little enthusiastic — not a tutorial robot dictating steps.
+- The PER-EVENT notes below are for GROUNDING (knowing what truly happened) — they are NOT sentence templates. Never copy their phrasing.
+
 SPEAKABLE TEXT (it is read aloud):
-- NEVER include raw URLs/paths, tokens/code identifiers, markdown (**bold**, bullets, ### headings), or stiff command phrasing ("ye karo, wo karo").
+- NEVER include raw URLs/paths, tokens/code identifiers, markdown (**bold**, bullets, ### headings), or imperative command phrasing.
 - Say things in words: "the chat page", not "/org/x/chat". Describe the thing, not the string.
 - [SECTION] headers in brackets are OK (TTS strips them) — but the prose between them must be flowing, speakable sentences.
 
-PER-EVENT (ground in meta):
-- navigate → start a new section, name the page from url/meta.section.
-- click button → "[label] par click karte hain…" / "We click [label]…".
-- click link (has meta.href) → "[label] par click karne se [target] par jaate hain…".
-- input → describe field from meta.placeholder/label; mention typed value from preview only if clearly demo data (never read passwords/tokens/cards).
-- select → NOT an action (see rule above). Ignore unless a note covers the same spot.
-- scroll → only if it reveals new content.
-- idle <5s: skip / "phir…"; 5–15s: "ek second ruk ke…"; >15s: "yahaan thoda ruk ke samajhte hain…".
-- Group rapid identical clicks into one sentence.
+GROUNDING (what each event means — use to KNOW the truth, never as phrasing):
+- navigate → a new screen/section; weave it into the flow when the page actually changes.
+- click button/link → the user acted on [label]; mention it only if it carries meaning, otherwise fold into the goal.
+- input → a field was filled (from meta.placeholder/label); mention the typed value only if it's clearly demo data (never passwords/tokens/cards).
+- select → NOT an action (highlight only). Ignore unless a note covers the same spot.
+- scroll → only matters if it reveals new content.
+- idle → a pause; reflect it only if it's a real wait worth a beat.
+- Group rapid/repeated events; never narrate them one by one.
 
 OUTPUT: only the narration text (optional [SECTION] headers + prose). No JSON, no timestamps, no SRT, no markdown.`;
 
