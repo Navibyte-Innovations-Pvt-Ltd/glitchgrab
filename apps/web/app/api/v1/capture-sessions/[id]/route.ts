@@ -33,6 +33,10 @@ ANTI-HALLUCINATION (most important):
 - idle = a pause; don't invent a reason for it.
 - When unsure what an element is, say what's literally on screen (meta.text/label), don't guess its purpose.
 
+IDENTIFY THE PRODUCT FIRST, open with it:
+- Before narrating actions, figure out WHAT the product is from the event text/meta — the landing/hero events (url ending in "/") carry the tagline and headings in meta.text (e.g. a hero saying "India's #1 platform to discover, compare, and book study rooms").
+- Open the script with a one-line intro naming the product and what it does, grounded in that hero text. Do NOT invent a name or features not present in the events.
+
 COVER THE WHOLE RECORDING, fill the duration:
 - Total length ≈ t of the LAST event. The narration should roughly FILL that, not summarize. Long recording → write more, explain each section.
 - If events span signup → plans → dashboard, cover the whole journey, not just the first screen.
