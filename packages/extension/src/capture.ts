@@ -130,7 +130,10 @@ export class Capture {
     this.lastEventAt = now;
     this.breakIdle(now);
     const target = e.target as Element;
-    const { label, tag } = getClickLabel(target);
+    const { label, tag, interactive, weak } = getClickLabel(target);
+    // Drop pure-layout clicks: clicking blank container area (no control, no own
+    // label). These produced phantom events labelled from unrelated descendants.
+    if (!interactive && weak) return;
     const clickKey = `${label}::${tag}`;
     if (clickKey === this.lastClickKey && now - this.lastClickAt < DEDUP_MS) return;
     this.lastClickKey = clickKey;
@@ -221,7 +224,11 @@ export class Capture {
     if (!this.capturing) return;
     if ((e as KeyboardEvent).key !== "Shift" || this.shiftDownAt === 0) return;
     const held = Date.now() - this.shiftDownAt;
-    const subject = this.shiftSubject;
+    // Use the element under the cursor NOW (key-up) — the user may have pressed
+    // Shift then moved the mouse to point at what they want explained. Fall back
+    // to the shift-down subject if the current point resolves to nothing.
+    const subject =
+      document.elementFromPoint(this.pointerX, this.pointerY) ?? this.shiftSubject;
     const wasTyping = this.shiftHadOtherKey;
     this.shiftDownAt = 0;
     this.shiftSubject = null;
