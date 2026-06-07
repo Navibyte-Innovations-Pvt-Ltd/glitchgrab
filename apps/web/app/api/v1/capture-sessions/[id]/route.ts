@@ -61,12 +61,20 @@ export async function GET(_req: Request, { params }: RouteParams) {
 export async function POST(req: Request, { params }: RouteParams) {
   const { id } = await params;
   try {
-    const { lang, gender, durationSec, zooms } = (await req.json().catch(() => ({}))) as {
+    const { lang, gender, durationSec, zooms, noteAnswers } = (await req.json().catch(() => ({}))) as {
       lang?: string;
       gender?: string;
       durationSec?: number;
       zooms?: ZoomCtx[];
+      noteAnswers?: Array<{ label: string; answer: string }>;
     };
+    const noteSection =
+      noteAnswers && noteAnswers.length
+        ? `\n\nWhat the user wants explained at each shift-marked spot (USE these — explain exactly this at that element):\n${noteAnswers
+            .filter((n) => n.answer?.trim())
+            .map((n) => `- "${n.label}": ${n.answer}`)
+            .join("\n")}`
+        : "";
     const session = await prisma.captureSession.findUnique({
       where: { id },
       select: { id: true, events: true, meta: true, expiresAt: true },
@@ -97,7 +105,7 @@ export async function POST(req: Request, { params }: RouteParams) {
         { role: "system", content: SCRIPT_SYSTEM_PROMPT },
         {
           role: "user",
-          content: `Generate a narration script for this screen recording.\n\nEvents:\n${eventsJson}${metaSection}${recordingContext(durationSec, zooms)}${languageDirective(lang, gender)}`,
+          content: `Generate a narration script for this screen recording.\n\nEvents:\n${eventsJson}${metaSection}${noteSection}${recordingContext(durationSec, zooms)}${languageDirective(lang, gender)}`,
         },
       ],
     });
