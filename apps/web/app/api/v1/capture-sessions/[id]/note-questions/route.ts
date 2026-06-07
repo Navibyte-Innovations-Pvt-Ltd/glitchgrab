@@ -36,7 +36,9 @@ const QUESTION_SYSTEM_PROMPT = `The user recorded a screen flow and HELD SHIFT o
 
 For EACH note, produce:
 - a short, friendly question asking what they want to explain at that spot (reference the element by name), and
-- exactly 3 likely answer options, grounded in the element (what it is, why it matters, when to use it, or comparing options) — concise phrases the user can pick.
+- exactly 3 likely answer options, grounded in the element — concise phrases the user can pick.
+
+IMPORTANT — use ALL the metadata, especially meta.controls (child buttons inside the element, e.g. "Add", "Claim") and meta.fullText. If an element has multiple sub-actions (like an "Add" button AND a "Claim" button), the question and options MUST be about THOSE distinct actions (e.g. "Add = register a new library from Google; Claim = take ownership of one already in our database"). Don't give generic options when the metadata reveals specific sub-features.
 
 Return ONLY valid JSON: an array of objects { "id": string, "question": string, "options": [string, string, string] }. Use the provided id for each. No prose, no markdown fences.`;
 
