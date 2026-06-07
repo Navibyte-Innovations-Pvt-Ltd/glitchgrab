@@ -75,7 +75,12 @@ export async function POST(req: Request, { params }: RouteParams) {
 
     const system =
       SCRIPT_SYSTEM_PROMPT +
-      "\n\nYou are now REFINING an existing script through a chat. Apply the user's instructions. Always reply with ONLY the COMPLETE revised script (same format rules) — no commentary, no 'here is the updated script', no markdown fences." +
+      `\n\nYou are now REFINING an existing script through a CHAT with the user. Behave like a thoughtful collaborator:
+- If the user's request is clear, briefly say what you changed (one short line), THEN output the COMPLETE revised script after a line containing exactly:
+---SCRIPT---
+- If you genuinely need to clarify intent (e.g. you can't tell what an element is, or the instruction is ambiguous), ASK a short question and do NOT include the ---SCRIPT--- marker or any script.
+- Reference specific moments by what's on screen when helpful. Keep chat replies short; put the effort into the script itself.
+- The script that follows ---SCRIPT--- must obey ALL the rules above (length budget, notes clustering, speakable text, language format).` +
       recordingContext(body.durationSec, body.zooms) +
       languageDirective(body.lang, body.gender);
 
@@ -86,8 +91,8 @@ export async function POST(req: Request, { params }: RouteParams) {
     const seed: ChatMsg[] = body.currentScript?.trim()
       ? [{ role: "assistant", content: body.currentScript }]
       : [];
-    const script = await deepseekChat({
-      maxTokens: 2048,
+    const raw = await deepseekChat({
+      model: "deepseek-reasoner",
       messages: [
         { role: "system", content: system },
         { role: "user", content: contextTurn },
@@ -96,8 +101,14 @@ export async function POST(req: Request, { params }: RouteParams) {
       ],
     });
 
+    // Split on the marker: text before = conversational reply, after = the full
+    // revised script. No marker → the whole thing is conversation (a question).
+    const markerIdx = raw.indexOf("---SCRIPT---");
+    const reply = (markerIdx >= 0 ? raw.slice(0, markerIdx) : raw).trim();
+    const script = markerIdx >= 0 ? raw.slice(markerIdx + "---SCRIPT---".length).trim() : null;
+
     return NextResponse.json(
-      { success: true, data: { script } },
+      { success: true, data: { reply: reply || (script ? "Script updated." : ""), script } },
       { headers: CORS_HEADERS }
     );
   } catch (err) {
