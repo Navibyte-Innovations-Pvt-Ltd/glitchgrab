@@ -92,7 +92,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       : "";
 
     const script = await deepseekChat({
-      maxTokens: 2048,
+      model: "deepseek-reasoner",
       messages: [
         { role: "system", content: SCRIPT_SYSTEM_PROMPT },
         {
