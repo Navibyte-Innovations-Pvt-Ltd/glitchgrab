@@ -65,6 +65,25 @@ describe("getClickLabel", () => {
     const target = el(`<div></div>`, "div");
     expect(getClickLabel(target).label).toContain("no label");
   });
+
+  it("does NOT scrape a descendant card's img alt for a big container click", () => {
+    // Regression: clicking blank hero area used to grab an unrelated card logo alt.
+    const target = el(
+      `<div class="hero"><span>STUDY ROOM MANAGEMENT SOFTWARE</span><h2>Find & Book Study Rooms Near You</h2><div class="card"><img alt="Dnyandeep Abhyasika" src="/x.png"/></div></div>`,
+      "div.hero"
+    );
+    const { label, interactive, weak } = getClickLabel(target);
+    expect(label).not.toBe("Dnyandeep Abhyasika");
+    expect(interactive).toBe(false); // non-interactive container → droppable by capture
+    void weak;
+  });
+
+  it("flags a real button click as interactive (kept by capture)", () => {
+    const target = el(`<button>Sign Up Free</button>`, "button");
+    const r = getClickLabel(target);
+    expect(r.interactive).toBe(true);
+    expect(r.weak).toBe(false);
+  });
 });
 
 describe("describeElement", () => {
