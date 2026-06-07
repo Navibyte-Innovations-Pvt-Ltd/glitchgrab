@@ -2,7 +2,13 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getClaude } from "@/lib/claude/client";
+import { deepseekChat } from "@/lib/deepseek/client";
+import {
+  SCRIPT_SYSTEM_PROMPT,
+  recordingContext,
+  languageDirective,
+  type ZoomCtx,
+} from "@/lib/narration/prompt";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -10,34 +16,6 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "Content-Type",
   "Access-Control-Max-Age": "86400",
 };
-
-const SCRIPT_SYSTEM_PROMPT = `You generate narration scripts for screen recording videos.
-
-You receive browser click events AND optional recording metadata showing which parts were cut in editing.
-
-Event fields: type (click|navigate|idle), t (ms from capture start), label, tag, url, durationMs.
-
-Recording metadata fields (if present):
-- keptRanges: [{startMs, endMs}] — time ranges that exist in the FINAL edited video
-- cutRanges: [{startMs, endMs}] — time ranges the editor CUT OUT
-- originalDurationMs, finalDurationMs
-
-CRITICAL RULES for cuts:
-- If an event's t falls inside a cutRange → SKIP it entirely, do not narrate it
-- If an idle event spans a cutRange → the waiting was edited out, do NOT say "after a moment"
-- Only narrate events within keptRanges
-- If no metadata provided, narrate all events using standard rules below
-
-Standard rules:
-- idle < 5s in kept range: omit or "quickly" / "then"
-- idle 5–15s in kept range: "After a moment..."
-- idle > 15s in kept range: "Let's take a look at..."
-- icon-button or unknown: infer from context (page URL, surrounding events)
-- Rapid same-element clicks: group into one sentence
-- navigate events: start new section
-- Output ONLY narration text — no timestamps, no JSON, no markdown
-- Present tense, one sentence per meaningful action`;
-
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -80,9 +58,23 @@ export async function GET(_req: Request, { params }: RouteParams) {
   }
 }
 
-export async function POST(_req: Request, { params }: RouteParams) {
+export async function POST(req: Request, { params }: RouteParams) {
   const { id } = await params;
   try {
+    const { lang, gender, durationSec, zooms, noteAnswers } = (await req.json().catch(() => ({}))) as {
+      lang?: string;
+      gender?: string;
+      durationSec?: number;
+      zooms?: ZoomCtx[];
+      noteAnswers?: Array<{ label: string; answer: string }>;
+    };
+    const noteSection =
+      noteAnswers && noteAnswers.length
+        ? `\n\nWhat the user wants explained at each shift-marked spot (USE these — explain exactly this at that element):\n${noteAnswers
+            .filter((n) => n.answer?.trim())
+            .map((n) => `- "${n.label}": ${n.answer}`)
+            .join("\n")}`
+        : "";
     const session = await prisma.captureSession.findUnique({
       where: { id },
       select: { id: true, events: true, meta: true, expiresAt: true },
@@ -107,24 +99,16 @@ export async function POST(_req: Request, { params }: RouteParams) {
       ? `\n\nRecording metadata (cuts made in Recordly):\n${JSON.stringify(session.meta, null, 2)}`
       : "";
 
-    const claude = getClaude();
-    const response = await claude.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 2048,
-      system: SCRIPT_SYSTEM_PROMPT,
+    const script = await deepseekChat({
+      model: "deepseek-reasoner",
       messages: [
+        { role: "system", content: SCRIPT_SYSTEM_PROMPT },
         {
           role: "user",
-          content: `Generate a narration script for this screen recording.\n\nEvents:\n${eventsJson}${metaSection}`,
+          content: `Generate a narration script for this screen recording.\n\nEvents:\n${eventsJson}${metaSection}${noteSection}${recordingContext(durationSec, zooms)}${languageDirective(lang, gender)}`,
         },
       ],
     });
-
-    const block = response.content.find((b) => b.type === "text");
-    if (!block || block.type !== "text") {
-      throw new Error("AI returned no text");
-    }
-    const script = block.text.trim();
 
     await prisma.captureSession.update({
       where: { id },

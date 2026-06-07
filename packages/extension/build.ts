@@ -23,6 +23,9 @@ function copyStatic() {
   copyFileSync("src/manifest.json", `${OUT}/manifest.json`);
   copyFileSync("src/popup/popup.html", `${OUT}/popup/popup.html`);
   copyFileSync("src/popup/popup.css", `${OUT}/popup/popup.css`);
+  for (const s of [16, 32, 48, 128]) {
+    copyFileSync(`src/icons/icon${s}.png`, `${OUT}/icon${s}.png`);
+  }
 }
 
 if (WATCH) {
