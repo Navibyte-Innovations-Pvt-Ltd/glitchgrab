@@ -1,4 +1,4 @@
-import type { RecordlyExtensionAPI } from "./types";
+import type { GlitchGrabExtensionAPI } from "./types";
 
 const API_BASE = "http://localhost:3000/api/v1";
 const SIGNAL_URL = `${API_BASE}/capture-signal`;
@@ -42,7 +42,7 @@ function buildKeptRanges(cuts: ClipRange[], totalMs: number): ClipRange[] {
   return kept;
 }
 
-export function activate(api: RecordlyExtensionAPI) {
+export function activate(api: GlitchGrabExtensionAPI) {
   let generating = false;
 
   api.registerSettingsPanel({
@@ -148,7 +148,7 @@ export function activate(api: RecordlyExtensionAPI) {
   });
 }
 
-async function sendStopWithMeta(api: RecordlyExtensionAPI) {
+async function sendStopWithMeta(api: GlitchGrabExtensionAPI) {
   const videoInfo = api.getVideoInfo();
   const originalDurationMs = videoInfo?.durationMs ?? 0;
 
