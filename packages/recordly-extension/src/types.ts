@@ -1,5 +1,5 @@
-// Minimal RecordlyExtensionAPI type surface used by this extension
-// Full type reference: https://github.com/webadderallorg/Recordly/blob/main/electron/extensions/
+// Minimal GlitchGrabExtensionAPI type surface used by this extension
+// Full type reference: https://github.com/webadderallorg/GlitchGrab/blob/main/electron/extensions/
 
 export interface SettingsField {
   id: string;
@@ -20,7 +20,7 @@ export interface SettingsPanel {
   fields: SettingsField[];
 }
 
-export interface RecordlyExtensionAPI {
+export interface GlitchGrabExtensionAPI {
   log(message: string, ...args: unknown[]): void;
   on(event: string, handler: (data?: unknown) => void): () => void;
   getSetting(id: string): unknown;
