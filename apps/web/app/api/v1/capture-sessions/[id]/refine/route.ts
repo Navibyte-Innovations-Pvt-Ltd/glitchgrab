@@ -9,6 +9,7 @@ import {
   languageDirective,
   type ZoomCtx,
 } from "@/lib/narration/prompt";
+import { parseRefineReply } from "@/lib/narration/parse-refine";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -102,14 +103,8 @@ export async function POST(req: Request, { params }: RouteParams) {
     });
 
     // Split on the marker: text before = conversational reply, after = the full
-    // revised script. No marker → the whole thing is conversation (a question).
-    // Tolerant match: the model sometimes breaks the delimiter across lines
-    // ("---\n\nSCRIPT---"), pads it ("--- SCRIPT ---"), or varies the dash count.
-    // A rigid indexOf("---SCRIPT---") missed those → script returned null →
-    // the editor never showed the "Apply to script" button.
-    const marker = /-{2,}\s*SCRIPT\s*-{2,}/i.exec(raw);
-    const reply = (marker ? raw.slice(0, marker.index) : raw).trim();
-    const script = marker ? raw.slice(marker.index + marker[0].length).trim() : null;
+    // revised script. Tolerant to delimiter drift — see parseRefineReply.
+    const { reply, script } = parseRefineReply(raw);
 
     return NextResponse.json(
       { success: true, data: { reply: reply || (script ? "Script updated." : ""), script } },
