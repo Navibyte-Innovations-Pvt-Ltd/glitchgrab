@@ -12,7 +12,7 @@
 // emitting `---` then a blank line then `SCRIPT---`.
 const SCRIPT_MARKER = /-{2,}\s*SCRIPT\s*-{2,}/i;
 
-export interface RefineParts {
+interface RefineParts {
   /** Conversational text before the marker (what the model says it changed). */
   reply: string;
   /** Full revised script after the marker, or null when the model only asked a question. */
