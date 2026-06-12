@@ -128,6 +128,12 @@ function connectBridge() {
 
 connectBridge();
 
+// Reconcile the toolbar icon on every service-worker (re)start. The MV3 worker is
+// ephemeral: if it dies mid-recording, in-memory state resets to inactive but
+// Chrome KEEPS the last icon (red dot). Fresh worker = not recording, so clear the
+// dot. Self-heals a red icon left stuck by a worker that died before stopCapture.
+if (!state.active) setRecordingIcon(false);
+
 // Fallback signal polling (HTTP) used only when bridge is offline.
 // Runs in background service worker — no "Extension context invalidated" risk.
 const SIGNAL_URL = "http://localhost:3000/api/v1/capture-signal";
@@ -142,7 +148,14 @@ setInterval(() => {
       lastSignalAt = data.signalAt;
       log("[GG] Signal changed →", data.signal);
       if (data.signal === "start" && !state.active) startCapture();
-      else if (data.signal === "stop" && state.active) stopCapture();
+      else if (data.signal === "stop") {
+        // Always clear the icon on a stop signal — even if state.active is false
+        // (the MV3 worker may have restarted mid-recording and lost in-memory
+        // state, but Chrome kept the red icon). Otherwise stopCapture() is gated
+        // out and the icon stays red forever.
+        if (state.active) stopCapture();
+        else setRecordingIcon(false);
+      }
     })
     .catch(() => {});
 }, 600);
@@ -213,7 +226,13 @@ chrome.runtime.onMessage.addListener((msg) => {
   return false;
 });
 
+// Bumped on every call so a slow async run can't clobber a newer one. Without
+// this, a quick start→stop race could let the (slower) red-dot draw resolve LAST
+// and leave the icon stuck red after recording stopped.
+let iconGeneration = 0;
+
 async function setRecordingIcon(recording: boolean) {
+  const myGeneration = ++iconGeneration;
   const sizes = [16, 32, 48, 128];
   const imageData: Record<number, ImageData> = {};
 
@@ -248,7 +267,12 @@ async function setRecordingIcon(recording: boolean) {
     imageData[size] = ctx.getImageData(0, 0, size, size);
   }
 
-  chrome.action.setIcon({ imageData });
+  // A newer setRecordingIcon call started while we were fetching/drawing — let it
+  // win instead of stomping the icon with our now-stale state.
+  if (myGeneration !== iconGeneration) return;
+  try {
+    await chrome.action.setIcon({ imageData });
+  } catch { /* action API unavailable (e.g. during teardown) — ignore */ }
 }
 
 function startCapture(bridgeSessionId?: string) {
