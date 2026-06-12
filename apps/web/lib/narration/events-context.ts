@@ -59,7 +59,7 @@ function sanitizeEvent(e: CaptureEventish): CaptureEventish {
   return out;
 }
 
-export interface ScriptContext {
+interface ScriptContext {
   /** Sanitized events JSON for the prompt (no origins/hosts). */
   eventsJson: string;
   /** A line naming the product + forbidding hostnames, appended to the prompt. */
