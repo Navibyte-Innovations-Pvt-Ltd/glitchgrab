@@ -9,6 +9,7 @@ import {
   languageDirective,
   type ZoomCtx,
 } from "@/lib/narration/prompt";
+import { buildScriptContext } from "@/lib/narration/events-context";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -94,7 +95,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       );
     }
 
-    const eventsJson = JSON.stringify(session.events, null, 2);
+    const { eventsJson, appLine } = buildScriptContext(session.events);
     const metaSection = session.meta
       ? `\n\nRecording metadata (cuts made in Recordly):\n${JSON.stringify(session.meta, null, 2)}`
       : "";
@@ -105,7 +106,7 @@ export async function POST(req: Request, { params }: RouteParams) {
         { role: "system", content: SCRIPT_SYSTEM_PROMPT },
         {
           role: "user",
-          content: `Generate a narration script for this screen recording.\n\nEvents:\n${eventsJson}${metaSection}${noteSection}${recordingContext(durationSec, zooms)}${languageDirective(lang, gender)}`,
+          content: `Generate a narration script for this screen recording.\n\nEvents:\n${eventsJson}${appLine}${metaSection}${noteSection}${recordingContext(durationSec, zooms)}${languageDirective(lang, gender)}`,
         },
       ],
     });
