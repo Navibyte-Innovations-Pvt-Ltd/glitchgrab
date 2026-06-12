@@ -69,6 +69,9 @@
     "lint": {
       "cache": false
     },
+    "test": {
+      "cache": false
+    },
     "validate": {
       "dependsOn": ["^build"],
       "cache": false
