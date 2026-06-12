@@ -48,9 +48,10 @@ describe("Capture orchestration", () => {
     cap.start();
     dom.window.document.body.innerHTML = `<button aria-label="Save">x</button>`;
     fire(dom.window.document.querySelector("button")!, "click");
-    expect(events).toHaveLength(1);
-    expect(events[0]).toMatchObject({ type: "click", label: "Save" });
-    expect(events[0].meta?.role).toBe("button");
+    const clicks = events.filter((e) => e.type === "click");
+    expect(clicks).toHaveLength(1);
+    expect(clicks[0]).toMatchObject({ type: "click", label: "Save" });
+    expect(clicks[0].meta?.role).toBe("button");
     cap.stop();
   });
 
@@ -89,6 +90,43 @@ describe("Capture orchestration", () => {
     input.value = "secret"; fire(input, "input");
     await sleep(40);
     expect(events.filter((e) => e.type === "input")).toHaveLength(0);
+    cap.stop();
+  });
+
+  // BUG (My Abhyasika signup): the login OTP "1234" was captured in plaintext
+  // because OTP fields are type=text, not password.
+  it("NEVER captures an anonymous short numeric OTP box", async () => {
+    const { events, cap } = setup();
+    cap.start();
+    dom.window.document.body.innerHTML = `<input type="text" maxlength="4" />`;
+    const input = dom.window.document.querySelector("input")! as HTMLInputElement;
+    input.value = "1234"; fire(input, "input");
+    await sleep(40);
+    expect(events.filter((e) => e.type === "input")).toHaveLength(0);
+    cap.stop();
+  });
+
+  it("NEVER captures a labelled OTP / verification-code field", async () => {
+    const { events, cap } = setup();
+    cap.start();
+    dom.window.document.body.innerHTML = `<input type="text" name="otp" placeholder="Enter verification code" />`;
+    const input = dom.window.document.querySelector("input")! as HTMLInputElement;
+    input.value = "987654"; fire(input, "input");
+    await sleep(40);
+    expect(events.filter((e) => e.type === "input")).toHaveLength(0);
+    cap.stop();
+  });
+
+  it("STILL captures a normal labelled text field", async () => {
+    const { events, cap } = setup();
+    cap.start();
+    dom.window.document.body.innerHTML = `<input type="text" name="first_name" placeholder="First name" />`;
+    const input = dom.window.document.querySelector("input")! as HTMLInputElement;
+    input.value = "Demo"; fire(input, "input");
+    await sleep(40);
+    const inputs = events.filter((e) => e.type === "input");
+    expect(inputs).toHaveLength(1);
+    expect(inputs[0].preview).toBe("Demo");
     cap.stop();
   });
 
@@ -156,15 +194,28 @@ describe("Capture orchestration", () => {
     cap.stop();
     dom.window.document.body.innerHTML = `<button>x</button>`;
     fire(dom.window.document.querySelector("button")!, "click");
-    expect(events).toHaveLength(0);
+    expect(events.some((e) => e.type === "click")).toBe(false); // start() emits one navigate; no click after stop
   });
 
   it("captures a navigate event on SPA navigation", () => {
     const { events, cap } = setup();
     cap.start();
     cap.onNavigate("Dashboard");
-    const nav = events.find((e) => e.type === "navigate");
+    const nav = events.filter((e) => e.type === "navigate").at(-1); // last = the SPA nav (start emits one too)
     expect(nav?.label).toBe("Dashboard");
+    cap.stop();
+  });
+
+  it("captures the app/site name (og:site_name) on the start navigate event", () => {
+    const { events, cap } = setup();
+    const meta = dom.window.document.createElement("meta");
+    meta.setAttribute("property", "og:site_name");
+    meta.setAttribute("content", "My Abhyasika");
+    dom.window.document.head.appendChild(meta);
+    cap.start();
+    const nav = events.find((e) => e.type === "navigate");
+    expect(nav?.meta?.site).toBe("My Abhyasika");
+    meta.remove();
     cap.stop();
   });
 
