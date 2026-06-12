@@ -17,6 +17,19 @@ export interface CaptureEvent {
 
 const DEDUP_MS = 80;
 
+// One-time codes / OTP / PIN / CVV are short-lived secrets — their value must
+// never land in the capture log even though they aren't type=password. Detect by
+// autocomplete, a code-ish name/label, or an anonymous short numeric field (the
+// typical unlabelled OTP digit box).
+function isSensitiveCode(el: HTMLInputElement): boolean {
+  if (!el || el.tagName !== "INPUT") return false;
+  if (el.autocomplete === "one-time-code") return true;
+  const id = (el.name || el.id || el.getAttribute("aria-label") || el.placeholder || "").toLowerCase();
+  if (/otp|one[\s-]?time|verification|2fa|mfa|\bpin\b|cvv|cvc|security[\s-]?code/.test(id)) return true;
+  if (!id && el.maxLength > 0 && el.maxLength <= 6 && /^\d*$/.test(el.value || "")) return true;
+  return false;
+}
+
 // Timing knobs — production defaults; tests pass small values for fast, reliable runs.
 export interface CaptureTiming {
   inputDebounceMs?: number;
@@ -70,6 +83,11 @@ export class Capture {
     if (this.capturing) return;
     this.capturing = true;
     this.lastEventAt = Date.now();
+    // Record the starting page up front: its title + app name (og:site_name) are
+    // the only reliable source of the PRODUCT name for the narration. SPA route
+    // changes and the initial load otherwise emit no navigate, so the script
+    // never learns what the app is called (was naming it "localhost").
+    this.emitNavigate();
     document.addEventListener("click", this.onClick, { capture: true, passive: true });
     document.addEventListener("input", this.onInput, { capture: true, passive: true });
     document.addEventListener("keydown", this.onKeydown, { capture: true, passive: true });
@@ -162,6 +180,7 @@ export class Capture {
     this.breakIdle(Date.now());
     const target = e.target as HTMLInputElement | HTMLTextAreaElement;
     if ((target as HTMLInputElement).type === "password") return;
+    if (isSensitiveCode(target as HTMLInputElement)) return; // OTP / 2FA / PIN — never log
     // Switching to a different field mid-debounce: flush the previous one first.
     if (this.lastInputEl && this.lastInputEl !== target) {
       if (this.inputTimer) { clearTimeout(this.inputTimer); this.inputTimer = null; }
@@ -279,6 +298,34 @@ export class Capture {
     if (!this.capturing) return;
     this.lastEventAt = Date.now();
     this.breakIdle(Date.now());
-    this.emit({ type: "navigate", url: location.href, label: title });
+    this.emitNavigate(title);
   }
+
+  // Emit a navigate event carrying the page title + app/site name so the
+  // narration can name the product (and never has to fall back to a hostname).
+  private emitNavigate(title?: string): void {
+    const site = readSiteName();
+    this.emit({
+      type: "navigate",
+      url: location.href,
+      label: (title ?? document.title) || undefined,
+      meta: site ? ({ site } as ElementMeta) : undefined,
+    });
+  }
+}
+
+// The canonical product/brand name from page metadata (og:site_name, then
+// application-name). Independent of the messy <title> SEO string.
+function readSiteName(): string | undefined {
+  try {
+    const og = document
+      .querySelector('meta[property="og:site_name"]')
+      ?.getAttribute("content");
+    if (og && og.trim()) return og.trim().slice(0, 60);
+    const app = document
+      .querySelector('meta[name="application-name"]')
+      ?.getAttribute("content");
+    if (app && app.trim()) return app.trim().slice(0, 60);
+  } catch { /* no DOM (tests) */ }
+  return undefined;
 }
