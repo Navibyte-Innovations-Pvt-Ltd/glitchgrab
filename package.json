@@ -25,6 +25,7 @@
     "build": "dotenvx run -- turbo build --filter=@glitchgrab/web",
     "postinstall": "test -f apps/glitchrecord/package.json && npm install --prefix apps/glitchrecord || true",
     "lint": "turbo lint --",
+    "test": "turbo test --",
     "validate": "turbo validate -- && knip && pruny --all --ignore-apps mobile --ignore-apps glitchrecord",
     "knip:fix": "knip --fix",
     "pruny:fix": "pruny --fix",
