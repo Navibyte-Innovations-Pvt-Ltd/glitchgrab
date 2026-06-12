@@ -10,7 +10,7 @@ Glitchgrab is an open-source SaaS tool that converts messy bug inputs (handwritt
 
 - **apps/web** — Next.js 15 (App Router) dashboard + API routes. Deployed on Vercel.
 - **apps/mobile** — React Native (Expo SDK 55) mobile app. WebView wrapper around the web dashboard with native features (share intent, deep links, secure token storage). Builds APK via `bun run build:android:prod`.
-- **apps/glitchrecord** — Electron screen recorder/editor (a fork of Recordly). Records the screen, edits clips/zooms, and hosts the GlitchGrab bridge that pairs with the Chrome extension. Dev via `bun run dev` (vite-plugin-electron hot-reloads main+preload). userData in dev: `~/Library/Application Support/Recordly-dev`.
+- **apps/glitchrecord** — Electron screen recorder/editor (a fork of Recordly). Records the screen, edits clips/zooms, and hosts the GlitchGrab bridge that pairs with the Chrome extension. Dev via `bun run dev` (vite-plugin-electron hot-reloads main+preload). userData in dev: `~/Library/Application Support/GlitchRecord-dev`. **Testing: see `apps/glitchrecord/CLAUDE.md`** — three lanes (deterministic unit, real-browser capture e2e, Electron UI click e2e) + the bug→test→scenario workflow.
 - **packages/extension** — `@glitchgrab/extension`. The **Chrome extension** (MV3) that captures browser interaction events (click/input/scroll/navigate/select/keydown/copy/paste) during a recording. Build: `bun run build` → `dist/` (load unpacked). NOT published to the store yet.
 - **packages/recordly-extension** — `@glitchgrab/recordly-extension`. A **Recordly in-app plugin** (permissions: timeline/ui/cursor) — the AI script generator panel inside GlitchRecord. NOT a Chrome extension; don't confuse with `packages/extension`.
 - **packages/sdk-nextjs** — `glitchgrab` npm package. Drop-in error capture + report button for Next.js apps.
@@ -176,7 +176,7 @@ Turns a screen recording into a narrated tutorial + auto-created GitHub issue. T
 Capturing works WITHOUT login. Login + a selected repo are only needed for DB upload + AI script + GitHub issue. `broadcastRecordingStart` no longer gates on auth.
 
 ### Debugging
-- **Unified debug log**: `~/Library/Application Support/Recordly-dev/glitchgrab-debug.log` (dev). Extension logs forward over WS (`{type:"log"}`); GlitchRecord appends `appendDebugLog("rec", …)`. One file, both sides — read it directly.
+- **Unified debug log**: `~/Library/Application Support/GlitchRecord-dev/glitchgrab-debug.log` (dev). Extension logs forward over WS (`{type:"log"}`); GlitchRecord appends `appendDebugLog("rec", …)`. One file, both sides — read it directly.
 - Extension `log()` also mirrors to every page console as `[GG-bg]` (read via any open tab).
 
 ### Gotchas (learned the hard way)
