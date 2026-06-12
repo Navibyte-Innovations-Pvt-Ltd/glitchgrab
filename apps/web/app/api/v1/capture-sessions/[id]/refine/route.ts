@@ -10,6 +10,7 @@ import {
   type ZoomCtx,
 } from "@/lib/narration/prompt";
 import { parseRefineReply } from "@/lib/narration/parse-refine";
+import { buildScriptContext } from "@/lib/narration/events-context";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -69,7 +70,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       );
     }
 
-    const eventsJson = JSON.stringify(session.events, null, 2);
+    const { eventsJson, appLine } = buildScriptContext(session.events);
     const metaSection = session.meta
       ? `\n\nRecording metadata (cuts made in Recordly):\n${JSON.stringify(session.meta, null, 2)}`
       : "";
@@ -87,7 +88,7 @@ export async function POST(req: Request, { params }: RouteParams) {
 
     // Leading context turn: the events + the current script the user is refining.
     const contextTurn =
-      `Events:\n${eventsJson}${metaSection}\n\nCURRENT SCRIPT (refine this per my next messages):\n${body.currentScript ?? "(empty — write a fresh script)"}`;
+      `Events:\n${eventsJson}${appLine}${metaSection}\n\nCURRENT SCRIPT (refine this per my next messages):\n${body.currentScript ?? "(empty — write a fresh script)"}`;
 
     const seed: ChatMsg[] = body.currentScript?.trim()
       ? [{ role: "assistant", content: body.currentScript }]
