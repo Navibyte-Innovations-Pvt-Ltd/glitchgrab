@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "eslint .",
     "validate": "eslint . && tsc --noEmit",
-    "test:capture": "bun test app/api/v1/capture-sessions/"
+    "test:capture": "bun test app/api/v1/capture-sessions/",
+    "test": "bun test lib/ app/api/v1/"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
