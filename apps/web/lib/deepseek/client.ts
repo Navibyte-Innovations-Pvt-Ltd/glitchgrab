@@ -12,8 +12,13 @@ interface ChatParams {
   messages: ChatMessage[];
   maxTokens?: number;
   temperature?: number;
-  // "deepseek-chat" (V3, fast) or "deepseek-reasoner" (R1, thinks before answering).
-  model?: "deepseek-chat" | "deepseek-reasoner";
+  // Current models (deepseek-chat/deepseek-reasoner are deprecated 2026-07-24 →
+  // they're the non-thinking/thinking modes of deepseek-v4-flash):
+  //  - "deepseek-v4-flash": fast, cheap, non-thinking by default.
+  //  - "deepseek-v4-pro": strongest; best at following the script/cluster rules.
+  // Non-thinking modes follow literal format rules better than the thinking
+  // (reasoner) mode, which tends to "think" and then drop instructions.
+  model?: "deepseek-v4-pro" | "deepseek-v4-flash" | "deepseek-chat" | "deepseek-reasoner";
 }
 
 /**
@@ -25,8 +30,8 @@ export async function deepseekChat(params: ChatParams): Promise<string> {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) throw new Error("DEEPSEEK_API_KEY is not configured");
 
-  const model = params.model ?? "deepseek-chat";
-  // The reasoner spends tokens thinking before the answer — give it headroom.
+  const model = params.model ?? "deepseek-v4-flash";
+  // Thinking modes spend tokens reasoning before the answer — give headroom.
   const defaultMaxTokens = model === "deepseek-reasoner" ? 8192 : 2048;
   const body = JSON.stringify({
     model,
