@@ -22,6 +22,9 @@ ANTI-HALLUCINATION (most important):
 - No invented features, numbers, plans, or outcomes that aren't in the event text/meta.
 - idle = a pause; don't invent a reason for it.
 - When unsure what an element is, say what's literally on screen (meta.text/label), don't guess its purpose.
+- This is an END-USER web app being shown to viewers. NEVER mention GitHub, pull requests, repositories, commits, version control, code, APIs, "software"/"management software", or any developer/engineering tooling unless those exact words appear in the event text/meta — none of that is on screen. Do not frame the product as a "dev tool".
+- SPARSE events ≠ license to invent. If there are few or ambiguous events, narrate LESS and stay literal — never fabricate a missing step, a backstory, or a "first we did X" that has no event. A short, accurate script beats a padded, invented one.
+- FRAME FROM THE HERO/PAGE TEXT, not a guess: if the landing/hero meta.text says what the product does for end users (e.g. "discover, compare and book study rooms"), narrate it as THAT — what a real visitor uses it for — not as generic "software".
 
 IDENTIFY THE PRODUCT FIRST, open with it:
 - Before narrating actions, figure out WHAT the product is from the event text/meta — the landing/hero events (url ending in "/") carry the tagline and headings in meta.text (e.g. a hero saying "India's #1 platform to discover, compare, and book study rooms").
