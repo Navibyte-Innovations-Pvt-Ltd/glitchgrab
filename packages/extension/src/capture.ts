@@ -204,10 +204,23 @@ export class Capture {
 
   // Mark "explain this" on `el`. The script generator treats `note` events as
   // "spend time here — the user wants this explained" (e.g. Claim vs Add).
-  private emitNote(el: Element | null, durationMs: number): void {
+  // `selectedText` (if present) = the user HIGHLIGHTED text then pressed Shift →
+  // they want THAT exact text explained; carry it as the label + preview.
+  private emitNote(el: Element | null, durationMs: number, selectedText?: string): void {
     this.lastEventAt = Date.now();
     this.breakIdle(Date.now());
-    if (el) {
+    const sel = selectedText?.trim().slice(0, 200);
+    if (sel) {
+      this.emit({
+        type: "note",
+        label: sel.slice(0, 120),
+        url: location.href,
+        meta: el ? describeElement(el) : undefined,
+        note: "explain-selection",
+        preview: sel,
+        durationMs,
+      });
+    } else if (el) {
       const { label } = getClickLabel(el);
       this.emit({ type: "note", label, url: location.href, meta: describeElement(el), note: "explain", durationMs });
     } else {
@@ -252,8 +265,13 @@ export class Capture {
     this.shiftDownAt = 0;
     this.shiftSubject = null;
     this.shiftHadOtherKey = false;
-    // Held long enough AND nothing typed → it was an "explain" hold.
-    if (held >= this.minHoldMs && !wasTyping) {
+    if (wasTyping) return; // typed capitals/symbols — not an explain gesture
+    const selectedText = (window.getSelection()?.toString() ?? "").trim();
+    // SELECT text + tap Shift = "explain THIS highlighted text" — no hold needed
+    // (the selection is the intent). Otherwise the gesture is a HOLD on an element.
+    if (selectedText.length >= 2) {
+      this.emitNote(subject, held, selectedText);
+    } else if (held >= this.minHoldMs) {
       this.emitNote(subject, held);
     }
   };
