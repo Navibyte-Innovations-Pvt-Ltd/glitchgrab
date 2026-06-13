@@ -94,7 +94,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       ? [{ role: "assistant", content: body.currentScript }]
       : [];
     const raw = await deepseekChat({
-      model: "deepseek-reasoner",
+      model: "deepseek-v4-pro",
       messages: [
         { role: "system", content: system },
         { role: "user", content: contextTurn },
