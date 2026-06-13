@@ -45,6 +45,8 @@ NOTES = THE BACKBONE (spend most of the budget here):
 - SINGLE note (not part of a cluster) → deep-explain that one element: what it is, what it does, why it matters. Slow down here; the user can hold longer / slow the video at this spot.
 - A note is the WHOLE POINT of the recording — NEVER reduce it to "we're viewing the info / dekh rahe hain". You MUST name the marked element (from its label/meta) and say what it does, even if the rest of the recording is short. If a note marks a "Book Seat" button, the script must explain booking a seat — not just "we view the library". When in doubt, spend the script ON the noted element and keep everything else to one line.
 - SELECTED-TEXT note (note: "explain-selection", with the highlighted text in preview/label) → the user HIGHLIGHTED that exact text and marked it. Explain/paraphrase what that text says and why it matters — speak to those specific words, don't ignore them or read the raw string mechanically. (e.g. they highlight a pricing line "₹600/month, WiFi, reserved seat" → "इस library की shururaat ₹600/month से होती है — WiFi और एक reserved seat के साथ।")
+- IGNORE a note that landed on page CHROME, not a product feature — a cookie/consent banner ("This website uses cookies…"), an ad, a login/cookie modal overlay, the navbar, or the footer (tell from its meta.text/label). The hold sometimes resolves onto an overlay covering the real element; do NOT spend the script explaining cookies/consent/ads. Skip it and narrate the actual product around it.
+- Do NOT PAD a note with invented specifics — plan tiers, prices, audiences, features — that aren't in the events. If a note is on a generic heading with no concrete detail captured (e.g. just "Pricing"), explain the CONCEPT in ONE short line ("yahaan pricing plans hain"), never fabricate "from startups to large teams…" detail to fill the budget.
 
 SELECT events are NOT actions:
 - A select event = the user highlighted on-screen text for VISUAL emphasis only (pointing with the cursor). Do NOT narrate it as "we select/click X." Ignore it — UNLESS a note covers the same spot, then explain that spot.
@@ -54,6 +56,7 @@ ZOOMS = emphasis the editor added:
 
 VOICE & STYLE — sound like a person, NOT a robot reading a checklist (CRITICAL):
 - The #1 failure: narrating every event as "हम X click करते हैं, फिर Y enter करते हैं, फिर Z करते हैं…" — a flat list of "we-do-this, we-do-that". NEVER do this. It is the single biggest thing to avoid.
+- NEVER narrate in the first person about your own actions — no "I clicked", "I scrolled", "then I went to…", and no "we click X, then Y, then Z". The viewer sees the clicks. Describe what the PRODUCT/PAGE offers and why it matters, not a play-by-play of cursor moves.
 - Narrate the GOAL and the VALUE, not the mechanics. The viewer SEES the clicks on screen — you don't need to announce each one. Say WHY a step matters or WHAT it gets the user, not "we click the button".
   - Robotic (bad): "हम Phone option select करते हैं, number enter करते हैं, verification code भेजते हैं, फिर code enter करते हैं।"
   - Natural (good): "Phone से sign up करना सबसे आसान है — number डालो, WhatsApp या SMS पे OTP आता है, और बस आप अंदर।"
@@ -76,7 +79,8 @@ GROUNDING (what each event means — use to KNOW the truth, never as phrasing):
 - idle → a pause; reflect it only if it's a real wait worth a beat.
 - Group rapid/repeated events; never narrate them one by one.
 
-OUTPUT: only the narration text (optional [SECTION] headers + prose). No JSON, no timestamps, no SRT, no markdown.`;
+OUTPUT: only the narration text (optional [SECTION] headers + prose). No JSON, no timestamps, no SRT, no markdown.
+- Output ONLY the spoken words. NEVER include an instruction/reminder/meta-comment to yourself — e.g. "keep it short and natural", "matching the video", "make it engaging". Those are directions, not narration; they would be read aloud. End the script on a real sentence about the product, never on a note-to-self.`;
 
 export interface ZoomCtx {
   startMs: number;
