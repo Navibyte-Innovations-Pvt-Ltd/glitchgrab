@@ -101,7 +101,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       : "";
 
     const script = await deepseekChat({
-      model: "deepseek-reasoner",
+      model: "deepseek-v4-pro",
       messages: [
         { role: "system", content: SCRIPT_SYSTEM_PROMPT },
         {
