@@ -43,6 +43,7 @@ NOTES = THE BACKBONE (spend most of the budget here):
   - Example: notes on "MICRO" and "PRO" plan cards → present them as the plan choices, each with who it's for.
 - A note label may be imperfect (the captured element under the cursor isn't always the exact button the user meant). Use the note's meta.section + surrounding events to infer what the user was pointing at, and explain the CONCEPT of that area, not just the literal label. (e.g. notes around a library-search box where the user marked list rows → explain "yahaan apni library Google se search karo; agar pehle se listed hai toh use claim karo, warna nayi add karo" — the add-vs-claim choice, even if the literal label was a result name.)
 - SINGLE note (not part of a cluster) → deep-explain that one element: what it is, what it does, why it matters. Slow down here; the user can hold longer / slow the video at this spot.
+- A note is the WHOLE POINT of the recording — NEVER reduce it to "we're viewing the info / dekh rahe hain". You MUST name the marked element (from its label/meta) and say what it does, even if the rest of the recording is short. If a note marks a "Book Seat" button, the script must explain booking a seat — not just "we view the library". When in doubt, spend the script ON the noted element and keep everything else to one line.
 
 SELECT events are NOT actions:
 - A select event = the user highlighted on-screen text for VISUAL emphasis only (pointing with the cursor). Do NOT narrate it as "we select/click X." Ignore it — UNLESS a note covers the same spot, then explain that spot.
