@@ -39,13 +39,16 @@ export function deriveAppName(events: CaptureEventish[]): string {
     const site = e.meta && (e.meta.site || e.meta.siteName || e.meta.appName);
     if (typeof site === "string" && site.trim()) return site.trim().slice(0, 40);
   }
-  // 2. Fallback: first segment of a page title (split on pipe/dash/middot, NOT
-  //    hyphen). Less reliable — a title can lead with the page name, not the brand.
-  for (const e of events) {
-    if (e.type === "navigate" && typeof e.label === "string" && e.label.trim()) {
-      const first = e.label.split(/\s*[|–—·]\s*/)[0].trim();
-      if (first && first.length >= 2 && first.length <= 40) return first;
-    }
+  // 2. Fallback: brand from the FIRST navigate's page title (the landing page) —
+  //    not any later SPA route label (those are junk: a stray "Meet" must never
+  //    win). Split on pipe/dash/middot AND a SPACED hyphen ("BBC News - Breaking
+  //    …" → "BBC News"); non-spaced hyphens stay (brand names like "Coca-Cola").
+  const firstNav = events.find(
+    (e) => e.type === "navigate" && typeof e.label === "string" && e.label.trim(),
+  );
+  if (firstNav && typeof firstNav.label === "string") {
+    const first = firstNav.label.split(/\s*[|–—·]\s*|\s+-\s+/)[0].trim();
+    if (first && first.length >= 2 && first.length <= 40) return first;
   }
   return "";
 }
@@ -73,7 +76,7 @@ export function buildScriptContext(events: unknown): ScriptContext {
   const appName = deriveAppName(list);
   const eventsJson = JSON.stringify(list.map(sanitizeEvent), null, 2);
   const appLine = appName
-    ? `\n\nThe product/app being shown is "${appName}". Name it as "${appName}". NEVER say a hostname, domain, URL, or "localhost" out loud — refer to screens by name (e.g. "the dashboard"), never by their address.`
-    : `\n\nNEVER say a hostname, domain, URL, or "localhost" out loud — refer to screens by name, never by their address.`;
+    ? `\n\nA likely product name (from page metadata) is "${appName}" — use it UNLESS the hero/heading/description text in the events clearly names the product differently or shows "${appName}" is just a page label, in which case prefer the name the page text actually conveys. NEVER say a hostname, domain, URL, or "localhost" out loud — refer to screens by name (e.g. "the dashboard"), never by their address.`
+    : `\n\nName the product from the hero/heading/description text in the events. NEVER say a hostname, domain, URL, or "localhost" out loud — refer to screens by name, never by their address.`;
   return { eventsJson, appLine, appName };
 }
