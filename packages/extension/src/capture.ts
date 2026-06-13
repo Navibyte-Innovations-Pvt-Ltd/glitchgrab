@@ -305,12 +305,33 @@ export class Capture {
   // narration can name the product (and never has to fall back to a hostname).
   private emitNavigate(title?: string): void {
     const site = readSiteName();
+    const text = readPageGist(); // hero heading + description → grounds the product framing
+    const meta: Record<string, string> = {};
+    if (site) meta.site = site;
+    if (text) meta.text = text;
     this.emit({
       type: "navigate",
       url: location.href,
       label: (title ?? document.title) || undefined,
-      meta: site ? ({ site } as ElementMeta) : undefined,
+      meta: Object.keys(meta).length ? (meta as ElementMeta) : undefined,
     });
+  }
+}
+
+// The page's gist for the narration model: main heading + meta description. This
+// is what lets the scripter say what the product actually does ("find & book
+// study rooms") instead of guessing from the brand name ("library software").
+function readPageGist(): string | undefined {
+  try {
+    const desc = (
+      document.querySelector('meta[name="description"]') ??
+      document.querySelector('meta[property="og:description"]')
+    )?.getAttribute("content")?.replace(/\s+/g, " ").trim();
+    const h1 = document.querySelector("h1")?.textContent?.replace(/\s+/g, " ").trim();
+    const gist = [h1, desc].filter(Boolean).join(" — ").slice(0, 220);
+    return gist || undefined;
+  } catch {
+    return undefined;
   }
 }
 
