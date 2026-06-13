@@ -29,6 +29,7 @@
     "test:record": "cd apps/glitchrecord && bun run test:all",
     "test:record:ui": "cd apps/glitchrecord && bun run test:e2e:ui",
     "test:record:export": "cd apps/glitchrecord && bun run test:e2e:export",
+    "demo:videos": "cd apps/glitchrecord && bun run demo:videos",
     "validate": "turbo validate -- && knip && pruny --all --ignore-apps mobile --ignore-apps glitchrecord",
     "knip:fix": "knip --fix",
     "pruny:fix": "pruny --fix",
