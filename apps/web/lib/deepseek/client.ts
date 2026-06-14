@@ -31,8 +31,10 @@ export async function deepseekChat(params: ChatParams): Promise<string> {
   if (!apiKey) throw new Error("DEEPSEEK_API_KEY is not configured");
 
   const model = params.model ?? "deepseek-v4-flash";
-  // Thinking modes spend tokens reasoning before the answer — give headroom.
-  const defaultMaxTokens = model === "deepseek-reasoner" ? 8192 : 2048;
+  // Thinking-capable models (reasoner, v4-pro) spend tokens reasoning BEFORE the
+  // final answer — give big headroom so the answer lands in `content` instead of
+  // being truncated mid-thought (which left content empty → garbage fallbacks).
+  const defaultMaxTokens = model === "deepseek-reasoner" || model === "deepseek-v4-pro" ? 8192 : 2048;
   const body = JSON.stringify({
     model,
     messages: params.messages,
@@ -63,6 +65,8 @@ export async function deepseekChat(params: ChatParams): Promise<string> {
       const data = (await res.json()) as {
         choices?: Array<{ message?: { content?: string } }>;
       };
+      // Use ONLY content — the final answer. NEVER reasoning_content (that's the
+      // model's chain-of-thought; returning it leaks raw "thinking" as the script).
       const text = data.choices?.[0]?.message?.content?.trim();
       if (!text) throw new Error("DeepSeek returned no text");
       return text;
@@ -73,6 +77,16 @@ export async function deepseekChat(params: ChatParams): Promise<string> {
       if (attempt < 2) {
         await new Promise((r) => setTimeout(r, 2 ** attempt * 500));
       }
+    }
+  }
+  // Fallback: if the requested model kept failing/empty (v4-pro can return empty
+  // on noisy inputs), try deepseek-v4-flash once — it's more lenient — so a script
+  // is still produced rather than failing the whole generate.
+  if (model !== "deepseek-v4-flash") {
+    try {
+      return await deepseekChat({ ...params, model: "deepseek-v4-flash" });
+    } catch {
+      /* fall through to the original error */
     }
   }
   throw lastError instanceof Error ? lastError : new Error("DeepSeek call failed");
