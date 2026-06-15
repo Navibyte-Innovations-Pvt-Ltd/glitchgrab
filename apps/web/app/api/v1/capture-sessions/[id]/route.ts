@@ -7,6 +7,8 @@ import {
   SCRIPT_SYSTEM_PROMPT,
   recordingContext,
   languageDirective,
+  isRomanHindiFallback,
+  DEVANAGARI_FIX_INSTRUCTION,
   type ZoomCtx,
 } from "@/lib/narration/prompt";
 import { buildScriptContext } from "@/lib/narration/events-context";
@@ -100,16 +102,26 @@ export async function POST(req: Request, { params }: RouteParams) {
       ? `\n\nRecording metadata (cuts made in Recordly):\n${JSON.stringify(session.meta, null, 2)}`
       : "";
 
-    const script = await deepseekChat({
-      model: "deepseek-v4-pro",
-      messages: [
-        { role: "system", content: SCRIPT_SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: `Generate a narration script for this screen recording.\n\nEvents:\n${eventsJson}${appLine}${metaSection}${noteSection}${recordingContext(durationSec, zooms)}${languageDirective(lang, gender)}`,
-        },
-      ],
-    });
+    const userContent = `Generate a narration script for this screen recording.\n\nEvents:\n${eventsJson}${appLine}${metaSection}${noteSection}${recordingContext(durationSec, zooms)}${languageDirective(lang, gender)}`;
+    const messages = [
+      { role: "system" as const, content: SCRIPT_SYSTEM_PROMPT },
+      { role: "user" as const, content: userContent },
+    ];
+    let script = await deepseekChat({ model: "deepseek-v4-pro", messages });
+
+    // Devanagari guard: lang=hi sometimes comes back in Roman/Latin Hindi despite
+    // the rule. Detect it and re-ask ONCE to rewrite the same script in Devanagari.
+    if (isRomanHindiFallback(script, lang)) {
+      const fixed = await deepseekChat({
+        model: "deepseek-v4-pro",
+        messages: [
+          ...messages,
+          { role: "assistant" as const, content: script },
+          { role: "user" as const, content: DEVANAGARI_FIX_INSTRUCTION },
+        ],
+      });
+      if (!isRomanHindiFallback(fixed, lang)) script = fixed;
+    }
 
     await prisma.captureSession.update({
       where: { id },
