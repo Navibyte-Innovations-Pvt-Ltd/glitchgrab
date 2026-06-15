@@ -12,6 +12,7 @@ import {
   type ZoomCtx,
 } from "@/lib/narration/prompt";
 import { buildScriptContext } from "@/lib/narration/events-context";
+import { recordGeneration } from "@/lib/narration/telemetry";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -115,7 +116,9 @@ export async function POST(req: Request, { params }: RouteParams) {
     // script/cluster/Devanagari format rules BETTER (thinking models drift off the
     // instructions), and on the repro returned correct Devanagari where v4-pro
     // returned Roman Hindi (which would itself trigger the slow retry below).
+    const genStart = Date.now();
     let script = await deepseekChat({ model: "deepseek-v4-flash", messages });
+    let devanagariRetried = false;
 
     // Devanagari guard: lang=hi sometimes comes back in Roman/Latin Hindi despite
     // the rule. Detect it and re-ask ONCE to rewrite the same script in Devanagari.
@@ -125,6 +128,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     // earlier version let the retry throw uncaught → the whole generate 500'd →
     // the editor got a 0-char script on every site that hit a note.
     if (isRomanHindiFallback(script, lang)) {
+      devanagariRetried = true;
       try {
         const fixed = await deepseekChat({
           model: "deepseek-v4-flash",
@@ -145,6 +149,21 @@ export async function POST(req: Request, { params }: RouteParams) {
     await prisma.captureSession.update({
       where: { id },
       data: { script },
+    });
+
+    // Persist training/feedback telemetry (best-effort, never blocks the response).
+    await recordGeneration({
+      sessionId: id,
+      events: session.events,
+      meta: session.meta,
+      lang,
+      gender,
+      durationSec,
+      noteAnswers,
+      model: "deepseek-v4-flash",
+      genLatencyMs: Date.now() - genStart,
+      initialScript: script,
+      devanagariRetried,
     });
 
     return NextResponse.json(
