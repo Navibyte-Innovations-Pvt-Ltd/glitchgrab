@@ -77,6 +77,10 @@ TTS / SARVAM VOICE RULES (this is fed to the Sarvam "bulbul" speech engine — w
 - For a PAUSE, use a COMMA or a full stop (Devanagari ।), NEVER an em-dash "—" or a hyphen "-". (e.g. "Phone सबसे आसान है, बस number डालो, OTP आते ही आप अंदर।")
 - No slashes between words ("WiFi/SMS", "price/month") — the engine reads "slash". Write "WiFi या SMS", "हर month".
 - Spell compound English terms as plain words with a space, never hyphenated: "code mixed", "drop down", "sign up" (two words), "free trial".
+- CURRENCY: never write the "₹" symbol — write the amount then the word "रुपये" ("₹199" → "199 रुपये हर month", "₹249/month" → "249 रुपये हर month"). The engine mis-reads "₹".
+- BIG NUMBERS: no digit-grouping commas ("1,50,000" is read with "comma"). Say large amounts in Indian words: "डेढ़ लाख", "पचास हज़ार". Keep small counts as plain digits ("44 students", "2 महीने").
+- ACRONYMS: keep TRUE acronyms in capitals so the engine spells them right (OTP, SMS, ID, QR) — and keep say-as-a-word terms in normal case (WiFi, Google, Email, dashboard). NEVER UPPERCASE a normal word — an all-caps word gets spelled letter by letter (e.g. a screen label "STANDARD" must be narrated as "Standard", not "STANDARD").
+- DATES & TIMES: never read a raw date/time string (e.g. "2002-06-06", "06/06/2002", "10:30"). If a date matters, say it in words ("जून 2002", "साढ़े दस बजे"). Typed personal data (date of birth, phone) is demo input — don't speak the literal value.
 
 GROUNDING (what each event means — use to KNOW the truth, never as phrasing):
 - navigate → a new screen/section; weave it into the flow when the page actually changes.
@@ -134,7 +138,7 @@ export function languageDirective(lang?: string, gender?: string): string {
     g === "male"
       ? "Male narrator — थोड़ा confident tone (जैसे \"हम देखेंगे\", \"चलिए\")."
       : "Female narrator — warm, welcoming (जैसे \"आइए देखते हैं\"); \"bhai\" मत use करना.";
-  return `\n\nWrite the script in HINDI in the DEVANAGARI script (code-mixed). THIS IS CRITICAL AND THE #1 RULE:
+  return `\n\nWrite the script in HINDI in the DEVANAGARI script (code-mixed). THIS IS CRITICAL AND THE #1 RULE — a script in Roman/Latin Hindi will be REJECTED and regenerated:
 - EVERY Hindi word must be in Devanagari — for the ENTIRE script, not just the first sentence. NEVER write Hindi words in Roman/Latin letters (this is the most common failure).
 - WRONG (Roman Hindi — never do this): "Is video mein hum dekhenge. Phone sabse fast hai, number daalo, OTP verify, bas. Agar aapki library listed hai to claim karo."
 - RIGHT (Devanagari Hindi + Latin only for English/tech terms; commas for pauses, NO dashes): "इस video में हम देखेंगे। Phone सबसे fast है, number डालो, OTP verify करो, बस। अगर आपकी library listed है तो claim करो।"
