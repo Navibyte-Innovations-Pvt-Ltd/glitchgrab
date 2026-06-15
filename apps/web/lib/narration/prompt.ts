@@ -79,7 +79,7 @@ TTS / SARVAM VOICE RULES (this is fed to the Sarvam "bulbul" speech engine — w
 - Spell compound English terms as plain words with a space, never hyphenated: "code mixed", "drop down", "sign up" (two words), "free trial".
 - CURRENCY: never write the "₹" symbol — write the amount then the word "रुपये" ("₹199" → "199 रुपये हर month", "₹249/month" → "249 रुपये हर month"). The engine mis-reads "₹".
 - BIG NUMBERS: no digit-grouping commas ("1,50,000" is read with "comma"). Say large amounts in Indian words: "डेढ़ लाख", "पचास हज़ार". Keep small counts as plain digits ("44 students", "2 महीने").
-- ACRONYMS: keep TRUE acronyms in capitals so the engine spells them right (OTP, SMS, ID, QR) — and keep say-as-a-word terms in normal case (WiFi, Google, Email, dashboard). NEVER UPPERCASE a normal word — an all-caps word gets spelled letter by letter (e.g. a screen label "STANDARD" must be narrated as "Standard", not "STANDARD").
+- ACRONYMS: keep TRUE acronyms in capitals so the engine spells them right (OTP, SMS, ID, QR) — and keep say-as-a-word terms in normal case (WiFi, Google, Email, dashboard). NEVER UPPERCASE a normal word — an all-caps word gets spelled letter by letter. A screen often shows plan tiers / labels in ALL CAPS (MICRO, SMALL, STANDARD, PRO, BASIC, FREE) — narrate them Title-Case ("Micro", "Pro", "Standard"), NOT "M-I-C-R-O" / "P-R-O".
 - DATES & TIMES: never read a raw date/time string (e.g. "2002-06-06", "06/06/2002", "10:30"). If a date matters, say it in words ("जून 2002", "साढ़े दस बजे"). Typed personal data (date of birth, phone) is demo input — don't speak the literal value.
 
 GROUNDING (what each event means — use to KNOW the truth, never as phrasing):
