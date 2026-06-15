@@ -94,7 +94,10 @@ export async function POST(req: Request, { params }: RouteParams) {
       ? [{ role: "assistant", content: body.currentScript }]
       : [];
     const raw = await deepseekChat({
-      model: "deepseek-v4-pro",
+      // v4-flash, not v4-pro: same reason as generation (see capture-sessions
+      // [id]/route.ts) — v4-pro's thinking adds 30–60s and drifts off the literal
+      // ---SCRIPT--- / format rules; flash refines in ~8s and obeys them better.
+      model: "deepseek-v4-flash",
       messages: [
         { role: "system", content: system },
         { role: "user", content: contextTurn },
