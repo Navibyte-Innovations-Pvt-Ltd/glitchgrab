@@ -379,3 +379,49 @@ model CaptureSession {
   expiresAt  DateTime
   createdAt  DateTime @default(now())
 }
+
+// Persistent narration training/feedback telemetry. Unlike CaptureSession (which
+// expires), this survives so we can analyze how much refinement scripts need and
+// improve the model. One row per capture session; the generate route writes the
+// initial row, the refine route appends each user refinement turn. Writes are
+// best-effort — telemetry must NEVER break script generation.
+model NarrationTelemetry {
+  id          String   @id @default(cuid())
+  sessionId   String   @unique // the CaptureSession id this generation came from
+
+  // ── Input context ───────────────────────────────────────────────
+  events      Json     // raw captured events, as-is (incl. typed previews)
+  meta        Json?    // RecordingMeta (cuts/zooms/duration)
+  appName     String?  // derived product name (deriveAppName)
+  lang        String?
+  gender      String?
+  durationSec Int?
+  eventCount  Int      @default(0)
+  hasNotes    Boolean  @default(false) // any shift-mark "note" events present
+  noteCount   Int      @default(0)
+  noteAnswers Json?    // what the user said to explain at each marked spot
+
+  // ── Initial generation ──────────────────────────────────────────
+  model            String  // deepseek model used for generation
+  genLatencyMs     Int     @default(0)
+  initialScript    String  @default("")
+  initialChars     Int     @default(0)
+  wasEmpty         Boolean @default(false) // generation returned nothing
+  wasRoman         Boolean @default(false) // lang=hi but came back Roman/Latin
+  devanagariRetried Boolean @default(false) // the Devanagari-fix retry fired
+  devanagariRatio  Float   @default(0)
+
+  // ── Refinements (appended by the refine route) ──────────────────
+  // refinements: [{ ts, userMessage, resultingScript, chars }] — full history of
+  // what the user asked to change and the version it produced.
+  refinements Json    @default("[]")
+  refineCount Int     @default(0) // how many versions the user needed (quality proxy)
+  finalScript String  @default("")
+  finalChars  Int     @default(0)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([appName])
+  @@index([createdAt])
+}
