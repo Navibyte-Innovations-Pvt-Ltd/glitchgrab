@@ -58,6 +58,7 @@ export class Capture {
   private shiftDownAt = 0;             // 0 = Shift not held
   private shiftSubject: Element | null = null; // element under cursor when hold began
   private shiftHadOtherKey = false;    // a letter was typed while Shift held → it's typing, not explain
+  private shiftHadClick = false;       // a mouse click fired while Shift held → Shift+click (multi-select), not explain
   private readonly minHoldMs: number;
 
   private readonly inputDebounceMs: number;
@@ -144,6 +145,9 @@ export class Capture {
 
   private onClick = (e: Event): void => {
     if (!this.capturing) return;
+    // A click DURING a Shift hold is Shift+click (multi-select / open-in-bg), not
+    // an "explain" tap — flag it so onKeyup skips the mark.
+    if (this.shiftDownAt > 0) this.shiftHadClick = true;
     const now = Date.now();
     this.lastEventAt = now;
     this.breakIdle(now);
@@ -239,6 +243,7 @@ export class Capture {
         this.shiftDownAt = Date.now();
         this.shiftSubject = document.elementFromPoint(this.pointerX, this.pointerY);
         this.shiftHadOtherKey = false;
+        this.shiftHadClick = false;
       }
       return;
     }
@@ -262,16 +267,28 @@ export class Capture {
     const subject =
       document.elementFromPoint(this.pointerX, this.pointerY) ?? this.shiftSubject;
     const wasTyping = this.shiftHadOtherKey;
+    const hadClick = this.shiftHadClick;
     this.shiftDownAt = 0;
     this.shiftSubject = null;
     this.shiftHadOtherKey = false;
+    this.shiftHadClick = false;
     if (wasTyping) return; // typed capitals/symbols — not an explain gesture
     const selectedText = (window.getSelection()?.toString() ?? "").trim();
     // SELECT text + tap Shift = "explain THIS highlighted text" — no hold needed
-    // (the selection is the intent). Otherwise the gesture is a HOLD on an element.
+    // (the selection is the intent).
     if (selectedText.length >= 2) {
       this.emitNote(subject, held, selectedText);
-    } else if (held >= this.minHoldMs) {
+      return;
+    }
+    if (hadClick) return; // Shift+click (multi-select / open) — not an explain mark
+    // Otherwise it's an "explain this element" gesture. Accept it when EITHER:
+    //  - the user HELD past minHoldMs (works on anything — a price span, a card), OR
+    //  - it's a quick TAP over a clearly INTERACTIVE control (button/link/option).
+    // The tap path matters because users say "I clicked Shift on each option" and
+    // expect a quick tap to mark a button — a half-second hold isn't intuitive on a
+    // row of sign-up buttons. Interactive-only keeps stray body taps from minting notes.
+    const interactive = subject ? getClickLabel(subject).interactive : false;
+    if (held >= this.minHoldMs || interactive) {
       this.emitNote(subject, held);
     }
   };
