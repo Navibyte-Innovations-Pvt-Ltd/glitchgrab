@@ -11,6 +11,7 @@ import {
 } from "@/lib/narration/prompt";
 import { parseRefineReply } from "@/lib/narration/parse-refine";
 import { buildScriptContext } from "@/lib/narration/events-context";
+import { recordRefinement } from "@/lib/narration/telemetry";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -109,6 +110,17 @@ export async function POST(req: Request, { params }: RouteParams) {
     // Split on the marker: text before = conversational reply, after = the full
     // revised script. Tolerant to delimiter drift — see parseRefineReply.
     const { reply, script } = parseRefineReply(raw);
+
+    // Telemetry: log the user's refinement request + the version it produced, so
+    // we can see how many turns scripts need. Only when a new script came back.
+    if (script) {
+      const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+      await recordRefinement({
+        sessionId: id,
+        userMessage: lastUserMsg?.content ?? "",
+        resultingScript: script,
+      });
+    }
 
     return NextResponse.json(
       { success: true, data: { reply: reply || (script ? "Script updated." : ""), script } },
