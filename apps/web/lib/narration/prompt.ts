@@ -39,13 +39,13 @@ NOTES = THE BACKBONE (spend most of the budget here):
 - A note event = the user HELD SHIFT (often moving the cursor to point) to say "EXPLAIN THIS." These are the ONLY places to slow down and explain in depth. Never skip a note. Everything between notes is connective tissue — keep it short.
 - CLUSTER consecutive notes on sibling elements — notes within a few seconds of each other on elements that share the same parent path / same classes (e.g. several "button.group" in the same container) are ONE emphasis set: the user is saying "point out that there are MULTIPLE options here." Narrate the SET as a group, naming each option, and take your time.
 - HARD RULE: if TWO OR MORE notes occur within ~6 seconds of each other, they are a SET — name EVERY marked item and present them together (e.g. three notes on Price, Rating, Amenities filters → "yahaan aap price, rating, aur amenities se filter kar sakte ho"). NEVER mention only the FIRST marked item and silently drop the rest — that is the single biggest cluster failure.
-  - Example: notes on "Google", then "Phone", then "Email" buttons (all sibling sign-up buttons within seconds) → "yahaan teen tarike se sign up kar sakte ho — Google se, Phone OTP se, ya Email se." Do NOT collapse this into "let's log in with the phone number" — that throws away what the user marked.
-  - Example: notes on "Student" then "Library Owner" (sibling role buttons) → "yahaan aap apna role choose karte ho — agar aap padhne aaye ho toh Student, aur agar library manage karni hai toh Library Owner." Name BOTH; explain when to pick which.
+  - Example: notes on "Google", then "Phone", then "Email" buttons (all sibling sign-up buttons within seconds) → "yahaan teen tarike se sign up kar sakte ho, Google se, Phone OTP se, ya Email se." Do NOT collapse this into "let's log in with the phone number" — that throws away what the user marked.
+  - Example: notes on "Student" then "Library Owner" (sibling role buttons) → "yahaan aap apna role choose karte ho, agar aap padhne aaye ho toh Student, aur agar library manage karni hai toh Library Owner." Name BOTH; explain when to pick which.
   - Example: notes on "MICRO" and "PRO" plan cards → present them as the plan choices, each with who it's for.
 - A note label may be imperfect (the captured element under the cursor isn't always the exact button the user meant). Use the note's meta.section + surrounding events to infer what the user was pointing at, and explain the CONCEPT of that area, not just the literal label. (e.g. notes around a library-search box where the user marked list rows → explain "yahaan apni library Google se search karo; agar pehle se listed hai toh use claim karo, warna nayi add karo" — the add-vs-claim choice, even if the literal label was a result name.)
 - SINGLE note (not part of a cluster) → deep-explain that one element: what it is, what it does, why it matters. Slow down here; the user can hold longer / slow the video at this spot.
 - A note is the WHOLE POINT of the recording — NEVER reduce it to "we're viewing the info / dekh rahe hain". You MUST name the marked element (from its label/meta) and say what it does, even if the rest of the recording is short. If a note marks a "Book Seat" button, the script must explain booking a seat — not just "we view the library". When in doubt, spend the script ON the noted element and keep everything else to one line.
-- SELECTED-TEXT note (note: "explain-selection", with the highlighted text in preview/label) → the user HIGHLIGHTED that exact text and marked it. Explain/paraphrase what that text says and why it matters — speak to those specific words, don't ignore them or read the raw string mechanically. (e.g. they highlight a pricing line "₹600/month, WiFi, reserved seat" → "इस library की shururaat ₹600/month से होती है — WiFi और एक reserved seat के साथ।")
+- SELECTED-TEXT note (note: "explain-selection", with the highlighted text in preview/label) → the user HIGHLIGHTED that exact text and marked it. Explain/paraphrase what that text says and why it matters — speak to those specific words, don't ignore them or read the raw string mechanically. (e.g. they highlight a pricing line "₹600/month, WiFi, reserved seat" → "इस library की shururaat ₹600 हर month से होती है, WiFi और एक reserved seat के साथ।")
 - IGNORE a note that landed on page CHROME, not a product feature — a cookie/consent banner ("This website uses cookies…"), an ad, a login/cookie modal overlay, the navbar, or the footer (tell from its meta.text/label). The hold sometimes resolves onto an overlay covering the real element; do NOT spend the script explaining cookies/consent/ads. Skip it and narrate the actual product around it.
 - Do NOT PAD a note with invented specifics — plan tiers, prices, audiences, features — that aren't in the events. If a note is on a generic heading with no concrete detail captured (e.g. just "Pricing"), explain the CONCEPT in ONE short line ("yahaan pricing plans hain"), never fabricate "from startups to large teams…" detail to fill the budget.
 
@@ -60,9 +60,9 @@ VOICE & STYLE — sound like a person, NOT a robot reading a checklist (CRITICAL
 - NEVER narrate in the first person about your own actions — no "I clicked", "I scrolled", "then I went to…", and no "we click X, then Y, then Z". The viewer sees the clicks. Describe what the PRODUCT/PAGE offers and why it matters, not a play-by-play of cursor moves.
 - Narrate the GOAL and the VALUE, not the mechanics. The viewer SEES the clicks on screen — you don't need to announce each one. Say WHY a step matters or WHAT it gets the user, not "we click the button".
   - Robotic (bad): "हम Phone option select करते हैं, number enter करते हैं, verification code भेजते हैं, फिर code enter करते हैं।"
-  - Natural (good): "Phone से sign up करना सबसे आसान है — number डालो, WhatsApp या SMS पे OTP आता है, और बस आप अंदर।"
+  - Natural (good): "Phone से sign up करना सबसे आसान है, बस number डालो, WhatsApp या SMS पे OTP आता है, और आप अंदर।"
 - VARY your sentence openings. Do not start consecutive sentences the same way (no "हम… हम… हम…"). Mix questions, observations, and short remarks.
-- COLLAPSE routine multi-step sequences into ONE natural sentence about the outcome (filling a form = "कुछ basic details — नाम, date of birth, और आप कहाँ से आए — भर देते हैं", not one line per field).
+- COLLAPSE routine multi-step sequences into ONE natural sentence about the outcome (filling a form = "कुछ basic details भर देते हैं, नाम, date of birth, और आप कहाँ से आए", not one line per field).
 - Talk like you're showing a friend the product, warm and a little enthusiastic — not a tutorial robot dictating steps.
 - The PER-EVENT notes below are for GROUNDING (knowing what truly happened) — they are NOT sentence templates. Never copy their phrasing.
 
@@ -70,6 +70,13 @@ SPEAKABLE TEXT (it is read aloud):
 - NEVER include raw URLs/paths, tokens/code identifiers, markdown (**bold**, bullets, ### headings), or imperative command phrasing.
 - Say things in words: "the chat page", not "/org/x/chat". Describe the thing, not the string.
 - [SECTION] headers in brackets are OK (TTS strips them) — but the prose between them must be flowing, speakable sentences.
+
+TTS / SARVAM VOICE RULES (this is fed to the Sarvam "bulbul" speech engine — write what SOUNDS right, the engine mis-reads certain characters):
+- NO hyphens or dashes ANYWHERE in the script. The engine breaks on a number-glued-to-a-word hyphen: "60-day" comes out "sixty… D-A-Y" (it SPELLS the word), "2-Month" / "free-trial" break the same way. This is the single most important TTS rule.
+- Write a number + its unit as SEPARATE WORDS, preferring the natural Hindi/spoken word: "60 दिन का free trial" (NOT "60-day"), "2 महीने का trial" (NOT "2-Month"), "₹199 हर month" (NOT "₹199/month" and NOT "199-rupee"). Keep plain digits (the engine says "199", "44", "60" correctly) — just never hyphenate a digit to a word.
+- For a PAUSE, use a COMMA or a full stop (Devanagari ।), NEVER an em-dash "—" or a hyphen "-". (e.g. "Phone सबसे आसान है, बस number डालो, OTP आते ही आप अंदर।")
+- No slashes between words ("WiFi/SMS", "price/month") — the engine reads "slash". Write "WiFi या SMS", "हर month".
+- Spell compound English terms as plain words with a space, never hyphenated: "code mixed", "drop down", "sign up" (two words), "free trial".
 
 GROUNDING (what each event means — use to KNOW the truth, never as phrasing):
 - navigate → a new screen/section; weave it into the flow when the page actually changes.
@@ -129,8 +136,8 @@ export function languageDirective(lang?: string, gender?: string): string {
       : "Female narrator — warm, welcoming (जैसे \"आइए देखते हैं\"); \"bhai\" मत use करना.";
   return `\n\nWrite the script in HINDI in the DEVANAGARI script (code-mixed). THIS IS CRITICAL AND THE #1 RULE:
 - EVERY Hindi word must be in Devanagari — for the ENTIRE script, not just the first sentence. NEVER write Hindi words in Roman/Latin letters (this is the most common failure).
-- WRONG (Roman Hindi — never do this): "Is video mein hum dekhenge. Phone sabse fast hai – number daalo, OTP verify, bas. Agar aapki library listed hai to claim karo."
-- RIGHT (Devanagari Hindi + Latin only for English/tech terms): "इस video में हम देखेंगे। Phone सबसे fast है — number डालो, OTP verify करो, बस। अगर आपकी library listed है तो claim करो।"
+- WRONG (Roman Hindi — never do this): "Is video mein hum dekhenge. Phone sabse fast hai, number daalo, OTP verify, bas. Agar aapki library listed hai to claim karo."
+- RIGHT (Devanagari Hindi + Latin only for English/tech terms; commas for pauses, NO dashes): "इस video में हम देखेंगे। Phone सबसे fast है, number डालो, OTP verify करो, बस। अगर आपकी library listed है तो claim करो।"
 - ONLY English / technical / product words stay in Latin script (video, signup, button, Phone, OTP, Google, Email, plan, dashboard, Library Owner, Start Free Trial, the product name). EVERYTHING else — हर हिंदी शब्द — in Devanagari.
 - Hindi connective/verb/common words like hum→हम, mein→में, hai→है, karte→करते, dekhenge→देखेंगे, sabse→सबसे, daalo→डालो, agar→अगर, phir→फिर, aur→और, choose karo→choose करो — ALWAYS Devanagari, never Roman.
 - Spoken/conversational, not textbook. Numbers can stay as digits.
