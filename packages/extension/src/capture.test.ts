@@ -236,12 +236,45 @@ describe("Capture orchestration", () => {
     cap.stop();
   });
 
-  it("a quick Shift tap (under the hold threshold) does NOT annotate", () => {
+  it("a quick Shift tap over a NON-interactive spot does NOT annotate", () => {
     const { events, cap } = setup();
     cap.start();
+    dom.window.document.body.innerHTML = `<div id="plain">just some text</div>`;
+    const div = dom.window.document.querySelector("#plain")!;
+    (dom.window.document as unknown as { elementFromPoint: () => Element | null }).elementFromPoint = () => div;
     const KE = dom.window.KeyboardEvent;
     dom.window.document.dispatchEvent(new KE("keydown", { key: "Shift", bubbles: true }));
-    dom.window.document.dispatchEvent(new KE("keyup", { key: "Shift", bubbles: true })); // instant release
+    dom.window.document.dispatchEvent(new KE("keyup", { key: "Shift", bubbles: true })); // instant release, no hold
+    expect(events.some((e) => e.type === "note")).toBe(false);
+    cap.stop();
+  });
+
+  it("a quick Shift TAP over an INTERACTIVE control DOES annotate (tap = mark)", () => {
+    const { events, cap } = setup();
+    cap.start();
+    dom.window.document.body.innerHTML = `<button aria-label="Phone">Phone</button>`;
+    const btn = dom.window.document.querySelector("button")!;
+    (dom.window.document as unknown as { elementFromPoint: () => Element | null }).elementFromPoint = () => btn;
+    const KE = dom.window.KeyboardEvent;
+    dom.window.document.dispatchEvent(new KE("keydown", { key: "Shift", bubbles: true }));
+    dom.window.document.dispatchEvent(new KE("keyup", { key: "Shift", bubbles: true })); // instant tap, NO hold
+    const note = events.find((e) => e.type === "note");
+    expect(note?.note).toBe("explain");
+    expect(note?.label).toBe("Phone");
+    cap.stop();
+  });
+
+  it("Shift+CLICK (a click during the Shift hold) does NOT annotate", async () => {
+    const { events, cap } = setup();
+    cap.start();
+    dom.window.document.body.innerHTML = `<button aria-label="Row">Row</button>`;
+    const btn = dom.window.document.querySelector("button")!;
+    (dom.window.document as unknown as { elementFromPoint: () => Element | null }).elementFromPoint = () => btn;
+    const KE = dom.window.KeyboardEvent;
+    dom.window.document.dispatchEvent(new KE("keydown", { key: "Shift", bubbles: true }));
+    fire(btn, "click");                 // Shift+click (multi-select) — not an explain mark
+    await sleep(60);                    // even held past minHoldMs (20)
+    dom.window.document.dispatchEvent(new KE("keyup", { key: "Shift", bubbles: true }));
     expect(events.some((e) => e.type === "note")).toBe(false);
     cap.stop();
   });
