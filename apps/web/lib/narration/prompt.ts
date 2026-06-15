@@ -148,3 +148,30 @@ export function languageDirective(lang?: string, gender?: string): string {
 - BEFORE finishing, re-read your script: if you find ANY Hindi word written in Roman/Latin letters, rewrite it in Devanagari. No Roman Hindi anywhere.
 ${genderNote}`;
 }
+
+// Fraction of "letter mass" that is Devanagari vs Latin. A valid code-mixed Hindi
+// script is Devanagari-dominant (the connectives/verbs are Hindi) even though it
+// carries English product/tech words in Latin; a Roman-Hindi fallback is ~all
+// Latin. Ignores digits/punctuation/spaces.
+export function devanagariRatio(text: string): number {
+  const dev = (text.match(/[ऀ-ॿ]/g) ?? []).length;
+  const latin = (text.match(/[A-Za-z]/g) ?? []).length;
+  const total = dev + latin;
+  return total === 0 ? 1 : dev / total;
+}
+
+// A lang=hi script that came back mostly in Roman/Latin Hindi (the model ignored
+// the Devanagari rule). Threshold 0.2: a real Devanagari code-mix sits well above
+// it (~0.4–0.7); a Roman fallback sits near 0. Only meaningful for Hindi.
+export function isRomanHindiFallback(script: string, lang?: string): boolean {
+  if (lang === "en") return false;
+  return devanagariRatio(script) < 0.2;
+}
+
+// The follow-up turn that forces a Roman-Hindi script back into Devanagari,
+// preserving the wording (and the dash/currency/acronym rules) verbatim.
+export const DEVANAGARI_FIX_INSTRUCTION =
+  "That script is written in Roman/Latin Hindi. Rewrite the SAME script word-for-word, " +
+  "but put EVERY Hindi word in Devanagari script. Keep English/tech/product words in Latin " +
+  '(Phone, OTP, Google, Email, dashboard, the product name). Keep commas for pauses — no dashes, ' +
+  'no "₹" symbol, no hyphenated number-units. Output ONLY the rewritten script, nothing else.';
