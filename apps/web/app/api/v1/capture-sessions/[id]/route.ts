@@ -107,20 +107,39 @@ export async function POST(req: Request, { params }: RouteParams) {
       { role: "system" as const, content: SCRIPT_SYSTEM_PROMPT },
       { role: "user" as const, content: userContent },
     ];
-    let script = await deepseekChat({ model: "deepseek-v4-pro", messages });
+    // Use v4-flash (non-thinking), NOT v4-pro (thinking). v4-pro spends 30–60s+
+    // "reasoning" before the answer on real noisy captures (measured: 52s for a
+    // 13k-token, 160-event browse) — that blows past the editor's generate poll
+    // window, so the panel sees a 0-char script and the demo video ships with no
+    // narration. v4-flash answers the SAME payload in ~8s, follows the literal
+    // script/cluster/Devanagari format rules BETTER (thinking models drift off the
+    // instructions), and on the repro returned correct Devanagari where v4-pro
+    // returned Roman Hindi (which would itself trigger the slow retry below).
+    let script = await deepseekChat({ model: "deepseek-v4-flash", messages });
 
     // Devanagari guard: lang=hi sometimes comes back in Roman/Latin Hindi despite
     // the rule. Detect it and re-ask ONCE to rewrite the same script in Devanagari.
+    // CRITICAL: this is best-effort — it must NEVER lose the original script. The
+    // retry can throw (DeepSeek empties on noisy note-sessions) or return empty;
+    // either way keep the first script (Roman-but-present beats an empty 500). An
+    // earlier version let the retry throw uncaught → the whole generate 500'd →
+    // the editor got a 0-char script on every site that hit a note.
     if (isRomanHindiFallback(script, lang)) {
-      const fixed = await deepseekChat({
-        model: "deepseek-v4-pro",
-        messages: [
-          ...messages,
-          { role: "assistant" as const, content: script },
-          { role: "user" as const, content: DEVANAGARI_FIX_INSTRUCTION },
-        ],
-      });
-      if (!isRomanHindiFallback(fixed, lang)) script = fixed;
+      try {
+        const fixed = await deepseekChat({
+          model: "deepseek-v4-flash",
+          messages: [
+            ...messages,
+            { role: "assistant" as const, content: script },
+            { role: "user" as const, content: DEVANAGARI_FIX_INSTRUCTION },
+          ],
+        });
+        if (fixed && fixed.trim().length > 20 && !isRomanHindiFallback(fixed, lang)) {
+          script = fixed;
+        }
+      } catch {
+        /* keep the original script — a present Roman script beats an empty one */
+      }
     }
 
     await prisma.captureSession.update({
