@@ -1,0 +1,977 @@
+GlitchGrab event log
+page: http://mauli-abhyasika-csn.localhost:3333/invalid-domain?domain=mauli-abhyasika-csn
+events: 145
+==================================================
+01. [0s] NAVIGATE: My Abhyasika | Best Library Management Software India | Free 2-Month Trial | Library Seat Management
+      url: http://mauli-abhyasika-csn.localhost:3333/invalid-domain?domain=mauli-abhyasika-csn
+      site: My Abhyasika
+      text: Library Not Found — India's best library management software — free for 2 months, no credit card needed. Manage seats, WhatsApp fee reminders, Razorpay payments, and multi-branch operations. Find study rooms near you.
+02. [0s] NAVIGATE: Sign in / Sign up | My Abhyasika | My Abhyasika
+      url: http://localhost:3333/signup?page=login
+      site: My Abhyasika
+      text: Find Your Perfect Study Spot — Create your My-Abhyasika account to list your study room or book study spaces online.
+03. [0s] NAVIGATE: Protecting Your SaaS Product from Clones - Google Gemini
+      url: https://gemini.google.com/app/900abfcc7cacf0fd
+      site: Gemini
+      text: Conversation with Gemini — Meet Gemini, Google's AI assistant. Get help with writing, planning, brainstorming, and more. Experience the power of generative AI.
+04. [0s] NAVIGATE: Internet Speed Test | Fast.com
+      url: https://fast.com/
+      text: How fast is your download speed? In seconds, FAST.com's simple Internet speed test will estimate your ISP speed.
+05. [0s] NAVIGATE: Amazon Shopping with AI: Buy Directly via Claude & Cursor
+      url: https://mcpmarket.com/server/amazon-shopping
+      site: MCP Market
+      text: Amazon Shopping — Shop Amazon using AI assistants like Claude & Cursor! Secure payments via Fewsats, budget controls, & detailed purchase history. Simplify your e-commerce!
+06. [0s] NAVIGATE: barti scheme - Google Search
+      url: https://www.google.com/search?q=barti+scheme
+      text: Search Results
+07. [0s] NAVIGATE: User Interview - UX Tools - Insider News for Design Tools
+      url: https://www.uxtools.co/challenges/user-interview
+      text: Understand — Sharpen your design skills with hands-on UX challenges. Tackle real scenarios, iterate, and compare your solutions with the community.
+08. [0s] NAVIGATE: New chat - Claude
+      url: https://claude.ai/new
+      site: Claude
+      text: Claude is Anthropic's AI, built for problem solvers. Tackle complex challenges, analyze data, write code, and think through your hardest work.
+09. [0s] NAVIGATE: Custom metrics  |  Articles  |  web.dev
+      url: https://web.dev/articles/custom-metrics
+      site: web.dev
+      text: Custom metrics — Custom metrics let you measure and optimize aspects of your site's experience that are unique to your site.
+10. [0s] NAVIGATE: ui ux issues - Google Search
+      url: https://www.google.com/search?q=ui+ux+issues
+      text: Search Results
+11. [0s] NAVIGATE: [Feature] Add pending ageing tasks widget to task dashboard. · Issue #715 · Navibyte-Innovations-Pvt-Ltd/practise_stack
+      url: https://github.com/Navibyte-Innovations-Pvt-Ltd/practise_stack/issues/715
+      site: GitHub
+      text: Contribute to Navibyte-Innovations-Pvt-Ltd/practise_stack development by creating an account on GitHub.
+12. [2s] CLICK: Back to homepage
+      url: http://localhost:3333/signup?page=login
+      tag: a
+      role: link
+      text: Back to Home
+      ariaLabel: Back to homepage
+      classes: group inline-block
+      href: http://localhost:3333/
+      icon: svg
+      selector: div.relative > div.relative > a.group
+13. [16s] IDLE
+      duration: 14s
+14. [16s] CLICK: STUDY ROOM MANAGEMENT SOFTWARE
+      url: http://localhost:3333/
+      tag: div
+      text: STUDY ROOM MANAGEMENT SOFTWARE
+      classes: border-b border-border/40 bg-muted/20 px-4
+      section: section
+      selector: section#search-hero > div.border-b
+      fullText: STUDY ROOM MANAGEMENT SOFTWARE Find & Book Study Rooms Near You India's #1 platform to discover, compare, and book study rooms & libraries — with real-time seat availability, transparent pricing, and instant booking.
+15. [17s] SELECT: STUDY ROOM MANAGEMENT SOFTWARE Find & Book Study Rooms Near You India's #1 platf
+      url: http://localhost:3333/
+16. [17s] CLICK: STUDY ROOM MANAGEMENT SOFTWARE
+      url: http://localhost:3333/
+      tag: div
+      text: STUDY ROOM MANAGEMENT SOFTWARE
+      classes: mx-auto max-w-3xl
+      section: section
+      selector: section#search-hero > div.border-b > div.mx-auto
+      fullText: STUDY ROOM MANAGEMENT SOFTWARE Find & Book Study Rooms Near You India's #1 platform to discover, compare, and book study rooms & libraries — with real-time seat availability, transparent pricing, and instant booking.
+17. [18s] CLICK: Sign Up
+      url: http://localhost:3333/
+      tag: a
+      role: link
+      text: Sign Up
+      classes: flex items-center gap-1.5 rounded-full
+      href: http://localhost:3333/signup
+      section: Main
+      selector: ul.group > div.ml-2 > a.flex
+      fullText: Sign Up Free
+18. [19s] CLICK: Phone
+      url: http://localhost:3333/signup
+      tag: button
+      role: button
+      text: Phone
+      classes: group flex w-full items-center
+      icon: svg
+      selector: div.mt-0 > div.space-y-2.5 > button.group
+      fullText: Phone OTP via WhatsApp / SMS
+19. [20s] CLICK: Enter mobile number
+      url: http://localhost:3333/signup
+      tag: input
+      role: textbox
+      inputType: tel
+      name: phone_no
+      classes: flex w-full rounded-md border
+      section: form
+      selector: div.space-y-2 > div.flex > input.flex
+      placeholder: Enter mobile number
+20. [24s] INPUT: "+91 72197 25111"
+      url: http://localhost:3333/signup
+      tag: input
+      role: textbox
+      inputType: tel
+      name: phone_no
+      classes: flex w-full rounded-md border
+      section: form
+      selector: div.space-y-2 > div.flex > input.flex
+      placeholder: Enter mobile number
+21. [24s] CLICK: Send Verification Code
+      url: http://localhost:3333/signup
+      tag: button
+      role: button
+      text: Send Verification Code
+      classes: inline-flex items-center justify-center whitespace-nowrap
+      icon: svg
+      section: form
+      selector: div.space-y-3 > form.space-y-2 > button.inline-flex
+22. [28s] IDLE
+      duration: 3s
+23. [29s] CLICK: div.font-sans
+      url: http://localhost:3333/signup
+      tag: input
+      role: textbox
+      inputType: text
+      classes: disabled:cursor-not-allowed w-full gap-2
+      section: form
+      selector: div.has-disabled:opacity-50 > div > input.w-full
+24. [32s] CLICK: Library Owner
+      url: http://localhost:3333/signup
+      tag: button
+      role: button
+      text: Library Owner
+      classes: group flex w-full items-center
+      icon: svg
+      selector: div.mt-0 > div.space-y-2.5 > button.group
+      fullText: Library Owner Manage students, payments, seats — 60-day free trial
+25. [34s] CLICK: e.g. Rahul
+      url: http://localhost:3333/signup
+      tag: input
+      role: textbox
+      inputType: text
+      name: first_name
+      classes: flex px-3 py-1 font-sans
+      section: form
+      selector: div.space-y-2 > div.font-sans > input.flex
+      placeholder: e.g. Rahul
+26. [35s] INPUT: "Naresh"
+      url: http://localhost:3333/signup
+      tag: input
+      role: textbox
+      inputType: text
+      name: first_name
+      classes: flex px-3 py-1 font-sans
+      section: form
+      selector: div.space-y-2 > div.font-sans > input.flex
+      placeholder: e.g. Rahul
+27. [36s] CLICK: DD/MM/YYYY
+      url: http://localhost:3333/signup
+      tag: input
+      role: textbox
+      inputType: date
+      classes: flex h-10 w-full rounded-md
+      section: form
+      selector: div.space-y-2 > div.font-sans > input.flex
+      placeholder: DD/MM/YYYY
+28. [36s] INPUT: "Bhosale"
+      url: http://localhost:3333/signup
+      tag: input
+      role: textbox
+      inputType: text
+      name: last_name
+      classes: flex px-3 py-1 font-sans
+      section: form
+      selector: div.space-y-2 > div.font-sans > input.flex
+      placeholder: e.g. Sharma
+29. [39s] INPUT: "2004-04-04"
+      url: http://localhost:3333/signup
+      tag: input
+      role: textbox
+      inputType: date
+      classes: flex h-10 w-full rounded-md
+      section: form
+      selector: div.space-y-2 > div.font-sans > input.flex
+      placeholder: DD/MM/YYYY
+30. [40s] CLICK: Select source...
+      url: http://localhost:3333/signup
+      tag: div
+      text: Select source...
+      id: react-select-react-select-referral_source-placeholder
+      classes: react-select__placeholder
+      section: form
+      selector: div#react-select-react-select-referral_source-placeholder
+31. [41s] CLICK: Google Search
+      url: http://localhost:3333/signup
+      tag: div
+      role: listbox
+      text: Google Search
+      id: react-select-react-select-referral_source-listbox
+      classes: react-select__menu-list
+      selector: div#react-select-react-select-referral_source-listbox
+      fullText: Google Search Instagram YouTube WhatsApp Friend or Family Advertisement Other
+32. [41s] CLICK: Google Search
+      url: http://localhost:3333/signup
+      tag: div
+      role: option
+      text: Google Search
+      id: react-select-react-select-referral_source-option-0
+      classes: react-select__option react-select__option--is-focused
+      selector: div#react-select-react-select-referral_source-option-0
+33. [42s] CLICK: Continue
+      url: http://localhost:3333/signup
+      tag: button
+      role: button
+      text: Continue
+      classes: inline-flex items-center justify-center whitespace-nowrap
+      icon: svg
+      section: form
+      selector: form.space-y-3 > div.flex > button.inline-flex
+34. [43s] CLICK: Enter your library name…
+      url: http://localhost:3333/signup
+      tag: input
+      role: textbox
+      inputType: text
+      classes: h-10 w-full rounded-xl border
+      selector: div.space-y-3 > div.relative > input.h-10
+      placeholder: Enter your library name…
+35. [47s] INPUT: "testing"
+      url: http://localhost:3333/signup
+      tag: input
+      role: textbox
+      inputType: text
+      classes: h-10 w-full rounded-xl border
+      selector: div.space-y-3 > div.relative > input.h-10
+      placeholder: Enter your library name…
+36. [49s] SELECT: testing
+      url: http://localhost:3333/signup
+37. [51s] IDLE
+      duration: 5s
+38. [51s] CLICK: Continue
+      url: http://localhost:3333/signup
+      tag: button
+      role: button
+      text: Continue
+      classes: inline-flex items-center justify-center whitespace-nowrap
+      icon: svg
+      selector: div.space-y-3 > div.flex > button.inline-flex
+39. [55s] IDLE
+      duration: 4s
+40. [55s] CLICK: 0
+      url: http://localhost:3333/signup
+      tag: input
+      role: textbox
+      inputType: number
+      id: student-count
+      classes: focus:ring-primary/15 h-8 w-20 rounded-md
+      selector: input#student-count
+      placeholder: 0
+41. [55s] CLICK: 0
+      url: http://localhost:3333/signup
+      tag: input
+      role: textbox
+      inputType: number
+      id: student-count
+      classes: focus:ring-primary/15 h-8 w-20 rounded-md
+      selector: input#student-count
+      placeholder: 0
+42. [57s] INPUT: "33"
+      url: http://localhost:3333/signup
+      tag: input
+      role: textbox
+      inputType: number
+      id: student-count
+      classes: focus:ring-primary/15 h-8 w-20 rounded-md
+      selector: input#student-count
+      placeholder: 0
+43. [57s] CLICK: MICRO
+      url: http://localhost:3333/signup
+      tag: button
+      role: button
+      text: MICRO
+      classes: group relative flex flex-col
+      selector: div.space-y-4 > div.grid > button.group
+      fullText: MICRO ₹249 /mo 1–50 registered
+44. [59s] CLICK: 🎉
+      url: http://localhost:3333/signup
+      tag: div
+      text: 🎉
+      classes: space-y-4
+      icon: svg
+      selector: div.overflow-hidden > div.p-5 > div.space-y-4
+      fullText: 🎉 All plans are FREE for 60 days — no payment needed to start. MONTHLY YEARLY SAVER20% OFF How many students do you have? Micro 10 30 60 100 150 MICRO ₹249 /mo 1–50 registered Best Value SMALL ₹349 /mo 51–100 registered STANDARD ₹449 /mo 1
+      controls: MONTHLY, YEARLY SAVER20% OFF, 10, 30, 60, 100, 150, MICRO
+45. [59s] SELECT: Plan limits apply only to registered full-time students. Unreserved & part-time
+      url: http://localhost:3333/signup
+46. [59s] NOTE: "Plan limits apply only to registered full-time students. Unreserved & part-time students are unlimited.💡 Keep registered count modest to stay on a smaller plan."
+      duration: 0s
+      url: http://localhost:3333/signup
+      tag: div
+      text: Free for 2 months — stop anytime, no questions asked.
+      classes: rounded-xl border border-emerald-100 bg-emerald-50/60
+      selector: div.p-5 > div.space-y-4 > div.rounded-xl
+47. [59s] CLICK: PRO
+      url: http://localhost:3333/signup
+      tag: button
+      role: button
+      text: PRO
+      classes: group relative flex flex-col
+      selector: div.space-y-4 > div.grid > button.group
+      fullText: PRO ₹549 /mo 151–200 registered
+48. [1m00s] CLICK: Start Free Trial
+      url: http://localhost:3333/signup
+      tag: button
+      role: button
+      text: Start Free Trial
+      classes: inline-flex items-center justify-center ring-offset-background
+      icon: svg
+      selector: div.space-y-4 > div.space-y-2 > button.inline-flex
+49. [1m05s] NAVIGATE: My Abhyasika | Best Library Management Software India | Free 2-Month Trial | Library Seat Management
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup
+      site: My Abhyasika
+      text: Open your doors to students — India's best library management software — free for 2 months, no credit card needed. Manage seats, WhatsApp fee reminders, Razorpay payments, and multi-branch operations. Find study rooms near
+50. [1m09s] IDLE
+      duration: 5s
+51. [1m09s] CLICK: Search your branch on the map…
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: combobox
+      text: Search your branch on the map…
+      classes: inline-flex items-center whitespace-nowrap ring-offset-background
+      icon: svg
+      selector: div.space-y-2 > div.font-sans > button.inline-flex
+52. [1m13s] INPUT: "ambition study"
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: input
+      role: combobox
+      inputType: text
+      id: radix-_r_3u_
+      classes: outline-hidden flex h-10 w-full
+      section: dialog
+      selector: input#radix-_r_3u_
+      placeholder: Search for your area...
+53. [1m15s] CLICK: Ambition Study Room
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: div
+      role: option
+      text: Ambition Study Room
+      id: radix-_r_4u_
+      classes: outline-hidden [&_svg:not([class*='size-'])]:size-4 relative flex
+      icon: svg
+      section: Suggestions
+      selector: div#radix-_r_4u_
+      fullText: Ambition Study Room Gokhalenagar, Pune, Maharashtra, India
+54. [1m16s] CLICK: Save & continue
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: button
+      text: Save & continue
+      classes: flex h-12 flex-1 items-center
+      selector: div.flex > div.flex > button.flex
+55. [1m20s] IDLE
+      duration: 4s
+56. [1m20s] CLICK: Add a room and its seats
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: div
+      text: Add a room and its seats
+      classes: w-full max-w-md rounded-2xl border
+      icon: svg
+      section: Add a room and its seats
+      selector: main.flex-1 > div.flex > div.w-full
+      fullText: Add a room and its seats Name a room and tell us how many seats it has — we'll lay them out for you. Got more than one hall? Add them all here. A room is a hall inside a branch — each room gets its own seats. You're adding rooms inside Main
+      controls: Study Hall, AC Hall, Non-AC Hall, Reading Room, First Floor, 10, 20, 30
+57. [1m20s] CLICK: Add a room and its seats
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: p
+      text: Name a room and tell us how many seats it has — we'll lay them out for you. Got more than one hall?
+      classes: max-w-md text-sm text-muted-foreground
+      section: Add a room and its seats
+      selector: div.flex > div.flex > p.max-w-md
+      fullText: Name a room and tell us how many seats it has — we'll lay them out for you. Got more than one hall? Add them all here.
+58. [1m22s] SCROLL
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+59. [1m22s] CLICK: Number of seats
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: div
+      classes: font-sans relative w-full
+      icon: svg
+      selector: div.flex > div.space-y-2 > div.font-sans
+60. [1m24s] INPUT: "42"
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: input
+      role: textbox
+      inputType: number
+      name: seats
+      classes: flex px-3 py-1 font-sans
+      selector: div.space-y-2 > div.font-sans > input.flex
+      placeholder: e.g. 30
+61. [1m27s] NOTE: I want to design the floor map myself
+      duration: 1s
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: button
+      text: I want to design the floor map myself
+      classes: flex items-start gap-2.5 rounded-xl
+      icon: svg
+      selector: div.flex > div.flex > button.flex
+      fullText: I want to design the floor map myself Place each seat and add a toilet, office or washroom on the map. Save & continue opens the layout editor.
+62. [1m29s] CLICK: Save & continue
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: button
+      text: Save & continue
+      classes: flex h-12 flex-1 items-center
+      selector: div.flex > div.flex > button.flex
+63. [1m30s] SCROLL
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+64. [1m31s] CLICK: When is your library open?
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: div
+      text: When is your library open?
+      classes: flex flex-col items-center gap-3
+      icon: svg
+      section: When is your library open?
+      selector: div.w-full > div.flex > div.flex
+      fullText: When is your library open? Pick your timings and adjust the hours to match your library. Most pick Full Day — you can change or add more anytime.
+65. [1m31s] CLICK: When is your library open?
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: p
+      text: Pick your timings and adjust the hours to match your library. Most pick Full Day — you can change or
+      classes: max-w-md text-sm text-muted-foreground
+      section: When is your library open?
+      selector: div.flex > div.flex > p.max-w-md
+      fullText: Pick your timings and adjust the hours to match your library. Most pick Full Day — you can change or add more anytime.
+66. [1m34s] CLICK: Morning
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: button
+      text: Morning
+      classes: flex w-full items-center gap-2.5
+      selector: div.flex > div.rounded-xl > button.flex
+      fullText: Morning 06:00 AM – 11:00 AM
+67. [1m36s] CLICK: Save & continue
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: button
+      text: Save & continue
+      classes: flex h-12 flex-1 items-center
+      selector: div.flex > div.flex > button.flex
+68. [1m37s] CLICK: Set your plans
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: div
+      text: Set your plans
+      classes: flex flex-col gap-6
+      icon: svg
+      section: Set your plans
+      selector: div.flex > div.w-full > div.flex
+      fullText: Set your plans This is what students pay to join. Add one to start — you can add more durations (quarterly, yearly) anytime. Your first plan Plan name Plan price (₹) Which rooms does this plan apply to? Study Hall Students in these rooms ca
+      controls: Remove Study Hall, Add another plan, Back, Save & continue
+69. [1m37s] SELECT: Set your plans This is what students pay to join. Add one to start — you can add
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+70. [1m38s] CLICK: Set your plans
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: p
+      text: This is what students pay to join. Add one to start — you can add more durations (quarterly, yearly)
+      classes: max-w-md text-sm text-muted-foreground
+      section: Set your plans
+      selector: div.flex > div.flex > p.max-w-md
+      fullText: This is what students pay to join. Add one to start — you can add more durations (quarterly, yearly) anytime.
+71. [1m38s] CLICK: e.g. Monthly Plan
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: input
+      role: textbox
+      inputType: text
+      name: plan_name
+      classes: flex px-3 py-1 font-sans
+      selector: div.space-y-2 > div.font-sans > input.flex
+      placeholder: e.g. Monthly Plan
+72. [1m41s] INPUT: "Monthly Plan"
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: input
+      role: textbox
+      inputType: text
+      name: plan_name
+      classes: flex px-3 py-1 font-sans
+      selector: div.space-y-2 > div.font-sans > input.flex
+      placeholder: e.g. Monthly Plan
+73. [1m42s] CLICK: 1000
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: input
+      role: textbox
+      inputType: number
+      name: plan_price
+      classes: flex px-3 py-1 font-sans
+      selector: div.space-y-2 > div.font-sans > input.flex
+      placeholder: 1000
+74. [1m42s] CLICK: 1000
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: input
+      role: textbox
+      inputType: number
+      name: plan_price
+      classes: flex px-3 py-1 font-sans
+      selector: div.space-y-2 > div.font-sans > input.flex
+      placeholder: 1000
+75. [1m43s] SELECT: 1000
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+76. [1m44s] CLICK: Which rooms does this plan apply to?
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: p
+      text: Students in these rooms can buy this plan. All rooms are selected by default.
+      classes: mt-1 text-xs text-muted-foreground
+      selector: div.flex > div.space-y-2 > p.mt-1
+77. [1m44s] CLICK: Study Hall
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: div
+      selector: div > div > div
+78. [1m45s] CLICK: Set your plans
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: div
+      text: Set your plans
+      classes: flex min-h-full items-center justify-center
+      icon: svg
+      section: Set your plans
+      selector: div.fixed > main.flex-1 > div.flex
+      fullText: Set your plans This is what students pay to join. Add one to start — you can add more durations (quarterly, yearly) anytime. Your first plan Plan name Plan price (₹) Which rooms does this plan apply to? Study Hall Students in these rooms ca
+      controls: Remove Study Hall, Add another plan, Back, Save & continue
+79. [1m46s] CLICK: Save & continue
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: button
+      text: Save & continue
+      classes: flex h-12 flex-1 items-center
+      selector: div.flex > div.flex > button.flex
+80. [1m47s] CLICK: Upload your UPI QR image
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: button
+      text: Upload your UPI QR image
+      classes: flex flex-col items-center justify-center
+      icon: svg
+      selector: div.flex > div.flex > button.flex
+81. [1m47s] CLICK: QR code image
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: input
+      role: textbox
+      inputType: file
+      classes: hidden
+      selector: div.flex > div.flex > input.hidden
+82. [1m52s] IDLE
+      duration: 5s
+83. [1m53s] INPUT: "C:\fakepath\WhatsApp Image 2026-06-17 at"
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: input
+      role: textbox
+      inputType: file
+      classes: hidden
+      selector: div.flex > div.flex > input.hidden
+84. [1m54s] CLICK: Save payment QR
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: button
+      text: Save payment QR
+      classes: flex h-12 flex-1 items-center
+      selector: div.flex > div.flex > button.flex
+85. [1m54s] NAVIGATE: My Abhyasika | Best Library Management Software India | Free 2-Month Trial | Library Seat Management
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624
+      site: My Abhyasika
+      text: Dashboard - All Branches — India's best library management software — free for 2 months, no credit card needed. Manage seats, WhatsApp fee reminders, Razorpay payments, and multi-branch operations. Find study rooms near
+86. [2m00s] IDLE
+      duration: 6s
+87. [2m00s] CLICK: Any one-time fees?
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: div
+      text: Any one-time fees?
+      classes: flex flex-col gap-6
+      icon: svg
+      section: Any one-time fees?
+      selector: div.flex > div.w-full > div.flex
+      fullText: Any one-time fees? Charges collected once when a student joins — locker, security deposit, registration. Add the ones you charge, or skip if you have none. This is NOT your membership plan. These are extra one-time charges collected once, o
+      controls: Locker Fee, Security Deposit, Registration, Add this fee, Back, Save & continue, No one-time fees
+88. [2m00s] NOTE: "Any one-time fees? Charges collected once when a student joins — locker, security deposit, registration. Add the ones you charge, or skip if you have none."
+      duration: 0s
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: p
+      text: Charges collected once when a student joins — locker, security deposit, registration. Add the ones y
+      classes: max-w-md text-sm text-muted-foreground
+      section: Any one-time fees?
+      selector: div.flex > div.flex > p.max-w-md
+      fullText: Charges collected once when a student joins — locker, security deposit, registration. Add the ones you charge, or skip if you have none.
+89. [2m00s] SELECT: Any one-time fees? Charges collected once when a student joins — locker, securit
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+90. [2m00s] CLICK: Any one-time fees?
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: h1
+      text: Any one-time fees?
+      classes: text-xl font-bold tracking-tight text-foreground
+      section: Any one-time fees?
+      selector: div.flex > div.flex > h1.text-xl
+91. [2m01s] CLICK: Locker Fee
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: button
+      text: Locker Fee
+      classes: rounded-full border px-3 py-1
+      selector: div.flex > div.flex > button.rounded-full
+92. [2m02s] CLICK: 500
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: input
+      role: textbox
+      inputType: number
+      name: amount
+      classes: flex px-3 py-1 font-sans
+      selector: div.space-y-2 > div.font-sans > input.flex
+      placeholder: 500
+93. [2m04s] INPUT: "100"
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: input
+      role: textbox
+      inputType: number
+      name: amount
+      classes: flex px-3 py-1 font-sans
+      selector: div.space-y-2 > div.font-sans > input.flex
+      placeholder: 500
+94. [2m04s] CLICK: Any one-time fees?
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: div
+      text: Any one-time fees?
+      classes: flex min-h-full items-center justify-center
+      icon: svg
+      section: Any one-time fees?
+      selector: div.fixed > main.flex-1 > div.flex
+      fullText: Any one-time fees? Charges collected once when a student joins — locker, security deposit, registration. Add the ones you charge, or skip if you have none. This is NOT your membership plan. These are extra one-time charges collected once, o
+      controls: Locker Fee, Security Deposit, Registration, Add this fee, Back, Save & continue, No one-time fees
+95. [2m05s] CLICK: Refundable when the student leaves
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: label
+      text: Refundable when the student leaves
+      classes: font-sans peer-disabled:cursor-not-allowed peer-disabled:opacity-70 !mt-0
+      selector: div.space-y-2 > div.relative > label.font-sans
+96. [2m05s] CLICK: Refundable when the student leaves
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: label
+      text: Refundable when the student leaves
+      classes: font-sans peer-disabled:cursor-not-allowed peer-disabled:opacity-70 !mt-0
+      selector: div.space-y-2 > div.relative > label.font-sans
+97. [2m06s] CLICK: Refundable when the student leaves
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: div
+      classes: absolute left-0 h-5 w-5
+      selector: div.space-y-2 > div.relative > div.absolute
+98. [2m07s] CLICK: Refundable when the student leaves
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: label
+      text: Refundable when the student leaves
+      classes: font-sans peer-disabled:cursor-not-allowed peer-disabled:opacity-70 !mt-0
+      selector: div.space-y-2 > div.relative > label.font-sans
+99. [2m07s] CLICK: Refundable when the student leaves
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: label
+      text: Refundable when the student leaves
+      classes: font-sans peer-disabled:cursor-not-allowed peer-disabled:opacity-70 !mt-0
+      selector: div.space-y-2 > div.relative > label.font-sans
+100. [2m07s] CLICK: Any one-time fees?
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: div
+      text: Any one-time fees?
+      classes: flex min-h-full items-center justify-center
+      icon: svg
+      section: Any one-time fees?
+      selector: div.fixed > main.flex-1 > div.flex
+      fullText: Any one-time fees? Charges collected once when a student joins — locker, security deposit, registration. Add the ones you charge, or skip if you have none. This is NOT your membership plan. These are extra one-time charges collected once, o
+      controls: Locker Fee, Security Deposit, Registration, Add this fee, Back, Save & continue, No one-time fees
+101. [2m10s] CLICK: Save & continue
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: button
+      text: Save & continue
+      classes: flex h-12 flex-1 items-center
+      selector: div.flex > div.flex > button.flex
+102. [2m16s] IDLE
+      duration: 6s
+103. [2m16s] CLICK: Expiry Reminders
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: switch
+      classes: peer inline-flex h-6 w-11
+      selector: div.flex > div.space-y-2 > button.peer
+      checked: false
+104. [2m18s] SCROLL
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+105. [2m20s] CLICK: Save & continue
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: button
+      text: Save & continue
+      classes: flex h-12 flex-1 items-center
+      selector: div.flex > div.flex > button.flex
+106. [2m22s] SCROLL
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+107. [2m25s] CLICK: I'll add sub-admins later
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: button
+      text: Skip for now
+      title: I'll add sub-admins later
+      classes: flex h-12 flex-1 items-center
+      icon: svg
+      selector: div.flex > div.flex > button.flex
+108. [2m27s] SCROLL
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+109. [2m27s] CLICK: Make your library look professional
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: div
+      text: Make your library look professional
+      classes: flex flex-col items-center gap-3
+      icon: svg
+      section: Make your library look professional
+      selector: div.w-full > div.flex > div.flex
+      fullText: Make your library look professional Add your logo and a banner so students trust your page. No images? We show a clean default banner until you do.
+110. [2m27s] CLICK: Make your library look professional
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: div
+      text: Make your library look professional
+      classes: flex flex-col items-center gap-3
+      icon: svg
+      section: Make your library look professional
+      selector: div.w-full > div.flex > div.flex
+      fullText: Make your library look professional Add your logo and a banner so students trust your page. No images? We show a clean default banner until you do.
+111. [2m28s] CLICK: Save & continue
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: button
+      text: Save & continue
+      classes: flex h-12 flex-1 items-center
+      selector: div.flex > div.flex > button.flex
+112. [2m32s] SCROLL
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+113. [2m32s] CLICK: Import photos from Google
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: button
+      text: Import photos from Google
+      classes: flex items-center gap-3 rounded-xl
+      icon: svg
+      selector: div.flex > div.flex > button.flex
+      fullText: Import photos from Google FASTEST Already on Google? Pull your photos in one tap.
+114. [2m33s] SELECT: testing
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+115. [2m37s] INPUT: "ambition study room"
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: input
+      role: textbox
+      inputType: text
+      classes: flex h-9 w-full rounded-md
+      section: dialog
+      selector: div.space-y-3 > div.relative > input.flex
+      placeholder: Search by your library name
+116. [2m38s] INPUT: "ambition study room"
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: input
+      role: textbox
+      inputType: text
+      classes: flex h-9 w-full rounded-md
+      section: dialog
+      selector: div.space-y-3 > div.relative > input.flex
+      placeholder: Search by your library name
+117. [2m39s] CLICK: Ambition Study Room
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: button
+      text: Ambition Study Room
+      classes: flex w-full items-start gap-3
+      icon: svg
+      section: dialog
+      selector: ul.divide-y > li > button.flex
+      fullText: Ambition Study Room Gokhalenagar, Pune, Maharashtra, India
+118. [2m40s] CLICK: Back
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: div
+      text: Back
+      classes: flex items-center justify-between gap-3
+      icon: svg
+      section: dialog
+      selector: div#radix-_r_5o_ > div.max-h-full > div.flex
+      fullText: Back Next
+      controls: Back, Next
+119. [2m41s] CLICK: Next
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: button
+      text: Next
+      classes: inline-flex items-center justify-center whitespace-nowrap
+      icon: svg
+      section: dialog
+      selector: div.max-h-full > div.flex > button.inline-flex
+120. [2m42s] CLICK: Import to Library
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: button
+      text: Import to Library
+      classes: inline-flex items-center justify-center whitespace-nowrap
+      icon: svg
+      section: dialog
+      selector: div.max-h-full > div.flex > button.inline-flex
+121. [2m48s] IDLE
+      duration: 6s
+122. [2m48s] CLICK: Upload photos
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: button
+      text: Upload photos
+      classes: flex flex-col items-center justify-center
+      icon: svg
+      selector: div.flex > div.flex > button.flex
+      fullText: Upload photos You can pick several at once. JPG or PNG.
+123. [2m48s] CLICK: Import photos from Google
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: input
+      role: textbox
+      inputType: file
+      classes: hidden
+      selector: div.flex > div.flex > input.hidden
+124. [2m52s] IDLE
+      duration: 4s
+125. [2m52s] CLICK: Import photos from Google
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: button
+      text: Import photos from Google
+      classes: flex items-center gap-3 rounded-xl
+      icon: svg
+      selector: div.flex > div.flex > button.flex
+      fullText: Import photos from Google FASTEST Already on Google? Pull your photos in one tap.
+126. [2m54s] SELECT: testing
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+127. [2m57s] INPUT: "ambition study room"
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: input
+      role: textbox
+      inputType: text
+      classes: flex h-9 w-full rounded-md
+      section: dialog
+      selector: div.space-y-3 > div.relative > input.flex
+      placeholder: Search by your library name
+128. [2m58s] CLICK: Ambition Study room
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: button
+      text: Ambition Study room
+      classes: flex w-full items-start gap-3
+      icon: svg
+      section: dialog
+      selector: ul.divide-y > li > button.flex
+      fullText: Ambition Study room near Ashtbhuja Mandir Path, Pulachi Wadi, Narayan Peth, Pune, Maharashtra, India
+129. [2m59s] CLICK: Next
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: button
+      text: Next
+      classes: inline-flex items-center justify-center whitespace-nowrap
+      icon: svg
+      section: dialog
+      selector: div.max-h-full > div.flex > button.inline-flex
+130. [3m00s] CLICK: Import to Library
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: button
+      text: Import to Library
+      classes: inline-flex items-center justify-center whitespace-nowrap
+      icon: svg
+      section: dialog
+      selector: div.max-h-full > div.flex > button.inline-flex
+131. [3m04s] IDLE
+      duration: 4s
+132. [3m04s] CLICK: Save & continue
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: button
+      text: Save & continue
+      classes: flex h-12 flex-1 items-center
+      selector: div.flex > div.flex > button.flex
+133. [3m09s] IDLE
+      duration: 4s
+134. [3m09s] CLICK: Show off your achievers
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: div
+      text: Show off your achievers
+      classes: flex flex-col gap-6
+      icon: svg
+      section: Show off your achievers
+      selector: div.flex > div.w-full > div.flex
+      fullText: Show off your achievers Students who cleared exams build huge trust. Add a few toppers — their photo and what they cracked. You can add more anytime. Your first achiever Student name What they cleared Search the exam they cracked… Photo Tap
+      controls: Photo, Add this achiever, Back, Save & continue, I'll add achievers later
+135. [3m09s] CLICK: Show off your achievers
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: div
+      text: Show off your achievers
+      classes: flex flex-col gap-6
+      icon: svg
+      section: Show off your achievers
+      selector: div.flex > div.w-full > div.flex
+      fullText: Show off your achievers Students who cleared exams build huge trust. Add a few toppers — their photo and what they cracked. You can add more anytime. Your first achiever Student name What they cleared Search the exam they cracked… Photo Tap
+136. [3m10s] CLICK: Save & continue
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: button
+      text: Save & continue
+      classes: flex h-12 flex-1 items-center
+      selector: div.flex > div.flex > button.flex
+137. [3m14s] CLICK: High Speed Internet
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: button
+      text: High Speed Internet
+      classes: inline-flex items-center gap-1.5 rounded-md
+      icon: svg
+      selector: div > div.flex > button.inline-flex
+138. [3m14s] CLICK: Reserved Seat
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: button
+      text: Reserved Seat
+      classes: inline-flex items-center gap-1.5 rounded-md
+      icon: svg
+      selector: div > div.flex > button.inline-flex
+139. [3m15s] CLICK: Daily News Paper
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: button
+      text: Daily News Paper
+      classes: inline-flex items-center gap-1.5 rounded-md
+      icon: svg
+      selector: div > div.flex > button.inline-flex
+140. [3m15s] CLICK: Save & continue
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: button
+      text: Save & continue
+      classes: flex h-12 flex-1 items-center
+      selector: div.flex > div.flex > button.flex
+141. [3m18s] CLICK: Save & continue
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: button
+      text: Save & continue
+      classes: flex h-12 flex-1 items-center
+      selector: div.flex > div.flex > button.flex
+142. [3m23s] IDLE
+      duration: 5s
+143. [3m23s] CLICK: Renewals run on autopilot
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: div
+      text: Renewals run on autopilot
+      classes: flex flex-col gap-2.5
+      icon: svg
+      selector: div.fixed > div.flex > div.flex
+      fullText: Renewals run on autopilot When a student's plan is about to expire, we automatically WhatsApp them and ask if they want to continue — you never chase anyone. Google reviews grow on their own We send students a WhatsApp review request at the
+144. [3m23s] CLICK: Google reviews grow on their own
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: p
+      text: We send students a WhatsApp review request at the right time, so your Google rating climbs without y
+      classes: text-xs leading-relaxed text-muted-foreground
+      selector: div.flex > div.flex > p.text-xs
+      fullText: We send students a WhatsApp review request at the right time, so your Google rating climbs without you asking.
+145. [3m24s] CLICK: Go to your dashboard
+      url: http://localhost:3333/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup?branch_id=all
+      tag: button
+      role: button
+      text: Go to your dashboard
+      classes: flex h-12 w-full items-center
+      icon: svg
+      section: Your library is ready!
+      selector: div.fixed > div.flex > button.flex
