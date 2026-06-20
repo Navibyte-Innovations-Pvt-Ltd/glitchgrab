@@ -1,7 +1,4 @@
 export const dynamic = "force-dynamic";
-// gemini-2.5-pro takes ~20s (up to ~40s on big captures) — past Vercel's default
-// function timeout. Give 60s headroom so generation isn't cut to a 504.
-export const maxDuration = 60;
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
