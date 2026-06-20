@@ -1,6 +1,4 @@
 export const dynamic = "force-dynamic";
-// gemini-2.5-pro can take ~20s — past Vercel's default function timeout. 60s headroom.
-export const maxDuration = 60;
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
