@@ -110,7 +110,7 @@ function parseLog(raw: string): { events: Ev[]; noteAnswers: { label: string; an
     if (kv && cur) {
       const [, key, value] = kv;
       if (TOP_LEVEL.has(key)) {
-        (cur as Record<string, unknown>)[key] = value;
+        (cur as unknown as Record<string, unknown>)[key] = value;
       } else {
         cur.meta![key] = value;
       }
