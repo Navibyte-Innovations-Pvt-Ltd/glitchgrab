@@ -1,8 +1,10 @@
 export const dynamic = "force-dynamic";
+// gemini-2.5-pro can take ~20s — past Vercel's default function timeout. 60s headroom.
+export const maxDuration = 60;
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { deepseekChat } from "@/lib/deepseek/client";
+import { geminiChat } from "@/lib/gemini/client";
 import {
   SCRIPT_SYSTEM_PROMPT,
   recordingContext,
@@ -94,11 +96,11 @@ export async function POST(req: Request, { params }: RouteParams) {
     const seed: ChatMsg[] = body.currentScript?.trim()
       ? [{ role: "assistant", content: body.currentScript }]
       : [];
-    const raw = await deepseekChat({
-      // v4-flash, not v4-pro: same reason as generation (see capture-sessions
-      // [id]/route.ts) — v4-pro's thinking adds 30–60s and drifts off the literal
-      // ---SCRIPT--- / format rules; flash refines in ~8s and obeys them better.
-      model: "deepseek-v4-flash",
+    const raw = await geminiChat({
+      // gemini-2.5-pro — same generator as the initial script (see
+      // capture-sessions/[id]/route.ts), so refinements obey the same TTS / format
+      // / Devanagari rules and ~20s latency is covered by maxDuration above.
+      model: "gemini-2.5-pro",
       messages: [
         { role: "system", content: system },
         { role: "user", content: contextTurn },

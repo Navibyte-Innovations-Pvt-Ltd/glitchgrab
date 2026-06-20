@@ -1,7 +1,11 @@
 export const dynamic = "force-dynamic";
+// gemini-2.5-pro takes ~20s (up to ~40s on big captures) — past Vercel's default
+// function timeout. Give 60s headroom so generation isn't cut to a 504.
+export const maxDuration = 60;
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { geminiChat } from "@/lib/gemini/client";
 import { deepseekChat } from "@/lib/deepseek/client";
 import {
   SCRIPT_SYSTEM_PROMPT,
@@ -108,16 +112,20 @@ export async function POST(req: Request, { params }: RouteParams) {
       { role: "system" as const, content: SCRIPT_SYSTEM_PROMPT },
       { role: "user" as const, content: userContent },
     ];
-    // Use v4-flash (non-thinking), NOT v4-pro (thinking). v4-pro spends 30–60s+
-    // "reasoning" before the answer on real noisy captures (measured: 52s for a
-    // 13k-token, 160-event browse) — that blows past the editor's generate poll
-    // window, so the panel sees a 0-char script and the demo video ships with no
-    // narration. v4-flash answers the SAME payload in ~8s, follows the literal
-    // script/cluster/Devanagari format rules BETTER (thinking models drift off the
-    // instructions), and on the repro returned correct Devanagari where v4-pro
-    // returned Roman Hindi (which would itself trigger the slow retry below).
+    // gemini-2.5-pro is the primary generator: on a 145-event capture it obeyed
+    // the Sarvam TTS rules (no "₹", no hyphens) and the word budget where
+    // deepseek-v4-pro broke them, and it's faster (~20s vs ~40–60s). If Gemini
+    // fails/empties (quota, safety block, network), fall back to deepseek-v4-flash
+    // so a script still ships rather than failing the whole generate to 0 chars.
     const genStart = Date.now();
-    let script = await deepseekChat({ model: "deepseek-v4-flash", messages });
+    let model = "gemini-2.5-pro";
+    let script: string;
+    try {
+      script = await geminiChat({ model: "gemini-2.5-pro", messages });
+    } catch {
+      model = "deepseek-v4-flash";
+      script = await deepseekChat({ model: "deepseek-v4-flash", messages });
+    }
     let devanagariRetried = false;
 
     // Devanagari guard: lang=hi sometimes comes back in Roman/Latin Hindi despite
@@ -130,14 +138,14 @@ export async function POST(req: Request, { params }: RouteParams) {
     if (isRomanHindiFallback(script, lang)) {
       devanagariRetried = true;
       try {
-        const fixed = await deepseekChat({
-          model: "deepseek-v4-flash",
-          messages: [
-            ...messages,
-            { role: "assistant" as const, content: script },
-            { role: "user" as const, content: DEVANAGARI_FIX_INSTRUCTION },
-          ],
-        });
+        const fixMessages = [
+          ...messages,
+          { role: "assistant" as const, content: script },
+          { role: "user" as const, content: DEVANAGARI_FIX_INSTRUCTION },
+        ];
+        const fixed = model.startsWith("gemini")
+          ? await geminiChat({ model: "gemini-2.5-pro", messages: fixMessages })
+          : await deepseekChat({ model: "deepseek-v4-flash", messages: fixMessages });
         if (fixed && fixed.trim().length > 20 && !isRomanHindiFallback(fixed, lang)) {
           script = fixed;
         }
@@ -160,7 +168,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       gender,
       durationSec,
       noteAnswers,
-      model: "deepseek-v4-flash",
+      model,
       genLatencyMs: Date.now() - genStart,
       initialScript: script,
       devanagariRetried,

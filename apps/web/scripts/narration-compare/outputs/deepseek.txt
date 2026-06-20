@@ -1,0 +1,45 @@
+[SECTION: INTRO]
+मिलिए My Abhyasika से — India का नंबर वन प्लेटफ़ॉर्म study rooms और libraries खोजने, compare करने और book करने के लिए। इसमें real time seat availability, पारदर्शी pricing, और instant booking मिलती है।
+
+[SECTION: SIGN UP]
+सबसे पहले sign up करते हैं। Phone OTP सबसे आसान तरीका है, बस नंबर डालो और verification code आ जाता है। फिर role चुनते हैं — Library Owner; 60 दिन का free trial मिलता है।
+
+कुछ basic details भरते हैं, नाम, date of birth, और referral source में Google Search। आगे बढ़ते हैं और library का नाम डालते हैं।
+
+[SECTION: PLAN SELECTION]
+अब student count पूछा — 33 डालते हैं। यहाँ plans दिखते हैं, MICRO और PRO। PRO, 549 रुपये महीना, 151 से 200 registered students के लिए।
+
+एक ज़रूरी बात — plan limits सिर्फ registered full-time students पर लागू होती हैं, जबकि unreserved और part-time students अनलिमिटेड रहते हैं। इसलिए registered count कम रखना फ़ायदेमंद है ताकि छोटे plan में रह सको।
+
+PRO plan चुनकर Start Free Trial करते हैं — 60 दिन बिल्कुल फ्री, बिना किसी payment के।
+
+[SECTION: SETUP BRANCH]
+अब अपनी branch का पता search करते हैं। ambition study टाइप करते ही Ambition Study Room, Pune की suggestion आती है, उसे select कर लिया।
+
+[SECTION: ADD ROOM & SEATS]
+अगला कदम, room और seats जोड़ना। 42 seats डालते हैं। यहाँ एक खासियत — अगर चाहो तो खुद floor map design कर सकते हो। हर seat खुद place करो, toilet या office भी add कर सकते हो।
+
+[SECTION: TIMINGS]
+फिर library के timings सेट करते हैं, Morning चुनते हैं, सुबह छह से ग्यारह बजे तक।
+
+[SECTION: SET PLANS]
+अब अपना plan बनाते हैं, नाम दिया Monthly Plan, और इसे Study Hall के लिए लागू किया।
+
+[SECTION: PAYMENT & ONE-TIME FEES]
+UPI QR अपलोड करके payment setup पूरा किया।
+
+One time fees का सेक्शन आता है। ये वो चार्ज हैं जो student के join करते समय एक बार लिए जाते हैं — जैसे locker fee, security deposit, registration। यहाँ locker fee, 100 रुपये add की और इसे refundable भी रखा ताकि student के जाने पर वापस मिल जाए।
+
+[SECTION: AUTOMATION SETTINGS]
+Expiry reminders को ऑन करते हैं, sub-admins अभी skip, और branding के लिए logo बाद में जोड़ा जा सकता है।
+
+[SECTION: PHOTOS]
+Photos जोड़ने के लिए Google से import का तरीका सबसे तेज़ है। अपनी library search की, Ambition Study Room मिली, और एक tap में सारी photos import हो गईं।
+
+[SECTION: ACHIEVERS & AMENITIES]
+Achievers सेक्शन अभी skip, और amenities में High Speed Internet, Reserved Seat, और Daily Newspaper चुन लिया।
+
+[SECTION: FINAL & DASHBOARD]
+आखिर में, renewals और Google reviews अपने आप चलते हैं — जब student का plan expire होने वाला होता है, system खुद WhatsApp reminder भेजता है, और reviews भी सही समय पर माँगता है।
+
+अब library तैयार है, Go to your dashboard पर क्लिक करते हैं और शुरू हो जाइए।
