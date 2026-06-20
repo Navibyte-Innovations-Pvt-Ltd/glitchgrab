@@ -167,7 +167,7 @@ Turns a screen recording into a narrated tutorial + auto-created GitHub issue. T
 2. Background `startCapture()` → sends `CAPTURE_START` to all tabs; content scripts attach DOM listeners.
 3. Each event → background `CAPTURE_EVENT` → streamed live as `event:live` (HUD feed) + buffered in `state.events`.
 4. Stop (ANY way) → `set-recording-state(false)` hook in `main.ts` broadcasts `recording:stop` (universal, not just the HUD button) → background `stopCapture()` → `events:upload` over WS.
-5. Bridge persists events to disk, fires `eventsReadyCb` (→ editor `glitchbridge:events-ready` → panel refresh). If logged in: `uploadSession` → `generateScript` (Claude) → `createIssue` in the selected repo.
+5. Bridge persists events to disk, fires `eventsReadyCb` (→ editor `glitchbridge:events-ready` → panel refresh). If logged in: `uploadSession` → `generateScript` (Gemini 2.5 Pro, DeepSeek v4-flash fallback) → `createIssue` in the selected repo.
 
 ### Event model
 `CaptureEvent`: `type` (click|input|select|keydown|scroll|copy|paste|navigate|idle), `t` (ms from start), `label`, `tag`, `url`, `preview` (typed text; passwords skipped), `meta` (rich element descriptor: role, icon, href, section, selector, classes, inputType…). Built by `describeElement()`/`getClickLabel()` in `content.ts`.
