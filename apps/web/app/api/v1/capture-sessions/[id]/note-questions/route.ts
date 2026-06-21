@@ -142,8 +142,10 @@ export async function POST(req: Request, { params }: RouteParams) {
         const raw = await geminiVisionChat({
           system: VISION_SYSTEM_PROMPT,
           text: promptText,
+          // Headroom so a multi-frame verdict array never truncates (a dropped
+          // verdict → that spot gets asked anyway, per resolveVisionQuestions).
           images: framedGroups.map(({ frame }) => ({ data: frame.data, mimeType: frame.mimeType })),
-          maxTokens: 2048,
+          maxTokens: 8192,
         });
         const json = raw.slice(raw.indexOf("["), raw.lastIndexOf("]") + 1);
         const maybe = JSON.parse(json);
@@ -166,12 +168,14 @@ export async function POST(req: Request, { params }: RouteParams) {
     // below still produces sensible questions from the group shape alone.
     let parsed: Array<{ id: string; clear?: boolean; question?: string; options?: string[] }> = [];
     try {
-      // Gemini 2.5 Pro — same model as narration generation. Stronger than the
-      // old DeepSeek call, so its `clear:true` verdicts are trustworthy and the
-      // guard below can respect them instead of force-asking every cluster.
+      // Gemini 2.5 FLASH — this is a classify-each-group + short-question task,
+      // not deep reasoning. Flash matches Pro's verdicts here (measured) at ~8s
+      // vs ~18s, and the bigger token budget avoids the thinking-model truncating
+      // its verdict array on a large recording (which would drop verdicts → the
+      // guard below would force-ask those clusters). Pro's quality buys nothing.
       const raw = await geminiChat({
-        model: "gemini-2.5-pro",
-        maxTokens: 2048,
+        model: "gemini-2.5-flash",
+        maxTokens: 8192,
         messages: [
           { role: "system", content: QUESTION_SYSTEM_PROMPT },
           { role: "user", content: `Note groups:\n${JSON.stringify(promptGroups, null, 2)}` },
