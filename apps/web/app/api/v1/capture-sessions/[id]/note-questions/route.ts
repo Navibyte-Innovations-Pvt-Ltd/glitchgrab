@@ -3,7 +3,13 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { geminiChat, geminiVisionChat } from "@/lib/gemini/client";
-import { parseFrames, resolveVisionQuestions, type ParsedFrame } from "./logic";
+import {
+  parseFrames,
+  resolveVisionQuestions,
+  QUESTION_SYSTEM_PROMPT,
+  VISION_SYSTEM_PROMPT,
+  type ParsedFrame,
+} from "./logic";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
