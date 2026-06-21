@@ -24,6 +24,45 @@ export interface VisionVerdict {
   options?: string[];
 }
 
+// ── System prompts ───────────────────────────────────────────────────────────
+// Exported so the route uses them AND they can be exercised verbatim by tests /
+// experiments (no copy-paste drift).
+
+// PASS 1 — text only. Judge each marked group from its label + metadata.
+export const QUESTION_SYSTEM_PROMPT = `The user recorded a screen flow and HELD SHIFT over elements to flag "I want to explain THIS here." The notes are pre-GROUPED: each group is one or more sibling elements the user marked together (e.g. the Google / Phone / Email sign-up buttons).
+
+ONLY ASK WHERE YOU'RE GENUINELY UNSURE (most important):
+- Do NOT ask a question for every group. Ask ONLY where the marked element's identity AND purpose are NOT obvious from the label + metadata — where you would have to GUESS what the user wants explained.
+- Mark a group as "clear": true (no question needed) when the label + meta make it obvious what the element is and why it'd be explained — a self-evident single control (e.g. a "Start Free Trial" button, a "monthly plan" card, a clearly-labelled "UPI QR code" upload). For these the script can be written directly; don't pester the user.
+- Mark a group as "clear": false (DO ask) only when it's genuinely ambiguous: a generic/vague label ("this", "Continue", a result row), the captured element likely isn't the one the user meant (cursor-vs-intended mismatch), OR a multi-element set where which distinction to emphasise is unclear (e.g. Google/Phone/Email — ask whether to explain each or just mention).
+- If EVERY group is clear, return an empty array — that's a good outcome, not a failure.
+
+For each group you DO ask about, produce:
+- ONE short question — max ~12 words, a single plain question, NO explanatory sentences tacked on (e.g. "Explain the sign-up options?", NOT "...Pick your timings and adjust the hours to match your library. Most pick Full Day — you can ch?"). Long questions get truncated in the UI.
+- exactly 3 likely answer options — concise phrases the user can pick.
+
+GROUP RULES:
+- If a group has MULTIPLE elements (e.g. Google, Phone, Email), the question is about the SET ("...about the sign-up options?") and at least one option should explain WHAT EACH ONE DOES (e.g. "Explain each: Google = one-tap, Phone = OTP via SMS, Email = email + password"). Do NOT ask three separate questions for siblings.
+- Use ALL metadata, especially meta.controls (child buttons inside the element, e.g. "Add", "Claim") and meta.fullText. If an element exposes distinct sub-actions (Add AND Claim), the options MUST be about those (e.g. "Add = register a new library from Google; Claim = take ownership of one already in our database"). No generic options when the metadata reveals specific features.
+
+Return ONLY valid JSON: an array of objects { "id": string, "clear": boolean, "question": string, "options": [string, string, string] }. Include an entry for EVERY group with its "clear" verdict; for clear groups "question"/"options" may be empty. Use the provided group id for each. No prose, no markdown fences.`;
+
+// PASS 2 — vision. The first pass flagged some groups as still-unclear from text
+// alone; we now hand the model a SCREENSHOT of each one (the exact frame at the
+// moment the user marked it) and ask it to resolve what it can SEE. Most "what is
+// this element" doubt disappears once it can look — so it should flip most groups
+// to clear:true. Keep clear:false ONLY for a genuine user-preference fork a
+// picture can't settle (how much to dwell on a set the user singled out).
+export const VISION_SYSTEM_PROMPT = `You previously asked for clarification about some elements a user marked ("explain THIS here") in a screen recording, because their TEXT label/metadata was ambiguous. You now have a SCREENSHOT of each marked element, captured at the exact moment it was marked.
+
+Look at each screenshot and RE-DECIDE:
+- "clear": true  → the picture makes the element's identity AND purpose obvious, so you can narrate it confidently WITHOUT bothering the user. THIS SHOULD BE MOST OF THEM — the whole point of the screenshot is to stop asking.
+- "clear": false → keep asking ONLY if, even WITH the picture, there's a real choice that's the user's to make (e.g. a set they clearly singled out where "explain each vs. mention briefly" is a genuine preference, not something the image decides).
+
+When clear:false, give ONE short question (≤12 words) + exactly 3 concise answer options, same rules as before (a multi-element set → question about the SET, one option explaining what each does).
+
+Each group is given as "Group <id>: <label>" followed by its screenshot, in order. Return ONLY valid JSON: an array of { "id": string, "clear": boolean, "question": string, "options": [string, string, string] } — one entry per group id provided. No prose, no markdown fences.`;
+
 const DATA_URL_RE = /^data:(image\/[\w.+-]+);base64,(.+)$/;
 
 export const DEFAULT_NOTE_OPTIONS = [
