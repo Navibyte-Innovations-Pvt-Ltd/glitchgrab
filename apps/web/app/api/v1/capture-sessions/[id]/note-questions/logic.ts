@@ -34,7 +34,8 @@ export const QUESTION_SYSTEM_PROMPT = `The user recorded a screen flow and HELD 
 ONLY ASK WHERE YOU'RE GENUINELY UNSURE (most important):
 - Do NOT ask a question for every group. Ask ONLY where the marked element's identity AND purpose are NOT obvious from the label + metadata — where you would have to GUESS what the user wants explained.
 - Mark a group as "clear": true (no question needed) when the label + meta make it obvious what the element is and why it'd be explained — a self-evident single control (e.g. a "Start Free Trial" button, a "monthly plan" card, a clearly-labelled "UPI QR code" upload). For these the script can be written directly; don't pester the user.
-- Mark a group as "clear": false (DO ask) only when it's genuinely ambiguous: a generic/vague label ("this", "Continue", a result row), the captured element likely isn't the one the user meant (cursor-vs-intended mismatch), OR a multi-element set where which distinction to emphasise is unclear (e.g. Google/Phone/Email — ask whether to explain each or just mention).
+- Mark a group as "clear": false (DO ask) only when it's genuinely ambiguous: a generic/vague label ("this", "Continue", a result row), or the captured element likely isn't the one the user meant (cursor-vs-intended mismatch).
+- A multi-element set that is itself CLEARLY LABELLED (e.g. "Continue with Google / Phone / Email", "Student / Library Owner") is NOT ambiguous — you already know what to say. DEFAULT to "explain each briefly" and mark "clear": true. Do NOT ask the user merely to pick an emphasis for an obvious set. Only mark clear:false if the set's PURPOSE (not how much to dwell on it) is genuinely unclear.
 - If EVERY group is clear, return an empty array — that's a good outcome, not a failure.
 
 For each group you DO ask about, produce:
