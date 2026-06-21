@@ -17,6 +17,9 @@ CUTS:
 - idle spanning a cutRange → the wait was edited out; do NOT say "after a moment".
 - Only narrate events within keptRanges. If no metadata, narrate all events.
 
+STRICT CHRONOLOGICAL ORDER (non-negotiable):
+- Follow the EXACT order of events by their 't' timestamps. NEVER reorder steps even if a different order seems more logical or pedagogically cleaner. If QR upload appears at t=150s and one-time fees appear at t=165s, narrate QR first, fees second — always. Reordering events is a critical error equal to hallucination.
+
 ANTI-HALLUCINATION (most important):
 - Narrate ONLY what the events literally show. Use label + meta literally. Do NOT upgrade actions ("joined waitlist" is not "signed up").
 - No invented features, numbers, plans, or outcomes that aren't in the event text/meta.
@@ -133,6 +136,26 @@ export function languageDirective(lang?: string, gender?: string): string {
         : "Female narrator — warm, welcoming; avoid \"bhai\".";
     return `\n\nWrite the script in clear, conversational, warm ENGLISH. Active voice, short sentences. ${genderNote}`;
   }
+  if (lang === "hinglish") {
+    // Roman-script Hinglish: spoken Hindi written in LATIN letters, mixed with
+    // English. The Sarvam "bulbul" voice reads romanized code-mix natively (it
+    // maps to hi-IN), so DO NOT use Devanagari here — write it the way an Indian
+    // would casually type a WhatsApp message. This is NOT the same as the "hi"
+    // (Devanagari) mode and NOT pure English.
+    const genderNote =
+      g === "male"
+        ? "Male narrator — thoda confident tone (jaise \"hum dekhenge\", \"chaliye\")."
+        : "Female narrator — warm, welcoming (jaise \"aaiye dekhte hain\"); \"bhai\" mat use karna.";
+    return `\n\nWrite the script in HINGLISH — spoken Hindi in ROMAN/LATIN letters, mixed with English. THIS IS CRITICAL:
+- Hindi words in LATIN script, NOT Devanagari (e.g. "yahaan", "kar sakte ho", "sabse aasaan hai", "daalo", "agar", "phir", "aur") — NEVER write Devanagari (कोई हिंदी अक्षर नहीं).
+- WRONG (Devanagari — never do this here): "इस video में हम देखेंगे। Phone सबसे fast है।"
+- WRONG (too formal / pure English): "In this video we will see. Phone is the fastest option."
+- RIGHT (casual Roman Hinglish): "Is video mein hum dekhenge. Phone se sign up sabse aasaan hai, bas number daalo, OTP aate hi aap andar. Agar aapki library pehle se listed hai toh use claim karo, warna nayi add karo."
+- Keep English/tech/product words in English as people say them (video, sign up, button, Phone, OTP, Google, Email, plan, dashboard, Library Owner, Start Free Trial, the product name).
+- Spoken and casual, like showing a friend — not textbook Hindi, not formal English. Numbers stay as digits.
+- Same speakable rules as always: commas for pauses, NO dashes/hyphens, no "₹" symbol (write "199 rupaye"), no slashes between words.
+${genderNote}`;
+  }
   // Default: Hindi, Devanagari, code-mixed (what the Sarvam Hindi voice wants).
   const genderNote =
     g === "male"
@@ -164,7 +187,9 @@ export function devanagariRatio(text: string): number {
 // the Devanagari rule). Threshold 0.2: a real Devanagari code-mix sits well above
 // it (~0.4–0.7); a Roman fallback sits near 0. Only meaningful for Hindi.
 export function isRomanHindiFallback(script: string, lang?: string): boolean {
-  if (lang === "en") return false;
+  // "en" and "hinglish" are SUPPOSED to be Latin-script — never force them to
+  // Devanagari. The guard only applies to the Devanagari "hi" (default) mode.
+  if (lang === "en" || lang === "hinglish") return false;
   return devanagariRatio(script) < 0.2;
 }
 
