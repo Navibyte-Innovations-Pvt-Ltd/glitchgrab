@@ -80,3 +80,72 @@ export function buildScriptContext(events: unknown): ScriptContext {
     : `\n\nName the product from the hero/heading/description text in the events. NEVER say a hostname, domain, URL, or "localhost" out loud — refer to screens by name, never by their address.`;
   return { eventsJson, appLine, appName };
 }
+
+// ── Script ordering validator ────────────────────────────────────────────────
+
+export interface OrderedStep {
+  /** Human-readable name for error messages. */
+  name: string;
+  /** Any one of these keywords appearing in the script counts as a match (case-insensitive). */
+  keywords: string[];
+}
+
+export interface OrderCheckResult {
+  ok: boolean;
+  /** Pairs where the "earlier" step appears AFTER the "later" step in the script. */
+  violations: Array<{ earlier: string; later: string }>;
+}
+
+/**
+ * Checks that steps appear in the given order inside the narration script.
+ * A step not found in the script is skipped (not treated as a violation) —
+ * the model may have omitted a minor step entirely, which is fine.
+ * Only when BOTH steps are present and in wrong order is it a violation.
+ */
+export function checkScriptOrder(script: string, steps: OrderedStep[]): OrderCheckResult {
+  const lower = script.toLowerCase();
+
+  const positions = steps.map((step) => {
+    const hits = step.keywords
+      .map((k) => lower.indexOf(k.toLowerCase()))
+      .filter((p) => p !== -1);
+    return hits.length > 0 ? Math.min(...hits) : -1;
+  });
+
+  const violations: Array<{ earlier: string; later: string }> = [];
+  for (let i = 0; i < steps.length - 1; i++) {
+    for (let j = i + 1; j < steps.length; j++) {
+      const pi = positions[i];
+      const pj = positions[j];
+      if (pi !== -1 && pj !== -1 && pi > pj) {
+        violations.push({ earlier: steps[i].name, later: steps[j].name });
+      }
+    }
+  }
+
+  return { ok: violations.length === 0, violations };
+}
+
+/**
+ * Derives an ordered list of steps from note events so the route can check
+ * the generated script respects event chronology. Only note events with a
+ * meaningful label (≥4 chars, not a stray punctuation capture) are included.
+ */
+export function buildOrderedStepsFromEvents(events: CaptureEventish[]): OrderedStep[] {
+  return events
+    .filter(
+      (e) =>
+        e.type === "note" &&
+        typeof e.label === "string" &&
+        e.label.trim().length >= 4,
+    )
+    .map((e) => {
+      const label = (e.label as string).trim();
+      // Use the first ~40 chars as the primary keyword; also add the first word
+      // so partial matches work (e.g. "Library Owner Manage students…" → "Library Owner").
+      const primary = label.slice(0, 40);
+      const firstWord = label.split(/\s+/).slice(0, 2).join(" ");
+      const keywords = Array.from(new Set([primary, firstWord].filter((k) => k.length >= 3)));
+      return { name: label.slice(0, 60), keywords };
+    });
+}
