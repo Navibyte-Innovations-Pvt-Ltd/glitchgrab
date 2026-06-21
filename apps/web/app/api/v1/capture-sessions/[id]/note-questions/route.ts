@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { geminiChat, geminiVisionChat } from "@/lib/gemini/client";
+import { parseFrames, resolveVisionQuestions, type ParsedFrame } from "./logic";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -66,13 +67,6 @@ When clear:false, give ONE short question (≤12 words) + exactly 3 concise answ
 
 Each group is given as "Group <id>: <label>" followed by its screenshot, in order. Return ONLY valid JSON: an array of { "id": string, "clear": boolean, "question": string, "options": [string, string, string] } — one entry per group id provided. No prose, no markdown fences.`;
 
-interface ParsedFrame {
-  id: string;
-  /** Raw base64 (prefix stripped). */
-  data: string;
-  mimeType: string;
-}
-
 export async function POST(req: Request, { params }: RouteParams) {
   const { id } = await params;
   try {
@@ -81,14 +75,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     let frames: ParsedFrame[] = [];
     try {
       const body = (await req.json()) as { frames?: unknown };
-      const rawFrames = Array.isArray(body?.frames) ? body.frames : [];
-      frames = rawFrames.flatMap((f): ParsedFrame[] => {
-        const fr = f as { id?: unknown; dataUrl?: unknown };
-        if (typeof fr?.id !== "string" || typeof fr?.dataUrl !== "string") return [];
-        const m = /^data:(image\/[\w.+-]+);base64,(.+)$/.exec(fr.dataUrl);
-        if (!m) return [];
-        return [{ id: fr.id, mimeType: m[1], data: m[2] }];
-      });
+      frames = parseFrames(body?.frames);
     } catch {
       /* no body / not JSON → frames stays [] → text pass */
     }
@@ -193,31 +180,12 @@ export async function POST(req: Request, { params }: RouteParams) {
         /* vision failed → no verdicts → fall through and keep asking (safe degrade) */
       }
 
-      const visionQuestions: NoteQuestion[] = framedGroups.flatMap(({ g }) => {
-        const p = vparsed.find((x) => x.id === g.id);
-        // Drop ONLY when vision positively says clear. Vision-unclear OR vision
-        // failed (no verdict) → keep asking the user — never silently swallow.
-        if (p?.clear === true) return [];
-        const label = groupLabel(g);
-        const options = Array.isArray(p?.options)
-          ? p.options.filter((o) => typeof o === "string").slice(0, 3)
-          : [];
-        return [
-          {
-            id: g.id,
-            tMs: g.tMs,
-            label,
-            question:
-              typeof p?.question === "string" && p.question
-                ? p.question
-                : `What do you want to explain about ${label}?`,
-            options:
-              options.length === 3
-                ? options
-                : ["Explain what each one does", "Why it matters", "Mention briefly"],
-          },
-        ];
-      });
+      // Drop only the groups vision positively cleared; keep the rest (incl. any
+      // the model failed to return a verdict for) — see resolveVisionQuestions.
+      const visionQuestions = resolveVisionQuestions(
+        framedGroups.map(({ g }) => ({ id: g.id, tMs: g.tMs, label: groupLabel(g) })),
+        vparsed,
+      );
       return NextResponse.json({ success: true, data: { questions: visionQuestions } }, { headers: CORS_HEADERS });
     }
 
