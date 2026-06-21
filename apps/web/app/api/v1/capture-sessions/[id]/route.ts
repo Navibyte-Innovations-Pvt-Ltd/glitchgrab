@@ -12,7 +12,7 @@ import {
   DEVANAGARI_FIX_INSTRUCTION,
   type ZoomCtx,
 } from "@/lib/narration/prompt";
-import { buildScriptContext } from "@/lib/narration/events-context";
+import { buildScriptContext, buildOrderedStepsFromEvents, checkScriptOrder } from "@/lib/narration/events-context";
 import { recordGeneration } from "@/lib/narration/telemetry";
 
 const CORS_HEADERS = {
@@ -149,6 +149,22 @@ export async function POST(req: Request, { params }: RouteParams) {
       } catch {
         /* keep the original script — a present Roman script beats an empty one */
       }
+    }
+
+    // Best-effort ordering check — warns in logs when the model reordered steps
+    // relative to event timestamps. Never blocks the response.
+    try {
+      const steps = buildOrderedStepsFromEvents(
+        Array.isArray(session.events) ? (session.events as object[]) : [],
+      );
+      if (steps.length >= 2) {
+        const { ok, violations } = checkScriptOrder(script, steps);
+        if (!ok) {
+          console.warn("[narration] script ordering violation", { sessionId: id, violations });
+        }
+      }
+    } catch {
+      // ignore — ordering check must never affect the response
     }
 
     await prisma.captureSession.update({
