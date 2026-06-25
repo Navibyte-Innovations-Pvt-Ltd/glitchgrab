@@ -3,18 +3,18 @@
 // Run: bun test capture.test.ts
 import { beforeAll, describe, expect, it } from "bun:test";
 import { JSDOM } from "jsdom";
-import { Capture, type CaptureEvent } from "./capture";
+import { Capture, summarizeMutations, type CaptureEvent, type MutEntry } from "./capture";
 
 let dom: JSDOM;
 
 // Small delays so real timers fire quickly during the test.
-const FAST = { inputDebounceMs: 20, selDebounceMs: 20, scrollDebounceMs: 20, idleThresholdMs: 30, idleCheckMs: 10, minHoldMs: 20 };
+const FAST = { inputDebounceMs: 20, selDebounceMs: 20, scrollDebounceMs: 20, idleThresholdMs: 30, idleCheckMs: 10, minHoldMs: 20, mutateDebounceMs: 20 };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 beforeAll(() => {
   dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost:3000/" });
   const w = dom.window as unknown as Record<string, unknown>;
-  for (const k of ["document", "location", "window", "Element", "HTMLElement", "HTMLInputElement", "Node", "CustomEvent", "Event"]) {
+  for (const k of ["document", "location", "window", "Element", "HTMLElement", "HTMLInputElement", "Node", "CustomEvent", "Event", "MutationObserver"]) {
     (globalThis as Record<string, unknown>)[k] = w[k];
   }
   Object.defineProperty(dom.window.HTMLElement.prototype, "innerText", {
@@ -342,5 +342,62 @@ describe("Capture orchestration", () => {
     dom.window.document.dispatchEvent(new KE("keyup", { key: "Shift", bubbles: true }));
     expect(events.some((e) => e.type === "note")).toBe(false);
     cap.stop();
+  });
+
+  // ── Bulk DOM mutations: seat-map / canvas drags fire NO click ──────────
+  // Regression: an 82-seat floor plan built by click+drag produced only the 4
+  // typed "seat start" inputs in the log; the dragged rows themselves vanished.
+  describe("bulk mutation capture", () => {
+    function seats(parent: Element, labels: string[]): MutEntry[] {
+      return labels.map((l) => {
+        const el = dom.window.document.createElement("div");
+        el.setAttribute("aria-label", l);
+        return { el, parent };
+      });
+    }
+
+    it("summarizes a burst of sibling adds into ONE mutate event", () => {
+      const grid = dom.window.document.createElement("div");
+      const evs = summarizeMutations(seats(grid, ["A-38", "A-39", "A-40", "A-41", "A-47"]), []);
+      expect(evs).toHaveLength(1);
+      expect(evs[0].type).toBe("mutate");
+      expect(evs[0].meta?.added).toBe(5);
+      expect(evs[0].meta?.samples).toBe("A-38 … A-47");
+    });
+
+    it("ignores small (<3) and huge (>40) bursts as non-gestures", () => {
+      const grid = dom.window.document.createElement("div");
+      const few = seats(grid, ["A-1", "A-2"]);
+      const many = seats(grid, Array.from({ length: 60 }, (_, i) => `A-${i + 1}`));
+      expect(summarizeMutations(few, [])).toHaveLength(0);
+      expect(summarizeMutations(many, [])).toHaveLength(0);
+    });
+
+    it("separates adds and removes into distinct events", () => {
+      const grid = dom.window.document.createElement("div");
+      const evs = summarizeMutations(
+        seats(grid, ["A-1", "A-2", "A-3"]),
+        seats(grid, ["B-1", "B-2", "B-3", "B-4"]),
+      );
+      expect(evs.map((e) => e.meta?.added).filter(Boolean)).toEqual([3]);
+      expect(evs.map((e) => e.meta?.removed).filter(Boolean)).toEqual([4]);
+    });
+
+    it("emits a mutate event when a row is painted via the MutationObserver", async () => {
+      const { events, cap } = setup();
+      const grid = dom.window.document.createElement("div");
+      dom.window.document.body.appendChild(grid); // exists BEFORE capture starts
+      cap.start();
+      for (const l of ["A-38", "A-39", "A-40", "A-41", "A-42"]) {
+        const seat = dom.window.document.createElement("div");
+        seat.setAttribute("aria-label", l);
+        grid.appendChild(seat); // a drag-painted seat — no click fired
+      }
+      await sleep(60);
+      const mut = events.filter((e) => e.type === "mutate");
+      expect(mut).toHaveLength(1);
+      expect(mut[0].meta?.added).toBe(5);
+      cap.stop();
+    });
   });
 });
