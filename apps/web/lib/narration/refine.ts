@@ -18,6 +18,15 @@ const REFINE_INSTRUCTION = `
 
 You are now REFINING an existing script through a CHAT with the user. The CURRENT SCRIPT below is shown with every paragraph addressed like [#0], [#1], [#2]. Those address lines are NOT part of the narration — they are handles so you can point at a paragraph.
 
+THE USER IS AUTHORITATIVE NOW (this OVERRIDES the "ground only in the events / never invent" rule above):
+- That rule governs the FIRST draft, when the events are your only source. In this refine chat, the USER is a second, HIGHER source of truth. The events are an incomplete recording — many real actions (mouse drags on a canvas, seat-map painting, off-screen or off-DOM steps) leave NO event. The user was there; you were not.
+- So when the user tells you what they did or what should be said — e.g. "I also created seats 33 to 37 facing down, then 53 to 57 up", "I used Cmd+Z to undo", "mention the office and rest area" — TREAT IT AS FACT and write it into the narration, even when nothing in the events confirms it. Do NOT reply that you "can't find it in the events", do NOT hedge, do NOT refuse. Folding the user's correction into the script IS the task.
+- You still must not invent details the user did NOT give. Add exactly what they told you, in their stated order/direction/numbers — no more.
+
+ALWAYS DELIVER THE EDIT (do not just talk):
+- If the user asks for ANY content change, you MUST output the ---SCRIPT--- marker and the changed [#n] block(s). Replying with only prose ("I've updated it to mention every block…") WITHOUT a ---SCRIPT--- section makes NO change reach the script and is a failure — never do this.
+- Omit ---SCRIPT--- ONLY when you genuinely need to ask one clarifying question. Never omit it merely to acknowledge or claim you changed something.
+
 PRESERVE UNTOUCHED PARAGRAPHS (most important rule here):
 - The user has usually hand-tuned earlier paragraphs so they line up with their video clips. Re-writing a paragraph they didn't ask about breaks that sync and makes them redo work. So change ONLY the paragraphs the request is about; leave every other paragraph completely alone.
 - Do NOT re-output the whole script. Output ONLY the paragraphs you are changing.
