@@ -23,6 +23,12 @@ export interface ElementMeta {
   shortcut?: boolean;      // keydown events: this was a keyboard shortcut (modifier combo)
   keys?: string;           // readable combo, e.g. "Cmd+Shift+Z"
   action?: string;         // known meaning of the shortcut, e.g. "undo" (omitted if unknown)
+  // "mutate" events: a click+drag (e.g. seat-map painting) added/removed many
+  // sibling nodes at once — actions that fire NO click/input event.
+  added?: number;          // count of element nodes added in one burst
+  removed?: number;        // count of element nodes removed in one burst
+  container?: string;      // label of the parent the nodes were added to/removed from
+  samples?: string;        // representative labels of the changed nodes, e.g. "A-33 … A-37"
 }
 
 function firstLine(text: string): string {
