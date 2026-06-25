@@ -3,13 +3,12 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { geminiChat } from "@/lib/gemini/client";
+import { type ZoomCtx } from "@/lib/narration/prompt";
 import {
-  SCRIPT_SYSTEM_PROMPT,
-  recordingContext,
-  languageDirective,
-  type ZoomCtx,
-} from "@/lib/narration/prompt";
-import { parseRefineReply } from "@/lib/narration/parse-refine";
+  buildRefineSystem,
+  buildRefineContextTurn,
+  resolveRefinement,
+} from "@/lib/narration/refine";
 import { buildScriptContext } from "@/lib/narration/events-context";
 import { recordRefinement } from "@/lib/narration/telemetry";
 
@@ -31,9 +30,10 @@ interface ChatMsg {
   content: string;
 }
 
-// Conversationally refine an existing narration script. The model always replies
-// with the COMPLETE revised script (no commentary) so the editor can sync it
-// straight into the narration box.
+// Conversationally refine an existing narration script. The model edits ONLY the
+// paragraphs the user's request is about (addressed as [#n]); untouched
+// paragraphs are reused verbatim in code, so hand-tuned clip-sync survives. See
+// lib/narration/refine.ts + merge-edit.ts.
 export async function POST(req: Request, { params }: RouteParams) {
   const { id } = await params;
   try {
@@ -76,21 +76,23 @@ export async function POST(req: Request, { params }: RouteParams) {
       ? `\n\nRecording metadata (cuts made in Recordly):\n${JSON.stringify(session.meta, null, 2)}`
       : "";
 
-    const system =
-      SCRIPT_SYSTEM_PROMPT +
-      `\n\nYou are now REFINING an existing script through a CHAT with the user. Behave like a thoughtful collaborator:
-- If the user's request is clear, briefly say what you changed (one short line), THEN output the COMPLETE revised script after a line containing exactly:
----SCRIPT---
-- If you genuinely need to clarify intent (e.g. you can't tell what an element is, or the instruction is ambiguous), ASK a short question and do NOT include the ---SCRIPT--- marker or any script.
-- Reference specific moments by what's on screen when helpful. Keep chat replies short; put the effort into the script itself.
-- The script that follows ---SCRIPT--- must obey ALL the rules above (length budget, notes clustering, speakable text, language format).` +
-      recordingContext(body.durationSec, body.zooms) +
-      languageDirective(body.lang, body.gender);
+    const system = buildRefineSystem({
+      lang: body.lang,
+      gender: body.gender,
+      durationSec: body.durationSec,
+      zooms: body.zooms,
+    });
 
-    // Leading context turn: the events + the current script the user is refining.
-    const contextTurn =
-      `Events:\n${eventsJson}${appLine}${metaSection}\n\nCURRENT SCRIPT (refine this per my next messages):\n${body.currentScript ?? "(empty — write a fresh script)"}`;
+    // Leading context turn: the events + the NUMBERED current script the user is
+    // refining (paragraphs addressed [#n] so the model can target them).
+    const contextTurn = buildRefineContextTurn({
+      eventsJson,
+      appLine,
+      metaSection,
+      currentScript: body.currentScript,
+    });
 
+    // Seed the prior script (un-numbered) so the model has the clean text too.
     const seed: ChatMsg[] = body.currentScript?.trim()
       ? [{ role: "assistant", content: body.currentScript }]
       : [];
@@ -107,9 +109,10 @@ export async function POST(req: Request, { params }: RouteParams) {
       ],
     });
 
-    // Split on the marker: text before = conversational reply, after = the full
-    // revised script. Tolerant to delimiter drift — see parseRefineReply.
-    const { reply, script } = parseRefineReply(raw);
+    // Parse the reply + apply only the changed paragraphs onto the current
+    // script; untouched paragraphs stay byte-identical. Falls back to a full
+    // replace when the model returns no [#n] blocks. See resolveRefinement.
+    const { reply, script } = resolveRefinement(raw, body.currentScript ?? "");
 
     // Telemetry: log the user's refinement request + the version it produced, so
     // we can see how many turns scripts need. Only when a new script came back.
