@@ -106,4 +106,48 @@ describe.skipIf(!hasKey)("refine pipeline — real Gemini", () => {
     },
     60_000,
   );
+
+  // The real user complaint: they TELL the chat about seat blocks the events
+  // never captured (canvas drags). The model must TRUST the user (Fix 1) and
+  // emit a real ---SCRIPT--- edit — not chat a fake "done" with script=null.
+  it(
+    "folds user-stated seats (absent from events) into a real edit, untouched paras intact",
+    async () => {
+      const { eventsJson, appLine } = buildScriptContext(events);
+      const system = buildRefineSystem({ lang: "hinglish", gender: "female", durationSec: 75 });
+      const contextTurn = buildRefineContextTurn({
+        eventsJson,
+        appLine,
+        metaSection: "",
+        currentScript: SCRIPT,
+      });
+      const raw = await geminiChat({
+        model: "gemini-2.5-pro",
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: contextTurn },
+          { role: "assistant", content: SCRIPT },
+          {
+            role: "user",
+            content:
+              "In the Floor map editor part, also mention that I created seats 33 to 37 facing down, then 53 to 57 facing up, and that I used Cmd+Z to undo. Don't touch the Intro, Sign up, or Pricing paragraphs.",
+          },
+        ],
+      });
+
+      const r = resolveRefinement(raw, SCRIPT);
+      // Must be a REAL edit, not a clarifying-question dodge.
+      expect(r.script).not.toBeNull();
+      // The user's facts made it in even though no event mentions them.
+      expect(r.script).toMatch(/33/);
+      expect(r.script).toMatch(/53/);
+      // Surgical: the paragraphs the user said NOT to touch survive byte-for-byte.
+      const orig = splitParagraphs(SCRIPT);
+      const after = splitParagraphs(r.script!);
+      expect(after).toContain(orig[0]); // [Intro]
+      expect(after).toContain(orig[1]); // [Sign up]
+      expect(after).toContain(orig[3]); // [Pricing]
+    },
+    60_000,
+  );
 });
