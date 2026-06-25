@@ -17,7 +17,27 @@ export interface CaptureEvent {
   preview?: string; // input events: truncated field value
   meta?: Record<string, string>; // rich element descriptor (tag, role, icon, href, section, selector…)
   note?: string; // "note" events: "explain this" marker from the annotate hotkey
+  client?: string; // which Chrome profile produced this — set on the bridge side from clientId
 }
+
+// Stable per-profile id so the bridge can merge events from multiple Chrome
+// profiles into one timeline AND tell them apart (admin profile vs student
+// profile). Persisted in this profile's storage; generated once on first run.
+let clientId = "";
+async function initClientId() {
+  try {
+    const { gg_client_id } = await chrome.storage.local.get("gg_client_id");
+    if (typeof gg_client_id === "string" && gg_client_id) {
+      clientId = gg_client_id;
+      return;
+    }
+    clientId = crypto.randomUUID().split("-")[0]; // 8 hex chars, e.g. "a1b2c3d4"
+    await chrome.storage.local.set({ gg_client_id: clientId });
+  } catch {
+    clientId = clientId || "default";
+  }
+}
+initClientId();
 
 const state: CaptureState = {
   active: false,
@@ -205,6 +225,7 @@ chrome.runtime.onMessage.addListener((msg) => {
     const event: CaptureEvent = {
       ...msg.event,
       t: now - state.startedAt,
+      client: clientId, // tag with this profile so the bridge can merge + distinguish profiles
     };
     state.events.push(event);
     const m = event.meta ?? {};
@@ -317,6 +338,7 @@ async function stopCapture() {
       type: "events:upload",
       sessionId: state.sessionId,
       events: state.events,
+      clientId,
     }));
     log(`[GG] Sent ${state.events.length} events to bridge → ${state.sessionId}`);
     return;
