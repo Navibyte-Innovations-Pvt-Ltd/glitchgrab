@@ -296,7 +296,27 @@ async function setRecordingIcon(recording: boolean) {
   } catch { /* action API unavailable (e.g. during teardown) — ignore */ }
 }
 
+function armAllTabs() {
+  chrome.tabs.query({}, (tabs) => {
+    for (const tab of tabs) {
+      if (tab.id) {
+        chrome.tabs.sendMessage(tab.id, { type: "CAPTURE_START" }).catch(() => {});
+      }
+    }
+  });
+}
+
 function startCapture(bridgeSessionId?: string) {
+  // Resync guard: the bridge re-sends recording:start every time this (ephemeral
+  // MV3) service worker reconnects. If we're ALREADY capturing this same session,
+  // a reconnect must NOT reset events/startedAt — that wipes everything captured
+  // so far (root cause of "first half of the recording is missing"). Just re-arm
+  // any tabs that may have lost their listeners and keep going.
+  if (state.active && bridgeSessionId && state.sessionId === bridgeSessionId) {
+    log(`[GG] recording:start resync — keeping ${state.events.length} events, re-arming tabs`);
+    armAllTabs();
+    return;
+  }
   state.active = true;
   state.startedAt = Date.now();
   state.events = [];
@@ -305,13 +325,7 @@ function startCapture(bridgeSessionId?: string) {
   setRecordingIcon(true);
   broadcastState();
   log("[GG] Capture started", bridgeSessionId ? `(bridge session: ${bridgeSessionId})` : "(manual)");
-  chrome.tabs.query({}, (tabs) => {
-    for (const tab of tabs) {
-      if (tab.id) {
-        chrome.tabs.sendMessage(tab.id, { type: "CAPTURE_START" }).catch(() => {});
-      }
-    }
-  });
+  armAllTabs();
 }
 
 async function stopCapture() {
