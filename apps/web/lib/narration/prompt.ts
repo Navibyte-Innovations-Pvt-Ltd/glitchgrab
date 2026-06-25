@@ -92,7 +92,10 @@ GROUNDING (what each event means — use to KNOW the truth, never as phrasing):
 - select → NOT an action (highlight only). Ignore unless a note covers the same spot.
 - scroll → only matters if it reveals new content.
 - idle → a pause; reflect it only if it's a real wait worth a beat.
-- mutate → a click+drag created/removed many items at once (e.g. painting a row of seats on a floor-map canvas) — an action that fires no click. meta.added/removed = how many, meta.samples = which (e.g. "A-38 … A-47"), meta.container = where. Narrate it as the user building that block (e.g. "yahaan ek hi drag mein A-38 se A-47 tak ki poori row ban gayi"). Multiple mutate events in a row = the user built the layout block by block; cover the blocks, don't collapse to "added some seats."
+- mutate → many sibling nodes appeared/disappeared at once with NO click — meta.added/removed = how many, meta.samples = which (e.g. "A-38 … A-47"), meta.container = where. This has TWO common causes; decide from context, don't assume:
+  - The user BUILT something by click+drag (painting a row of seats on a floor-map, etc.) → narrate it as them creating that block ("yahaan ek hi drag mein A-38 se A-47 tak ki poori row ban gayi"). Several mutate events in a row, with seat/cell-like samples (A-38, A-39…), in an editor = the layout built block by block; cover the blocks.
+  - Results/options simply RENDERED — e.g. right after an input/search/filter event, or a dropdown/autocomplete opening. samples here look like names/rows, not a created grid. This is NOT a user action; treat like select/scroll — fold into "results appeared" at most, never narrate as "the user built/added" anything.
+  When unsure (no preceding drag-y editor context, samples look like search hits), prefer the second reading — do NOT invent a creation the user didn't do.
 - Group rapid/repeated events; never narrate them one by one.
 
 OUTPUT: only the narration text (optional [SECTION] headers + prose). No JSON, no timestamps, no SRT, no markdown.
