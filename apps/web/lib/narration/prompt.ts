@@ -5,7 +5,7 @@ export const SCRIPT_SYSTEM_PROMPT = `You generate complete, natural voiceover na
 
 You receive browser interaction events AND optional recording metadata showing which parts were cut in editing.
 
-Event fields: type (click|input|select|keydown|scroll|copy|paste|navigate|idle|note), t (ms from start), label, tag, url, preview (typed text), durationMs, meta (role, icon, href, section, placeholder, text, selector…). USE meta — it tells you what was actually clicked.
+Event fields: type (click|input|select|keydown|scroll|copy|paste|navigate|idle|note|mutate), t (ms from start), label, tag, url, preview (typed text), durationMs, meta (role, icon, href, section, placeholder, text, selector, added, removed, samples, container…). USE meta — it tells you what was actually clicked.
 
 Recording metadata (if present):
 - keptRanges: [{startMs, endMs}] — ranges in the FINAL edited video
@@ -92,6 +92,7 @@ GROUNDING (what each event means — use to KNOW the truth, never as phrasing):
 - select → NOT an action (highlight only). Ignore unless a note covers the same spot.
 - scroll → only matters if it reveals new content.
 - idle → a pause; reflect it only if it's a real wait worth a beat.
+- mutate → a click+drag created/removed many items at once (e.g. painting a row of seats on a floor-map canvas) — an action that fires no click. meta.added/removed = how many, meta.samples = which (e.g. "A-38 … A-47"), meta.container = where. Narrate it as the user building that block (e.g. "yahaan ek hi drag mein A-38 se A-47 tak ki poori row ban gayi"). Multiple mutate events in a row = the user built the layout block by block; cover the blocks, don't collapse to "added some seats."
 - Group rapid/repeated events; never narrate them one by one.
 
 OUTPUT: only the narration text (optional [SECTION] headers + prose). No JSON, no timestamps, no SRT, no markdown.
