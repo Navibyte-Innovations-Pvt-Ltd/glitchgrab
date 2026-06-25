@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { auth, isAdminEmail } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
 const CORS = {
@@ -14,8 +14,8 @@ export function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS });
 }
 
-// Narration telemetry analytics + raw export. Session-protected (owner analytics;
-// the raw rows include captured events with PII). Query params:
+// Narration telemetry analytics + raw export. ADMIN-ONLY (rows aggregate every
+// user's captured events incl. PII; see ADMIN_EMAILS gate in GET). Query params:
 //   ?format=raw     → full rows (default: summary + recent rows, no full events)
 //   ?limit=100      → cap rows (default 100, raw default 500)
 //   ?appName=Stripe → filter to one product
@@ -31,6 +31,12 @@ export async function GET(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401, headers: CORS });
+  }
+  // Cross-user analytics export (raw rows carry other users' captured events +
+  // PII). Not owner-scoped — there's no userId column on NarrationTelemetry — so
+  // it MUST be admin-only. Configure admins via ADMIN_EMAILS env (fail closed).
+  if (!isAdminEmail(session.user.email)) {
+    return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403, headers: CORS });
   }
 
   const url = new URL(request.url);
