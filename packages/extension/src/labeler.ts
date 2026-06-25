@@ -20,6 +20,9 @@ export interface ElementMeta {
   fullText?: string;       // full visible text of the element (not just first line)
   controls?: string;       // labels of child buttons/links inside it (e.g. "Add", "Claim")
   site?: string;           // app/site name (og:site_name) — set on navigate events
+  shortcut?: boolean;      // keydown events: this was a keyboard shortcut (modifier combo)
+  keys?: string;           // readable combo, e.g. "Cmd+Shift+Z"
+  action?: string;         // known meaning of the shortcut, e.g. "undo" (omitted if unknown)
 }
 
 function firstLine(text: string): string {
