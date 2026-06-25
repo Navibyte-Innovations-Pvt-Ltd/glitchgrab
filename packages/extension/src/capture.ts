@@ -30,6 +30,81 @@ function isSensitiveCode(el: HTMLInputElement): boolean {
   return false;
 }
 
+// --- Keyboard-shortcut recognition --------------------------------------
+// A lone modifier press is not a shortcut — wait for the real key.
+function isModifierKey(key: string): boolean {
+  return key === "Meta" || key === "Control" || key === "Alt" || key === "Shift";
+}
+
+// Mod+C / Mod+X / Mod+V are already surfaced by the copy/paste DOM events.
+function isClipboardCombo(ke: KeyboardEvent): boolean {
+  const mod = ke.metaKey || ke.ctrlKey;
+  return mod && !ke.altKey && ["c", "x", "v"].includes(ke.key.toLowerCase());
+}
+
+// Display the combo the way a user reads it: "Cmd+Shift+Z". Cmd shown on the
+// platform that has it (metaKey); Ctrl otherwise. Single letters upper-cased.
+function buildCombo(ke: KeyboardEvent): string {
+  const parts: string[] = [];
+  if (ke.metaKey) parts.push("Cmd");
+  if (ke.ctrlKey) parts.push("Ctrl");
+  if (ke.altKey) parts.push("Alt");
+  if (ke.shiftKey) parts.push("Shift");
+  const k = ke.key.length === 1 ? ke.key.toUpperCase() : ke.key;
+  parts.push(k);
+  return parts.join("+");
+}
+
+// Platform-independent signature: collapse Cmd/Ctrl into "Mod" so one dictionary
+// covers mac + windows (undo is Cmd+Z on mac, Ctrl+Z on windows).
+function comboSignature(ke: KeyboardEvent): string {
+  const parts: string[] = [];
+  if (ke.metaKey || ke.ctrlKey) parts.push("Mod");
+  if (ke.altKey) parts.push("Alt");
+  if (ke.shiftKey) parts.push("Shift");
+  parts.push(ke.key.length === 1 ? ke.key.toUpperCase() : ke.key);
+  return parts.join("+");
+}
+
+// Known meanings for common OS/editor shortcuts. Unknown combos carry no action
+// word — the AI infers intent from the surrounding events. Clipboard combos are
+// intentionally absent (handled by copy/paste events).
+const SHORTCUT_ACTIONS: Record<string, string> = {
+  "Mod+Z": "undo",
+  "Mod+Shift+Z": "redo",
+  "Mod+Y": "redo",
+  "Mod+S": "save",
+  "Mod+A": "select all",
+  "Mod+F": "find",
+  "Mod+B": "bold",
+  "Mod+I": "italic",
+  "Mod+U": "underline",
+  "Mod+P": "print",
+  "Mod+K": "insert link",
+  "Mod+Enter": "submit",
+};
+
+// Plain editing/navigation keys worth logging when the user is NOT typing in a
+// text field — in an editor (seat map, canvas) these mean delete / move / nudge.
+const EDIT_NAV_KEYS = new Set([
+  "Delete", "Backspace",
+  "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
+  "Home", "End", "PageUp", "PageDown",
+]);
+
+// Is focus in something the user types into? (text input / textarea /
+// contenteditable). If so, plain edit keys are just typing — skip them.
+function isTextEntry(el: Element | null): boolean {
+  if (!el) return false;
+  const tag = el.tagName;
+  if (tag === "TEXTAREA") return true;
+  if (tag === "INPUT") {
+    const t = (el as HTMLInputElement).type;
+    return !["checkbox", "radio", "button", "submit", "range", "color", "file"].includes(t);
+  }
+  return (el as HTMLElement).isContentEditable === true;
+}
+
 // Timing knobs — production defaults; tests pass small values for fast, reliable runs.
 export interface CaptureTiming {
   inputDebounceMs?: number;
@@ -251,7 +326,36 @@ export class Capture {
     // not explaining. Cancel the explain gesture.
     if (this.shiftDownAt > 0) this.shiftHadOtherKey = true;
 
-    if (!["Enter", "Escape", "Tab"].includes(ke.key)) return;
+    // Keyboard shortcut = any Cmd/Ctrl/Alt combo (incl. +Shift). These carry
+    // INTENT the AI can't see from clicks alone (undo/save/duplicate in an
+    // editor), so capture them with a readable combo + a known action word when
+    // we recognise it. Lone modifier keydowns (Meta/Control/Alt) are ignored.
+    if ((ke.metaKey || ke.ctrlKey || ke.altKey) && !isModifierKey(ke.key)) {
+      // Clipboard combos (Mod+C/X/V) already fire dedicated copy/paste events —
+      // skip here to avoid double-logging the same action.
+      if (!ke.repeat && !isClipboardCombo(ke)) {
+        const combo = buildCombo(ke);
+        const action = SHORTCUT_ACTIONS[comboSignature(ke)];
+        this.lastEventAt = Date.now();
+        this.breakIdle(Date.now());
+        this.emit({
+          type: "keydown",
+          label: action ? `${combo} (${action})` : combo,
+          url: location.href,
+          meta: { shortcut: true, keys: combo, ...(action ? { action } : {}) },
+        });
+      }
+      return;
+    }
+
+    // Plain (no-modifier) keys that carry intent. Enter/Escape/Tab always count
+    // (submit / cancel / move-focus). Editing & navigation keys (Delete, arrows…)
+    // count ONLY outside a text field — inside one they're just typing, already
+    // captured by input events; in an editor canvas they mean delete/nudge.
+    const alwaysKeys = ke.key === "Enter" || ke.key === "Escape" || ke.key === "Tab";
+    const editKeys = EDIT_NAV_KEYS.has(ke.key);
+    if (!alwaysKeys && !editKeys) return;
+    if (editKeys && (ke.repeat || isTextEntry(document.activeElement))) return;
     this.lastEventAt = Date.now();
     this.breakIdle(Date.now());
     this.emit({ type: "keydown", label: ke.key, url: location.href });
