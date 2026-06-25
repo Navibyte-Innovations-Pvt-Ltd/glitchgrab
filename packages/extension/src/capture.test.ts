@@ -168,6 +168,59 @@ describe("Capture orchestration", () => {
     cap.stop();
   });
 
+  it("captures a known modifier shortcut with its action word + meta", () => {
+    const { events, cap } = setup();
+    cap.start();
+    const KE = dom.window.KeyboardEvent;
+    dom.window.document.dispatchEvent(new KE("keydown", { key: "z", metaKey: true, bubbles: true }));
+    const k = events.filter((e) => e.type === "keydown");
+    expect(k).toHaveLength(1);
+    expect(k[0].label).toBe("Cmd+Z (undo)");
+    expect(k[0].meta).toMatchObject({ shortcut: true, keys: "Cmd+Z", action: "undo" });
+    cap.stop();
+  });
+
+  it("captures Cmd+Shift+Z as redo and an unknown combo as raw keys", () => {
+    const { events, cap } = setup();
+    cap.start();
+    const KE = dom.window.KeyboardEvent;
+    dom.window.document.dispatchEvent(new KE("keydown", { key: "z", metaKey: true, shiftKey: true, bubbles: true }));
+    dom.window.document.dispatchEvent(new KE("keydown", { key: "d", metaKey: true, bubbles: true })); // unknown → raw
+    const k = events.filter((e) => e.type === "keydown");
+    expect(k.map((e) => e.label)).toEqual(["Cmd+Shift+Z (redo)", "Cmd+D"]);
+    expect(k[1].meta).toMatchObject({ shortcut: true, keys: "Cmd+D" });
+    expect((k[1].meta as Record<string, unknown>).action).toBeUndefined();
+    cap.stop();
+  });
+
+  it("ignores clipboard combos (copy/paste events cover those) and lone modifiers", () => {
+    const { events, cap } = setup();
+    cap.start();
+    const KE = dom.window.KeyboardEvent;
+    dom.window.document.dispatchEvent(new KE("keydown", { key: "c", metaKey: true, bubbles: true }));
+    dom.window.document.dispatchEvent(new KE("keydown", { key: "v", metaKey: true, bubbles: true }));
+    dom.window.document.dispatchEvent(new KE("keydown", { key: "Meta", metaKey: true, bubbles: true }));
+    expect(events.filter((e) => e.type === "keydown")).toHaveLength(0);
+    cap.stop();
+  });
+
+  it("captures Delete/Arrow keys outside a text field but not while typing", () => {
+    const { events, cap } = setup();
+    cap.start();
+    const KE = dom.window.KeyboardEvent;
+    // Outside any field → editor-style intent → captured.
+    dom.window.document.dispatchEvent(new KE("keydown", { key: "Delete", bubbles: true }));
+    dom.window.document.dispatchEvent(new KE("keydown", { key: "ArrowRight", bubbles: true }));
+    // Inside a text input → just typing/editing → ignored.
+    dom.window.document.body.innerHTML = `<input id="t" type="text" />`;
+    const t = dom.window.document.querySelector("#t")! as HTMLInputElement;
+    t.focus();
+    dom.window.document.dispatchEvent(new KE("keydown", { key: "Backspace", bubbles: true }));
+    const labels = events.filter((e) => e.type === "keydown").map((e) => e.label);
+    expect(labels).toEqual(["Delete", "ArrowRight"]);
+    cap.stop();
+  });
+
   it("debounces scroll into a single event", async () => {
     const { events, cap } = setup();
     cap.start();
