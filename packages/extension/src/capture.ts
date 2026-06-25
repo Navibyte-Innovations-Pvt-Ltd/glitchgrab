@@ -5,7 +5,7 @@
 import { type ElementMeta, getClickLabel, describeElement } from "./labeler";
 
 export interface CaptureEvent {
-  type: "click" | "navigate" | "idle" | "input" | "select" | "keydown" | "scroll" | "copy" | "paste" | "note";
+  type: "click" | "navigate" | "idle" | "input" | "select" | "keydown" | "scroll" | "copy" | "paste" | "note" | "mutate";
   label?: string;
   tag?: string;
   url?: string;
@@ -105,6 +105,79 @@ function isTextEntry(el: Element | null): boolean {
   return (el as HTMLElement).isContentEditable === true;
 }
 
+// --- Bulk DOM-mutation summary (canvas / seat-map drags) ----------------
+// A click+drag that paints a row of seats fires NO click or input event — it
+// just makes many sibling nodes appear in a container. We watch childList
+// mutations and, when a BURST of sibling nodes is added (or removed) under one
+// parent, emit a single "mutate" event summarising it. Bounded both ends:
+//  - below MUTATE_MIN: ordinary one-off node updates / a node's own descendants
+//    re-attaching → ignored (kills the per-seat inner-DOM noise for free).
+//  - above MUTATE_MAX: wholesale re-renders / route swaps (framework churn,
+//    already covered by `navigate`) → ignored, so the log isn't flooded.
+const MUTATE_MIN = 3;
+const MUTATE_MAX = 40;
+// Hard cap on buffered entries between flushes — a pathologically busy SPA
+// (virtualised list, animation) is churn, not a user gesture; drop it.
+const MUTATE_BUFFER_CAP = 2000;
+
+export interface MutEntry {
+  el: Element;
+  parent: Element | null;
+}
+
+// Tags that never carry user-meaningful content — excluded from burst counts.
+function isNoiseTag(el: Element): boolean {
+  return ["SCRIPT", "STYLE", "LINK", "META", "NOSCRIPT", "TEMPLATE", "BR", "HR"].includes(el.tagName);
+}
+
+// "A-33 … A-37" for a long run; "Add, Claim" for a few. undefined when nothing
+// in the burst can be named.
+function rangeLabel(labels: string[]): string | undefined {
+  const clean = labels.filter((l) => l && l.trim());
+  if (!clean.length) return undefined;
+  if (clean.length <= 3) return clean.join(", ");
+  return `${clean[0]} … ${clean[clean.length - 1]}`;
+}
+
+// Pure: fold buffered add/remove entries into mutate events. Groups by parent,
+// keeps only bursts in [MUTATE_MIN, MUTATE_MAX], names each burst from the nodes
+// it can label. Exported so the unit test can exercise it without a real
+// MutationObserver or timers.
+export function summarizeMutations(added: MutEntry[], removed: MutEntry[]): CaptureEvent[] {
+  const out: CaptureEvent[] = [];
+  for (const group of [
+    { verb: "added" as const, entries: added },
+    { verb: "removed" as const, entries: removed },
+  ]) {
+    const byParent = new Map<Element | null, Element[]>();
+    for (const { el, parent } of group.entries) {
+      if (el.nodeType !== 1 || isNoiseTag(el)) continue;
+      const arr = byParent.get(parent) ?? [];
+      arr.push(el);
+      byParent.set(parent, arr);
+    }
+    for (const [parent, els] of byParent) {
+      if (els.length < MUTATE_MIN || els.length > MUTATE_MAX) continue;
+      const labels = els.map((el) => getClickLabel(el).label).filter(Boolean);
+      const samples = rangeLabel(labels);
+      const container = parent
+        ? getClickLabel(parent).label || parent.tagName.toLowerCase()
+        : undefined;
+      const meta: ElementMeta =
+        group.verb === "added" ? { added: els.length } : { removed: els.length };
+      if (container) meta.container = container;
+      if (samples) meta.samples = samples;
+      out.push({
+        type: "mutate",
+        label: `${els.length} ${group.verb}${samples ? ` (${samples})` : ""}`,
+        url: location.href,
+        meta,
+      });
+    }
+  }
+  return out;
+}
+
 // Timing knobs — production defaults; tests pass small values for fast, reliable runs.
 export interface CaptureTiming {
   inputDebounceMs?: number;
@@ -113,6 +186,7 @@ export interface CaptureTiming {
   idleThresholdMs?: number;
   idleCheckMs?: number;
   minHoldMs?: number; // min Shift-hold to count as an "explain" gesture
+  mutateDebounceMs?: number; // quiet window before a DOM-mutation burst is summarised
 }
 
 export class Capture {
@@ -127,6 +201,11 @@ export class Capture {
   private lastInputEl: HTMLInputElement | HTMLTextAreaElement | null = null;
   private selTimer: ReturnType<typeof setTimeout> | null = null;
   private scrollTimer: ReturnType<typeof setTimeout> | null = null;
+  // Bulk-mutation (canvas/seat-map drag) tracking.
+  private mutObserver: MutationObserver | null = null;
+  private mutTimer: ReturnType<typeof setTimeout> | null = null;
+  private mutAdded: MutEntry[] = [];
+  private mutRemoved: MutEntry[] = [];
   private pointerX = 0;
   private pointerY = 0;
   // Hold-Shift "explain this" gesture state.
@@ -141,6 +220,7 @@ export class Capture {
   private readonly scrollDebounceMs: number;
   private readonly idleThresholdMs: number;
   private readonly idleCheckMs: number;
+  private readonly mutateDebounceMs: number;
 
   constructor(private emit: (event: CaptureEvent) => void, timing: CaptureTiming = {}) {
     this.inputDebounceMs = timing.inputDebounceMs ?? 800;
@@ -149,6 +229,7 @@ export class Capture {
     this.idleThresholdMs = timing.idleThresholdMs ?? 3000;
     this.idleCheckMs = timing.idleCheckMs ?? 1000;
     this.minHoldMs = timing.minHoldMs ?? 400;
+    this.mutateDebounceMs = timing.mutateDebounceMs ?? 600;
   }
 
   get active(): boolean {
@@ -174,6 +255,11 @@ export class Capture {
     document.addEventListener("paste", this.onPaste, { capture: true });
     document.addEventListener("mousemove", this.onPointerMove, { capture: true, passive: true });
     this.idleTimer = setInterval(this.checkIdle, this.idleCheckMs);
+    // Watch for bulk node bursts (seat-map/canvas drags fire no click/input).
+    try {
+      this.mutObserver = new MutationObserver(this.onMutations);
+      this.mutObserver.observe(document.documentElement, { childList: true, subtree: true });
+    } catch { /* no DOM (non-browser host) */ }
   }
 
   stop(): void {
@@ -197,6 +283,11 @@ export class Capture {
     }
     if (this.selTimer) { clearTimeout(this.selTimer); this.selTimer = null; }
     if (this.scrollTimer) { clearTimeout(this.scrollTimer); this.scrollTimer = null; }
+    // Flush any pending mutation burst, then tear the observer down.
+    if (this.mutTimer) { clearTimeout(this.mutTimer); this.mutTimer = null; this.flushMutations(); }
+    if (this.mutObserver) { this.mutObserver.disconnect(); this.mutObserver = null; }
+    this.mutAdded = [];
+    this.mutRemoved = [];
   }
 
   // Close an open idle span when real activity resumes.
@@ -420,6 +511,51 @@ export class Capture {
       } catch { /* ignore */ }
     }, this.scrollDebounceMs);
   };
+
+  // Buffer added/removed nodes from each mutation, debounced into one summary.
+  // record.target is the parent the children changed under — group key for the
+  // burst. We DON'T touch lastEventAt here (background animations mutate too);
+  // only an actually-emitted burst counts as activity (see flushMutations).
+  private onMutations = (records: MutationRecord[]): void => {
+    if (!this.capturing) return;
+    for (const r of records) {
+      if (r.type !== "childList") continue;
+      const parent = r.target.nodeType === 1 ? (r.target as Element) : null;
+      r.addedNodes.forEach((n) => {
+        if (n.nodeType === 1) this.mutAdded.push({ el: n as Element, parent });
+      });
+      r.removedNodes.forEach((n) => {
+        if (n.nodeType === 1) this.mutRemoved.push({ el: n as Element, parent });
+      });
+    }
+    // Runaway churn (virtualised lists, animations) is not a user gesture — drop.
+    if (this.mutAdded.length + this.mutRemoved.length > MUTATE_BUFFER_CAP) {
+      this.mutAdded = [];
+      this.mutRemoved = [];
+      if (this.mutTimer) { clearTimeout(this.mutTimer); this.mutTimer = null; }
+      return;
+    }
+    if (this.mutTimer) clearTimeout(this.mutTimer);
+    this.mutTimer = setTimeout(() => {
+      try {
+        this.mutTimer = null;
+        this.flushMutations();
+      } catch { /* dom detached */ }
+    }, this.mutateDebounceMs);
+  };
+
+  private flushMutations(): void {
+    const added = this.mutAdded;
+    const removed = this.mutRemoved;
+    this.mutAdded = [];
+    this.mutRemoved = [];
+    const events = summarizeMutations(added, removed);
+    if (!events.length) return;
+    const now = Date.now();
+    this.lastEventAt = now;
+    this.breakIdle(now);
+    for (const ev of events) this.emit(ev);
+  }
 
   private onCopy = (): void => {
     if (!this.capturing) return;
