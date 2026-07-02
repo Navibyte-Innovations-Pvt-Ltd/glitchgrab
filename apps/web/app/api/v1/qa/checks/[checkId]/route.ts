@@ -98,7 +98,9 @@ export async function POST(
       (await prisma.user.findUnique({ where: { id: userId }, select: { whatsappPhone: true } }))?.whatsappPhone;
 
     if (devPhone) {
-      void sendDeveloperQaFailed({
+      // Awaited: an un-awaited send is killed when Vercel suspends the function
+      // after the response returns (ECONNRESET mid-handshake).
+      await sendDeveloperQaFailed({
         phone: devPhone,
         testerName: tester.name,
         issueTitle: check.title,
