@@ -54,6 +54,7 @@ model WhatsappOtp {
   userId    String
   phone     String
   otpHash   String
+  attempts  Int      @default(0)
   expiresAt DateTime
   createdAt DateTime @default(now())
 
@@ -117,6 +118,8 @@ model Repo {
   reports           Report[]
   issues            Issue[]
   gscProperties     GscProperty[]
+  testerRepos       TesterRepo[]
+  qaChecks          QaCheck[]
 
   @@unique([userId, githubId])
   @@index([githubId])
@@ -314,6 +317,7 @@ model Organization {
   owner   User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   members OrgMember[]
   repos   Repo[]
+  testers Tester[]
 }
 
 model OrgMember {
@@ -378,4 +382,130 @@ model CaptureSession {
   script     String?
   expiresAt  DateTime
   createdAt  DateTime @default(now())
+}
+
+// Persistent narration training/feedback telemetry. Unlike CaptureSession (which
+// expires), this survives so we can analyze how much refinement scripts need and
+// improve the model. One row per capture session; the generate route writes the
+// initial row, the refine route appends each user refinement turn. Writes are
+// best-effort — telemetry must NEVER break script generation.
+model NarrationTelemetry {
+  id          String   @id @default(cuid())
+  sessionId   String   @unique // the CaptureSession id this generation came from
+
+  // ── Input context ───────────────────────────────────────────────
+  events      Json     // raw captured events, as-is (incl. typed previews)
+  meta        Json?    // RecordingMeta (cuts/zooms/duration)
+  appName     String?  // derived product name (deriveAppName)
+  lang        String?
+  gender      String?
+  durationSec Int?
+  eventCount  Int      @default(0)
+  hasNotes    Boolean  @default(false) // any shift-mark "note" events present
+  noteCount   Int      @default(0)
+  noteAnswers Json?    // what the user said to explain at each marked spot
+
+  // ── Initial generation ──────────────────────────────────────────
+  model            String  // deepseek model used for generation
+  genLatencyMs     Int     @default(0)
+  initialScript    String  @default("")
+  initialChars     Int     @default(0)
+  wasEmpty         Boolean @default(false) // generation returned nothing
+  wasRoman         Boolean @default(false) // lang=hi but came back Roman/Latin
+  devanagariRetried Boolean @default(false) // the Devanagari-fix retry fired
+  devanagariRatio  Float   @default(0)
+
+  // ── Refinements (appended by the refine route) ──────────────────
+  // refinements: [{ ts, userMessage, resultingScript, chars }] — full history of
+  // what the user asked to change and the version it produced.
+  refinements Json    @default("[]")
+  refineCount Int     @default(0) // how many versions the user needed (quality proxy)
+  finalScript String  @default("")
+  finalChars  Int     @default(0)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([appName])
+  @@index([createdAt])
+}
+
+// ─── QA / Tester workflow ────────────────────────────────
+// A tester (e.g. an external QA person) invited to verify that developer
+// fixes actually work. May NOT be part of the GitHub org — accesses a
+// magic-link QA page instead of logging in. Notified over WhatsApp.
+
+model Tester {
+  id          String   @id @default(cuid())
+  orgId       String
+  name        String
+  email       String?
+  phone       String?  // WhatsApp number (digits, optional country code)
+  /// Unguessable capability token — the /qa/<token> page is gated only by this
+  magicToken  String   @unique
+  invitedById String
+  createdAt   DateTime @default(now())
+
+  org    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  repos  TesterRepo[]
+  checks QaCheck[]
+  otps   TesterOtp[]
+
+  @@index([orgId])
+}
+
+model TesterOtp {
+  id        String   @id @default(cuid())
+  testerId  String
+  phone     String
+  otpHash   String
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  tester Tester @relation(fields: [testerId], references: [id], onDelete: Cascade)
+
+  @@index([testerId])
+}
+
+model TesterRepo {
+  id        String   @id @default(cuid())
+  testerId  String
+  repoId    String
+  createdAt DateTime @default(now())
+
+  tester Tester @relation(fields: [testerId], references: [id], onDelete: Cascade)
+  repo   Repo   @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  @@unique([testerId, repoId])
+  @@index([repoId])
+}
+
+enum QaStatus {
+  PENDING
+  PASS
+  FAIL
+}
+
+model QaCheck {
+  id             String   @id @default(cuid())
+  testerId       String
+  repoId         String
+  githubNumber   Int
+  githubUrl      String
+  title          String
+  prNumber       Int?
+  prUrl          String?
+  /// GitHub login of the developer who merged the PR that closed this issue
+  developerLogin String?
+  status         QaStatus @default(PENDING)
+  createdAt      DateTime @default(now())
+  verifiedAt     DateTime?
+
+  tester Tester @relation(fields: [testerId], references: [id], onDelete: Cascade)
+  repo   Repo   @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  @@unique([testerId, repoId, githubNumber, prNumber])
+  @@index([testerId, status])
+  @@index([repoId, githubNumber])
 }

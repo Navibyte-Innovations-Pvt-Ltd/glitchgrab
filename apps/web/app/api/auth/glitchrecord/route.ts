@@ -12,6 +12,16 @@ import { generateToken, hashToken } from "@/lib/tokens";
 
 const TOKEN_TTL_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
 
+// Only the GlitchRecord desktop deep-link scheme may receive the token. Without
+// this, ?redirect=https://evil.com would exfiltrate the live token + userId to
+// an attacker's server (open redirect → token theft). Custom scheme only — no
+// http(s), no other schemes.
+const ALLOWED_REDIRECT_PREFIXES = ["glitchrecord://"];
+
+function isAllowedRedirect(redirect: string): boolean {
+  return ALLOWED_REDIRECT_PREFIXES.some((p) => redirect.startsWith(p));
+}
+
 export async function GET(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -23,6 +33,9 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const redirect = url.searchParams.get("redirect") ?? "glitchrecord://auth";
+  if (!isAllowedRedirect(redirect)) {
+    return new NextResponse("Invalid redirect target", { status: 400 });
+  }
 
   const plainToken = generateToken();
   const tokenHash = hashToken(plainToken);

@@ -19,6 +19,16 @@ export interface ElementMeta {
   checked?: string;        // "true"/"false" for checkbox/radio/switch
   fullText?: string;       // full visible text of the element (not just first line)
   controls?: string;       // labels of child buttons/links inside it (e.g. "Add", "Claim")
+  site?: string;           // app/site name (og:site_name) — set on navigate events
+  shortcut?: boolean;      // keydown events: this was a keyboard shortcut (modifier combo)
+  keys?: string;           // readable combo, e.g. "Cmd+Shift+Z"
+  action?: string;         // known meaning of the shortcut, e.g. "undo" (omitted if unknown)
+  // "mutate" events: a click+drag (e.g. seat-map painting) added/removed many
+  // sibling nodes at once — actions that fire NO click/input event.
+  added?: number;          // count of element nodes added in one burst
+  removed?: number;        // count of element nodes removed in one burst
+  container?: string;      // label of the parent the nodes were added to/removed from
+  samples?: string;        // representative labels of the changed nodes, e.g. "A-33 … A-37"
 }
 
 function firstLine(text: string): string {
@@ -175,7 +185,12 @@ function labelFromElement(el: Element): string {
     cleanLabel(el.getAttribute("alt")) ||
     cleanLabel(el.getAttribute("placeholder")) ||
     cleanLabel(el.getAttribute("name")) ||
-    cleanLabel(el.getAttribute("value"));
+    // `value` is a label ONLY for buttons (<input type=submit/button/reset>).
+    // For text/tel/number/etc. fields the value is the user's typed content —
+    // using it as a label leaks data (OTP codes, emails, names) into the log.
+    (el.tagName === "INPUT" && /^(submit|button|reset)$/i.test((el as HTMLInputElement).type)
+      ? cleanLabel(el.getAttribute("value"))
+      : "");
   if (attrLabel && attrLabel.length >= 1) return attrLabel;
 
   // 2. aria-labelledby → resolve referenced element text
@@ -234,7 +249,11 @@ function structuralHint(el: Element): string {
   const id = cleanLabel(el.getAttribute("id"));
   if (id) return id.replace(/[-_]/g, " ").slice(0, 50);
   const cls = cleanLabel(el.getAttribute("class")).split(" ")[0];
-  if (cls && !/^[a-z]{1,3}\d|css-|sc-/.test(cls)) return `${el.tagName.toLowerCase()}.${cls}`.slice(0, 50);
+  // Only a clean semantic class (letters + dashes) makes a usable label. Reject
+  // hashed/css-in-js (css-/sc-/short+digit) AND Tailwind utilities/variants,
+  // which contain ":" "/" "[" — e.g. "disabled:cursor-not-allowed" is noise.
+  if (cls && /^[a-z][a-z-]{2,}$/i.test(cls) && !/^[a-z]{1,3}\d|css-|sc-/.test(cls))
+    return `${el.tagName.toLowerCase()}.${cls}`.slice(0, 50);
   return "";
 }
 

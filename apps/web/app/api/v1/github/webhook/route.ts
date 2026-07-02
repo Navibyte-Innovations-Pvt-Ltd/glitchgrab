@@ -3,7 +3,13 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { dispatchWebhook } from "@/lib/webhooks";
-import { sendIssueResolvedWhatsApp, sendIssueAssignedNotification } from "@/lib/whatsapp";
+import {
+  sendIssueResolvedWhatsApp,
+  sendIssueAssignedNotification,
+  sendTesterQaRequest,
+} from "@/lib/whatsapp";
+import { getGitHubIssue } from "@/lib/github";
+import { parseClosingIssueRefs } from "@/lib/qa";
 
 /**
  * POST /api/v1/github/webhook
@@ -36,6 +42,14 @@ export async function POST(request: Request) {
         body: string | null;
       };
       assignee?: { login: string };
+      pull_request?: {
+        number: number;
+        title: string;
+        html_url: string;
+        body: string | null;
+        merged: boolean;
+        user: { login: string };
+      };
       comment?: {
         body: string;
         user: { login: string; avatar_url: string };
@@ -49,6 +63,13 @@ export async function POST(request: Request) {
     };
 
     const repoFullName = payload.repository.full_name;
+
+    // Pull request merged → fan out a QA check to each assigned tester
+    if (event === "pull_request") {
+      await handlePullRequestEvent(payload, repoFullName);
+      return NextResponse.json({ ok: true });
+    }
+
     const issueNumber = payload.issue?.number;
 
     if (!issueNumber) {
@@ -182,5 +203,120 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("GitHub webhook error:", error);
     return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 });
+  }
+}
+
+/**
+ * A merged PR often closes several issues at once ("Closes #12, fixes #14").
+ * For each referenced issue, create a PENDING QaCheck for every tester assigned
+ * to the repo, then WhatsApp each tester one verification request.
+ */
+async function handlePullRequestEvent(
+  payload: {
+    action: string;
+    pull_request?: {
+      number: number;
+      title: string;
+      html_url: string;
+      body: string | null;
+      merged: boolean;
+      user: { login: string };
+    };
+  },
+  repoFullName: string
+) {
+  const pr = payload.pull_request;
+  if (payload.action !== "closed" || !pr?.merged) return;
+
+  // Parse both title and body for closing keywords
+  const issueNumbers = parseClosingIssueRefs(`${pr.title}\n${pr.body ?? ""}`);
+  if (issueNumbers.length === 0) return;
+
+  const repo = await prisma.repo.findFirst({
+    where: { fullName: repoFullName },
+    select: { id: true, userId: true, owner: true, name: true, orgId: true },
+  });
+  if (!repo) return;
+
+  // Testers assigned to this repo
+  const testerRepos = await prisma.testerRepo.findMany({
+    where: { repoId: repo.id },
+    include: { tester: { select: { id: true, name: true, phone: true, magicToken: true } } },
+  });
+  if (testerRepos.length === 0) return;
+
+  // Repo owner's GitHub token — used to fetch issue titles
+  const account = await prisma.account.findFirst({
+    where: { userId: repo.userId, provider: "github" },
+    select: { access_token: true },
+  });
+
+  // Org name for the WhatsApp message
+  const ownerData = await prisma.user.findUnique({
+    where: { id: repo.userId },
+    select: {
+      name: true,
+      ownedOrgs: { where: { id: repo.orgId ?? "" }, select: { name: true }, take: 1 },
+    },
+  });
+  const orgName = ownerData?.ownedOrgs?.[0]?.name ?? ownerData?.name ?? "the team";
+
+  // A nicer developer name if the merger is a known Glitchgrab user
+  const devUser = await prisma.user.findFirst({
+    where: { githubLogin: pr.user.login },
+    select: { name: true },
+  });
+  const developerName = devUser?.name ?? pr.user.login;
+
+  // Resolve each referenced issue's title/url once
+  const issues = await Promise.all(
+    issueNumbers.map(async (n) => {
+      const gh = account?.access_token
+        ? await getGitHubIssue(account.access_token, repo.owner, repo.name, n)
+        : null;
+      return {
+        number: n,
+        title: gh?.title ?? `Issue #${n}`,
+        url: gh?.html_url ?? `https://github.com/${repoFullName}/issues/${n}`,
+      };
+    })
+  );
+
+  for (const tr of testerRepos) {
+    const tester = tr.tester;
+    let created = 0;
+
+    for (const issue of issues) {
+      try {
+        await prisma.qaCheck.create({
+          data: {
+            testerId: tester.id,
+            repoId: repo.id,
+            githubNumber: issue.number,
+            githubUrl: issue.url,
+            title: issue.title,
+            prNumber: pr.number,
+            prUrl: pr.html_url,
+            developerLogin: pr.user.login,
+          },
+        });
+        created++;
+      } catch {
+        // Unique constraint → this check already exists for this tester+PR+issue
+      }
+    }
+
+    // One WhatsApp per tester per PR — never one per issue (avoids spam when a
+    // PR closes many issues). The count goes in the message; the QA page lists each.
+    if (created > 0 && tester.phone) {
+      void sendTesterQaRequest({
+        phone: tester.phone,
+        testerName: tester.name,
+        developerName,
+        issueCount: created,
+        orgName,
+        magicToken: tester.magicToken,
+      });
+    }
   }
 }

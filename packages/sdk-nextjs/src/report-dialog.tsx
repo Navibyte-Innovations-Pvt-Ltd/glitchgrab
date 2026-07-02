@@ -288,10 +288,11 @@ export function ReportDialog({
   const [description, setDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [screenshot, setScreenshot] = useState<string | null>(null);
-  const [previewOpen, setPreviewOpen] = useState(false);
+  const [screenshots, setScreenshots] = useState<string[]>([]);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
+  const previewImgRef = useRef<HTMLImageElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
@@ -335,20 +336,22 @@ export function ReportDialog({
   const t = getTheme(isDark);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setScreenshot(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setScreenshots((prev) => [...prev, reader.result as string]);
+      };
+      reader.readAsDataURL(file);
+    });
     e.target.value = "";
   };
 
   const retakeScreenshot = async () => {
-    setPreviewOpen(false);
+    setPreviewIndex(null);
     setIsOpen(false);
-    setScreenshot(null);
+    setScreenshots([]);
     await new Promise((r) => setTimeout(r, 300));
     try {
       const { default: html2canvas } = await import("html2canvas-pro");
@@ -358,7 +361,7 @@ export function ReportDialog({
         useCORS: true,
         allowTaint: true,
       });
-      setScreenshot(canvas.toDataURL("image/jpeg", 0.6));
+      setScreenshots([canvas.toDataURL("image/jpeg", 0.6)]);
     } catch {
       // silently fail
     }
@@ -379,7 +382,7 @@ export function ReportDialog({
         useCORS: true,
         allowTaint: true,
       });
-      setScreenshot(canvas.toDataURL("image/jpeg", 0.6));
+      setScreenshots([canvas.toDataURL("image/jpeg", 0.6)]);
     } catch {
       // screenshot failed — open without it
     }
@@ -407,13 +410,28 @@ export function ReportDialog({
     if (!isOpen) return;
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (previewOpen) setPreviewOpen(false);
+        if (previewIndex !== null) setPreviewIndex(null);
         else handleClose();
       }
     };
     document.addEventListener("keydown", handleEsc);
     return () => document.removeEventListener("keydown", handleEsc);
-  }, [isOpen, previewOpen]);
+  }, [isOpen, previewIndex]);
+
+  // Close screenshot preview on outside click. Registered in the CAPTURE phase
+  // so it fires before the host page's own outside-click handlers (e.g. Radix
+  // DismissableLayer) can stop the event from ever bubbling to our onClick.
+  useEffect(() => {
+    if (previewIndex === null) return;
+    const handlePointerDown = (e: PointerEvent) => {
+      if (!previewImgRef.current?.contains(e.target as Node)) {
+        setPreviewIndex(null);
+      }
+    };
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    return () =>
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+  }, [previewIndex]);
 
   // Paste image from clipboard (Cmd+V / Ctrl+V) when dialog is open
   useEffect(() => {
@@ -422,17 +440,19 @@ export function ReportDialog({
       try {
         const items = e.clipboardData?.items;
         if (!items) return;
+        let matched = false;
         for (let i = 0; i < items.length; i++) {
           if (items[i].type.startsWith("image/")) {
             const file = items[i].getAsFile();
             if (!file) continue;
+            matched = true;
             const reader = new FileReader();
-            reader.onload = () => setScreenshot(reader.result as string);
+            reader.onload = () =>
+              setScreenshots((prev) => [...prev, reader.result as string]);
             reader.readAsDataURL(file);
-            e.preventDefault();
-            break;
           }
         }
+        if (matched) e.preventDefault();
       } catch {
         // silently fail
       }
@@ -597,15 +617,32 @@ export function ReportDialog({
 
   const handleSpaceDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.code !== "Space") return;
-    // Block ALL repeat space events while timer pending or recording active
-    if (spaceTimerRef.current || isListening || isPushToTalkRef.current) {
+    // Recording or already-committed to push-to-talk — swallow the space
+    if (isListening || isPushToTalkRef.current) {
       e.preventDefault();
       return;
     }
-    if (e.repeat || !transcribeAudio || isTranscribing) return;
-    e.preventDefault();
+    // Auto-repeat from a held key, or a timer already pending — let the browser
+    // type normally; we only care about the first keydown of a hold.
+    if (e.repeat || !transcribeAudio || isTranscribing || spaceTimerRef.current)
+      return;
+
+    // Don't preventDefault: let the browser insert the space natively so the
+    // cursor stays exactly where the user typed it. If the hold matures into
+    // push-to-talk, strip that space back out below.
+    const pos = e.currentTarget.selectionStart ?? description.length;
     spaceTimerRef.current = setTimeout(() => {
+      spaceTimerRef.current = null;
       isPushToTalkRef.current = true;
+      setDescription((prev) =>
+        prev[pos] === " " ? prev.slice(0, pos) + prev.slice(pos + 1) : prev,
+      );
+      requestAnimationFrame(() => {
+        if (textareaRef.current) {
+          textareaRef.current.selectionStart = pos;
+          textareaRef.current.selectionEnd = pos;
+        }
+      });
       void toggleVoice();
     }, 400);
   };
@@ -613,23 +650,9 @@ export function ReportDialog({
   const handleSpaceUp = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.code !== "Space") return;
     if (spaceTimerRef.current) {
+      // Quick tap — space was already typed natively, nothing to do.
       clearTimeout(spaceTimerRef.current);
       spaceTimerRef.current = null;
-      if (!isPushToTalkRef.current) {
-        // Insert space at current cursor position, not at end
-        const ta = textareaRef.current;
-        const pos = ta
-          ? (ta.selectionStart ?? description.length)
-          : description.length;
-        setDescription((prev) => prev.slice(0, pos) + " " + prev.slice(pos));
-        // Restore cursor after React re-render
-        requestAnimationFrame(() => {
-          if (textareaRef.current) {
-            textareaRef.current.selectionStart = pos + 1;
-            textareaRef.current.selectionEnd = pos + 1;
-          }
-        });
-      }
     }
     if (isPushToTalkRef.current) {
       isPushToTalkRef.current = false;
@@ -650,7 +673,7 @@ export function ReportDialog({
 
       setIsSubmitting(true);
       const metadata: Record<string, string> = {};
-      if (screenshot) metadata.screenshot = screenshot;
+      if (screenshots.length > 0) metadata.screenshots = JSON.stringify(screenshots);
       if (showSeverity && reportType === "BUG") {
         metadata.severity = severity;
       }
@@ -664,7 +687,7 @@ export function ReportDialog({
       if (result) {
         setSubmitted(true);
         setDescription("");
-        setScreenshot(null);
+        setScreenshots([]);
 
         setTimeout(() => {
           setSubmitted(false);
@@ -710,7 +733,7 @@ export function ReportDialog({
                 '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
             }}
             onClick={() => {
-              if (!previewOpen) handleClose();
+              if (previewIndex === null) handleClose();
             }}
             onPointerDown={(e) => e.stopPropagation()}
             onFocus={(e) => e.stopPropagation()}
@@ -1082,7 +1105,7 @@ export function ReportDialog({
                                 try {
                                   const polished = await enhanceText(
                                     description,
-                                    screenshot,
+                                    screenshots[0] ?? null,
                                   );
                                   if (polished && polished !== description) {
                                     setOriginalDescription(description);
@@ -1340,219 +1363,206 @@ export function ReportDialog({
                               fontWeight: 500,
                             }}
                           >
-                            Screenshot
+                            Screenshots
+                            {screenshots.length > 0
+                              ? ` (${screenshots.length})`
+                              : ""}
                           </span>
-                          {screenshot ? (
-                            <div>
-                              {/* Thumbnail — click to preview */}
-                              <div style={{ position: "relative" }}>
-                                <img
-                                  src={screenshot}
-                                  alt="Page screenshot"
-                                  onClick={() => setPreviewOpen(true)}
-                                  style={{
-                                    width: "100%",
-                                    borderRadius: "6px",
-                                    border: `1px solid ${t.border}`,
-                                    maxHeight: "64px",
-                                    objectFit: "cover",
-                                    objectPosition: "top",
-                                    cursor: "zoom-in",
-                                    display: "block",
-                                  }}
-                                />
-                                <span
-                                  style={{
-                                    position: "absolute",
-                                    bottom: "5px",
-                                    left: "6px",
-                                    background: "rgba(0,0,0,0.55)",
-                                    color: "#fff",
-                                    fontSize: "10px",
-                                    padding: "1px 5px",
-                                    borderRadius: "3px",
-                                    pointerEvents: "none",
-                                  }}
-                                >
-                                  click to preview
-                                </span>
-                              </div>
-                              {/* Action row */}
-                              <div
-                                style={{
-                                  display: "flex",
-                                  gap: "6px",
-                                  marginTop: "6px",
-                                }}
-                              >
-                                <button
-                                  type="button"
-                                  onClick={() => setScreenshot(null)}
-                                  style={{
-                                    flex: 1,
-                                    padding: "6px 0",
-                                    borderRadius: "6px",
-                                    border: `1px solid ${t.inputBorder}`,
-                                    background: "transparent",
-                                    color: "#ef4444",
-                                    fontSize: "12px",
-                                    fontWeight: 500,
-                                    cursor: "pointer",
-                                    fontFamily: "inherit",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    gap: "4px",
-                                  }}
-                                >
-                                  <svg
-                                    width="11"
-                                    height="11"
-                                    viewBox="0 0 10 10"
-                                    fill="none"
-                                  >
-                                    <path
-                                      d="M1 1L9 9M9 1L1 9"
-                                      stroke="currentColor"
-                                      strokeWidth="1.5"
-                                      strokeLinecap="round"
-                                    />
-                                  </svg>
-                                  Remove
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => fileInputRef.current?.click()}
-                                  style={{
-                                    flex: 1,
-                                    padding: "6px 0",
-                                    borderRadius: "6px",
-                                    border: `1px solid ${t.inputBorder}`,
-                                    background: "transparent",
-                                    color: t.textMuted,
-                                    fontSize: "12px",
-                                    fontWeight: 500,
-                                    cursor: "pointer",
-                                    fontFamily: "inherit",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    gap: "4px",
-                                  }}
-                                >
-                                  <svg
-                                    width="11"
-                                    height="11"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                  >
-                                    <path
-                                      d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"
-                                      stroke="currentColor"
-                                      strokeWidth="2"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                    />
-                                  </svg>
-                                  Replace
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            /* Drop zone */
+                          {screenshots.length > 0 && (
                             <div
-                              onClick={() => fileInputRef.current?.click()}
-                              onDrop={(e) => {
-                                e.preventDefault();
-                                setScreenshotDragOver(false);
-                                const file = Array.from(
-                                  e.dataTransfer.files,
-                                ).find((f) => f.type.startsWith("image/"));
-                                if (!file) return;
-                                const reader = new FileReader();
-                                reader.onload = () =>
-                                  setScreenshot(reader.result as string);
-                                reader.readAsDataURL(file);
-                              }}
-                              onDragOver={(e) => {
-                                e.preventDefault();
-                                setScreenshotDragOver(true);
-                              }}
-                              onDragLeave={() => setScreenshotDragOver(false)}
                               style={{
-                                border: `1.5px dashed ${screenshotDragOver ? t.accent : t.inputBorder}`,
-                                borderRadius: "8px",
-                                padding: "18px 12px",
-                                textAlign: "center",
-                                cursor: "pointer",
-                                background: screenshotDragOver
-                                  ? isDark
-                                    ? "rgba(34,211,238,0.06)"
-                                    : "rgba(8,145,178,0.04)"
-                                  : "transparent",
-                                transition:
-                                  "border-color 0.15s ease, background 0.15s ease",
+                                display: "flex",
+                                flexWrap: "wrap",
+                                gap: "8px",
+                                marginBottom: "8px",
                               }}
                             >
-                              <svg
-                                width="22"
-                                height="22"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                style={{
-                                  margin: "0 auto 6px",
-                                  display: "block",
-                                  opacity: 0.45,
-                                }}
-                              >
-                                <rect
-                                  x="3"
-                                  y="3"
-                                  width="18"
-                                  height="18"
-                                  rx="2"
-                                  stroke={t.textMuted}
-                                  strokeWidth="1.5"
-                                />
-                                <circle
-                                  cx="8.5"
-                                  cy="8.5"
-                                  r="1.5"
-                                  stroke={t.textMuted}
-                                  strokeWidth="1.5"
-                                />
-                                <path
-                                  d="M21 15l-5-5L5 21"
-                                  stroke={t.textMuted}
-                                  strokeWidth="1.5"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                />
-                              </svg>
+                              {screenshots.map((src, i) => (
+                                <div
+                                  key={i}
+                                  style={{
+                                    position: "relative",
+                                    width: "56px",
+                                    height: "56px",
+                                  }}
+                                >
+                                  <img
+                                    src={src}
+                                    alt={`Screenshot ${i + 1}`}
+                                    onClick={() => setPreviewIndex(i)}
+                                    style={{
+                                      width: "100%",
+                                      height: "100%",
+                                      borderRadius: "6px",
+                                      border: `1px solid ${t.border}`,
+                                      objectFit: "cover",
+                                      objectPosition: "top",
+                                      cursor: "zoom-in",
+                                      display: "block",
+                                    }}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setScreenshots((prev) =>
+                                        prev.filter((_, idx) => idx !== i),
+                                      )
+                                    }
+                                    aria-label={`Remove screenshot ${i + 1}`}
+                                    style={{
+                                      position: "absolute",
+                                      top: "-6px",
+                                      right: "-6px",
+                                      width: "17px",
+                                      height: "17px",
+                                      borderRadius: "50%",
+                                      border: "none",
+                                      background: "#ef4444",
+                                      color: "#fff",
+                                      fontSize: "11px",
+                                      lineHeight: 1,
+                                      padding: 0,
+                                      cursor: "pointer",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                    }}
+                                  >
+                                    <svg
+                                      width="8"
+                                      height="8"
+                                      viewBox="0 0 10 10"
+                                      fill="none"
+                                    >
+                                      <path
+                                        d="M1 1L9 9M9 1L1 9"
+                                        stroke="currentColor"
+                                        strokeWidth="1.5"
+                                        strokeLinecap="round"
+                                      />
+                                    </svg>
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {/* Drop zone — always available to add more */}
+                          <div
+                            onClick={() => fileInputRef.current?.click()}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              setScreenshotDragOver(false);
+                              const files = Array.from(
+                                e.dataTransfer.files,
+                              ).filter((f) => f.type.startsWith("image/"));
+                              files.forEach((file) => {
+                                const reader = new FileReader();
+                                reader.onload = () =>
+                                  setScreenshots((prev) => [
+                                    ...prev,
+                                    reader.result as string,
+                                  ]);
+                                reader.readAsDataURL(file);
+                              });
+                            }}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              setScreenshotDragOver(true);
+                            }}
+                            onDragLeave={() => setScreenshotDragOver(false)}
+                            style={{
+                              border: `1.5px dashed ${screenshotDragOver ? t.accent : t.inputBorder}`,
+                              borderRadius: "8px",
+                              padding:
+                                screenshots.length > 0
+                                  ? "8px 12px"
+                                  : "18px 12px",
+                              textAlign: "center",
+                              cursor: "pointer",
+                              background: screenshotDragOver
+                                ? isDark
+                                  ? "rgba(34,211,238,0.06)"
+                                  : "rgba(8,145,178,0.04)"
+                                : "transparent",
+                              transition:
+                                "border-color 0.15s ease, background 0.15s ease",
+                            }}
+                          >
+                            {screenshots.length > 0 ? (
                               <p
                                 style={{
                                   margin: 0,
-                                  fontSize: "12px",
-                                  fontWeight: 600,
-                                  color: t.text,
+                                  fontSize: "11px",
+                                  fontWeight: 500,
+                                  color: t.textMuted,
                                 }}
                               >
                                 {screenshotDragOver
                                   ? "Drop to attach"
-                                  : "Add a screenshot"}
+                                  : "+ Add more · Drag & drop · Paste"}
                               </p>
-                              <p
-                                style={{
-                                  margin: "3px 0 0",
-                                  fontSize: "11px",
-                                  color: t.textMuted,
-                                }}
-                              >
-                                Drag & drop · Paste ⌘V / Ctrl+V · Click to
-                                browse
-                              </p>
-                            </div>
-                          )}
+                            ) : (
+                              <>
+                                <svg
+                                  width="22"
+                                  height="22"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  style={{
+                                    margin: "0 auto 6px",
+                                    display: "block",
+                                    opacity: 0.45,
+                                  }}
+                                >
+                                  <rect
+                                    x="3"
+                                    y="3"
+                                    width="18"
+                                    height="18"
+                                    rx="2"
+                                    stroke={t.textMuted}
+                                    strokeWidth="1.5"
+                                  />
+                                  <circle
+                                    cx="8.5"
+                                    cy="8.5"
+                                    r="1.5"
+                                    stroke={t.textMuted}
+                                    strokeWidth="1.5"
+                                  />
+                                  <path
+                                    d="M21 15l-5-5L5 21"
+                                    stroke={t.textMuted}
+                                    strokeWidth="1.5"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                </svg>
+                                <p
+                                  style={{
+                                    margin: 0,
+                                    fontSize: "12px",
+                                    fontWeight: 600,
+                                    color: t.text,
+                                  }}
+                                >
+                                  {screenshotDragOver
+                                    ? "Drop to attach"
+                                    : "Add screenshots"}
+                                </p>
+                                <p
+                                  style={{
+                                    margin: "3px 0 0",
+                                    fontSize: "11px",
+                                    color: t.textMuted,
+                                  }}
+                                >
+                                  Drag & drop · Paste ⌘V / Ctrl+V · Click to
+                                  browse
+                                </p>
+                              </>
+                            )}
+                          </div>
                         </div>
 
                         {showSeverity && reportType === "BUG" && (
@@ -1667,13 +1677,14 @@ export function ReportDialog({
         ref={fileInputRef}
         type="file"
         accept="image/*"
+        multiple
         onChange={handleFileUpload}
         style={{ display: "none" }}
       />
 
       {/* Full-screen screenshot preview */}
-      {previewOpen &&
-        screenshot &&
+      {previewIndex !== null &&
+        screenshots[previewIndex] &&
         createPortal(
           <div
             style={{
@@ -1690,12 +1701,13 @@ export function ReportDialog({
             }}
             onClick={(e) => {
               e.stopPropagation();
-              setPreviewOpen(false);
+              setPreviewIndex(null);
             }}
             onMouseDown={(e) => e.stopPropagation()}
           >
             <img
-              src={screenshot}
+              ref={previewImgRef}
+              src={screenshots[previewIndex]}
               alt="Screenshot preview"
               onClick={(e) => e.stopPropagation()}
               style={{
@@ -1713,7 +1725,9 @@ export function ReportDialog({
                 fontSize: "12px",
               }}
             >
-              Click outside to close
+              {screenshots.length > 1
+                ? `${previewIndex + 1} / ${screenshots.length} · Click outside to close`
+                : "Click outside to close"}
             </span>
           </div>,
           document.body,

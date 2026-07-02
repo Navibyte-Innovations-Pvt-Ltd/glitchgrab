@@ -5,7 +5,7 @@
 import { type ElementMeta, getClickLabel, describeElement } from "./labeler";
 
 export interface CaptureEvent {
-  type: "click" | "navigate" | "idle" | "input" | "select" | "keydown" | "scroll" | "copy" | "paste" | "note";
+  type: "click" | "navigate" | "idle" | "input" | "select" | "keydown" | "scroll" | "copy" | "paste" | "note" | "mutate";
   label?: string;
   tag?: string;
   url?: string;
@@ -17,6 +17,167 @@ export interface CaptureEvent {
 
 const DEDUP_MS = 80;
 
+// One-time codes / OTP / PIN / CVV are short-lived secrets — their value must
+// never land in the capture log even though they aren't type=password. Detect by
+// autocomplete, a code-ish name/label, or an anonymous short numeric field (the
+// typical unlabelled OTP digit box).
+function isSensitiveCode(el: HTMLInputElement): boolean {
+  if (!el || el.tagName !== "INPUT") return false;
+  if (el.autocomplete === "one-time-code") return true;
+  const id = (el.name || el.id || el.getAttribute("aria-label") || el.placeholder || "").toLowerCase();
+  if (/otp|one[\s-]?time|verification|2fa|mfa|\bpin\b|cvv|cvc|security[\s-]?code/.test(id)) return true;
+  if (!id && el.maxLength > 0 && el.maxLength <= 6 && /^\d*$/.test(el.value || "")) return true;
+  return false;
+}
+
+// --- Keyboard-shortcut recognition --------------------------------------
+// A lone modifier press is not a shortcut — wait for the real key.
+function isModifierKey(key: string): boolean {
+  return key === "Meta" || key === "Control" || key === "Alt" || key === "Shift";
+}
+
+// Mod+C / Mod+X / Mod+V are already surfaced by the copy/paste DOM events.
+function isClipboardCombo(ke: KeyboardEvent): boolean {
+  const mod = ke.metaKey || ke.ctrlKey;
+  return mod && !ke.altKey && ["c", "x", "v"].includes(ke.key.toLowerCase());
+}
+
+// Display the combo the way a user reads it: "Cmd+Shift+Z". Cmd shown on the
+// platform that has it (metaKey); Ctrl otherwise. Single letters upper-cased.
+function buildCombo(ke: KeyboardEvent): string {
+  const parts: string[] = [];
+  if (ke.metaKey) parts.push("Cmd");
+  if (ke.ctrlKey) parts.push("Ctrl");
+  if (ke.altKey) parts.push("Alt");
+  if (ke.shiftKey) parts.push("Shift");
+  const k = ke.key.length === 1 ? ke.key.toUpperCase() : ke.key;
+  parts.push(k);
+  return parts.join("+");
+}
+
+// Platform-independent signature: collapse Cmd/Ctrl into "Mod" so one dictionary
+// covers mac + windows (undo is Cmd+Z on mac, Ctrl+Z on windows).
+function comboSignature(ke: KeyboardEvent): string {
+  const parts: string[] = [];
+  if (ke.metaKey || ke.ctrlKey) parts.push("Mod");
+  if (ke.altKey) parts.push("Alt");
+  if (ke.shiftKey) parts.push("Shift");
+  parts.push(ke.key.length === 1 ? ke.key.toUpperCase() : ke.key);
+  return parts.join("+");
+}
+
+// Known meanings for common OS/editor shortcuts. Unknown combos carry no action
+// word — the AI infers intent from the surrounding events. Clipboard combos are
+// intentionally absent (handled by copy/paste events).
+const SHORTCUT_ACTIONS: Record<string, string> = {
+  "Mod+Z": "undo",
+  "Mod+Shift+Z": "redo",
+  "Mod+Y": "redo",
+  "Mod+S": "save",
+  "Mod+A": "select all",
+  "Mod+F": "find",
+  "Mod+B": "bold",
+  "Mod+I": "italic",
+  "Mod+U": "underline",
+  "Mod+P": "print",
+  "Mod+K": "insert link",
+  "Mod+Enter": "submit",
+};
+
+// Plain editing/navigation keys worth logging when the user is NOT typing in a
+// text field — in an editor (seat map, canvas) these mean delete / move / nudge.
+const EDIT_NAV_KEYS = new Set([
+  "Delete", "Backspace",
+  "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight",
+  "Home", "End", "PageUp", "PageDown",
+]);
+
+// Is focus in something the user types into? (text input / textarea /
+// contenteditable). If so, plain edit keys are just typing — skip them.
+function isTextEntry(el: Element | null): boolean {
+  if (!el) return false;
+  const tag = el.tagName;
+  if (tag === "TEXTAREA") return true;
+  if (tag === "INPUT") {
+    const t = (el as HTMLInputElement).type;
+    return !["checkbox", "radio", "button", "submit", "range", "color", "file"].includes(t);
+  }
+  return (el as HTMLElement).isContentEditable === true;
+}
+
+// --- Bulk DOM-mutation summary (canvas / seat-map drags) ----------------
+// A click+drag that paints a row of seats fires NO click or input event — it
+// just makes many sibling nodes appear in a container. We watch childList
+// mutations and, when a BURST of sibling nodes is added (or removed) under one
+// parent, emit a single "mutate" event summarising it. Bounded both ends:
+//  - below MUTATE_MIN: ordinary one-off node updates / a node's own descendants
+//    re-attaching → ignored (kills the per-seat inner-DOM noise for free).
+//  - above MUTATE_MAX: wholesale re-renders / route swaps (framework churn,
+//    already covered by `navigate`) → ignored, so the log isn't flooded.
+const MUTATE_MIN = 3;
+const MUTATE_MAX = 40;
+// Hard cap on buffered entries between flushes — a pathologically busy SPA
+// (virtualised list, animation) is churn, not a user gesture; drop it.
+const MUTATE_BUFFER_CAP = 2000;
+
+export interface MutEntry {
+  el: Element;
+  parent: Element | null;
+}
+
+// Tags that never carry user-meaningful content — excluded from burst counts.
+function isNoiseTag(el: Element): boolean {
+  return ["SCRIPT", "STYLE", "LINK", "META", "NOSCRIPT", "TEMPLATE", "BR", "HR"].includes(el.tagName);
+}
+
+// "A-33 … A-37" for a long run; "Add, Claim" for a few. undefined when nothing
+// in the burst can be named.
+function rangeLabel(labels: string[]): string | undefined {
+  const clean = labels.filter((l) => l && l.trim());
+  if (!clean.length) return undefined;
+  if (clean.length <= 3) return clean.join(", ");
+  return `${clean[0]} … ${clean[clean.length - 1]}`;
+}
+
+// Pure: fold buffered add/remove entries into mutate events. Groups by parent,
+// keeps only bursts in [MUTATE_MIN, MUTATE_MAX], names each burst from the nodes
+// it can label. Exported so the unit test can exercise it without a real
+// MutationObserver or timers.
+export function summarizeMutations(added: MutEntry[], removed: MutEntry[]): CaptureEvent[] {
+  const out: CaptureEvent[] = [];
+  for (const group of [
+    { verb: "added" as const, entries: added },
+    { verb: "removed" as const, entries: removed },
+  ]) {
+    const byParent = new Map<Element | null, Element[]>();
+    for (const { el, parent } of group.entries) {
+      if (el.nodeType !== 1 || isNoiseTag(el)) continue;
+      const arr = byParent.get(parent) ?? [];
+      arr.push(el);
+      byParent.set(parent, arr);
+    }
+    for (const [parent, els] of byParent) {
+      if (els.length < MUTATE_MIN || els.length > MUTATE_MAX) continue;
+      const labels = els.map((el) => getClickLabel(el).label).filter(Boolean);
+      const samples = rangeLabel(labels);
+      const container = parent
+        ? getClickLabel(parent).label || parent.tagName.toLowerCase()
+        : undefined;
+      const meta: ElementMeta =
+        group.verb === "added" ? { added: els.length } : { removed: els.length };
+      if (container) meta.container = container;
+      if (samples) meta.samples = samples;
+      out.push({
+        type: "mutate",
+        label: `${els.length} ${group.verb}${samples ? ` (${samples})` : ""}`,
+        url: location.href,
+        meta,
+      });
+    }
+  }
+  return out;
+}
+
 // Timing knobs — production defaults; tests pass small values for fast, reliable runs.
 export interface CaptureTiming {
   inputDebounceMs?: number;
@@ -25,6 +186,7 @@ export interface CaptureTiming {
   idleThresholdMs?: number;
   idleCheckMs?: number;
   minHoldMs?: number; // min Shift-hold to count as an "explain" gesture
+  mutateDebounceMs?: number; // quiet window before a DOM-mutation burst is summarised
 }
 
 export class Capture {
@@ -39,12 +201,18 @@ export class Capture {
   private lastInputEl: HTMLInputElement | HTMLTextAreaElement | null = null;
   private selTimer: ReturnType<typeof setTimeout> | null = null;
   private scrollTimer: ReturnType<typeof setTimeout> | null = null;
+  // Bulk-mutation (canvas/seat-map drag) tracking.
+  private mutObserver: MutationObserver | null = null;
+  private mutTimer: ReturnType<typeof setTimeout> | null = null;
+  private mutAdded: MutEntry[] = [];
+  private mutRemoved: MutEntry[] = [];
   private pointerX = 0;
   private pointerY = 0;
   // Hold-Shift "explain this" gesture state.
   private shiftDownAt = 0;             // 0 = Shift not held
   private shiftSubject: Element | null = null; // element under cursor when hold began
   private shiftHadOtherKey = false;    // a letter was typed while Shift held → it's typing, not explain
+  private shiftHadClick = false;       // a mouse click fired while Shift held → Shift+click (multi-select), not explain
   private readonly minHoldMs: number;
 
   private readonly inputDebounceMs: number;
@@ -52,6 +220,7 @@ export class Capture {
   private readonly scrollDebounceMs: number;
   private readonly idleThresholdMs: number;
   private readonly idleCheckMs: number;
+  private readonly mutateDebounceMs: number;
 
   constructor(private emit: (event: CaptureEvent) => void, timing: CaptureTiming = {}) {
     this.inputDebounceMs = timing.inputDebounceMs ?? 800;
@@ -60,6 +229,7 @@ export class Capture {
     this.idleThresholdMs = timing.idleThresholdMs ?? 3000;
     this.idleCheckMs = timing.idleCheckMs ?? 1000;
     this.minHoldMs = timing.minHoldMs ?? 400;
+    this.mutateDebounceMs = timing.mutateDebounceMs ?? 600;
   }
 
   get active(): boolean {
@@ -70,6 +240,11 @@ export class Capture {
     if (this.capturing) return;
     this.capturing = true;
     this.lastEventAt = Date.now();
+    // Record the starting page up front: its title + app name (og:site_name) are
+    // the only reliable source of the PRODUCT name for the narration. SPA route
+    // changes and the initial load otherwise emit no navigate, so the script
+    // never learns what the app is called (was naming it "localhost").
+    this.emitNavigate();
     document.addEventListener("click", this.onClick, { capture: true, passive: true });
     document.addEventListener("input", this.onInput, { capture: true, passive: true });
     document.addEventListener("keydown", this.onKeydown, { capture: true, passive: true });
@@ -80,6 +255,11 @@ export class Capture {
     document.addEventListener("paste", this.onPaste, { capture: true });
     document.addEventListener("mousemove", this.onPointerMove, { capture: true, passive: true });
     this.idleTimer = setInterval(this.checkIdle, this.idleCheckMs);
+    // Watch for bulk node bursts (seat-map/canvas drags fire no click/input).
+    try {
+      this.mutObserver = new MutationObserver(this.onMutations);
+      this.mutObserver.observe(document.documentElement, { childList: true, subtree: true });
+    } catch { /* no DOM (non-browser host) */ }
   }
 
   stop(): void {
@@ -103,6 +283,11 @@ export class Capture {
     }
     if (this.selTimer) { clearTimeout(this.selTimer); this.selTimer = null; }
     if (this.scrollTimer) { clearTimeout(this.scrollTimer); this.scrollTimer = null; }
+    // Flush any pending mutation burst, then tear the observer down.
+    if (this.mutTimer) { clearTimeout(this.mutTimer); this.mutTimer = null; this.flushMutations(); }
+    if (this.mutObserver) { this.mutObserver.disconnect(); this.mutObserver = null; }
+    this.mutAdded = [];
+    this.mutRemoved = [];
   }
 
   // Close an open idle span when real activity resumes.
@@ -126,6 +311,9 @@ export class Capture {
 
   private onClick = (e: Event): void => {
     if (!this.capturing) return;
+    // A click DURING a Shift hold is Shift+click (multi-select / open-in-bg), not
+    // an "explain" tap — flag it so onKeyup skips the mark.
+    if (this.shiftDownAt > 0) this.shiftHadClick = true;
     const now = Date.now();
     this.lastEventAt = now;
     this.breakIdle(now);
@@ -162,6 +350,7 @@ export class Capture {
     this.breakIdle(Date.now());
     const target = e.target as HTMLInputElement | HTMLTextAreaElement;
     if ((target as HTMLInputElement).type === "password") return;
+    if (isSensitiveCode(target as HTMLInputElement)) return; // OTP / 2FA / PIN — never log
     // Switching to a different field mid-debounce: flush the previous one first.
     if (this.lastInputEl && this.lastInputEl !== target) {
       if (this.inputTimer) { clearTimeout(this.inputTimer); this.inputTimer = null; }
@@ -185,10 +374,23 @@ export class Capture {
 
   // Mark "explain this" on `el`. The script generator treats `note` events as
   // "spend time here — the user wants this explained" (e.g. Claim vs Add).
-  private emitNote(el: Element | null, durationMs: number): void {
+  // `selectedText` (if present) = the user HIGHLIGHTED text then pressed Shift →
+  // they want THAT exact text explained; carry it as the label + preview.
+  private emitNote(el: Element | null, durationMs: number, selectedText?: string): void {
     this.lastEventAt = Date.now();
     this.breakIdle(Date.now());
-    if (el) {
+    const sel = selectedText?.trim().slice(0, 200);
+    if (sel) {
+      this.emit({
+        type: "note",
+        label: sel.slice(0, 120),
+        url: location.href,
+        meta: el ? describeElement(el) : undefined,
+        note: "explain-selection",
+        preview: sel,
+        durationMs,
+      });
+    } else if (el) {
       const { label } = getClickLabel(el);
       this.emit({ type: "note", label, url: location.href, meta: describeElement(el), note: "explain", durationMs });
     } else {
@@ -207,6 +409,7 @@ export class Capture {
         this.shiftDownAt = Date.now();
         this.shiftSubject = document.elementFromPoint(this.pointerX, this.pointerY);
         this.shiftHadOtherKey = false;
+        this.shiftHadClick = false;
       }
       return;
     }
@@ -214,7 +417,36 @@ export class Capture {
     // not explaining. Cancel the explain gesture.
     if (this.shiftDownAt > 0) this.shiftHadOtherKey = true;
 
-    if (!["Enter", "Escape", "Tab"].includes(ke.key)) return;
+    // Keyboard shortcut = any Cmd/Ctrl/Alt combo (incl. +Shift). These carry
+    // INTENT the AI can't see from clicks alone (undo/save/duplicate in an
+    // editor), so capture them with a readable combo + a known action word when
+    // we recognise it. Lone modifier keydowns (Meta/Control/Alt) are ignored.
+    if ((ke.metaKey || ke.ctrlKey || ke.altKey) && !isModifierKey(ke.key)) {
+      // Clipboard combos (Mod+C/X/V) already fire dedicated copy/paste events —
+      // skip here to avoid double-logging the same action.
+      if (!ke.repeat && !isClipboardCombo(ke)) {
+        const combo = buildCombo(ke);
+        const action = SHORTCUT_ACTIONS[comboSignature(ke)];
+        this.lastEventAt = Date.now();
+        this.breakIdle(Date.now());
+        this.emit({
+          type: "keydown",
+          label: action ? `${combo} (${action})` : combo,
+          url: location.href,
+          meta: { shortcut: true, keys: combo, ...(action ? { action } : {}) },
+        });
+      }
+      return;
+    }
+
+    // Plain (no-modifier) keys that carry intent. Enter/Escape/Tab always count
+    // (submit / cancel / move-focus). Editing & navigation keys (Delete, arrows…)
+    // count ONLY outside a text field — inside one they're just typing, already
+    // captured by input events; in an editor canvas they mean delete/nudge.
+    const alwaysKeys = ke.key === "Enter" || ke.key === "Escape" || ke.key === "Tab";
+    const editKeys = EDIT_NAV_KEYS.has(ke.key);
+    if (!alwaysKeys && !editKeys) return;
+    if (editKeys && (ke.repeat || isTextEntry(document.activeElement))) return;
     this.lastEventAt = Date.now();
     this.breakIdle(Date.now());
     this.emit({ type: "keydown", label: ke.key, url: location.href });
@@ -230,11 +462,28 @@ export class Capture {
     const subject =
       document.elementFromPoint(this.pointerX, this.pointerY) ?? this.shiftSubject;
     const wasTyping = this.shiftHadOtherKey;
+    const hadClick = this.shiftHadClick;
     this.shiftDownAt = 0;
     this.shiftSubject = null;
     this.shiftHadOtherKey = false;
-    // Held long enough AND nothing typed → it was an "explain" hold.
-    if (held >= this.minHoldMs && !wasTyping) {
+    this.shiftHadClick = false;
+    if (wasTyping) return; // typed capitals/symbols — not an explain gesture
+    const selectedText = (window.getSelection()?.toString() ?? "").trim();
+    // SELECT text + tap Shift = "explain THIS highlighted text" — no hold needed
+    // (the selection is the intent).
+    if (selectedText.length >= 2) {
+      this.emitNote(subject, held, selectedText);
+      return;
+    }
+    if (hadClick) return; // Shift+click (multi-select / open) — not an explain mark
+    // Otherwise it's an "explain this element" gesture. Accept it when EITHER:
+    //  - the user HELD past minHoldMs (works on anything — a price span, a card), OR
+    //  - it's a quick TAP over a clearly INTERACTIVE control (button/link/option).
+    // The tap path matters because users say "I clicked Shift on each option" and
+    // expect a quick tap to mark a button — a half-second hold isn't intuitive on a
+    // row of sign-up buttons. Interactive-only keeps stray body taps from minting notes.
+    const interactive = subject ? getClickLabel(subject).interactive : false;
+    if (held >= this.minHoldMs || interactive) {
       this.emitNote(subject, held);
     }
   };
@@ -263,6 +512,51 @@ export class Capture {
     }, this.scrollDebounceMs);
   };
 
+  // Buffer added/removed nodes from each mutation, debounced into one summary.
+  // record.target is the parent the children changed under — group key for the
+  // burst. We DON'T touch lastEventAt here (background animations mutate too);
+  // only an actually-emitted burst counts as activity (see flushMutations).
+  private onMutations = (records: MutationRecord[]): void => {
+    if (!this.capturing) return;
+    for (const r of records) {
+      if (r.type !== "childList") continue;
+      const parent = r.target.nodeType === 1 ? (r.target as Element) : null;
+      r.addedNodes.forEach((n) => {
+        if (n.nodeType === 1) this.mutAdded.push({ el: n as Element, parent });
+      });
+      r.removedNodes.forEach((n) => {
+        if (n.nodeType === 1) this.mutRemoved.push({ el: n as Element, parent });
+      });
+    }
+    // Runaway churn (virtualised lists, animations) is not a user gesture — drop.
+    if (this.mutAdded.length + this.mutRemoved.length > MUTATE_BUFFER_CAP) {
+      this.mutAdded = [];
+      this.mutRemoved = [];
+      if (this.mutTimer) { clearTimeout(this.mutTimer); this.mutTimer = null; }
+      return;
+    }
+    if (this.mutTimer) clearTimeout(this.mutTimer);
+    this.mutTimer = setTimeout(() => {
+      try {
+        this.mutTimer = null;
+        this.flushMutations();
+      } catch { /* dom detached */ }
+    }, this.mutateDebounceMs);
+  };
+
+  private flushMutations(): void {
+    const added = this.mutAdded;
+    const removed = this.mutRemoved;
+    this.mutAdded = [];
+    this.mutRemoved = [];
+    const events = summarizeMutations(added, removed);
+    if (!events.length) return;
+    const now = Date.now();
+    this.lastEventAt = now;
+    this.breakIdle(now);
+    for (const ev of events) this.emit(ev);
+  }
+
   private onCopy = (): void => {
     if (!this.capturing) return;
     const sel = window.getSelection()?.toString().trim().slice(0, 60) ?? "";
@@ -279,6 +573,55 @@ export class Capture {
     if (!this.capturing) return;
     this.lastEventAt = Date.now();
     this.breakIdle(Date.now());
-    this.emit({ type: "navigate", url: location.href, label: title });
+    this.emitNavigate(title);
   }
+
+  // Emit a navigate event carrying the page title + app/site name so the
+  // narration can name the product (and never has to fall back to a hostname).
+  private emitNavigate(title?: string): void {
+    const site = readSiteName();
+    const text = readPageGist(); // hero heading + description → grounds the product framing
+    const meta: Record<string, string> = {};
+    if (site) meta.site = site;
+    if (text) meta.text = text;
+    this.emit({
+      type: "navigate",
+      url: location.href,
+      label: (title ?? document.title) || undefined,
+      meta: Object.keys(meta).length ? (meta as ElementMeta) : undefined,
+    });
+  }
+}
+
+// The page's gist for the narration model: main heading + meta description. This
+// is what lets the scripter say what the product actually does ("find & book
+// study rooms") instead of guessing from the brand name ("library software").
+function readPageGist(): string | undefined {
+  try {
+    const desc = (
+      document.querySelector('meta[name="description"]') ??
+      document.querySelector('meta[property="og:description"]')
+    )?.getAttribute("content")?.replace(/\s+/g, " ").trim();
+    const h1 = document.querySelector("h1")?.textContent?.replace(/\s+/g, " ").trim();
+    const gist = [h1, desc].filter(Boolean).join(" — ").slice(0, 220);
+    return gist || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+// The canonical product/brand name from page metadata (og:site_name, then
+// application-name). Independent of the messy <title> SEO string.
+function readSiteName(): string | undefined {
+  try {
+    const og = document
+      .querySelector('meta[property="og:site_name"]')
+      ?.getAttribute("content");
+    if (og && og.trim()) return og.trim().slice(0, 60);
+    const app = document
+      .querySelector('meta[name="application-name"]')
+      ?.getAttribute("content");
+    if (app && app.trim()) return app.trim().slice(0, 60);
+  } catch { /* no DOM (tests) */ }
+  return undefined;
 }

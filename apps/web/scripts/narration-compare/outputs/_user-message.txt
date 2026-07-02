@@ -1,0 +1,1848 @@
+Generate a narration script for this screen recording.
+
+Events:
+[
+  {
+    "type": "navigate",
+    "t": 0,
+    "meta": {
+      "site": "My Abhyasika",
+      "text": "Library Not Found — India's best library management software — free for 2 months, no credit card needed. Manage seats, WhatsApp fee reminders, Razorpay payments, and multi-branch operations. Find study rooms near you."
+    },
+    "label": "My Abhyasika | Best Library Management Software India | Free 2-Month Trial | Library Seat Management",
+    "url": "/invalid-domain"
+  },
+  {
+    "type": "navigate",
+    "t": 0,
+    "meta": {
+      "site": "My Abhyasika",
+      "text": "Find Your Perfect Study Spot — Create your My-Abhyasika account to list your study room or book study spaces online."
+    },
+    "label": "Sign in / Sign up | My Abhyasika | My Abhyasika",
+    "url": "/signup"
+  },
+  {
+    "type": "navigate",
+    "t": 0,
+    "meta": {
+      "site": "Gemini",
+      "text": "Conversation with Gemini — Meet Gemini, Google's AI assistant. Get help with writing, planning, brainstorming, and more. Experience the power of generative AI."
+    },
+    "label": "Protecting Your SaaS Product from Clones - Google Gemini",
+    "url": "/app/900abfcc7cacf0fd"
+  },
+  {
+    "type": "navigate",
+    "t": 0,
+    "meta": {
+      "text": "How fast is your download speed? In seconds, FAST.com's simple Internet speed test will estimate your ISP speed."
+    },
+    "label": "Internet Speed Test | Fast.com",
+    "url": "/"
+  },
+  {
+    "type": "navigate",
+    "t": 0,
+    "meta": {
+      "site": "MCP Market",
+      "text": "Amazon Shopping — Shop Amazon using AI assistants like Claude & Cursor! Secure payments via Fewsats, budget controls, & detailed purchase history. Simplify your e-commerce!"
+    },
+    "label": "Amazon Shopping with AI: Buy Directly via Claude & Cursor",
+    "url": "/server/amazon-shopping"
+  },
+  {
+    "type": "navigate",
+    "t": 0,
+    "meta": {
+      "text": "Search Results"
+    },
+    "label": "barti scheme - Google Search",
+    "url": "/search"
+  },
+  {
+    "type": "navigate",
+    "t": 0,
+    "meta": {
+      "text": "Understand — Sharpen your design skills with hands-on UX challenges. Tackle real scenarios, iterate, and compare your solutions with the community."
+    },
+    "label": "User Interview - UX Tools - Insider News for Design Tools",
+    "url": "/challenges/user-interview"
+  },
+  {
+    "type": "navigate",
+    "t": 0,
+    "meta": {
+      "site": "Claude",
+      "text": "Claude is Anthropic's AI, built for problem solvers. Tackle complex challenges, analyze data, write code, and think through your hardest work."
+    },
+    "label": "New chat - Claude",
+    "url": "/new"
+  },
+  {
+    "type": "navigate",
+    "t": 0,
+    "meta": {
+      "site": "web.dev",
+      "text": "Custom metrics — Custom metrics let you measure and optimize aspects of your site's experience that are unique to your site."
+    },
+    "label": "Custom metrics  |  Articles  |  web.dev",
+    "url": "/articles/custom-metrics"
+  },
+  {
+    "type": "navigate",
+    "t": 0,
+    "meta": {
+      "text": "Search Results"
+    },
+    "label": "ui ux issues - Google Search",
+    "url": "/search"
+  },
+  {
+    "type": "navigate",
+    "t": 0,
+    "meta": {
+      "site": "GitHub",
+      "text": "Contribute to Navibyte-Innovations-Pvt-Ltd/practise_stack development by creating an account on GitHub."
+    },
+    "label": "[Feature] Add pending ageing tasks widget to task dashboard. · Issue #715 · Navibyte-Innovations-Pvt-Ltd/practise_stack",
+    "url": "/Navibyte-Innovations-Pvt-Ltd/practise_stack/issues/715"
+  },
+  {
+    "type": "click",
+    "t": 2000,
+    "meta": {
+      "tag": "a",
+      "role": "link",
+      "text": "Back to Home",
+      "ariaLabel": "Back to homepage",
+      "classes": "group inline-block",
+      "href": "/",
+      "icon": "svg",
+      "selector": "div.relative > div.relative > a.group"
+    },
+    "label": "Back to homepage",
+    "url": "/signup"
+  },
+  {
+    "type": "idle",
+    "t": 16000,
+    "meta": {
+      "duration": "14s"
+    }
+  },
+  {
+    "type": "click",
+    "t": 16000,
+    "meta": {
+      "tag": "div",
+      "text": "STUDY ROOM MANAGEMENT SOFTWARE",
+      "classes": "border-b border-border/40 bg-muted/20 px-4",
+      "section": "section",
+      "selector": "section#search-hero > div.border-b",
+      "fullText": "STUDY ROOM MANAGEMENT SOFTWARE Find & Book Study Rooms Near You India's #1 platform to discover, compare, and book study rooms & libraries — with real-time seat availability, transparent pricing, and instant booking."
+    },
+    "label": "STUDY ROOM MANAGEMENT SOFTWARE",
+    "url": "/"
+  },
+  {
+    "type": "select",
+    "t": 17000,
+    "meta": {},
+    "label": "STUDY ROOM MANAGEMENT SOFTWARE Find & Book Study Rooms Near You India's #1 platf",
+    "url": "/"
+  },
+  {
+    "type": "click",
+    "t": 17000,
+    "meta": {
+      "tag": "div",
+      "text": "STUDY ROOM MANAGEMENT SOFTWARE",
+      "classes": "mx-auto max-w-3xl",
+      "section": "section",
+      "selector": "section#search-hero > div.border-b > div.mx-auto",
+      "fullText": "STUDY ROOM MANAGEMENT SOFTWARE Find & Book Study Rooms Near You India's #1 platform to discover, compare, and book study rooms & libraries — with real-time seat availability, transparent pricing, and instant booking."
+    },
+    "label": "STUDY ROOM MANAGEMENT SOFTWARE",
+    "url": "/"
+  },
+  {
+    "type": "click",
+    "t": 18000,
+    "meta": {
+      "tag": "a",
+      "role": "link",
+      "text": "Sign Up",
+      "classes": "flex items-center gap-1.5 rounded-full",
+      "href": "/signup",
+      "section": "Main",
+      "selector": "ul.group > div.ml-2 > a.flex",
+      "fullText": "Sign Up Free"
+    },
+    "label": "Sign Up",
+    "url": "/"
+  },
+  {
+    "type": "click",
+    "t": 19000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Phone",
+      "classes": "group flex w-full items-center",
+      "icon": "svg",
+      "selector": "div.mt-0 > div.space-y-2.5 > button.group",
+      "fullText": "Phone OTP via WhatsApp / SMS"
+    },
+    "label": "Phone",
+    "url": "/signup"
+  },
+  {
+    "type": "click",
+    "t": 20000,
+    "meta": {
+      "tag": "input",
+      "role": "textbox",
+      "inputType": "tel",
+      "name": "phone_no",
+      "classes": "flex w-full rounded-md border",
+      "section": "form",
+      "selector": "div.space-y-2 > div.flex > input.flex",
+      "placeholder": "Enter mobile number"
+    },
+    "label": "Enter mobile number",
+    "url": "/signup"
+  },
+  {
+    "type": "input",
+    "t": 24000,
+    "meta": {
+      "tag": "input",
+      "role": "textbox",
+      "inputType": "tel",
+      "name": "phone_no",
+      "classes": "flex w-full rounded-md border",
+      "section": "form",
+      "selector": "div.space-y-2 > div.flex > input.flex",
+      "placeholder": "Enter mobile number"
+    },
+    "preview": "+91 72197 25111",
+    "label": "+91 72197 25111",
+    "url": "/signup"
+  },
+  {
+    "type": "click",
+    "t": 24000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Send Verification Code",
+      "classes": "inline-flex items-center justify-center whitespace-nowrap",
+      "icon": "svg",
+      "section": "form",
+      "selector": "div.space-y-3 > form.space-y-2 > button.inline-flex"
+    },
+    "label": "Send Verification Code",
+    "url": "/signup"
+  },
+  {
+    "type": "idle",
+    "t": 28000,
+    "meta": {
+      "duration": "3s"
+    }
+  },
+  {
+    "type": "click",
+    "t": 29000,
+    "meta": {
+      "tag": "input",
+      "role": "textbox",
+      "inputType": "text",
+      "classes": "disabled:cursor-not-allowed w-full gap-2",
+      "section": "form",
+      "selector": "div.has-disabled:opacity-50 > div > input.w-full"
+    },
+    "label": "div.font-sans",
+    "url": "/signup"
+  },
+  {
+    "type": "click",
+    "t": 32000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Library Owner",
+      "classes": "group flex w-full items-center",
+      "icon": "svg",
+      "selector": "div.mt-0 > div.space-y-2.5 > button.group",
+      "fullText": "Library Owner Manage students, payments, seats — 60-day free trial"
+    },
+    "label": "Library Owner",
+    "url": "/signup"
+  },
+  {
+    "type": "click",
+    "t": 34000,
+    "meta": {
+      "tag": "input",
+      "role": "textbox",
+      "inputType": "text",
+      "name": "first_name",
+      "classes": "flex px-3 py-1 font-sans",
+      "section": "form",
+      "selector": "div.space-y-2 > div.font-sans > input.flex",
+      "placeholder": "e.g. Rahul"
+    },
+    "label": "e.g. Rahul",
+    "url": "/signup"
+  },
+  {
+    "type": "input",
+    "t": 35000,
+    "meta": {
+      "tag": "input",
+      "role": "textbox",
+      "inputType": "text",
+      "name": "first_name",
+      "classes": "flex px-3 py-1 font-sans",
+      "section": "form",
+      "selector": "div.space-y-2 > div.font-sans > input.flex",
+      "placeholder": "e.g. Rahul"
+    },
+    "preview": "Naresh",
+    "label": "Naresh",
+    "url": "/signup"
+  },
+  {
+    "type": "click",
+    "t": 36000,
+    "meta": {
+      "tag": "input",
+      "role": "textbox",
+      "inputType": "date",
+      "classes": "flex h-10 w-full rounded-md",
+      "section": "form",
+      "selector": "div.space-y-2 > div.font-sans > input.flex",
+      "placeholder": "DD/MM/YYYY"
+    },
+    "label": "DD/MM/YYYY",
+    "url": "/signup"
+  },
+  {
+    "type": "input",
+    "t": 36000,
+    "meta": {
+      "tag": "input",
+      "role": "textbox",
+      "inputType": "text",
+      "name": "last_name",
+      "classes": "flex px-3 py-1 font-sans",
+      "section": "form",
+      "selector": "div.space-y-2 > div.font-sans > input.flex",
+      "placeholder": "e.g. Sharma"
+    },
+    "preview": "Bhosale",
+    "label": "Bhosale",
+    "url": "/signup"
+  },
+  {
+    "type": "input",
+    "t": 39000,
+    "meta": {
+      "tag": "input",
+      "role": "textbox",
+      "inputType": "date",
+      "classes": "flex h-10 w-full rounded-md",
+      "section": "form",
+      "selector": "div.space-y-2 > div.font-sans > input.flex",
+      "placeholder": "DD/MM/YYYY"
+    },
+    "preview": "2004-04-04",
+    "label": "2004-04-04",
+    "url": "/signup"
+  },
+  {
+    "type": "click",
+    "t": 40000,
+    "meta": {
+      "tag": "div",
+      "text": "Select source...",
+      "id": "react-select-react-select-referral_source-placeholder",
+      "classes": "react-select__placeholder",
+      "section": "form",
+      "selector": "div#react-select-react-select-referral_source-placeholder"
+    },
+    "label": "Select source...",
+    "url": "/signup"
+  },
+  {
+    "type": "click",
+    "t": 41000,
+    "meta": {
+      "tag": "div",
+      "role": "listbox",
+      "text": "Google Search",
+      "id": "react-select-react-select-referral_source-listbox",
+      "classes": "react-select__menu-list",
+      "selector": "div#react-select-react-select-referral_source-listbox",
+      "fullText": "Google Search Instagram YouTube WhatsApp Friend or Family Advertisement Other"
+    },
+    "label": "Google Search",
+    "url": "/signup"
+  },
+  {
+    "type": "click",
+    "t": 41000,
+    "meta": {
+      "tag": "div",
+      "role": "option",
+      "text": "Google Search",
+      "id": "react-select-react-select-referral_source-option-0",
+      "classes": "react-select__option react-select__option--is-focused",
+      "selector": "div#react-select-react-select-referral_source-option-0"
+    },
+    "label": "Google Search",
+    "url": "/signup"
+  },
+  {
+    "type": "click",
+    "t": 42000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Continue",
+      "classes": "inline-flex items-center justify-center whitespace-nowrap",
+      "icon": "svg",
+      "section": "form",
+      "selector": "form.space-y-3 > div.flex > button.inline-flex"
+    },
+    "label": "Continue",
+    "url": "/signup"
+  },
+  {
+    "type": "click",
+    "t": 43000,
+    "meta": {
+      "tag": "input",
+      "role": "textbox",
+      "inputType": "text",
+      "classes": "h-10 w-full rounded-xl border",
+      "selector": "div.space-y-3 > div.relative > input.h-10",
+      "placeholder": "Enter your library name…"
+    },
+    "label": "Enter your library name…",
+    "url": "/signup"
+  },
+  {
+    "type": "input",
+    "t": 47000,
+    "meta": {
+      "tag": "input",
+      "role": "textbox",
+      "inputType": "text",
+      "classes": "h-10 w-full rounded-xl border",
+      "selector": "div.space-y-3 > div.relative > input.h-10",
+      "placeholder": "Enter your library name…"
+    },
+    "preview": "testing",
+    "label": "testing",
+    "url": "/signup"
+  },
+  {
+    "type": "select",
+    "t": 49000,
+    "meta": {},
+    "label": "testing",
+    "url": "/signup"
+  },
+  {
+    "type": "idle",
+    "t": 51000,
+    "meta": {
+      "duration": "5s"
+    }
+  },
+  {
+    "type": "click",
+    "t": 51000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Continue",
+      "classes": "inline-flex items-center justify-center whitespace-nowrap",
+      "icon": "svg",
+      "selector": "div.space-y-3 > div.flex > button.inline-flex"
+    },
+    "label": "Continue",
+    "url": "/signup"
+  },
+  {
+    "type": "idle",
+    "t": 55000,
+    "meta": {
+      "duration": "4s"
+    }
+  },
+  {
+    "type": "click",
+    "t": 55000,
+    "meta": {
+      "tag": "input",
+      "role": "textbox",
+      "inputType": "number",
+      "id": "student-count",
+      "classes": "focus:ring-primary/15 h-8 w-20 rounded-md",
+      "selector": "input#student-count",
+      "placeholder": "0"
+    },
+    "label": "0",
+    "url": "/signup"
+  },
+  {
+    "type": "click",
+    "t": 55000,
+    "meta": {
+      "tag": "input",
+      "role": "textbox",
+      "inputType": "number",
+      "id": "student-count",
+      "classes": "focus:ring-primary/15 h-8 w-20 rounded-md",
+      "selector": "input#student-count",
+      "placeholder": "0"
+    },
+    "label": "0",
+    "url": "/signup"
+  },
+  {
+    "type": "input",
+    "t": 57000,
+    "meta": {
+      "tag": "input",
+      "role": "textbox",
+      "inputType": "number",
+      "id": "student-count",
+      "classes": "focus:ring-primary/15 h-8 w-20 rounded-md",
+      "selector": "input#student-count",
+      "placeholder": "0"
+    },
+    "preview": "33",
+    "label": "33",
+    "url": "/signup"
+  },
+  {
+    "type": "click",
+    "t": 57000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "MICRO",
+      "classes": "group relative flex flex-col",
+      "selector": "div.space-y-4 > div.grid > button.group",
+      "fullText": "MICRO ₹249 /mo 1–50 registered"
+    },
+    "label": "MICRO",
+    "url": "/signup"
+  },
+  {
+    "type": "click",
+    "t": 59000,
+    "meta": {
+      "tag": "div",
+      "text": "🎉",
+      "classes": "space-y-4",
+      "icon": "svg",
+      "selector": "div.overflow-hidden > div.p-5 > div.space-y-4",
+      "fullText": "🎉 All plans are FREE for 60 days — no payment needed to start. MONTHLY YEARLY SAVER20% OFF How many students do you have? Micro 10 30 60 100 150 MICRO ₹249 /mo 1–50 registered Best Value SMALL ₹349 /mo 51–100 registered STANDARD ₹449 /mo 1",
+      "controls": "MONTHLY, YEARLY SAVER20% OFF, 10, 30, 60, 100, 150, MICRO"
+    },
+    "label": "🎉",
+    "url": "/signup"
+  },
+  {
+    "type": "select",
+    "t": 59000,
+    "meta": {},
+    "label": "Plan limits apply only to registered full-time students. Unreserved & part-time",
+    "url": "/signup"
+  },
+  {
+    "type": "note",
+    "t": 59000,
+    "meta": {
+      "duration": "0s",
+      "tag": "div",
+      "text": "Free for 2 months — stop anytime, no questions asked.",
+      "classes": "rounded-xl border border-emerald-100 bg-emerald-50/60",
+      "selector": "div.p-5 > div.space-y-4 > div.rounded-xl"
+    },
+    "label": "Plan limits apply only to registered full-time students. Unreserved & part-time students are unlimited.💡 Keep registered count modest to stay on a smaller plan.",
+    "url": "/signup"
+  },
+  {
+    "type": "click",
+    "t": 59000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "PRO",
+      "classes": "group relative flex flex-col",
+      "selector": "div.space-y-4 > div.grid > button.group",
+      "fullText": "PRO ₹549 /mo 151–200 registered"
+    },
+    "label": "PRO",
+    "url": "/signup"
+  },
+  {
+    "type": "click",
+    "t": 60000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Start Free Trial",
+      "classes": "inline-flex items-center justify-center ring-offset-background",
+      "icon": "svg",
+      "selector": "div.space-y-4 > div.space-y-2 > button.inline-flex"
+    },
+    "label": "Start Free Trial",
+    "url": "/signup"
+  },
+  {
+    "type": "navigate",
+    "t": 65000,
+    "meta": {
+      "site": "My Abhyasika",
+      "text": "Open your doors to students — India's best library management software — free for 2 months, no credit card needed. Manage seats, WhatsApp fee reminders, Razorpay payments, and multi-branch operations. Find study rooms near"
+    },
+    "label": "My Abhyasika | Best Library Management Software India | Free 2-Month Trial | Library Seat Management",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "idle",
+    "t": 69000,
+    "meta": {
+      "duration": "5s"
+    }
+  },
+  {
+    "type": "click",
+    "t": 69000,
+    "meta": {
+      "tag": "button",
+      "role": "combobox",
+      "text": "Search your branch on the map…",
+      "classes": "inline-flex items-center whitespace-nowrap ring-offset-background",
+      "icon": "svg",
+      "selector": "div.space-y-2 > div.font-sans > button.inline-flex"
+    },
+    "label": "Search your branch on the map…",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "input",
+    "t": 73000,
+    "meta": {
+      "tag": "input",
+      "role": "combobox",
+      "inputType": "text",
+      "id": "radix-_r_3u_",
+      "classes": "outline-hidden flex h-10 w-full",
+      "section": "dialog",
+      "selector": "input#radix-_r_3u_",
+      "placeholder": "Search for your area..."
+    },
+    "preview": "ambition study",
+    "label": "ambition study",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 75000,
+    "meta": {
+      "tag": "div",
+      "role": "option",
+      "text": "Ambition Study Room",
+      "id": "radix-_r_4u_",
+      "classes": "outline-hidden [&_svg:not([class*='size-'])]:size-4 relative flex",
+      "icon": "svg",
+      "section": "Suggestions",
+      "selector": "div#radix-_r_4u_",
+      "fullText": "Ambition Study Room Gokhalenagar, Pune, Maharashtra, India"
+    },
+    "label": "Ambition Study Room",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 76000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Save & continue",
+      "classes": "flex h-12 flex-1 items-center",
+      "selector": "div.flex > div.flex > button.flex"
+    },
+    "label": "Save & continue",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "idle",
+    "t": 80000,
+    "meta": {
+      "duration": "4s"
+    }
+  },
+  {
+    "type": "click",
+    "t": 80000,
+    "meta": {
+      "tag": "div",
+      "text": "Add a room and its seats",
+      "classes": "w-full max-w-md rounded-2xl border",
+      "icon": "svg",
+      "section": "Add a room and its seats",
+      "selector": "main.flex-1 > div.flex > div.w-full",
+      "fullText": "Add a room and its seats Name a room and tell us how many seats it has — we'll lay them out for you. Got more than one hall? Add them all here. A room is a hall inside a branch — each room gets its own seats. You're adding rooms inside Main",
+      "controls": "Study Hall, AC Hall, Non-AC Hall, Reading Room, First Floor, 10, 20, 30"
+    },
+    "label": "Add a room and its seats",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 80000,
+    "meta": {
+      "tag": "p",
+      "text": "Name a room and tell us how many seats it has — we'll lay them out for you. Got more than one hall?",
+      "classes": "max-w-md text-sm text-muted-foreground",
+      "section": "Add a room and its seats",
+      "selector": "div.flex > div.flex > p.max-w-md",
+      "fullText": "Name a room and tell us how many seats it has — we'll lay them out for you. Got more than one hall? Add them all here."
+    },
+    "label": "Add a room and its seats",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "scroll",
+    "t": 82000,
+    "meta": {},
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 82000,
+    "meta": {
+      "tag": "div",
+      "classes": "font-sans relative w-full",
+      "icon": "svg",
+      "selector": "div.flex > div.space-y-2 > div.font-sans"
+    },
+    "label": "Number of seats",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "input",
+    "t": 84000,
+    "meta": {
+      "tag": "input",
+      "role": "textbox",
+      "inputType": "number",
+      "name": "seats",
+      "classes": "flex px-3 py-1 font-sans",
+      "selector": "div.space-y-2 > div.font-sans > input.flex",
+      "placeholder": "e.g. 30"
+    },
+    "preview": "42",
+    "label": "42",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "note",
+    "t": 87000,
+    "meta": {
+      "duration": "1s",
+      "tag": "button",
+      "role": "button",
+      "text": "I want to design the floor map myself",
+      "classes": "flex items-start gap-2.5 rounded-xl",
+      "icon": "svg",
+      "selector": "div.flex > div.flex > button.flex",
+      "fullText": "I want to design the floor map myself Place each seat and add a toilet, office or washroom on the map. Save & continue opens the layout editor."
+    },
+    "label": "I want to design the floor map myself",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 89000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Save & continue",
+      "classes": "flex h-12 flex-1 items-center",
+      "selector": "div.flex > div.flex > button.flex"
+    },
+    "label": "Save & continue",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "scroll",
+    "t": 90000,
+    "meta": {},
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 91000,
+    "meta": {
+      "tag": "div",
+      "text": "When is your library open?",
+      "classes": "flex flex-col items-center gap-3",
+      "icon": "svg",
+      "section": "When is your library open?",
+      "selector": "div.w-full > div.flex > div.flex",
+      "fullText": "When is your library open? Pick your timings and adjust the hours to match your library. Most pick Full Day — you can change or add more anytime."
+    },
+    "label": "When is your library open?",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 91000,
+    "meta": {
+      "tag": "p",
+      "text": "Pick your timings and adjust the hours to match your library. Most pick Full Day — you can change or",
+      "classes": "max-w-md text-sm text-muted-foreground",
+      "section": "When is your library open?",
+      "selector": "div.flex > div.flex > p.max-w-md",
+      "fullText": "Pick your timings and adjust the hours to match your library. Most pick Full Day — you can change or add more anytime."
+    },
+    "label": "When is your library open?",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 94000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Morning",
+      "classes": "flex w-full items-center gap-2.5",
+      "selector": "div.flex > div.rounded-xl > button.flex",
+      "fullText": "Morning 06:00 AM – 11:00 AM"
+    },
+    "label": "Morning",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 96000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Save & continue",
+      "classes": "flex h-12 flex-1 items-center",
+      "selector": "div.flex > div.flex > button.flex"
+    },
+    "label": "Save & continue",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 97000,
+    "meta": {
+      "tag": "div",
+      "text": "Set your plans",
+      "classes": "flex flex-col gap-6",
+      "icon": "svg",
+      "section": "Set your plans",
+      "selector": "div.flex > div.w-full > div.flex",
+      "fullText": "Set your plans This is what students pay to join. Add one to start — you can add more durations (quarterly, yearly) anytime. Your first plan Plan name Plan price (₹) Which rooms does this plan apply to? Study Hall Students in these rooms ca",
+      "controls": "Remove Study Hall, Add another plan, Back, Save & continue"
+    },
+    "label": "Set your plans",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "select",
+    "t": 97000,
+    "meta": {},
+    "label": "Set your plans This is what students pay to join. Add one to start — you can add",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 98000,
+    "meta": {
+      "tag": "p",
+      "text": "This is what students pay to join. Add one to start — you can add more durations (quarterly, yearly)",
+      "classes": "max-w-md text-sm text-muted-foreground",
+      "section": "Set your plans",
+      "selector": "div.flex > div.flex > p.max-w-md",
+      "fullText": "This is what students pay to join. Add one to start — you can add more durations (quarterly, yearly) anytime."
+    },
+    "label": "Set your plans",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 98000,
+    "meta": {
+      "tag": "input",
+      "role": "textbox",
+      "inputType": "text",
+      "name": "plan_name",
+      "classes": "flex px-3 py-1 font-sans",
+      "selector": "div.space-y-2 > div.font-sans > input.flex",
+      "placeholder": "e.g. Monthly Plan"
+    },
+    "label": "e.g. Monthly Plan",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "input",
+    "t": 101000,
+    "meta": {
+      "tag": "input",
+      "role": "textbox",
+      "inputType": "text",
+      "name": "plan_name",
+      "classes": "flex px-3 py-1 font-sans",
+      "selector": "div.space-y-2 > div.font-sans > input.flex",
+      "placeholder": "e.g. Monthly Plan"
+    },
+    "preview": "Monthly Plan",
+    "label": "Monthly Plan",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 102000,
+    "meta": {
+      "tag": "input",
+      "role": "textbox",
+      "inputType": "number",
+      "name": "plan_price",
+      "classes": "flex px-3 py-1 font-sans",
+      "selector": "div.space-y-2 > div.font-sans > input.flex",
+      "placeholder": "1000"
+    },
+    "label": "1000",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 102000,
+    "meta": {
+      "tag": "input",
+      "role": "textbox",
+      "inputType": "number",
+      "name": "plan_price",
+      "classes": "flex px-3 py-1 font-sans",
+      "selector": "div.space-y-2 > div.font-sans > input.flex",
+      "placeholder": "1000"
+    },
+    "label": "1000",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "select",
+    "t": 103000,
+    "meta": {},
+    "label": "1000",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 104000,
+    "meta": {
+      "tag": "p",
+      "text": "Students in these rooms can buy this plan. All rooms are selected by default.",
+      "classes": "mt-1 text-xs text-muted-foreground",
+      "selector": "div.flex > div.space-y-2 > p.mt-1"
+    },
+    "label": "Which rooms does this plan apply to?",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 104000,
+    "meta": {
+      "tag": "div",
+      "selector": "div > div > div"
+    },
+    "label": "Study Hall",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 105000,
+    "meta": {
+      "tag": "div",
+      "text": "Set your plans",
+      "classes": "flex min-h-full items-center justify-center",
+      "icon": "svg",
+      "section": "Set your plans",
+      "selector": "div.fixed > main.flex-1 > div.flex",
+      "fullText": "Set your plans This is what students pay to join. Add one to start — you can add more durations (quarterly, yearly) anytime. Your first plan Plan name Plan price (₹) Which rooms does this plan apply to? Study Hall Students in these rooms ca",
+      "controls": "Remove Study Hall, Add another plan, Back, Save & continue"
+    },
+    "label": "Set your plans",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 106000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Save & continue",
+      "classes": "flex h-12 flex-1 items-center",
+      "selector": "div.flex > div.flex > button.flex"
+    },
+    "label": "Save & continue",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 107000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Upload your UPI QR image",
+      "classes": "flex flex-col items-center justify-center",
+      "icon": "svg",
+      "selector": "div.flex > div.flex > button.flex"
+    },
+    "label": "Upload your UPI QR image",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 107000,
+    "meta": {
+      "tag": "input",
+      "role": "textbox",
+      "inputType": "file",
+      "classes": "hidden",
+      "selector": "div.flex > div.flex > input.hidden"
+    },
+    "label": "QR code image",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "idle",
+    "t": 112000,
+    "meta": {
+      "duration": "5s"
+    }
+  },
+  {
+    "type": "input",
+    "t": 113000,
+    "meta": {
+      "tag": "input",
+      "role": "textbox",
+      "inputType": "file",
+      "classes": "hidden",
+      "selector": "div.flex > div.flex > input.hidden"
+    },
+    "preview": "C:\\fakepath\\WhatsApp Image 2026-06-17 at",
+    "label": "C:\\fakepath\\WhatsApp Image 2026-06-17 at",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 114000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Save payment QR",
+      "classes": "flex h-12 flex-1 items-center",
+      "selector": "div.flex > div.flex > button.flex"
+    },
+    "label": "Save payment QR",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "navigate",
+    "t": 114000,
+    "meta": {
+      "site": "My Abhyasika",
+      "text": "Dashboard - All Branches — India's best library management software — free for 2 months, no credit card needed. Manage seats, WhatsApp fee reminders, Razorpay payments, and multi-branch operations. Find study rooms near"
+    },
+    "label": "My Abhyasika | Best Library Management Software India | Free 2-Month Trial | Library Seat Management",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624"
+  },
+  {
+    "type": "idle",
+    "t": 120000,
+    "meta": {
+      "duration": "6s"
+    }
+  },
+  {
+    "type": "click",
+    "t": 120000,
+    "meta": {
+      "tag": "div",
+      "text": "Any one-time fees?",
+      "classes": "flex flex-col gap-6",
+      "icon": "svg",
+      "section": "Any one-time fees?",
+      "selector": "div.flex > div.w-full > div.flex",
+      "fullText": "Any one-time fees? Charges collected once when a student joins — locker, security deposit, registration. Add the ones you charge, or skip if you have none. This is NOT your membership plan. These are extra one-time charges collected once, o",
+      "controls": "Locker Fee, Security Deposit, Registration, Add this fee, Back, Save & continue, No one-time fees"
+    },
+    "label": "Any one-time fees?",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "note",
+    "t": 120000,
+    "meta": {
+      "duration": "0s",
+      "tag": "p",
+      "text": "Charges collected once when a student joins — locker, security deposit, registration. Add the ones y",
+      "classes": "max-w-md text-sm text-muted-foreground",
+      "section": "Any one-time fees?",
+      "selector": "div.flex > div.flex > p.max-w-md",
+      "fullText": "Charges collected once when a student joins — locker, security deposit, registration. Add the ones you charge, or skip if you have none."
+    },
+    "label": "Any one-time fees? Charges collected once when a student joins — locker, security deposit, registration. Add the ones you charge, or skip if you have none.",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "select",
+    "t": 120000,
+    "meta": {},
+    "label": "Any one-time fees? Charges collected once when a student joins — locker, securit",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 120000,
+    "meta": {
+      "tag": "h1",
+      "text": "Any one-time fees?",
+      "classes": "text-xl font-bold tracking-tight text-foreground",
+      "section": "Any one-time fees?",
+      "selector": "div.flex > div.flex > h1.text-xl"
+    },
+    "label": "Any one-time fees?",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 121000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Locker Fee",
+      "classes": "rounded-full border px-3 py-1",
+      "selector": "div.flex > div.flex > button.rounded-full"
+    },
+    "label": "Locker Fee",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 122000,
+    "meta": {
+      "tag": "input",
+      "role": "textbox",
+      "inputType": "number",
+      "name": "amount",
+      "classes": "flex px-3 py-1 font-sans",
+      "selector": "div.space-y-2 > div.font-sans > input.flex",
+      "placeholder": "500"
+    },
+    "label": "500",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "input",
+    "t": 124000,
+    "meta": {
+      "tag": "input",
+      "role": "textbox",
+      "inputType": "number",
+      "name": "amount",
+      "classes": "flex px-3 py-1 font-sans",
+      "selector": "div.space-y-2 > div.font-sans > input.flex",
+      "placeholder": "500"
+    },
+    "preview": "100",
+    "label": "100",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 124000,
+    "meta": {
+      "tag": "div",
+      "text": "Any one-time fees?",
+      "classes": "flex min-h-full items-center justify-center",
+      "icon": "svg",
+      "section": "Any one-time fees?",
+      "selector": "div.fixed > main.flex-1 > div.flex",
+      "fullText": "Any one-time fees? Charges collected once when a student joins — locker, security deposit, registration. Add the ones you charge, or skip if you have none. This is NOT your membership plan. These are extra one-time charges collected once, o",
+      "controls": "Locker Fee, Security Deposit, Registration, Add this fee, Back, Save & continue, No one-time fees"
+    },
+    "label": "Any one-time fees?",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 125000,
+    "meta": {
+      "tag": "label",
+      "text": "Refundable when the student leaves",
+      "classes": "font-sans peer-disabled:cursor-not-allowed peer-disabled:opacity-70 !mt-0",
+      "selector": "div.space-y-2 > div.relative > label.font-sans"
+    },
+    "label": "Refundable when the student leaves",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 125000,
+    "meta": {
+      "tag": "label",
+      "text": "Refundable when the student leaves",
+      "classes": "font-sans peer-disabled:cursor-not-allowed peer-disabled:opacity-70 !mt-0",
+      "selector": "div.space-y-2 > div.relative > label.font-sans"
+    },
+    "label": "Refundable when the student leaves",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 126000,
+    "meta": {
+      "tag": "div",
+      "classes": "absolute left-0 h-5 w-5",
+      "selector": "div.space-y-2 > div.relative > div.absolute"
+    },
+    "label": "Refundable when the student leaves",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 127000,
+    "meta": {
+      "tag": "label",
+      "text": "Refundable when the student leaves",
+      "classes": "font-sans peer-disabled:cursor-not-allowed peer-disabled:opacity-70 !mt-0",
+      "selector": "div.space-y-2 > div.relative > label.font-sans"
+    },
+    "label": "Refundable when the student leaves",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 127000,
+    "meta": {
+      "tag": "label",
+      "text": "Refundable when the student leaves",
+      "classes": "font-sans peer-disabled:cursor-not-allowed peer-disabled:opacity-70 !mt-0",
+      "selector": "div.space-y-2 > div.relative > label.font-sans"
+    },
+    "label": "Refundable when the student leaves",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 127000,
+    "meta": {
+      "tag": "div",
+      "text": "Any one-time fees?",
+      "classes": "flex min-h-full items-center justify-center",
+      "icon": "svg",
+      "section": "Any one-time fees?",
+      "selector": "div.fixed > main.flex-1 > div.flex",
+      "fullText": "Any one-time fees? Charges collected once when a student joins — locker, security deposit, registration. Add the ones you charge, or skip if you have none. This is NOT your membership plan. These are extra one-time charges collected once, o",
+      "controls": "Locker Fee, Security Deposit, Registration, Add this fee, Back, Save & continue, No one-time fees"
+    },
+    "label": "Any one-time fees?",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 130000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Save & continue",
+      "classes": "flex h-12 flex-1 items-center",
+      "selector": "div.flex > div.flex > button.flex"
+    },
+    "label": "Save & continue",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "idle",
+    "t": 136000,
+    "meta": {
+      "duration": "6s"
+    }
+  },
+  {
+    "type": "click",
+    "t": 136000,
+    "meta": {
+      "tag": "button",
+      "role": "switch",
+      "classes": "peer inline-flex h-6 w-11",
+      "selector": "div.flex > div.space-y-2 > button.peer",
+      "checked": "false"
+    },
+    "label": "Expiry Reminders",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "scroll",
+    "t": 138000,
+    "meta": {},
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 140000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Save & continue",
+      "classes": "flex h-12 flex-1 items-center",
+      "selector": "div.flex > div.flex > button.flex"
+    },
+    "label": "Save & continue",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "scroll",
+    "t": 142000,
+    "meta": {},
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 145000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Skip for now",
+      "title": "I'll add sub-admins later",
+      "classes": "flex h-12 flex-1 items-center",
+      "icon": "svg",
+      "selector": "div.flex > div.flex > button.flex"
+    },
+    "label": "I'll add sub-admins later",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "scroll",
+    "t": 147000,
+    "meta": {},
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 147000,
+    "meta": {
+      "tag": "div",
+      "text": "Make your library look professional",
+      "classes": "flex flex-col items-center gap-3",
+      "icon": "svg",
+      "section": "Make your library look professional",
+      "selector": "div.w-full > div.flex > div.flex",
+      "fullText": "Make your library look professional Add your logo and a banner so students trust your page. No images? We show a clean default banner until you do."
+    },
+    "label": "Make your library look professional",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 147000,
+    "meta": {
+      "tag": "div",
+      "text": "Make your library look professional",
+      "classes": "flex flex-col items-center gap-3",
+      "icon": "svg",
+      "section": "Make your library look professional",
+      "selector": "div.w-full > div.flex > div.flex",
+      "fullText": "Make your library look professional Add your logo and a banner so students trust your page. No images? We show a clean default banner until you do."
+    },
+    "label": "Make your library look professional",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 148000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Save & continue",
+      "classes": "flex h-12 flex-1 items-center",
+      "selector": "div.flex > div.flex > button.flex"
+    },
+    "label": "Save & continue",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "scroll",
+    "t": 152000,
+    "meta": {},
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 152000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Import photos from Google",
+      "classes": "flex items-center gap-3 rounded-xl",
+      "icon": "svg",
+      "selector": "div.flex > div.flex > button.flex",
+      "fullText": "Import photos from Google FASTEST Already on Google? Pull your photos in one tap."
+    },
+    "label": "Import photos from Google",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "select",
+    "t": 153000,
+    "meta": {},
+    "label": "testing",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "input",
+    "t": 157000,
+    "meta": {
+      "tag": "input",
+      "role": "textbox",
+      "inputType": "text",
+      "classes": "flex h-9 w-full rounded-md",
+      "section": "dialog",
+      "selector": "div.space-y-3 > div.relative > input.flex",
+      "placeholder": "Search by your library name"
+    },
+    "preview": "ambition study room",
+    "label": "ambition study room",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "input",
+    "t": 158000,
+    "meta": {
+      "tag": "input",
+      "role": "textbox",
+      "inputType": "text",
+      "classes": "flex h-9 w-full rounded-md",
+      "section": "dialog",
+      "selector": "div.space-y-3 > div.relative > input.flex",
+      "placeholder": "Search by your library name"
+    },
+    "preview": "ambition study room",
+    "label": "ambition study room",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 159000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Ambition Study Room",
+      "classes": "flex w-full items-start gap-3",
+      "icon": "svg",
+      "section": "dialog",
+      "selector": "ul.divide-y > li > button.flex",
+      "fullText": "Ambition Study Room Gokhalenagar, Pune, Maharashtra, India"
+    },
+    "label": "Ambition Study Room",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 160000,
+    "meta": {
+      "tag": "div",
+      "text": "Back",
+      "classes": "flex items-center justify-between gap-3",
+      "icon": "svg",
+      "section": "dialog",
+      "selector": "div#radix-_r_5o_ > div.max-h-full > div.flex",
+      "fullText": "Back Next",
+      "controls": "Back, Next"
+    },
+    "label": "Back",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 161000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Next",
+      "classes": "inline-flex items-center justify-center whitespace-nowrap",
+      "icon": "svg",
+      "section": "dialog",
+      "selector": "div.max-h-full > div.flex > button.inline-flex"
+    },
+    "label": "Next",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 162000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Import to Library",
+      "classes": "inline-flex items-center justify-center whitespace-nowrap",
+      "icon": "svg",
+      "section": "dialog",
+      "selector": "div.max-h-full > div.flex > button.inline-flex"
+    },
+    "label": "Import to Library",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "idle",
+    "t": 168000,
+    "meta": {
+      "duration": "6s"
+    }
+  },
+  {
+    "type": "click",
+    "t": 168000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Upload photos",
+      "classes": "flex flex-col items-center justify-center",
+      "icon": "svg",
+      "selector": "div.flex > div.flex > button.flex",
+      "fullText": "Upload photos You can pick several at once. JPG or PNG."
+    },
+    "label": "Upload photos",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 168000,
+    "meta": {
+      "tag": "input",
+      "role": "textbox",
+      "inputType": "file",
+      "classes": "hidden",
+      "selector": "div.flex > div.flex > input.hidden"
+    },
+    "label": "Import photos from Google",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "idle",
+    "t": 172000,
+    "meta": {
+      "duration": "4s"
+    }
+  },
+  {
+    "type": "click",
+    "t": 172000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Import photos from Google",
+      "classes": "flex items-center gap-3 rounded-xl",
+      "icon": "svg",
+      "selector": "div.flex > div.flex > button.flex",
+      "fullText": "Import photos from Google FASTEST Already on Google? Pull your photos in one tap."
+    },
+    "label": "Import photos from Google",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "select",
+    "t": 174000,
+    "meta": {},
+    "label": "testing",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "input",
+    "t": 177000,
+    "meta": {
+      "tag": "input",
+      "role": "textbox",
+      "inputType": "text",
+      "classes": "flex h-9 w-full rounded-md",
+      "section": "dialog",
+      "selector": "div.space-y-3 > div.relative > input.flex",
+      "placeholder": "Search by your library name"
+    },
+    "preview": "ambition study room",
+    "label": "ambition study room",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 178000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Ambition Study room",
+      "classes": "flex w-full items-start gap-3",
+      "icon": "svg",
+      "section": "dialog",
+      "selector": "ul.divide-y > li > button.flex",
+      "fullText": "Ambition Study room near Ashtbhuja Mandir Path, Pulachi Wadi, Narayan Peth, Pune, Maharashtra, India"
+    },
+    "label": "Ambition Study room",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 179000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Next",
+      "classes": "inline-flex items-center justify-center whitespace-nowrap",
+      "icon": "svg",
+      "section": "dialog",
+      "selector": "div.max-h-full > div.flex > button.inline-flex"
+    },
+    "label": "Next",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 180000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Import to Library",
+      "classes": "inline-flex items-center justify-center whitespace-nowrap",
+      "icon": "svg",
+      "section": "dialog",
+      "selector": "div.max-h-full > div.flex > button.inline-flex"
+    },
+    "label": "Import to Library",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "idle",
+    "t": 184000,
+    "meta": {
+      "duration": "4s"
+    }
+  },
+  {
+    "type": "click",
+    "t": 184000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Save & continue",
+      "classes": "flex h-12 flex-1 items-center",
+      "selector": "div.flex > div.flex > button.flex"
+    },
+    "label": "Save & continue",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "idle",
+    "t": 189000,
+    "meta": {
+      "duration": "4s"
+    }
+  },
+  {
+    "type": "click",
+    "t": 189000,
+    "meta": {
+      "tag": "div",
+      "text": "Show off your achievers",
+      "classes": "flex flex-col gap-6",
+      "icon": "svg",
+      "section": "Show off your achievers",
+      "selector": "div.flex > div.w-full > div.flex",
+      "fullText": "Show off your achievers Students who cleared exams build huge trust. Add a few toppers — their photo and what they cracked. You can add more anytime. Your first achiever Student name What they cleared Search the exam they cracked… Photo Tap",
+      "controls": "Photo, Add this achiever, Back, Save & continue, I'll add achievers later"
+    },
+    "label": "Show off your achievers",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 189000,
+    "meta": {
+      "tag": "div",
+      "text": "Show off your achievers",
+      "classes": "flex flex-col gap-6",
+      "icon": "svg",
+      "section": "Show off your achievers",
+      "selector": "div.flex > div.w-full > div.flex",
+      "fullText": "Show off your achievers Students who cleared exams build huge trust. Add a few toppers — their photo and what they cracked. You can add more anytime. Your first achiever Student name What they cleared Search the exam they cracked… Photo Tap"
+    },
+    "label": "Show off your achievers",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 190000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Save & continue",
+      "classes": "flex h-12 flex-1 items-center",
+      "selector": "div.flex > div.flex > button.flex"
+    },
+    "label": "Save & continue",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 194000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "High Speed Internet",
+      "classes": "inline-flex items-center gap-1.5 rounded-md",
+      "icon": "svg",
+      "selector": "div > div.flex > button.inline-flex"
+    },
+    "label": "High Speed Internet",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 194000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Reserved Seat",
+      "classes": "inline-flex items-center gap-1.5 rounded-md",
+      "icon": "svg",
+      "selector": "div > div.flex > button.inline-flex"
+    },
+    "label": "Reserved Seat",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 195000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Daily News Paper",
+      "classes": "inline-flex items-center gap-1.5 rounded-md",
+      "icon": "svg",
+      "selector": "div > div.flex > button.inline-flex"
+    },
+    "label": "Daily News Paper",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 195000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Save & continue",
+      "classes": "flex h-12 flex-1 items-center",
+      "selector": "div.flex > div.flex > button.flex"
+    },
+    "label": "Save & continue",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 198000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Save & continue",
+      "classes": "flex h-12 flex-1 items-center",
+      "selector": "div.flex > div.flex > button.flex"
+    },
+    "label": "Save & continue",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "idle",
+    "t": 203000,
+    "meta": {
+      "duration": "5s"
+    }
+  },
+  {
+    "type": "click",
+    "t": 203000,
+    "meta": {
+      "tag": "div",
+      "text": "Renewals run on autopilot",
+      "classes": "flex flex-col gap-2.5",
+      "icon": "svg",
+      "selector": "div.fixed > div.flex > div.flex",
+      "fullText": "Renewals run on autopilot When a student's plan is about to expire, we automatically WhatsApp them and ask if they want to continue — you never chase anyone. Google reviews grow on their own We send students a WhatsApp review request at the"
+    },
+    "label": "Renewals run on autopilot",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 203000,
+    "meta": {
+      "tag": "p",
+      "text": "We send students a WhatsApp review request at the right time, so your Google rating climbs without y",
+      "classes": "text-xs leading-relaxed text-muted-foreground",
+      "selector": "div.flex > div.flex > p.text-xs",
+      "fullText": "We send students a WhatsApp review request at the right time, so your Google rating climbs without you asking."
+    },
+    "label": "Google reviews grow on their own",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  },
+  {
+    "type": "click",
+    "t": 204000,
+    "meta": {
+      "tag": "button",
+      "role": "button",
+      "text": "Go to your dashboard",
+      "classes": "flex h-12 w-full items-center",
+      "icon": "svg",
+      "section": "Your library is ready!",
+      "selector": "div.fixed > div.flex > button.flex"
+    },
+    "label": "Go to your dashboard",
+    "url": "/dashboard/e245b4fa-30f4-4ec0-8688-56d374375624/setup"
+  }
+]
+
+A likely product name (from page metadata) is "My Abhyasika" — use it UNLESS the hero/heading/description text in the events clearly names the product differently or shows "My Abhyasika" is just a page label, in which case prefer the name the page text actually conveys. NEVER say a hostname, domain, URL, or "localhost" out loud — refer to screens by name (e.g. "the dashboard"), never by their address.
+
+What the user wants explained at each shift-marked spot (USE these — explain exactly this at that element):
+- "Free for 2 months — stop anytime, no questions asked.": Plan limits apply only to registered full-time students. Unreserved & part-time students are unlimited.💡 Keep registered count modest to stay on a smaller plan.
+- "I want to design the floor map myself": I want to design the floor map myself
+- "Charges collected once when a student joins — locker, security deposit, registra": Any one-time fees? Charges collected once when a student joins — locker, security deposit, registration. Add the ones you charge, or skip if you have none.
+
+Recording context:
+Target video duration: ~204s. Word budget: ~469 words TOTAL — read aloud this must fit within 204s. Do NOT exceed it; shorter is fine.
+
+Write the script in HINDI in the DEVANAGARI script (code-mixed). THIS IS CRITICAL AND THE #1 RULE — a script in Roman/Latin Hindi will be REJECTED and regenerated:
+- EVERY Hindi word must be in Devanagari — for the ENTIRE script, not just the first sentence. NEVER write Hindi words in Roman/Latin letters (this is the most common failure).
+- WRONG (Roman Hindi — never do this): "Is video mein hum dekhenge. Phone sabse fast hai, number daalo, OTP verify, bas. Agar aapki library listed hai to claim karo."
+- RIGHT (Devanagari Hindi + Latin only for English/tech terms; commas for pauses, NO dashes): "इस video में हम देखेंगे। Phone सबसे fast है, number डालो, OTP verify करो, बस। अगर आपकी library listed है तो claim करो।"
+- ONLY English / technical / product words stay in Latin script (video, signup, button, Phone, OTP, Google, Email, plan, dashboard, Library Owner, Start Free Trial, the product name). EVERYTHING else — हर हिंदी शब्द — in Devanagari.
+- Hindi connective/verb/common words like hum→हम, mein→में, hai→है, karte→करते, dekhenge→देखेंगे, sabse→सबसे, daalo→डालो, agar→अगर, phir→फिर, aur→और, choose karo→choose करो — ALWAYS Devanagari, never Roman.
+- Spoken/conversational, not textbook. Numbers can stay as digits.
+- BEFORE finishing, re-read your script: if you find ANY Hindi word written in Roman/Latin letters, rewrite it in Devanagari. No Roman Hindi anywhere.
+Female narrator — warm, welcoming (जैसे "आइए देखते हैं"); "bhai" मत use करना.

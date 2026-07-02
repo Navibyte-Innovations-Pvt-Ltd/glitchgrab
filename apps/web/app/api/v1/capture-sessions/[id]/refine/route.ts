@@ -2,13 +2,15 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { deepseekChat } from "@/lib/deepseek/client";
+import { geminiChat } from "@/lib/gemini/client";
+import { type ZoomCtx } from "@/lib/narration/prompt";
 import {
-  SCRIPT_SYSTEM_PROMPT,
-  recordingContext,
-  languageDirective,
-  type ZoomCtx,
-} from "@/lib/narration/prompt";
+  buildRefineSystem,
+  buildRefineContextTurn,
+  resolveRefinement,
+} from "@/lib/narration/refine";
+import { buildScriptContext } from "@/lib/narration/events-context";
+import { recordRefinement } from "@/lib/narration/telemetry";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -28,9 +30,10 @@ interface ChatMsg {
   content: string;
 }
 
-// Conversationally refine an existing narration script. The model always replies
-// with the COMPLETE revised script (no commentary) so the editor can sync it
-// straight into the narration box.
+// Conversationally refine an existing narration script. The model edits ONLY the
+// paragraphs the user's request is about (addressed as [#n]); untouched
+// paragraphs are reused verbatim in code, so hand-tuned clip-sync survives. See
+// lib/narration/refine.ts + merge-edit.ts.
 export async function POST(req: Request, { params }: RouteParams) {
   const { id } = await params;
   try {
@@ -68,31 +71,36 @@ export async function POST(req: Request, { params }: RouteParams) {
       );
     }
 
-    const eventsJson = JSON.stringify(session.events, null, 2);
+    const { eventsJson, appLine } = buildScriptContext(session.events);
     const metaSection = session.meta
       ? `\n\nRecording metadata (cuts made in Recordly):\n${JSON.stringify(session.meta, null, 2)}`
       : "";
 
-    const system =
-      SCRIPT_SYSTEM_PROMPT +
-      `\n\nYou are now REFINING an existing script through a CHAT with the user. Behave like a thoughtful collaborator:
-- If the user's request is clear, briefly say what you changed (one short line), THEN output the COMPLETE revised script after a line containing exactly:
----SCRIPT---
-- If you genuinely need to clarify intent (e.g. you can't tell what an element is, or the instruction is ambiguous), ASK a short question and do NOT include the ---SCRIPT--- marker or any script.
-- Reference specific moments by what's on screen when helpful. Keep chat replies short; put the effort into the script itself.
-- The script that follows ---SCRIPT--- must obey ALL the rules above (length budget, notes clustering, speakable text, language format).` +
-      recordingContext(body.durationSec, body.zooms) +
-      languageDirective(body.lang, body.gender);
+    const system = buildRefineSystem({
+      lang: body.lang,
+      gender: body.gender,
+      durationSec: body.durationSec,
+      zooms: body.zooms,
+    });
 
-    // Leading context turn: the events + the current script the user is refining.
-    const contextTurn =
-      `Events:\n${eventsJson}${metaSection}\n\nCURRENT SCRIPT (refine this per my next messages):\n${body.currentScript ?? "(empty — write a fresh script)"}`;
+    // Leading context turn: the events + the NUMBERED current script the user is
+    // refining (paragraphs addressed [#n] so the model can target them).
+    const contextTurn = buildRefineContextTurn({
+      eventsJson,
+      appLine,
+      metaSection,
+      currentScript: body.currentScript,
+    });
 
+    // Seed the prior script (un-numbered) so the model has the clean text too.
     const seed: ChatMsg[] = body.currentScript?.trim()
       ? [{ role: "assistant", content: body.currentScript }]
       : [];
-    const raw = await deepseekChat({
-      model: "deepseek-reasoner",
+    const raw = await geminiChat({
+      // gemini-2.5-pro — same generator as the initial script (see
+      // capture-sessions/[id]/route.ts), so refinements obey the same TTS / format
+      // / Devanagari rules and ~20s latency is covered by maxDuration above.
+      model: "gemini-2.5-pro",
       messages: [
         { role: "system", content: system },
         { role: "user", content: contextTurn },
@@ -101,11 +109,21 @@ export async function POST(req: Request, { params }: RouteParams) {
       ],
     });
 
-    // Split on the marker: text before = conversational reply, after = the full
-    // revised script. No marker → the whole thing is conversation (a question).
-    const markerIdx = raw.indexOf("---SCRIPT---");
-    const reply = (markerIdx >= 0 ? raw.slice(0, markerIdx) : raw).trim();
-    const script = markerIdx >= 0 ? raw.slice(markerIdx + "---SCRIPT---".length).trim() : null;
+    // Parse the reply + apply only the changed paragraphs onto the current
+    // script; untouched paragraphs stay byte-identical. Falls back to a full
+    // replace when the model returns no [#n] blocks. See resolveRefinement.
+    const { reply, script } = resolveRefinement(raw, body.currentScript ?? "");
+
+    // Telemetry: log the user's refinement request + the version it produced, so
+    // we can see how many turns scripts need. Only when a new script came back.
+    if (script) {
+      const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+      await recordRefinement({
+        sessionId: id,
+        userMessage: lastUserMsg?.content ?? "",
+        resultingScript: script,
+      });
+    }
 
     return NextResponse.json(
       { success: true, data: { reply: reply || (script ? "Script updated." : ""), script } },

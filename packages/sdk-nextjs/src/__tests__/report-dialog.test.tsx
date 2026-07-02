@@ -383,7 +383,7 @@ describe("ReportDialog", () => {
       expect(mockReport).toHaveBeenCalledWith(
         "FEATURE_REQUEST",
         "Add dark mode",
-        expect.objectContaining({ screenshot: expect.any(String) })
+        expect.objectContaining({ screenshots: expect.any(String) })
       );
     });
 

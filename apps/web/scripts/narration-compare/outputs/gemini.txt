@@ -1,0 +1,19 @@
+My Abhyasika एक platform है जो library owners को अपने study rooms आसानी से manage करने में मदद करता है। आइए देखते हैं कि यह कैसे काम करता है।
+
+सबसे पहले, एक library owner के तौर पर sign up करते हैं। Phone number से OTP verify करके, कुछ basic details भरनी होती हैं।
+
+इसके बाद, अपनी library का नाम enter करते हैं। अब student count के हिसाब से एक plan चुनना होता है। यहाँ सभी plans पहले 60 दिनों के लिए बिल्कुल free हैं, और शुरू करने के लिए कोई payment details नहीं चाहिए। Plan की limit सिर्फ registered students पर लागू होती है, unreserved या part time students unlimited हैं।
+
+Free trial शुरू होते ही, हम library के setup process पर आ जाते हैं। सबसे पहले, map पर अपनी library की location search करके add करते हैं।
+
+फिर, library में एक room और उसमें seats की संख्या add करते हैं। अगर आप चाहें तो floor map खुद भी design कर सकते हैं, जिससे हर seat को अपनी जगह पर रख सकते हैं।
+
+अब library के timings set करते हैं। इसके बाद students के लिए एक monthly plan बनाते हैं, जिसमें plan का नाम और price डालते हैं।
+
+Online payments के लिए, आप अपना UPI QR code भी upload कर सकते हैं।
+
+अगर आप locker fee या security deposit जैसी कोई one-time fee लेते हैं, तो उसे भी यहाँ add करने का option है।
+
+Finally, student reminders को on करके, Google से सीधे अपनी library की photos import कर लेते हैं।
+
+और बस, setup पूरा हो गया! अब आप अपने dashboard से आसानी से students, seats, और payments, सब कुछ manage कर सकते हैं।

@@ -184,6 +184,47 @@ export async function reopenGitHubIssue(
   }
 }
 
+// ─── Fetch a single issue ────────────────────────────
+
+export async function getGitHubIssue(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  issueNumber: number
+): Promise<{ number: number; title: string; html_url: string; state: string } | null> {
+  try {
+    const res = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/issues/${issueNumber}`, {
+      headers: headers(accessToken),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { number: number; title: string; html_url: string; state: string; pull_request?: unknown };
+    // Filter out PRs — GitHub returns PRs from the issues endpoint too
+    if (data.pull_request) return null;
+    return { number: data.number, title: data.title, html_url: data.html_url, state: data.state };
+  } catch {
+    return null;
+  }
+}
+
+// ─── Comment on an issue ─────────────────────────────
+
+export async function commentOnGitHubIssue(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+  body: string
+): Promise<void> {
+  const res = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/issues/${issueNumber}/comments`, {
+    method: "POST",
+    headers: headers(accessToken),
+    body: JSON.stringify({ body }),
+  });
+  if (!res.ok) {
+    throw new Error(`GitHub comment error (${res.status}): ${await res.text()}`);
+  }
+}
+
 // ─── Check If Issue Is Still Open ────────────────────
 
 export async function checkIssueIsOpen(

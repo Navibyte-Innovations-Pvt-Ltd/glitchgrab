@@ -1011,7 +1011,7 @@ function TeamPanel({
                         <div className="flex items-center gap-1 text-[10px] font-mono text-green-400/80">
                           <GitCommitHorizontal className="h-3 w-3 shrink-0" />
                           <span>
-                            {stats.commits} commit{stats.commits !== 1 ? "s" : ""} · 24h
+                            {stats.commits} commit{stats.commits !== 1 ? "s" : ""} · today
                           </span>
                         </div>
                         <TooltipProvider delay={150}>
@@ -1047,7 +1047,7 @@ function TeamPanel({
                       </div>
                     ) : memberStats !== undefined ? (
                       <div className="text-[10px] font-mono text-muted-foreground/40">
-                        no commits · 24h
+                        no commits · today
                       </div>
                     ) : (
                       <Skeleton className="h-2.5 w-36 mt-0.5" />
@@ -1154,7 +1154,7 @@ function PendingMemberRow({
           {stats ? (
             <TooltipProvider delay={150}>
               <div className="text-[10px] font-mono text-muted-foreground/60">
-                ↑ {stats.commits} commit{stats.commits !== 1 ? "s" : ""} · 24h
+                ↑ {stats.commits} commit{stats.commits !== 1 ? "s" : ""} · today
                 ·{" "}
                 {stats.repos
                   .map((r) => (

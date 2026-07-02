@@ -2,7 +2,14 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { deepseekChat } from "@/lib/deepseek/client";
+import { geminiChat, geminiVisionChat } from "@/lib/gemini/client";
+import {
+  parseFrames,
+  resolveVisionQuestions,
+  QUESTION_SYSTEM_PROMPT,
+  VISION_SYSTEM_PROMPT,
+  type ParsedFrame,
+} from "./logic";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -32,32 +39,19 @@ interface NoteQuestion {
   options: string[];
 }
 
-const QUESTION_SYSTEM_PROMPT = `The user recorded a screen flow and HELD SHIFT over elements to flag "I want to explain THIS here." The notes are pre-GROUPED: each group is one or more sibling elements the user marked together (e.g. the Google / Phone / Email sign-up buttons).
-
-For EACH group, produce:
-- a short, friendly question asking what they want to explain there.
-- exactly 3 likely answer options — concise phrases the user can pick.
-
-GROUP RULES:
-- If a group has MULTIPLE elements (e.g. Google, Phone, Email), the question is about the SET ("...about the sign-up options?") and at least one option should explain WHAT EACH ONE DOES (e.g. "Explain each: Google = one-tap, Phone = OTP via SMS, Email = email + password"). Do NOT ask three separate questions for siblings.
-- Use ALL metadata, especially meta.controls (child buttons inside the element, e.g. "Add", "Claim") and meta.fullText. If an element exposes distinct sub-actions (Add AND Claim), the options MUST be about those (e.g. "Add = register a new library from Google; Claim = take ownership of one already in our database"). No generic options when the metadata reveals specific features.
-
-Return ONLY valid JSON: an array of objects { "id": string, "question": string, "options": [string, string, string] }. Use the provided group id for each. No prose, no markdown fences.`;
-
-// Deterministic fallback if the AI output can't be parsed.
-function fallback(groups: Array<{ id: string; tMs: number; label: string }>): NoteQuestion[] {
-  return groups.map((g) => ({
-    id: g.id,
-    tMs: g.tMs,
-    label: g.label,
-    question: `What do you want to explain about ${g.label}?`,
-    options: ["Explain what each one does", "Why it matters / when to use it", "Just mention it briefly"],
-  }));
-}
-
-export async function POST(_req: Request, { params }: RouteParams) {
+export async function POST(req: Request, { params }: RouteParams) {
   const { id } = await params;
   try {
+    // Optional body. PASS 2 sends `frames: [{ id, dataUrl }]` — a screenshot per
+    // still-unclear group (from pass 1). Absent/empty body → PASS 1 (text only).
+    let frames: ParsedFrame[] = [];
+    try {
+      const body = (await req.json()) as { frames?: unknown };
+      frames = parseFrames(body?.frames);
+    } catch {
+      /* no body / not JSON → frames stays [] → text pass */
+    }
+
     const session = await prisma.captureSession.findUnique({
       where: { id },
       select: { id: true, events: true, expiresAt: true },
@@ -100,49 +94,159 @@ export async function POST(_req: Request, { params }: RouteParams) {
     const groupLabel = (g: (typeof groups)[number]) =>
       Array.from(new Set(g.members.map((m) => m.label))).join(", ");
 
+    // A label that tells us nothing about what was marked → worth asking even for
+    // a single mark. A real, descriptive label (the common case — the user said
+    // "meta is proper") → trust it, don't ask.
+    const GENERIC_LABEL = /^(this element|this|continue|next|submit|save|ok|done|button|link|here|go|back|close|open|menu|item|select|choose|click)$/i;
+    const isGenericLabel = (label: string) => {
+      const l = label.trim();
+      return l.length === 0 || GENERIC_LABEL.test(l);
+    };
+    // Cap the number of questions even if more qualify — never bury the user.
+    const MAX_QUESTIONS = 8;
+
     const promptGroups = groups.map((g) => ({
       id: g.id,
       elements: g.members.map((m) => ({ label: m.label, meta: m.meta })),
     }));
 
-    let questions: NoteQuestion[];
+    // ── PASS 2 (vision) ───────────────────────────────────────────────────────
+    // Frames present → the caller already ran pass 1 and is now handing us a
+    // screenshot for each still-unclear group. Re-judge those WITH the picture;
+    // return only the ones vision STILL can't resolve (a real user-preference
+    // fork). Groups without a frame are ignored here — pass 1 already cleared them.
+    if (frames.length > 0) {
+      const framedGroups = groups.flatMap((g) => {
+        const frame = frames.find((f) => f.id === g.id);
+        return frame ? [{ g, frame }] : [];
+      });
+      if (framedGroups.length === 0) {
+        return NextResponse.json({ success: true, data: { questions: [] } }, { headers: CORS_HEADERS });
+      }
+
+      // One vision turn: images in order, each introduced in the text so the model
+      // can map "Image N" → the right group.
+      const promptText =
+        `Each group below is followed by its screenshot (in image order). Re-judge each:\n\n` +
+        framedGroups
+          .map(
+            ({ g }, i) =>
+              `Image ${i + 1} → Group ${g.id}: "${groupLabel(g)}"\nmeta: ${JSON.stringify(
+                g.members.map((m) => m.meta),
+              )}`,
+          )
+          .join("\n\n");
+
+      let vparsed: Array<{ id: string; clear?: boolean; question?: string; options?: string[] }> = [];
+      try {
+        const raw = await geminiVisionChat({
+          system: VISION_SYSTEM_PROMPT,
+          text: promptText,
+          // Headroom so a multi-frame verdict array never truncates (a dropped
+          // verdict → that spot gets asked anyway, per resolveVisionQuestions).
+          images: framedGroups.map(({ frame }) => ({ data: frame.data, mimeType: frame.mimeType })),
+          maxTokens: 8192,
+        });
+        const json = raw.slice(raw.indexOf("["), raw.lastIndexOf("]") + 1);
+        const maybe = JSON.parse(json);
+        if (Array.isArray(maybe)) vparsed = maybe;
+      } catch {
+        /* vision failed → no verdicts → fall through and keep asking (safe degrade) */
+      }
+
+      // Drop only the groups vision positively cleared; keep the rest (incl. any
+      // the model failed to return a verdict for) — see resolveVisionQuestions.
+      const visionQuestions = resolveVisionQuestions(
+        framedGroups.map(({ g }) => ({ id: g.id, tMs: g.tMs, label: groupLabel(g) })),
+        vparsed,
+      );
+      return NextResponse.json({ success: true, data: { questions: visionQuestions } }, { headers: CORS_HEADERS });
+    }
+
+    // Ask the model for per-group questions + a `clear` verdict. On any failure
+    // (network, bad JSON) fall back to an empty list — the deterministic guard
+    // below still produces sensible questions from the group shape alone.
+    let parsed: Array<{ id: string; clear?: boolean; question?: string; options?: string[] }> = [];
     try {
-      const raw = await deepseekChat({
-        maxTokens: 2048,
+      // Gemini 2.5 FLASH — this is a classify-each-group + short-question task,
+      // not deep reasoning. Flash matches Pro's verdicts here (measured) at ~8s
+      // vs ~18s, and the bigger token budget avoids the thinking-model truncating
+      // its verdict array on a large recording (which would drop verdicts → the
+      // guard below would force-ask those clusters). Pro's quality buys nothing.
+      const raw = await geminiChat({
+        model: "gemini-2.5-flash",
+        maxTokens: 8192,
         messages: [
           { role: "system", content: QUESTION_SYSTEM_PROMPT },
           { role: "user", content: `Note groups:\n${JSON.stringify(promptGroups, null, 2)}` },
         ],
       });
       const json = raw.slice(raw.indexOf("["), raw.lastIndexOf("]") + 1);
-      const parsed = JSON.parse(json) as Array<{ id: string; question: string; options: string[] }>;
-      questions = groups
-        .map((g) => {
-          const p = parsed.find((x) => x.id === g.id);
-          const label = groupLabel(g);
-          const options = Array.isArray(p?.options)
-            ? p.options.filter((o) => typeof o === "string").slice(0, 3)
-            : [];
-          return {
-            id: g.id,
-            tMs: g.tMs,
-            label,
-            question:
-              typeof p?.question === "string" && p.question
-                ? p.question
-                : `What do you want to explain about ${label}?`,
-            options:
-              options.length === 3
-                ? options
-                : ["Explain what each one does", "Why it matters", "Mention briefly"],
-          };
-        })
-        .filter((q): q is NoteQuestion => q !== null);
-      if (questions.length === 0)
-        questions = fallback(groups.map((g) => ({ id: g.id, tMs: g.tMs, label: groupLabel(g) })));
+      const maybe = JSON.parse(json);
+      if (Array.isArray(maybe)) parsed = maybe;
     } catch {
-      questions = fallback(groups.map((g) => ({ id: g.id, tMs: g.tMs, label: groupLabel(g) })));
+      /* keep parsed = [] → deterministic-only questions */
     }
+
+    // GUARD — trust the model first, heuristic only as a fallback.
+    // Gemini 2.5 Pro returns a per-group `clear` verdict. When we HAVE that
+    // verdict we respect it directly (clear:true → skip, clear:false → ask) —
+    // this is the fix for "knows the element but still asks": a well-labelled
+    // cluster like Google/Phone/Email is now skipped when Gemini marks it clear,
+    // instead of being force-asked just for being a cluster.
+    // The old "ask every cluster / generic label" heuristic survives ONLY as a
+    // fallback for groups the model returned NO verdict for (call failed or
+    // dropped the group) — so a total model failure still produces sane questions.
+    type Scored = NoteQuestion & { isCluster: boolean; members: number };
+    const candidates: Scored[] = groups.flatMap((g) => {
+      const p = parsed.find((x) => x.id === g.id);
+      const label = groupLabel(g);
+      const isCluster = g.members.length > 1;
+      const hasVerdict = typeof p?.clear === "boolean";
+      const worthAsking = hasVerdict
+        ? p?.clear === false
+        : isCluster || isGenericLabel(label);
+      if (!worthAsking) return [];
+      const options = Array.isArray(p?.options)
+        ? p.options.filter((o) => typeof o === "string").slice(0, 3)
+        : [];
+      return [
+        {
+          id: g.id,
+          tMs: g.tMs,
+          label,
+          isCluster,
+          members: g.members.length,
+          question:
+            typeof p?.question === "string" && p.question
+              ? p.question
+              : `What do you want to explain about ${label}?`,
+          options:
+            options.length === 3
+              ? options
+              : ["Explain what each one does", "Why it matters", "Mention briefly"],
+        },
+      ];
+    });
+
+    // Backstop cap — if more than MAX_QUESTIONS still qualify, keep the highest
+    // signal ones (clusters first, then larger clusters), then restore time order.
+    const picked =
+      candidates.length > MAX_QUESTIONS
+        ? [...candidates]
+            .sort((a, b) => (a.isCluster === b.isCluster ? b.members - a.members : a.isCluster ? -1 : 1))
+            .slice(0, MAX_QUESTIONS)
+            .sort((a, b) => a.tMs - b.tMs)
+        : candidates;
+    const questions: NoteQuestion[] = picked.map(({ id, tMs, label, question, options }) => ({
+      id,
+      tMs,
+      label,
+      question,
+      options,
+    }));
+    // Zero questions is a VALID outcome (every spot was clear) — the panel falls
+    // straight through to generate.
 
     return NextResponse.json({ success: true, data: { questions } }, { headers: CORS_HEADERS });
   } catch (err) {

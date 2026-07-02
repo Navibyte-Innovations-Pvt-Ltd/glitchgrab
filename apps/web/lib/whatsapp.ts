@@ -66,6 +66,14 @@ function formatPhone(phone: string): string {
 }
 
 /**
+ * Meta template params reject newlines/tabs and 4+ consecutive spaces (error 132018).
+ * GitHub issue titles/org names can contain these — strip before sending.
+ */
+function sanitizeParam(text: string): string {
+  return text.replace(/[\n\t\r]+/g, " ").replace(/ {2,}/g, " ").trim();
+}
+
+/**
  * Send issue-resolved notification to reporter.
  * Template "issue_resolved":
  *   Body:    Hi {{1}}, your issue "{{2}}" reported to {{3}} has been resolved! Was the fix helpful?
@@ -103,9 +111,9 @@ export async function sendIssueResolvedWhatsApp({
     {
       type: "body",
       parameters: [
-        { type: "text", text: reporterName },
-        { type: "text", text: issueTitle },
-        { type: "text", text: orgName },
+        { type: "text", text: sanitizeParam(reporterName) },
+        { type: "text", text: sanitizeParam(issueTitle) },
+        { type: "text", text: sanitizeParam(orgName) },
         { type: "text", text: devPhone },
       ],
     },
@@ -202,9 +210,9 @@ export async function sendDeveloperReopenedNotification({
             {
               type: "body",
               parameters: [
-                { type: "text", text: reporterName },
-                { type: "text", text: issueTitle },
-                { type: "text", text: orgName },
+                { type: "text", text: sanitizeParam(reporterName) },
+                { type: "text", text: sanitizeParam(issueTitle) },
+                { type: "text", text: sanitizeParam(orgName) },
                 { type: "text", text: formatPhone(reporterPhone ?? "") || "N/A" },
               ],
             },
@@ -259,9 +267,9 @@ export async function sendDailyIssueReminder({
     {
       type: "body",
       parameters: [
-        { type: "text", text: developerName },
+        { type: "text", text: sanitizeParam(developerName) },
         { type: "text", text: String(openCount) },
-        { type: "text", text: orgName },
+        { type: "text", text: sanitizeParam(orgName) },
       ],
     },
   ];
@@ -334,8 +342,8 @@ export async function sendWeeklyIssueSummary({
     {
       type: "body",
       parameters: [
-        { type: "text", text: developerName },
-        { type: "text", text: orgName },
+        { type: "text", text: sanitizeParam(developerName) },
+        { type: "text", text: sanitizeParam(orgName) },
         { type: "text", text: String(resolvedCount) },
       ],
     },
@@ -425,9 +433,9 @@ export async function sendIssueAssignedNotification({
             {
               type: "body",
               parameters: [
-                { type: "text", text: developerName },
-                { type: "text", text: issueTitle },
-                { type: "text", text: orgName },
+                { type: "text", text: sanitizeParam(developerName) },
+                { type: "text", text: sanitizeParam(issueTitle) },
+                { type: "text", text: sanitizeParam(orgName) },
               ],
             },
             {
@@ -446,5 +454,207 @@ export async function sendIssueAssignedNotification({
     }
   } catch (err) {
     console.error("[whatsapp] assigned notify error:", err);
+  }
+}
+
+/**
+ * Notify a QA tester that they've been added to an org.
+ * Template "qa_tester_invite" (Utility):
+ *   Body:   Hi {{1}}, you've been added as a QA tester for {{2}} on Glitchgrab. You'll receive verification requests here.
+ *   Button 0 (URL): Open QA dashboard → https://glitchgrab.dev/qa/{{1}}
+ *                   suffix = <magicToken>
+ */
+export async function sendTesterInvite({
+  phone,
+  testerName,
+  orgName,
+  magicToken,
+}: {
+  phone: string;
+  testerName: string;
+  orgName: string;
+  magicToken: string;
+}): Promise<void> {
+  const phoneNumberId = process.env.META_WA_PHONE_NUMBER_ID;
+  const accessToken = process.env.META_WA_ACCESS_TOKEN;
+  if (!phoneNumberId || !accessToken) return;
+
+  const to = formatPhone(phone);
+  if (!to) return;
+
+  try {
+    const res = await fetch(`${META_API_BASE}/${phoneNumberId}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        type: "template",
+        template: {
+          name: "qa_tester_invite",
+          language: { code: "en" },
+          components: [
+            {
+              type: "body",
+              parameters: [
+                { type: "text", text: sanitizeParam(testerName) },
+                { type: "text", text: sanitizeParam(orgName) },
+              ],
+            },
+            {
+              type: "button",
+              sub_type: "url",
+              index: "0",
+              parameters: [{ type: "text", text: magicToken }],
+            },
+          ],
+        },
+      }),
+    });
+    if (!res.ok) console.error("[whatsapp] tester invite failed:", await res.text());
+  } catch (err) {
+    console.error("[whatsapp] tester invite error:", err);
+  }
+}
+
+/**
+ * Ask a QA tester to verify the fixes a developer just merged in one PR.
+ * A merged PR can close several issues at once, so this sends ONE message with
+ * a count — the QA page lists every issue to check individually.
+ * Template "qa_verify_request" (Utility):
+ *   Body:   Hi {{1}}, developer {{2}} marked {{3}} issue(s) as fixed on {{4}}. Tap below to verify each one.
+ *   Button 0 (URL): Verify now → https://glitchgrab.dev/qa/{{1}}
+ *                   suffix = <magicToken>
+ */
+export async function sendTesterQaRequest({
+  phone,
+  testerName,
+  developerName,
+  issueCount,
+  orgName,
+  magicToken,
+}: {
+  phone: string;
+  testerName: string;
+  developerName: string;
+  issueCount: number;
+  orgName: string;
+  magicToken: string;
+}): Promise<void> {
+  const phoneNumberId = process.env.META_WA_PHONE_NUMBER_ID;
+  const accessToken = process.env.META_WA_ACCESS_TOKEN;
+  if (!phoneNumberId || !accessToken) return;
+
+  const to = formatPhone(phone);
+  if (!to) return;
+
+  try {
+    const res = await fetch(`${META_API_BASE}/${phoneNumberId}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        type: "template",
+        template: {
+          name: "qa_verify_request",
+          language: { code: "en" },
+          components: [
+            {
+              type: "body",
+              parameters: [
+                { type: "text", text: sanitizeParam(testerName) },
+                { type: "text", text: sanitizeParam(developerName) },
+                { type: "text", text: String(issueCount) },
+                { type: "text", text: sanitizeParam(orgName) },
+              ],
+            },
+            {
+              type: "button",
+              sub_type: "url",
+              index: "0",
+              parameters: [{ type: "text", text: magicToken }],
+            },
+          ],
+        },
+      }),
+    });
+    if (!res.ok) console.error("[whatsapp] qa request failed:", await res.text());
+  } catch (err) {
+    console.error("[whatsapp] qa request error:", err);
+  }
+}
+
+/**
+ * Notify a developer that a tester marked their fix as NOT working.
+ * Template "qa_failed_dev" (Utility):
+ *   Body:   ⚠️ Tester {{1}} says "{{2}}" is NOT fixed on {{3}}. It has been reopened on GitHub.
+ *   Button 0 (URL): View on GitHub → https://github.com/{{1}}
+ *                   suffix = owner/repo/issues/number
+ */
+export async function sendDeveloperQaFailed({
+  phone,
+  testerName,
+  issueTitle,
+  orgName,
+  githubUrl,
+}: {
+  phone: string;
+  testerName: string;
+  issueTitle: string;
+  orgName: string;
+  githubUrl: string;
+}): Promise<void> {
+  const phoneNumberId = process.env.META_WA_PHONE_NUMBER_ID;
+  const accessToken = process.env.META_WA_ACCESS_TOKEN;
+  if (!phoneNumberId || !accessToken) return;
+
+  const to = formatPhone(phone);
+  if (!to) return;
+
+  const githubPath = githubUrl.replace("https://github.com/", "");
+
+  try {
+    const res = await fetch(`${META_API_BASE}/${phoneNumberId}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        type: "template",
+        template: {
+          name: "qa_failed_dev",
+          language: { code: "en" },
+          components: [
+            {
+              type: "body",
+              parameters: [
+                { type: "text", text: sanitizeParam(testerName) },
+                { type: "text", text: sanitizeParam(issueTitle) },
+                { type: "text", text: sanitizeParam(orgName) },
+              ],
+            },
+            {
+              type: "button",
+              sub_type: "url",
+              index: "0",
+              parameters: [{ type: "text", text: githubPath }],
+            },
+          ],
+        },
+      }),
+    });
+    if (!res.ok) console.error("[whatsapp] qa failed-dev notify failed:", await res.text());
+  } catch (err) {
+    console.error("[whatsapp] qa failed-dev notify error:", err);
   }
 }

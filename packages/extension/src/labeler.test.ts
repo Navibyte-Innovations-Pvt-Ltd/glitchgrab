@@ -124,3 +124,37 @@ describe("describeElement", () => {
     expect(describeElement(target).icon).toBe("img:logo");
   });
 });
+
+// Regression scenarios found by recording a real signup on My Abhyasika — the
+// extension was emitting event data the AI could not turn into a sane script.
+describe("BUG: clean labels (My Abhyasika capture)", () => {
+  it("does NOT use a text field's typed value as its label (leaks OTP/typed data)", () => {
+    // The OTP box: an input with value '1234' and no aria/placeholder/name.
+    // Old behavior labelled it '1234' (leaks the code + meaningless).
+    const target = el(`<input type="text" maxlength="4" value="1234" />`, "input");
+    const { label } = getClickLabel(target);
+    expect(label).not.toBe("1234");
+    expect(label).not.toContain("1234");
+  });
+
+  it("DOES use value as label for a submit/button input", () => {
+    const target = el(`<input type="submit" value="Send Verification Code" />`, "input");
+    expect(getClickLabel(target).label).toBe("Send Verification Code");
+  });
+
+  it("does NOT fall back to Tailwind utility classes as a label", () => {
+    // Old behavior: label = 'input.disabled:cursor-not-allowed'.
+    const target = el(
+      `<input class="disabled:cursor-not-allowed disabled:opacity-50 h-9" />`,
+      "input",
+    );
+    const { label } = getClickLabel(target);
+    expect(label).not.toContain("cursor-not-allowed");
+    expect(label).not.toContain(":");
+  });
+
+  it("still uses a clean semantic class as a label fallback", () => {
+    const target = el(`<div class="search-bar"></div>`, "div");
+    expect(getClickLabel(target).label).toBe("div.search-bar");
+  });
+});

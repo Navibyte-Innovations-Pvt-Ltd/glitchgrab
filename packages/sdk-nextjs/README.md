@@ -455,6 +455,23 @@ import { GlitchgrabErrorBoundary } from "glitchgrab";
 | `onReportSent` | `(result: ReportResult) => void` | - | Called after a report is sent |
 | `fallback` | `ReactNode` | - | Error boundary fallback UI |
 
+## Do I need a Content-Security-Policy allowance?
+
+If your app sets a CSP header (e.g. via `proxy.ts` / `middleware.ts` in Next.js), allow Glitchgrab's API host so `fetch` calls from the SDK aren't blocked:
+
+```ts
+// proxy.ts / middleware.ts
+response.headers.set(
+  "Content-Security-Policy",
+  "connect-src 'self' https://glitchgrab.dev; ..." // plus your existing directives
+);
+```
+
+- `connect-src https://glitchgrab.dev` — required for `sendReport`, `enhanceText`, `transcribeAudio`, and the report-fetching hooks/REST calls. All SDK requests go to this single host by default.
+- If you pass a custom `baseUrl` prop, allow that host instead (self-hosted or proxied deployments).
+- Screenshot capture (`html2canvas-pro`) runs entirely client-side against `document.body` — no network request, no extra `img-src`/`connect-src` needed for it.
+- No `script-src`, `style-src`, or `frame-src` allowances are required — the SDK doesn't load remote scripts, styles, or iframes.
+
 ## How does auto-capture work?
 
 In production (`NODE_ENV=production`), the SDK automatically captures:

@@ -2,13 +2,18 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { geminiChat } from "@/lib/gemini/client";
 import { deepseekChat } from "@/lib/deepseek/client";
 import {
   SCRIPT_SYSTEM_PROMPT,
   recordingContext,
   languageDirective,
+  isRomanHindiFallback,
+  DEVANAGARI_FIX_INSTRUCTION,
   type ZoomCtx,
 } from "@/lib/narration/prompt";
+import { buildScriptContext, buildOrderedStepsFromEvents, checkScriptOrder } from "@/lib/narration/events-context";
+import { recordGeneration } from "@/lib/narration/telemetry";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -94,25 +99,94 @@ export async function POST(req: Request, { params }: RouteParams) {
       );
     }
 
-    const eventsJson = JSON.stringify(session.events, null, 2);
+    const { eventsJson, appLine } = buildScriptContext(session.events);
     const metaSection = session.meta
       ? `\n\nRecording metadata (cuts made in Recordly):\n${JSON.stringify(session.meta, null, 2)}`
       : "";
 
-    const script = await deepseekChat({
-      model: "deepseek-reasoner",
-      messages: [
-        { role: "system", content: SCRIPT_SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: `Generate a narration script for this screen recording.\n\nEvents:\n${eventsJson}${metaSection}${noteSection}${recordingContext(durationSec, zooms)}${languageDirective(lang, gender)}`,
-        },
-      ],
-    });
+    const userContent = `Generate a narration script for this screen recording.\n\nEvents:\n${eventsJson}${appLine}${metaSection}${noteSection}${recordingContext(durationSec, zooms)}${languageDirective(lang, gender)}`;
+    const messages = [
+      { role: "system" as const, content: SCRIPT_SYSTEM_PROMPT },
+      { role: "user" as const, content: userContent },
+    ];
+    // gemini-2.5-pro is the primary generator: on a 145-event capture it obeyed
+    // the Sarvam TTS rules (no "₹", no hyphens) and the word budget where
+    // deepseek-v4-pro broke them, and it's faster (~20s vs ~40–60s). If Gemini
+    // fails/empties (quota, safety block, network), fall back to deepseek-v4-flash
+    // so a script still ships rather than failing the whole generate to 0 chars.
+    const genStart = Date.now();
+    let model = "gemini-2.5-pro";
+    let script: string;
+    try {
+      script = await geminiChat({ model: "gemini-2.5-pro", messages });
+    } catch {
+      model = "deepseek-v4-flash";
+      script = await deepseekChat({ model: "deepseek-v4-flash", messages });
+    }
+    let devanagariRetried = false;
+
+    // Devanagari guard: lang=hi sometimes comes back in Roman/Latin Hindi despite
+    // the rule. Detect it and re-ask ONCE to rewrite the same script in Devanagari.
+    // CRITICAL: this is best-effort — it must NEVER lose the original script. The
+    // retry can throw (DeepSeek empties on noisy note-sessions) or return empty;
+    // either way keep the first script (Roman-but-present beats an empty 500). An
+    // earlier version let the retry throw uncaught → the whole generate 500'd →
+    // the editor got a 0-char script on every site that hit a note.
+    if (isRomanHindiFallback(script, lang)) {
+      devanagariRetried = true;
+      try {
+        const fixMessages = [
+          ...messages,
+          { role: "assistant" as const, content: script },
+          { role: "user" as const, content: DEVANAGARI_FIX_INSTRUCTION },
+        ];
+        const fixed = model.startsWith("gemini")
+          ? await geminiChat({ model: "gemini-2.5-pro", messages: fixMessages })
+          : await deepseekChat({ model: "deepseek-v4-flash", messages: fixMessages });
+        if (fixed && fixed.trim().length > 20 && !isRomanHindiFallback(fixed, lang)) {
+          script = fixed;
+        }
+      } catch {
+        /* keep the original script — a present Roman script beats an empty one */
+      }
+    }
+
+    // Best-effort ordering check — warns in logs when the model reordered steps
+    // relative to event timestamps. Never blocks the response.
+    try {
+      const steps = buildOrderedStepsFromEvents(
+        Array.isArray(session.events)
+          ? (session.events as unknown as Parameters<typeof buildOrderedStepsFromEvents>[0])
+          : [],
+      );
+      if (steps.length >= 2) {
+        const { ok, violations } = checkScriptOrder(script, steps);
+        if (!ok) {
+          console.warn("[narration] script ordering violation", { sessionId: id, violations });
+        }
+      }
+    } catch {
+      // ignore — ordering check must never affect the response
+    }
 
     await prisma.captureSession.update({
       where: { id },
       data: { script },
+    });
+
+    // Persist training/feedback telemetry (best-effort, never blocks the response).
+    await recordGeneration({
+      sessionId: id,
+      events: session.events,
+      meta: session.meta,
+      lang,
+      gender,
+      durationSec,
+      noteAnswers,
+      model,
+      genLatencyMs: Date.now() - genStart,
+      initialScript: script,
+      devanagariRetried,
     });
 
     return NextResponse.json(

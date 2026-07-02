@@ -17,7 +17,27 @@ export interface CaptureEvent {
   preview?: string; // input events: truncated field value
   meta?: Record<string, string>; // rich element descriptor (tag, role, icon, href, section, selector…)
   note?: string; // "note" events: "explain this" marker from the annotate hotkey
+  client?: string; // which Chrome profile produced this — set on the bridge side from clientId
 }
+
+// Stable per-profile id so the bridge can merge events from multiple Chrome
+// profiles into one timeline AND tell them apart (admin profile vs student
+// profile). Persisted in this profile's storage; generated once on first run.
+let clientId = "";
+async function initClientId() {
+  try {
+    const { gg_client_id } = await chrome.storage.local.get("gg_client_id");
+    if (typeof gg_client_id === "string" && gg_client_id) {
+      clientId = gg_client_id;
+      return;
+    }
+    clientId = crypto.randomUUID().split("-")[0]; // 8 hex chars, e.g. "a1b2c3d4"
+    await chrome.storage.local.set({ gg_client_id: clientId });
+  } catch {
+    clientId = clientId || "default";
+  }
+}
+initClientId();
 
 const state: CaptureState = {
   active: false,
@@ -128,6 +148,12 @@ function connectBridge() {
 
 connectBridge();
 
+// Reconcile the toolbar icon on every service-worker (re)start. The MV3 worker is
+// ephemeral: if it dies mid-recording, in-memory state resets to inactive but
+// Chrome KEEPS the last icon (red dot). Fresh worker = not recording, so clear the
+// dot. Self-heals a red icon left stuck by a worker that died before stopCapture.
+if (!state.active) setRecordingIcon(false);
+
 // Fallback signal polling (HTTP) used only when bridge is offline.
 // Runs in background service worker — no "Extension context invalidated" risk.
 const SIGNAL_URL = "http://localhost:3000/api/v1/capture-signal";
@@ -142,7 +168,14 @@ setInterval(() => {
       lastSignalAt = data.signalAt;
       log("[GG] Signal changed →", data.signal);
       if (data.signal === "start" && !state.active) startCapture();
-      else if (data.signal === "stop" && state.active) stopCapture();
+      else if (data.signal === "stop") {
+        // Always clear the icon on a stop signal — even if state.active is false
+        // (the MV3 worker may have restarted mid-recording and lost in-memory
+        // state, but Chrome kept the red icon). Otherwise stopCapture() is gated
+        // out and the icon stays red forever.
+        if (state.active) stopCapture();
+        else setRecordingIcon(false);
+      }
     })
     .catch(() => {});
 }, 600);
@@ -192,6 +225,7 @@ chrome.runtime.onMessage.addListener((msg) => {
     const event: CaptureEvent = {
       ...msg.event,
       t: now - state.startedAt,
+      client: clientId, // tag with this profile so the bridge can merge + distinguish profiles
     };
     state.events.push(event);
     const m = event.meta ?? {};
@@ -213,7 +247,13 @@ chrome.runtime.onMessage.addListener((msg) => {
   return false;
 });
 
+// Bumped on every call so a slow async run can't clobber a newer one. Without
+// this, a quick start→stop race could let the (slower) red-dot draw resolve LAST
+// and leave the icon stuck red after recording stopped.
+let iconGeneration = 0;
+
 async function setRecordingIcon(recording: boolean) {
+  const myGeneration = ++iconGeneration;
   const sizes = [16, 32, 48, 128];
   const imageData: Record<number, ImageData> = {};
 
@@ -248,10 +288,35 @@ async function setRecordingIcon(recording: boolean) {
     imageData[size] = ctx.getImageData(0, 0, size, size);
   }
 
-  chrome.action.setIcon({ imageData });
+  // A newer setRecordingIcon call started while we were fetching/drawing — let it
+  // win instead of stomping the icon with our now-stale state.
+  if (myGeneration !== iconGeneration) return;
+  try {
+    await chrome.action.setIcon({ imageData });
+  } catch { /* action API unavailable (e.g. during teardown) — ignore */ }
+}
+
+function armAllTabs() {
+  chrome.tabs.query({}, (tabs) => {
+    for (const tab of tabs) {
+      if (tab.id) {
+        chrome.tabs.sendMessage(tab.id, { type: "CAPTURE_START" }).catch(() => {});
+      }
+    }
+  });
 }
 
 function startCapture(bridgeSessionId?: string) {
+  // Resync guard: the bridge re-sends recording:start every time this (ephemeral
+  // MV3) service worker reconnects. If we're ALREADY capturing this same session,
+  // a reconnect must NOT reset events/startedAt — that wipes everything captured
+  // so far (root cause of "first half of the recording is missing"). Just re-arm
+  // any tabs that may have lost their listeners and keep going.
+  if (state.active && bridgeSessionId && state.sessionId === bridgeSessionId) {
+    log(`[GG] recording:start resync — keeping ${state.events.length} events, re-arming tabs`);
+    armAllTabs();
+    return;
+  }
   state.active = true;
   state.startedAt = Date.now();
   state.events = [];
@@ -260,13 +325,7 @@ function startCapture(bridgeSessionId?: string) {
   setRecordingIcon(true);
   broadcastState();
   log("[GG] Capture started", bridgeSessionId ? `(bridge session: ${bridgeSessionId})` : "(manual)");
-  chrome.tabs.query({}, (tabs) => {
-    for (const tab of tabs) {
-      if (tab.id) {
-        chrome.tabs.sendMessage(tab.id, { type: "CAPTURE_START" }).catch(() => {});
-      }
-    }
-  });
+  armAllTabs();
 }
 
 async function stopCapture() {
@@ -293,6 +352,7 @@ async function stopCapture() {
       type: "events:upload",
       sessionId: state.sessionId,
       events: state.events,
+      clientId,
     }));
     log(`[GG] Sent ${state.events.length} events to bridge → ${state.sessionId}`);
     return;
