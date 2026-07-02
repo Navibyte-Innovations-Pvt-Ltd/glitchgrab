@@ -9,7 +9,7 @@ export interface ParsedFrame {
   mimeType: string;
 }
 
-export interface NoteQuestion {
+interface NoteQuestion {
   id: string;
   tMs: number;
   label: string;
@@ -17,7 +17,7 @@ export interface NoteQuestion {
   options: string[];
 }
 
-export interface VisionVerdict {
+interface VisionVerdict {
   id: string;
   clear?: boolean;
   question?: string;
