@@ -783,15 +783,31 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
     }
 
     if (e.code === "Space") {
-      // Block all repeat space events while timer pending or recording active
-      if (spaceTimerRef.current || isListening || isPushToTalkRef.current) {
+      // Recording or already-committed to push-to-talk — swallow the space
+      if (isListening || isPushToTalkRef.current) {
         e.preventDefault();
         return;
       }
-      if (e.repeat || isTranscribing) return;
-      e.preventDefault();
+      // Auto-repeat from a held key, or a timer already pending — let the browser
+      // type normally; we only care about the first keydown of a hold.
+      if (e.repeat || isTranscribing || spaceTimerRef.current) return;
+
+      // Don't preventDefault: let the browser insert the space natively so the
+      // cursor stays exactly where the user typed it. If the hold matures into
+      // push-to-talk, strip that space back out below.
+      const pos = e.currentTarget.selectionStart ?? input.length;
       spaceTimerRef.current = setTimeout(() => {
+        spaceTimerRef.current = null;
         isPushToTalkRef.current = true;
+        setInput((prev) =>
+          prev[pos] === " " ? prev.slice(0, pos) + prev.slice(pos + 1) : prev,
+        );
+        requestAnimationFrame(() => {
+          if (textareaRef.current) {
+            textareaRef.current.selectionStart = pos;
+            textareaRef.current.selectionEnd = pos;
+          }
+        });
         void toggleVoice();
       }, 400);
     }
@@ -800,20 +816,9 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
   function handleKeyUp(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.code !== "Space") return;
     if (spaceTimerRef.current) {
+      // Quick tap — space was already typed natively, nothing to do.
       clearTimeout(spaceTimerRef.current);
       spaceTimerRef.current = null;
-      if (!isPushToTalkRef.current) {
-        // Insert space at cursor, not at end
-        const ta = textareaRef.current;
-        const pos = ta ? (ta.selectionStart ?? input.length) : input.length;
-        setInput((prev) => prev.slice(0, pos) + " " + prev.slice(pos));
-        requestAnimationFrame(() => {
-          if (textareaRef.current) {
-            textareaRef.current.selectionStart = pos + 1;
-            textareaRef.current.selectionEnd = pos + 1;
-          }
-        });
-      }
     }
     if (isPushToTalkRef.current) {
       isPushToTalkRef.current = false;
