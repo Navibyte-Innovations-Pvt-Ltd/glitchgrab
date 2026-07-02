@@ -10,7 +10,8 @@
       "/api/v1/whatsapp/webhook",
       "/api/v1/me",
       "/api/v1/capture-sessions/**",
-      "/api/v1/glitchrecord/**"
+      "/api/v1/glitchrecord/**",
+      "/api/v1/narration-telemetry"
     ],
     "files": ["**/db-sync.ts", "**/components/ui/**", "**/components/AppInputFields/**", "**/public/favicon-48x48.png", "apps/glitchrecord/**"]
   }
