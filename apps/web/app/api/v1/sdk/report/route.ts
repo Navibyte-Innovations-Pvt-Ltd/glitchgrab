@@ -297,11 +297,34 @@ export async function POST(request: Request) {
       issueBody += `## Activity Log\n\n| Time | Type | Event |\n|------|------|-------|\n${crumbs.join("\n")}\n\n`;
     }
 
-    const screenshotData = body.metadata?.screenshot;
-    if (screenshotData && typeof screenshotData === "string" && screenshotData.startsWith("data:image/")) {
-      const screenshotUrl = await uploadScreenshotToS3(screenshotData, report.id);
-      if (screenshotUrl) {
-        issueBody += `\n\n## Screenshot\n\n![Screenshot](${screenshotUrl})`;
+    const screenshotsData: string[] = [];
+    const screenshotsRaw = body.metadata?.screenshots;
+    if (screenshotsRaw) {
+      try {
+        const parsed = JSON.parse(screenshotsRaw);
+        if (Array.isArray(parsed)) {
+          for (const s of parsed) {
+            if (typeof s === "string" && s.startsWith("data:image/")) screenshotsData.push(s);
+          }
+        }
+      } catch {
+        // invalid JSON, skip
+      }
+    }
+    // Back-compat with older SDK versions sending a single `screenshot` field
+    const legacyScreenshot = body.metadata?.screenshot;
+    if (legacyScreenshot && typeof legacyScreenshot === "string" && legacyScreenshot.startsWith("data:image/")) {
+      screenshotsData.push(legacyScreenshot);
+    }
+
+    if (screenshotsData.length > 0) {
+      const refs: string[] = [];
+      for (let i = 0; i < screenshotsData.length; i++) {
+        const url = await uploadScreenshotToS3(screenshotsData[i], report.id);
+        if (url) refs.push(`![Screenshot${screenshotsData.length > 1 ? ` ${i + 1}` : ""}](${url})`);
+      }
+      if (refs.length > 0) {
+        issueBody += `\n\n## Screenshot${refs.length > 1 ? "s" : ""}\n\n${refs.join("\n\n")}`;
       }
     }
 

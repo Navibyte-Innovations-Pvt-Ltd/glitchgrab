@@ -1025,7 +1025,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
               onClick={() => fileInputRef.current?.click()}
               disabled={sending || !selectedRepoName}
               className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors disabled:opacity-50"
-              title={selectedRepoName ? "Attach screenshot" : "Select a repo first"}
+              title={selectedRepoName ? "Attach screenshots (multiple allowed)" : "Select a repo first"}
             >
               <ImagePlus className="h-4 w-4" />
             </button>
@@ -1034,7 +1034,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
               context: {selectedRepoName || "—"}
             </span>
             <span className="font-mono text-[10px] text-muted-foreground/50 hidden sm:inline">
-              enter to send · shift+enter newline · ⌘V / ctrl+V paste screenshot
+              enter to send · shift+enter newline · ⌘V / ctrl+V paste screenshots (multiple ok)
             </span>
           </div>
 
