@@ -66,6 +66,14 @@ function formatPhone(phone: string): string {
 }
 
 /**
+ * Meta template params reject newlines/tabs and 4+ consecutive spaces (error 132018).
+ * GitHub issue titles/org names can contain these — strip before sending.
+ */
+function sanitizeParam(text: string): string {
+  return text.replace(/[\n\t\r]+/g, " ").replace(/ {2,}/g, " ").trim();
+}
+
+/**
  * Send issue-resolved notification to reporter.
  * Template "issue_resolved":
  *   Body:    Hi {{1}}, your issue "{{2}}" reported to {{3}} has been resolved! Was the fix helpful?
@@ -103,9 +111,9 @@ export async function sendIssueResolvedWhatsApp({
     {
       type: "body",
       parameters: [
-        { type: "text", text: reporterName },
-        { type: "text", text: issueTitle },
-        { type: "text", text: orgName },
+        { type: "text", text: sanitizeParam(reporterName) },
+        { type: "text", text: sanitizeParam(issueTitle) },
+        { type: "text", text: sanitizeParam(orgName) },
         { type: "text", text: devPhone },
       ],
     },
@@ -202,9 +210,9 @@ export async function sendDeveloperReopenedNotification({
             {
               type: "body",
               parameters: [
-                { type: "text", text: reporterName },
-                { type: "text", text: issueTitle },
-                { type: "text", text: orgName },
+                { type: "text", text: sanitizeParam(reporterName) },
+                { type: "text", text: sanitizeParam(issueTitle) },
+                { type: "text", text: sanitizeParam(orgName) },
                 { type: "text", text: formatPhone(reporterPhone ?? "") || "N/A" },
               ],
             },
@@ -259,9 +267,9 @@ export async function sendDailyIssueReminder({
     {
       type: "body",
       parameters: [
-        { type: "text", text: developerName },
+        { type: "text", text: sanitizeParam(developerName) },
         { type: "text", text: String(openCount) },
-        { type: "text", text: orgName },
+        { type: "text", text: sanitizeParam(orgName) },
       ],
     },
   ];
@@ -334,8 +342,8 @@ export async function sendWeeklyIssueSummary({
     {
       type: "body",
       parameters: [
-        { type: "text", text: developerName },
-        { type: "text", text: orgName },
+        { type: "text", text: sanitizeParam(developerName) },
+        { type: "text", text: sanitizeParam(orgName) },
         { type: "text", text: String(resolvedCount) },
       ],
     },
@@ -425,9 +433,9 @@ export async function sendIssueAssignedNotification({
             {
               type: "body",
               parameters: [
-                { type: "text", text: developerName },
-                { type: "text", text: issueTitle },
-                { type: "text", text: orgName },
+                { type: "text", text: sanitizeParam(developerName) },
+                { type: "text", text: sanitizeParam(issueTitle) },
+                { type: "text", text: sanitizeParam(orgName) },
               ],
             },
             {
