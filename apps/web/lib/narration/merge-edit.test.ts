@@ -63,24 +63,24 @@ describe("parseParagraphPatch", () => {
   it("parses a single changed block", () => {
     const ops = parseParagraphPatch("[#2]\nnew floor map text");
     expect(ops).not.toBeNull();
-    expect(ops!.get(2)).toBe("new floor map text");
-    expect(ops!.size).toBe(1);
+    expect(ops?.get(2)).toBe("new floor map text");
+    expect(ops?.size).toBe(1);
   });
 
   it("parses multiple blocks and keeps internal blank lines (expansion)", () => {
     const ops = parseParagraphPatch("[#1]\nline a\n\nline b\n[#3]\npricing redo");
-    expect(ops!.get(1)).toBe("line a\n\nline b");
-    expect(ops!.get(3)).toBe("pricing redo");
+    expect(ops?.get(1)).toBe("line a\n\nline b");
+    expect(ops?.get(3)).toBe("pricing redo");
   });
 
   it("treats an empty block as a deletion (empty string)", () => {
     const ops = parseParagraphPatch("[#2]\n");
-    expect(ops!.get(2)).toBe("");
+    expect(ops?.get(2)).toBe("");
   });
 
   it("tolerates spaced address drift like [ # 2 ]", () => {
     const ops = parseParagraphPatch("[ # 2 ]\nrewritten");
-    expect(ops!.get(2)).toBe("rewritten");
+    expect(ops?.get(2)).toBe("rewritten");
   });
 });
 
@@ -89,7 +89,8 @@ describe("mergeParagraphEdit — THE GUARANTEE", () => {
     const original = splitParagraphs(SCRIPT);
     const ops = parseParagraphPatch(
       "[#2]\n[Floor map editor]\nपहले select, erase, और direction tools. फिर undo redo. फिर पूरा layout drag से banाते हैं, 82 seats.",
-    )!;
+    );
+    if (!ops) throw new Error("expected a patch");
     const merged = mergeParagraphEdit(SCRIPT, ops);
     const after = splitParagraphs(merged);
 
@@ -104,7 +105,8 @@ describe("mergeParagraphEdit — THE GUARANTEE", () => {
   });
 
   it("expanding one paragraph into several does not shift other paragraphs", () => {
-    const ops = parseParagraphPatch("[#2]\npart one of the editor.\n\npart two of the editor.")!;
+    const ops = parseParagraphPatch("[#2]\npart one of the editor.\n\npart two of the editor.");
+    if (!ops) throw new Error("expected a patch");
     const merged = mergeParagraphEdit(SCRIPT, ops);
     const after = splitParagraphs(merged);
     expect(after).toHaveLength(5); // 4 → 5 (one split into two)
@@ -113,7 +115,8 @@ describe("mergeParagraphEdit — THE GUARANTEE", () => {
   });
 
   it("deleting a paragraph removes only it", () => {
-    const ops = parseParagraphPatch("[#1]\n")!;
+    const ops = parseParagraphPatch("[#1]\n");
+    if (!ops) throw new Error("expected a patch");
     const merged = mergeParagraphEdit(SCRIPT, ops);
     const after = splitParagraphs(merged);
     expect(after).toHaveLength(3);
@@ -122,7 +125,8 @@ describe("mergeParagraphEdit — THE GUARANTEE", () => {
   });
 
   it("ignores out-of-range indices instead of throwing", () => {
-    const ops = parseParagraphPatch("[#99]\nstray")!;
+    const ops = parseParagraphPatch("[#99]\nstray");
+    if (!ops) throw new Error("expected a patch");
     const merged = mergeParagraphEdit(SCRIPT, ops);
     expect(merged).toBe(SCRIPT); // no in-range edit → unchanged
   });
