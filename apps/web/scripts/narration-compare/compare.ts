@@ -112,7 +112,7 @@ function parseLog(raw: string): { events: Ev[]; noteAnswers: { label: string; an
       if (TOP_LEVEL.has(key)) {
         (cur as unknown as Record<string, unknown>)[key] = value;
       } else {
-        cur.meta![key] = value;
+        (cur.meta ??= {})[key] = value;
       }
     }
   }
@@ -204,7 +204,7 @@ const providers: Provider[] = [
     key: "gemini",
     model: "gemini-2.5-pro",
     available: !!process.env.GOOGLE_AI_API_KEY,
-    run: (s, u) => callGemini(process.env.GOOGLE_AI_API_KEY!, "gemini-2.5-pro", s, u),
+    run: (s, u) => callGemini(process.env.GOOGLE_AI_API_KEY ?? "", "gemini-2.5-pro", s, u),
   },
   {
     key: "deepseek",
@@ -213,7 +213,7 @@ const providers: Provider[] = [
     run: (s, u) =>
       callOpenAICompat(
         "https://api.deepseek.com/chat/completions",
-        process.env.DEEPSEEK_API_KEY!,
+        process.env.DEEPSEEK_API_KEY ?? "",
         "deepseek-v4-pro",
         s,
         u,
@@ -227,7 +227,7 @@ const providers: Provider[] = [
     run: (s, u) =>
       callOpenAICompat(
         "https://api.moonshot.ai/v1/chat/completions",
-        process.env.KIMI_API_KEY!,
+        process.env.KIMI_API_KEY ?? "",
         "kimi-k2-0905-preview",
         s,
         u,
@@ -241,15 +241,15 @@ async function main() {
   mkdirSync(OUT_DIR, { recursive: true });
   const { system, user, appName, eventCount, noteCount } = buildMessages();
 
-  console.log(`\nInput: ${eventCount} events, ${noteCount} notes, app="${appName}"`);
-  console.log(`lang=${lang ?? "hi (default)"} gender=${gender} duration=${durationSec}s`);
-  console.log(`prompt: ${(system.length + user.length).toLocaleString()} chars\n`);
+  console.info(`\nInput: ${eventCount} events, ${noteCount} notes, app="${appName}"`);
+  console.info(`lang=${lang ?? "hi (default)"} gender=${gender} duration=${durationSec}s`);
+  console.info(`prompt: ${(system.length + user.length).toLocaleString()} chars\n`);
   writeFileSync(join(OUT_DIR, "_user-message.txt"), user, "utf8");
 
   const rows: string[] = [];
   for (const p of providers) {
     if (!p.available) {
-      console.log(`⊘ ${p.key.padEnd(9)} ${p.model} — SKIPPED (no API key in env)`);
+      console.info(`⊘ ${p.key.padEnd(9)} ${p.model} — SKIPPED (no API key in env)`);
       rows.push(`| ${p.key} | ${p.model} | — | — | **no key** |`);
       continue;
     }
@@ -260,7 +260,7 @@ async function main() {
       const ratio = devanagariRatio(script);
       const words = script.split(/\s+/).filter(Boolean).length;
       writeFileSync(join(OUT_DIR, `${p.key}.txt`), script, "utf8");
-      console.log(
+      console.info(
         `✓ ${p.key.padEnd(9)} ${p.model} — ${(ms / 1000).toFixed(1)}s, ${script.length} chars, ${words} words, devanagari ${(ratio * 100).toFixed(0)}%`
       );
       rows.push(
@@ -269,14 +269,14 @@ async function main() {
     } catch (err) {
       const ms = Date.now() - started;
       const msg = err instanceof Error ? err.message : String(err);
-      console.log(`✗ ${p.key.padEnd(9)} ${p.model} — FAILED after ${(ms / 1000).toFixed(1)}s: ${msg}`);
+      console.info(`✗ ${p.key.padEnd(9)} ${p.model} — FAILED after ${(ms / 1000).toFixed(1)}s: ${msg}`);
       rows.push(`| ${p.key} | ${p.model} | ${(ms / 1000).toFixed(1)}s | — | **error**: ${msg} |`);
     }
   }
 
   const summary = `# Narration model comparison\n\nInput: ${eventCount} events, ${noteCount} notes, app="${appName}", lang=${lang ?? "hi"}, gender=${gender}, target ${durationSec}s.\n\n| model | id | latency | length | notes |\n|---|---|---|---|---|\n${rows.join("\n")}\n\nScripts: see \`outputs/<model>.txt\`. Identical prompt fed to all (see \`outputs/_user-message.txt\`).\n`;
   writeFileSync(join(OUT_DIR, "comparison.md"), summary, "utf8");
-  console.log(`\nWrote outputs/ (scripts + comparison.md)\n`);
+  console.info(`\nWrote outputs/ (scripts + comparison.md)\n`);
 }
 
 main().catch((e) => {
