@@ -521,9 +521,11 @@ export async function sendTesterInvite({
 }
 
 /**
- * Ask a QA tester to verify a fix a developer just merged.
+ * Ask a QA tester to verify the fixes a developer just merged in one PR.
+ * A merged PR can close several issues at once, so this sends ONE message with
+ * a count — the QA page lists every issue to check individually.
  * Template "qa_verify_request" (Utility):
- *   Body:   Hi {{1}}, developer {{2}} marked issue "{{3}}" as fixed on {{4}}. Please verify it works.
+ *   Body:   Hi {{1}}, developer {{2}} marked {{3}} issue(s) as fixed on {{4}}. Tap below to verify each one.
  *   Button 0 (URL): Verify now → https://glitchgrab.dev/qa/{{1}}
  *                   suffix = <magicToken>
  */
@@ -531,14 +533,14 @@ export async function sendTesterQaRequest({
   phone,
   testerName,
   developerName,
-  issueTitle,
+  issueCount,
   orgName,
   magicToken,
 }: {
   phone: string;
   testerName: string;
   developerName: string;
-  issueTitle: string;
+  issueCount: number;
   orgName: string;
   magicToken: string;
 }): Promise<void> {
@@ -569,7 +571,7 @@ export async function sendTesterQaRequest({
               parameters: [
                 { type: "text", text: sanitizeParam(testerName) },
                 { type: "text", text: sanitizeParam(developerName) },
-                { type: "text", text: sanitizeParam(issueTitle) },
+                { type: "text", text: String(issueCount) },
                 { type: "text", text: sanitizeParam(orgName) },
               ],
             },
