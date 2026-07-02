@@ -306,17 +306,14 @@ async function handlePullRequestEvent(
       }
     }
 
-    // One WhatsApp per tester (avoid spamming when a PR closes many issues)
+    // One WhatsApp per tester per PR — never one per issue (avoids spam when a
+    // PR closes many issues). The count goes in the message; the QA page lists each.
     if (created > 0 && tester.phone) {
-      const issueTitle =
-        created === 1
-          ? issues[0].title
-          : `${created} issues from PR #${pr.number}`;
       void sendTesterQaRequest({
         phone: tester.phone,
         testerName: tester.name,
         developerName,
-        issueTitle,
+        issueCount: created,
         orgName,
         magicToken: tester.magicToken,
       });
