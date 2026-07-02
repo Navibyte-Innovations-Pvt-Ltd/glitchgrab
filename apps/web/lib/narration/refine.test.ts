@@ -42,7 +42,8 @@ describe("resolveRefinement (pure)", () => {
     const raw = "Shortened the floor map part.\n---SCRIPT---\n[#2]\n[Floor map editor]\nLayout banana easy hai.";
     const orig = splitParagraphs(SCRIPT);
     const r = resolveRefinement(raw, SCRIPT);
-    const after = splitParagraphs(r.script!);
+    if (r.script === null) throw new Error("expected a script");
+    const after = splitParagraphs(r.script);
     expect(after[0]).toBe(orig[0]);
     expect(after[1]).toBe(orig[1]);
     expect(after[3]).toBe(orig[3]);
@@ -93,9 +94,10 @@ describe.skipIf(!hasKey)("refine pipeline — real Gemini", () => {
 
       const r = resolveRefinement(raw, SCRIPT);
       expect(r.script).not.toBeNull();
+      if (r.script === null) throw new Error("expected a script");
 
       const orig = splitParagraphs(SCRIPT);
-      const after = splitParagraphs(r.script!);
+      const after = splitParagraphs(r.script);
 
       // The guarantee: Intro, Sign up, Pricing survive byte-for-byte.
       expect(after).toContain(orig[0]); // [Intro]
@@ -142,8 +144,9 @@ describe.skipIf(!hasKey)("refine pipeline — real Gemini", () => {
       expect(r.script).toMatch(/33/);
       expect(r.script).toMatch(/53/);
       // Surgical: the paragraphs the user said NOT to touch survive byte-for-byte.
+      if (r.script === null) throw new Error("expected a script");
       const orig = splitParagraphs(SCRIPT);
-      const after = splitParagraphs(r.script!);
+      const after = splitParagraphs(r.script);
       expect(after).toContain(orig[0]); // [Intro]
       expect(after).toContain(orig[1]); // [Sign up]
       expect(after).toContain(orig[3]); // [Pricing]
