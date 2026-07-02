@@ -26,7 +26,7 @@ export function signTesterSession(testerId: string): string {
 }
 
 /** Verify a cookie value; returns the testerId if valid + unexpired, else null. */
-export function verifyTesterSession(value: string | undefined | null): string | null {
+function verifyTesterSession(value: string | undefined | null): string | null {
   if (!value) return null;
   const parts = value.split(".");
   if (parts.length !== 3) return null;
