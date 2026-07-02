@@ -155,7 +155,9 @@ export async function POST(req: Request, { params }: RouteParams) {
     // relative to event timestamps. Never blocks the response.
     try {
       const steps = buildOrderedStepsFromEvents(
-        Array.isArray(session.events) ? (session.events as object[]) : [],
+        Array.isArray(session.events)
+          ? (session.events as unknown as Parameters<typeof buildOrderedStepsFromEvents>[0])
+          : [],
       );
       if (steps.length >= 2) {
         const { ok, violations } = checkScriptOrder(script, steps);
