@@ -33,6 +33,7 @@ import {
   Globe,
   UploadCloud,
   Plus,
+  FlaskConical,
 } from "lucide-react";
 import {
   Popover,
@@ -299,9 +300,11 @@ function ListPanel({
 function IssueRow({
   issue,
   critical,
+  orgSlug,
 }: {
   issue: IssueItem;
   critical: boolean;
+  orgSlug: string;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -310,6 +313,27 @@ function IssueRow({
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  // Hand this issue to the repo's tester(s) for QA — no PR merge needed.
+  const sendToQa = useMutation({
+    mutationFn: async () => {
+      const { data } = await axios.post(`/api/v1/orgs/${orgSlug}/qa/send`, {
+        repoFullName: issue.repoFullName,
+        githubNumber: issue.number,
+        title: issue.title,
+        githubUrl: issue.url,
+      });
+      return data as { data?: { sent?: number } };
+    },
+    onSuccess: (data) => {
+      const n = data?.data?.sent ?? 0;
+      toast.success(n > 0 ? `Sent to ${n} tester${n === 1 ? "" : "s"}` : "Already sent — no new testers");
+    },
+    onError: (err) => {
+      const msg = axios.isAxiosError(err) ? err.response?.data?.error : "Failed to send";
+      toast.error(msg ?? "Failed to send");
+    },
+  });
 
   return (
     <a
@@ -365,6 +389,23 @@ function IssueRow({
         </span>
       )}
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            sendToQa.mutate();
+          }}
+          disabled={sendToQa.isPending}
+          className="p-1 rounded hover:bg-muted transition-colors"
+          title="Send to tester for QA"
+        >
+          {sendToQa.isPending ? (
+            <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+          ) : (
+            <FlaskConical className="h-3 w-3 text-primary" />
+          )}
+        </button>
         <button
           type="button"
           onClick={(e) => {
@@ -545,6 +586,7 @@ function OrgIssuesTriageBody({
   selectedRepo,
   onSelect,
   assignView,
+  orgSlug,
 }: {
   data: IssueItem[];
   allCount: number;
@@ -552,6 +594,7 @@ function OrgIssuesTriageBody({
   selectedRepo: string | null;
   onSelect: (repo: string | null) => void;
   assignView: AssignView;
+  orgSlug: string;
 }) {
   if (isLoading) {
     return (
@@ -649,7 +692,7 @@ function OrgIssuesTriageBody({
             <ul className="flex flex-col gap-1">
               {(selectedRepo ? items : items.slice(0, 3)).map((issue) => (
                 <li key={`${repo}-${issue.number}`}>
-                  <IssueRow issue={issue} critical={isHighPriority(issue.labels)} />
+                  <IssueRow issue={issue} critical={isHighPriority(issue.labels)} orgSlug={orgSlug} />
                 </li>
               ))}
               {!selectedRepo && items.length > 3 && (
@@ -742,6 +785,7 @@ function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
         selectedRepo={repoFilter}
         onSelect={setRepoFilter}
         assignView={assignView}
+        orgSlug={orgSlug}
       />
     </ListPanel>
   );
