@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { reopenGitHubIssue } from "@/lib/github";
@@ -8,10 +8,15 @@ import { sendDeveloperReopenedNotification } from "@/lib/whatsapp";
 
 function verifySignature(body: string, signature: string | null): boolean {
   const appSecret = process.env.META_WA_APP_SECRET;
-  if (!appSecret) return true; // skip verification if not configured
+  if (!appSecret) {
+    console.error("[whatsapp-webhook] META_WA_APP_SECRET not configured, rejecting request");
+    return false;
+  }
   if (!signature) return false;
   const expected = `sha256=${createHmac("sha256", appSecret).update(body).digest("hex")}`;
-  return signature === expected;
+  const a = Buffer.from(signature);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 /**
