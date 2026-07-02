@@ -13,7 +13,7 @@ export interface QaCheckView {
   createdAt: string;
 }
 
-export interface QaView {
+interface QaView {
   testerName: string;
   orgName: string;
   checks: QaCheckView[];
