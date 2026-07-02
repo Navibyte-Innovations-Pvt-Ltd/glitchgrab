@@ -39,15 +39,28 @@ const state: SignalState = {
   meta: null,
 };
 
+// This bus only ever runs against a local dev server — Recordly and the Chrome
+// extension both hardcode http://localhost:3000. Block it in production so the
+// unauthenticated, globally-shared state isn't reachable on the public deployment.
+function blockedInProd(): NextResponse | null {
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  return null;
+}
+
 export function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS });
 }
 
 export function GET() {
-  return NextResponse.json(state, { headers: CORS });
+  return blockedInProd() ?? NextResponse.json(state, { headers: CORS });
 }
 
 export async function POST(req: Request) {
+  const blocked = blockedInProd();
+  if (blocked) return blocked;
+
   const body = await req.json().catch(() => ({})) as Partial<SignalState>;
 
   if (body.signal) state.signal = body.signal;
