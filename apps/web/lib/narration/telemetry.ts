@@ -14,7 +14,7 @@ interface Eventish {
   [k: string]: unknown;
 }
 
-export interface GenerationRecord {
+interface GenerationRecord {
   sessionId: string;
   events: unknown;
   meta: unknown;
