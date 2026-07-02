@@ -456,3 +456,203 @@ export async function sendIssueAssignedNotification({
     console.error("[whatsapp] assigned notify error:", err);
   }
 }
+
+/**
+ * Notify a QA tester that they've been added to an org.
+ * Template "qa_tester_invite" (Utility):
+ *   Body:   Hi {{1}}, you've been added as a QA tester for {{2}} on Glitchgrab. You'll receive verification requests here.
+ *   Button 0 (URL): Open QA dashboard → https://glitchgrab.dev/qa/{{1}}
+ *                   suffix = <magicToken>
+ */
+export async function sendTesterInvite({
+  phone,
+  testerName,
+  orgName,
+  magicToken,
+}: {
+  phone: string;
+  testerName: string;
+  orgName: string;
+  magicToken: string;
+}): Promise<void> {
+  const phoneNumberId = process.env.META_WA_PHONE_NUMBER_ID;
+  const accessToken = process.env.META_WA_ACCESS_TOKEN;
+  if (!phoneNumberId || !accessToken) return;
+
+  const to = formatPhone(phone);
+  if (!to) return;
+
+  try {
+    const res = await fetch(`${META_API_BASE}/${phoneNumberId}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        type: "template",
+        template: {
+          name: "qa_tester_invite",
+          language: { code: "en" },
+          components: [
+            {
+              type: "body",
+              parameters: [
+                { type: "text", text: sanitizeParam(testerName) },
+                { type: "text", text: sanitizeParam(orgName) },
+              ],
+            },
+            {
+              type: "button",
+              sub_type: "url",
+              index: "0",
+              parameters: [{ type: "text", text: magicToken }],
+            },
+          ],
+        },
+      }),
+    });
+    if (!res.ok) console.error("[whatsapp] tester invite failed:", await res.text());
+  } catch (err) {
+    console.error("[whatsapp] tester invite error:", err);
+  }
+}
+
+/**
+ * Ask a QA tester to verify a fix a developer just merged.
+ * Template "qa_verify_request" (Utility):
+ *   Body:   Hi {{1}}, developer {{2}} marked issue "{{3}}" as fixed on {{4}}. Please verify it works.
+ *   Button 0 (URL): Verify now → https://glitchgrab.dev/qa/{{1}}
+ *                   suffix = <magicToken>
+ */
+export async function sendTesterQaRequest({
+  phone,
+  testerName,
+  developerName,
+  issueTitle,
+  orgName,
+  magicToken,
+}: {
+  phone: string;
+  testerName: string;
+  developerName: string;
+  issueTitle: string;
+  orgName: string;
+  magicToken: string;
+}): Promise<void> {
+  const phoneNumberId = process.env.META_WA_PHONE_NUMBER_ID;
+  const accessToken = process.env.META_WA_ACCESS_TOKEN;
+  if (!phoneNumberId || !accessToken) return;
+
+  const to = formatPhone(phone);
+  if (!to) return;
+
+  try {
+    const res = await fetch(`${META_API_BASE}/${phoneNumberId}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        type: "template",
+        template: {
+          name: "qa_verify_request",
+          language: { code: "en" },
+          components: [
+            {
+              type: "body",
+              parameters: [
+                { type: "text", text: sanitizeParam(testerName) },
+                { type: "text", text: sanitizeParam(developerName) },
+                { type: "text", text: sanitizeParam(issueTitle) },
+                { type: "text", text: sanitizeParam(orgName) },
+              ],
+            },
+            {
+              type: "button",
+              sub_type: "url",
+              index: "0",
+              parameters: [{ type: "text", text: magicToken }],
+            },
+          ],
+        },
+      }),
+    });
+    if (!res.ok) console.error("[whatsapp] qa request failed:", await res.text());
+  } catch (err) {
+    console.error("[whatsapp] qa request error:", err);
+  }
+}
+
+/**
+ * Notify a developer that a tester marked their fix as NOT working.
+ * Template "qa_failed_dev" (Utility):
+ *   Body:   ⚠️ Tester {{1}} says "{{2}}" is NOT fixed on {{3}}. It has been reopened on GitHub.
+ *   Button 0 (URL): View on GitHub → https://github.com/{{1}}
+ *                   suffix = owner/repo/issues/number
+ */
+export async function sendDeveloperQaFailed({
+  phone,
+  testerName,
+  issueTitle,
+  orgName,
+  githubUrl,
+}: {
+  phone: string;
+  testerName: string;
+  issueTitle: string;
+  orgName: string;
+  githubUrl: string;
+}): Promise<void> {
+  const phoneNumberId = process.env.META_WA_PHONE_NUMBER_ID;
+  const accessToken = process.env.META_WA_ACCESS_TOKEN;
+  if (!phoneNumberId || !accessToken) return;
+
+  const to = formatPhone(phone);
+  if (!to) return;
+
+  const githubPath = githubUrl.replace("https://github.com/", "");
+
+  try {
+    const res = await fetch(`${META_API_BASE}/${phoneNumberId}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        type: "template",
+        template: {
+          name: "qa_failed_dev",
+          language: { code: "en" },
+          components: [
+            {
+              type: "body",
+              parameters: [
+                { type: "text", text: sanitizeParam(testerName) },
+                { type: "text", text: sanitizeParam(issueTitle) },
+                { type: "text", text: sanitizeParam(orgName) },
+              ],
+            },
+            {
+              type: "button",
+              sub_type: "url",
+              index: "0",
+              parameters: [{ type: "text", text: githubPath }],
+            },
+          ],
+        },
+      }),
+    });
+    if (!res.ok) console.error("[whatsapp] qa failed-dev notify failed:", await res.text());
+  } catch (err) {
+    console.error("[whatsapp] qa failed-dev notify error:", err);
+  }
+}
