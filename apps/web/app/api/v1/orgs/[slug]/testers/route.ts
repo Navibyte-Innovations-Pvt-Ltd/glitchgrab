@@ -100,9 +100,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     include: { repos: { include: { repo: { select: { id: true, fullName: true } } } } },
   });
 
-  // WhatsApp welcome with their QA link (fire-and-forget)
+  // WhatsApp welcome with their QA link. Must be awaited — on Vercel the function
+  // suspends right after the response returns, killing any un-awaited outbound
+  // fetch mid-TLS-handshake (ECONNRESET), so a fire-and-forget send never lands.
   if (tester.phone) {
-    void sendTesterInvite({
+    await sendTesterInvite({
       phone: tester.phone,
       testerName: tester.name,
       orgName: org.name,
