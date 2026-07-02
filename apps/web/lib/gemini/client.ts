@@ -89,7 +89,7 @@ export async function geminiChat(params: ChatParams): Promise<string> {
 // second pass: the model SEES a screenshot of each ambiguous element and decides
 // whether it can now narrate it confidently (so it stops asking the user).
 
-export interface VisionImage {
+interface VisionImage {
   /** Raw base64 (NO "data:image/...;base64," prefix). */
   data: string;
   /** e.g. "image/jpeg". */
