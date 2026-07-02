@@ -122,7 +122,7 @@ export async function POST(request: Request) {
         const name = glitchgrabIssue?.report?.reporterName ?? "there";
         const title = payload.issue?.title ?? "your issue";
         if (phone && glitchgrabIssue) {
-          sendIssueResolvedWhatsApp({
+          await sendIssueResolvedWhatsApp({
             phone,
             reporterName: name,
             issueTitle: title,
@@ -163,7 +163,7 @@ export async function POST(request: Request) {
         });
 
         if (assigneeUser?.whatsappPhone && payload.issue) {
-          sendIssueAssignedNotification({
+          await sendIssueAssignedNotification({
             phone: assigneeUser.whatsappPhone,
             developerName: assigneeUser.name ?? payload.assignee.login,
             issueTitle: payload.issue.title,
@@ -308,8 +308,10 @@ async function handlePullRequestEvent(
 
     // One WhatsApp per tester per PR — never one per issue (avoids spam when a
     // PR closes many issues). The count goes in the message; the QA page lists each.
+    // Awaited: an un-awaited send is killed when Vercel suspends the function
+    // after the webhook response (ECONNRESET mid-handshake).
     if (created > 0 && tester.phone) {
-      void sendTesterQaRequest({
+      await sendTesterQaRequest({
         phone: tester.phone,
         testerName: tester.name,
         developerName,
