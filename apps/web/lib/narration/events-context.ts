@@ -83,14 +83,14 @@ export function buildScriptContext(events: unknown): ScriptContext {
 
 // ── Script ordering validator ────────────────────────────────────────────────
 
-export interface OrderedStep {
+interface OrderedStep {
   /** Human-readable name for error messages. */
   name: string;
   /** Any one of these keywords appearing in the script counts as a match (case-insensitive). */
   keywords: string[];
 }
 
-export interface OrderCheckResult {
+interface OrderCheckResult {
   ok: boolean;
   /** Pairs where the "earlier" step appears AFTER the "later" step in the script. */
   violations: Array<{ earlier: string; later: string }>;
