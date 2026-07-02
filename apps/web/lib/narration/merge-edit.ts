@@ -30,7 +30,7 @@ export function numberParagraphs(script: string): string {
 
 /** A paragraph edit: index → replacement text. Empty replacement = delete. A
  *  replacement may itself contain blank lines (one paragraph expanding to many). */
-export type ParagraphPatch = Map<number, string>;
+type ParagraphPatch = Map<number, string>;
 
 // Matches an address line like `[#3]` (also tolerates `[ # 3 ]` drift).
 const ADDR = /\[\s*#\s*(\d+)\s*\]/g;
@@ -45,8 +45,8 @@ export function parseParagraphPatch(body: string): ParagraphPatch | null {
   const ops: ParagraphPatch = new Map();
   for (let i = 0; i < markers.length; i++) {
     const idx = Number.parseInt(markers[i][1], 10);
-    const start = markers[i].index! + markers[i][0].length;
-    const end = i + 1 < markers.length ? markers[i + 1].index! : body.length;
+    const start = (markers[i].index ?? 0) + markers[i][0].length;
+    const end = i + 1 < markers.length ? (markers[i + 1].index ?? body.length) : body.length;
     // Drop the single newline that follows the address line, keep internal
     // blank lines (expansion), trim trailing whitespace.
     const content = body.slice(start, end).replace(/^[ \t]*\r?\n/, "").trimEnd();
@@ -62,8 +62,8 @@ export function mergeParagraphEdit(currentScript: string, ops: ParagraphPatch): 
   const paras = splitParagraphs(currentScript);
   const out: string[] = [];
   for (let i = 0; i < paras.length; i++) {
-    if (ops.has(i)) {
-      const replacement = ops.get(i)!;
+    const replacement = ops.get(i);
+    if (replacement !== undefined) {
       if (replacement.trim() !== "") out.push(replacement); // empty = delete → skip
     } else {
       out.push(paras[i]); // untouched → original bytes
