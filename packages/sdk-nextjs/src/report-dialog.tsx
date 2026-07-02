@@ -292,6 +292,7 @@ export function ReportDialog({
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
+  const previewImgRef = useRef<HTMLImageElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
@@ -416,6 +417,21 @@ export function ReportDialog({
     document.addEventListener("keydown", handleEsc);
     return () => document.removeEventListener("keydown", handleEsc);
   }, [isOpen, previewIndex]);
+
+  // Close screenshot preview on outside click. Registered in the CAPTURE phase
+  // so it fires before the host page's own outside-click handlers (e.g. Radix
+  // DismissableLayer) can stop the event from ever bubbling to our onClick.
+  useEffect(() => {
+    if (previewIndex === null) return;
+    const handlePointerDown = (e: PointerEvent) => {
+      if (!previewImgRef.current?.contains(e.target as Node)) {
+        setPreviewIndex(null);
+      }
+    };
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    return () =>
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+  }, [previewIndex]);
 
   // Paste image from clipboard (Cmd+V / Ctrl+V) when dialog is open
   useEffect(() => {
@@ -1690,6 +1706,7 @@ export function ReportDialog({
             onMouseDown={(e) => e.stopPropagation()}
           >
             <img
+              ref={previewImgRef}
               src={screenshots[previewIndex]}
               alt="Screenshot preview"
               onClick={(e) => e.stopPropagation()}
