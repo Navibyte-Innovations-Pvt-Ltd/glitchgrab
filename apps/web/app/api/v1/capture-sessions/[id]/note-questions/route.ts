@@ -204,7 +204,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       const isCluster = g.members.length > 1;
       const hasVerdict = typeof p?.clear === "boolean";
       const worthAsking = hasVerdict
-        ? p!.clear === false
+        ? p?.clear === false
         : isCluster || isGenericLabel(label);
       if (!worthAsking) return [];
       const options = Array.isArray(p?.options)
