@@ -46,7 +46,7 @@ new text for paragraph 5
 - If the request is genuinely ambiguous: ask one short question and do NOT include ---SCRIPT--- or any [#n] block.
 - Every paragraph you DO emit must still obey ALL the rules above (length budget, notes clustering, speakable text, language/TTS format).`;
 
-export interface RefineSystemOpts {
+interface RefineSystemOpts {
   lang?: string;
   gender?: string;
   durationSec?: number;
@@ -76,7 +76,7 @@ export function buildRefineContextTurn(args: {
   return `Events:\n${args.eventsJson}${args.appLine}${args.metaSection}\n\nCURRENT SCRIPT (each paragraph is addressed [#n]; refine per my next messages):\n${numbered}`;
 }
 
-export interface RefineResult {
+interface RefineResult {
   /** Short conversational line (what changed / a clarifying question). */
   reply: string;
   /** Merged full script ready to drop into the narration box, or null when the
@@ -91,7 +91,7 @@ export interface RefineResult {
  *  3. marker + [#n] blocks           → surgical paragraph merge */
 export function resolveRefinement(raw: string, currentScript: string): RefineResult {
   const { reply, script: body } = parseRefineReply(raw);
-  if (body == null) return { reply, script: null };
+  if (body === null) return { reply, script: null };
 
   const ops = parseParagraphPatch(body);
   if (!ops) return { reply, script: body }; // fallback: full replacement
