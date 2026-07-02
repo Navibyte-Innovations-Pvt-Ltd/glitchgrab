@@ -597,15 +597,32 @@ export function ReportDialog({
 
   const handleSpaceDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.code !== "Space") return;
-    // Block ALL repeat space events while timer pending or recording active
-    if (spaceTimerRef.current || isListening || isPushToTalkRef.current) {
+    // Recording or already-committed to push-to-talk — swallow the space
+    if (isListening || isPushToTalkRef.current) {
       e.preventDefault();
       return;
     }
-    if (e.repeat || !transcribeAudio || isTranscribing) return;
-    e.preventDefault();
+    // Auto-repeat from a held key, or a timer already pending — let the browser
+    // type normally; we only care about the first keydown of a hold.
+    if (e.repeat || !transcribeAudio || isTranscribing || spaceTimerRef.current)
+      return;
+
+    // Don't preventDefault: let the browser insert the space natively so the
+    // cursor stays exactly where the user typed it. If the hold matures into
+    // push-to-talk, strip that space back out below.
+    const pos = e.currentTarget.selectionStart ?? description.length;
     spaceTimerRef.current = setTimeout(() => {
+      spaceTimerRef.current = null;
       isPushToTalkRef.current = true;
+      setDescription((prev) =>
+        prev[pos] === " " ? prev.slice(0, pos) + prev.slice(pos + 1) : prev,
+      );
+      requestAnimationFrame(() => {
+        if (textareaRef.current) {
+          textareaRef.current.selectionStart = pos;
+          textareaRef.current.selectionEnd = pos;
+        }
+      });
       void toggleVoice();
     }, 400);
   };
@@ -613,23 +630,9 @@ export function ReportDialog({
   const handleSpaceUp = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.code !== "Space") return;
     if (spaceTimerRef.current) {
+      // Quick tap — space was already typed natively, nothing to do.
       clearTimeout(spaceTimerRef.current);
       spaceTimerRef.current = null;
-      if (!isPushToTalkRef.current) {
-        // Insert space at current cursor position, not at end
-        const ta = textareaRef.current;
-        const pos = ta
-          ? (ta.selectionStart ?? description.length)
-          : description.length;
-        setDescription((prev) => prev.slice(0, pos) + " " + prev.slice(pos));
-        // Restore cursor after React re-render
-        requestAnimationFrame(() => {
-          if (textareaRef.current) {
-            textareaRef.current.selectionStart = pos + 1;
-            textareaRef.current.selectionEnd = pos + 1;
-          }
-        });
-      }
     }
     if (isPushToTalkRef.current) {
       isPushToTalkRef.current = false;
