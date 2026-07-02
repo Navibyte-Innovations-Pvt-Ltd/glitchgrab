@@ -113,8 +113,16 @@ async function handleReporterSaidNo(issueId: string) {
   try {
     await reopenGitHubIssue(account.access_token, owner, repoName, issue.githubNumber);
   } catch (err) {
-    console.error("[whatsapp-webhook] reopen failed:", err);
-    return;
+    console.warn("[whatsapp-webhook] reopen attempt 1 failed, retrying:", err);
+    try {
+      await reopenGitHubIssue(account.access_token, owner, repoName, issue.githubNumber);
+    } catch (retryErr) {
+      console.error(
+        `[whatsapp-webhook] reopen failed for issue ${issueId} (${owner}/${repoName}#${issue.githubNumber}):`,
+        retryErr
+      );
+      return;
+    }
   }
 
   // Notify developer via WhatsApp
