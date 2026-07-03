@@ -184,6 +184,22 @@ export async function reopenGitHubIssue(
   }
 }
 
+export async function closeGitHubIssue(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  issueNumber: number
+): Promise<void> {
+  const res = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/issues/${issueNumber}`, {
+    method: "PATCH",
+    headers: headers(accessToken),
+    body: JSON.stringify({ state: "closed" }),
+  });
+  if (!res.ok) {
+    throw new Error(`GitHub close error (${res.status}): ${await res.text()}`);
+  }
+}
+
 // ─── Fetch a single issue ────────────────────────────
 
 export async function getGitHubIssue(
