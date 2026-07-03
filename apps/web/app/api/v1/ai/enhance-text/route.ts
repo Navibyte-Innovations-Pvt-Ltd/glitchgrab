@@ -85,7 +85,7 @@ export async function POST(request: Request) {
       userId = session.user.id;
     }
 
-    const rl = checkRateLimit(rateLimitKey, ENHANCE_LIMIT, ENHANCE_WINDOW_MS);
+    const rl = await checkRateLimit(rateLimitKey, ENHANCE_LIMIT, ENHANCE_WINDOW_MS);
     if (!rl.allowed) {
       const retryAfter = Math.ceil((rl.resetAt.getTime() - Date.now()) / 1000);
       return NextResponse.json(
