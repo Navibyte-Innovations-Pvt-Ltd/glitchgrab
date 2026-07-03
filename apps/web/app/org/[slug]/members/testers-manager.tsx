@@ -277,7 +277,7 @@ function EditTesterSheet({
   onSaved: () => void;
 }) {
   const [name, setName] = useState(tester?.name ?? "");
-  const [phone, setPhone] = useState<string | undefined>(tester?.phone ?? "");
+  const [phone, setPhone] = useState<string | undefined>(tester?.phone ? `+${tester.phone}` : "");
   const [email, setEmail] = useState(tester?.email ?? "");
 
   const editMutation = useMutation({
