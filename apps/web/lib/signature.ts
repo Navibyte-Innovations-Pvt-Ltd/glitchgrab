@@ -34,6 +34,15 @@ function stripUrlQuery(url: string | null | undefined): string {
   }
 }
 
+// Folds dynamic values (record ids, UUIDs, line/col numbers) so occurrences of the
+// same error with different embedded ids collapse to one signature.
+function normalizeDynamicValues(s: string): string {
+  return s
+    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, "#")
+    .replace(/\b0x[0-9a-f]+\b/gi, "#")
+    .replace(/\d+/g, "#");
+}
+
 export function computeReportSignature(params: {
   errorMessage?: string | null;
   pageUrl?: string | null;
@@ -43,7 +52,7 @@ export function computeReportSignature(params: {
   if (!msg) return null;
   const page = stripUrlQuery(params.pageUrl);
   const frame = topStackFrame(params.errorStack);
-  return hashString(`${msg}|${page}|${frame}`);
+  return hashString(normalizeDynamicValues(`${msg}|${page}|${frame}`));
 }
 
 // Suppress same-signature errors within 24h regardless of issue state
