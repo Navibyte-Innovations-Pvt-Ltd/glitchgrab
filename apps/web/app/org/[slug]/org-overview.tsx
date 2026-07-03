@@ -377,17 +377,8 @@ function IssueRow({
               className="h-4 w-4 rounded-full border border-border/60"
             />
           ))}
-          {issue.assignees.length === 1 && (
-            <span className="text-[10px] font-mono text-muted-foreground/60 hidden group-hover:inline">
-              @{issue.assignees[0].login}
-            </span>
-          )}
         </div>
-      ) : (
-        <span className="text-[10px] font-mono text-muted-foreground/30 shrink-0 hidden group-hover:inline">
-          unassigned
-        </span>
-      )}
+      ) : null}
       <div className="flex items-center gap-0.5 shrink-0">
         <button
           type="button"
