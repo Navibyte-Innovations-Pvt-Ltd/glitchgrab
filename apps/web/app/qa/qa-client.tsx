@@ -6,25 +6,41 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { PhoneInput } from "@/components/ui/phone-input";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, XCircle, Loader2, ExternalLink, LogOut } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, ExternalLink, LogOut, Pencil } from "lucide-react";
 import type { QaCheckView } from "@/lib/qa-view";
 
 export function QaClient({
   token,
   testerName,
+  testerEmail = null,
+  testerPhone = null,
   orgName,
   checks,
   showLogout = false,
 }: {
   token?: string;
   testerName: string;
+  testerEmail?: string | null;
+  testerPhone?: string | null;
   orgName: string;
   checks: QaCheckView[];
   showLogout?: boolean;
 }) {
   const router = useRouter();
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
 
   const mutation = useMutation({
     mutationFn: async ({ checkId, result }: { checkId: string; result: "PASS" | "FAIL" }) => {
@@ -54,22 +70,52 @@ export function QaClient({
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-2xl px-4 py-10">
-        <header className="mb-8 flex items-start justify-between gap-4">
-          <div>
+        <header className="mb-8">
+          <div className="flex items-start justify-between gap-4">
             <div className="text-xs font-mono uppercase tracking-wide text-muted-foreground">QA Verification</div>
-            <h1 className="mt-1 text-2xl font-semibold">Hi {testerName} 👋</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Fixes waiting for your check in <span className="font-medium text-foreground">{orgName}</span>.
-              Try each one, then mark it Pass or Fail. Failing an item reopens the issue and pings the developer.
-            </p>
+            {showLogout && (
+              <Button size="sm" variant="ghost" onClick={() => logout.mutate()} disabled={logout.isPending}>
+                {logout.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
+                Log out
+              </Button>
+            )}
           </div>
-          {showLogout && (
-            <Button size="sm" variant="ghost" onClick={() => logout.mutate()} disabled={logout.isPending}>
-              {logout.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
-              Log out
+
+          <div className="mt-3 flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-base font-semibold text-primary">
+              {testerName.charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-2xl font-semibold leading-tight">Hi {testerName} 👋</h1>
+              <p className="text-xs text-muted-foreground">
+                Testing for <span className="font-medium text-foreground">{orgName}</span>
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="ml-auto shrink-0"
+              onClick={() => setEditOpen(true)}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              Edit profile
             </Button>
-          )}
+          </div>
+
+          <p className="mt-4 text-sm text-muted-foreground">
+            Try each fix below, then mark it Pass or Fail. Failing an item reopens the issue and pings the
+            developer.
+          </p>
         </header>
+
+        <EditProfileSheet
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          token={token}
+          name={testerName}
+          email={testerEmail}
+          phone={testerPhone}
+        />
 
         {pending.length === 0 ? (
           <div className="rounded-lg border border-border bg-card px-4 py-10 text-center text-sm text-muted-foreground">
@@ -163,5 +209,100 @@ export function QaClient({
         )}
       </div>
     </div>
+  );
+}
+
+function EditProfileSheet({
+  open,
+  onOpenChange,
+  token,
+  name: initialName,
+  email: initialEmail,
+  phone: initialPhone,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  token?: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+}) {
+  const router = useRouter();
+  const [name, setName] = useState(initialName);
+  const [email, setEmail] = useState(initialEmail ?? "");
+  const [phone, setPhone] = useState<string | undefined>(initialPhone ? `+${initialPhone}` : "");
+
+  const editMutation = useMutation({
+    mutationFn: async () =>
+      axios.patch("/api/v1/qa/profile", {
+        name: name.trim(),
+        phone,
+        email: email.trim() || undefined,
+        token,
+      }),
+    onSuccess: () => {
+      toast.success("Profile updated");
+      onOpenChange(false);
+      router.refresh();
+    },
+    onError: (err) => {
+      const msg = axios.isAxiosError(err) ? err.response?.data?.error : "Failed to update profile";
+      toast.error(msg ?? "Failed to update profile");
+    },
+  });
+
+  return (
+    <Sheet
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) {
+          setName(initialName);
+          setEmail(initialEmail ?? "");
+          setPhone(initialPhone ? `+${initialPhone}` : "");
+        }
+        onOpenChange(v);
+      }}
+    >
+      <SheetContent className="w-full sm:max-w-md flex flex-col p-0">
+        <SheetHeader className="px-6 pt-6">
+          <SheetTitle>Edit profile</SheetTitle>
+          <SheetDescription>Keep your name and contact details up to date.</SheetDescription>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
+          <div className="space-y-1.5">
+            <Label htmlFor="qa-profile-name">Name</Label>
+            <Input id="qa-profile-name" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="qa-profile-phone">WhatsApp number</Label>
+            <PhoneInput id="qa-profile-phone" value={phone} onChange={setPhone} />
+            <p className="text-[11px] text-muted-foreground">Used for OTP login + notifications.</p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="qa-profile-email">Email (optional)</Label>
+            <Input
+              id="qa-profile-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <SheetFooter className="px-6 pb-6 pt-2 border-t border-border">
+          <Button
+            onClick={() => editMutation.mutate()}
+            disabled={editMutation.isPending || !name.trim()}
+            className="w-full"
+          >
+            {editMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Save changes
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
