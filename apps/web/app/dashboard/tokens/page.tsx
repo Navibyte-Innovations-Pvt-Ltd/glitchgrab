@@ -11,6 +11,7 @@ import {
 import { InnerPageHeader } from "@/components/dashboard/inner-page-header";
 import { CreateTokenDialog } from "./create-token-dialog";
 import { DeleteTokenButton } from "./delete-token-button";
+import { ShareLinkDialog } from "./share-link-dialog";
 import Link from "next/link";
 
 export default async function TokensPage() {
@@ -30,6 +31,8 @@ export default async function TokensPage() {
     include: { repo: { select: { fullName: true } } },
     orderBy: { createdAt: "desc" },
   });
+
+  const baseUrl = process.env.NEXTAUTH_URL ?? "https://glitchgrab.dev";
 
   const activeCount = tokens.length;
   const capacity = Math.max(10, activeCount);
@@ -111,6 +114,8 @@ export default async function TokensPage() {
                 createdAt={token.createdAt}
                 lastUsed={token.lastUsed}
                 ownerName={ownerName}
+                shareSlug={token.shareSlug}
+                baseUrl={baseUrl}
               />
             ))}
           </div>
@@ -127,6 +132,8 @@ interface TokenRowProps {
   createdAt: Date;
   lastUsed: Date | null;
   ownerName: string;
+  shareSlug: string | null;
+  baseUrl: string;
 }
 
 function TokenRow({
@@ -136,13 +143,15 @@ function TokenRow({
   createdAt,
   lastUsed,
   ownerName,
+  shareSlug,
+  baseUrl,
 }: TokenRowProps) {
   const tokenLabel = `tok_${id.slice(0, 10)}`;
   const createdLabel = formatRelative(createdAt);
   const lastUsedLabel = lastUsed ? formatRelative(lastUsed) : "never used";
 
   return (
-    <div className="data-row group relative grid grid-cols-[auto_1fr_auto_40px] sm:grid-cols-[auto_1fr_auto_auto_auto_auto] items-center gap-y-1 p-3 rounded bg-transparent hover:bg-card/60 border border-transparent hover:border-border/50 transition-colors">
+    <div className="data-row group relative grid grid-cols-[auto_1fr_auto_auto] sm:grid-cols-[auto_1fr_auto_auto_auto_auto] items-center gap-y-1 p-3 rounded bg-transparent hover:bg-card/60 border border-transparent hover:border-border/50 transition-colors">
       <div className="absolute inset-y-2 left-0.5 w-0.5 bg-primary shadow-[0_0_8px_rgba(34,211,238,0.4)]" />
       <div className="w-8 h-8 rounded border border-border bg-card flex items-center justify-center text-muted-foreground mr-4 shrink-0">
         <Key className="h-4 w-4" />
@@ -181,7 +190,8 @@ function TokenRow({
         <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
         active
       </div>
-      <div className="flex justify-end pl-2">
+      <div className="flex justify-end items-center gap-1.5 pl-2">
+        <ShareLinkDialog tokenId={id} shareSlug={shareSlug} baseUrl={baseUrl} />
         <DeleteTokenButton tokenId={id} />
       </div>
       <ChevronRight className="hidden sm:hidden h-4 w-4 text-muted-foreground" />
