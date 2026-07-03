@@ -15,6 +15,8 @@ export interface QaCheckView {
 
 interface QaView {
   testerName: string;
+  testerEmail: string | null;
+  testerPhone: string | null;
   orgName: string;
   checks: QaCheckView[];
 }
@@ -35,6 +37,8 @@ export async function getQaView(testerId: string): Promise<QaView | null> {
 
   return {
     testerName: tester.name,
+    testerEmail: tester.email,
+    testerPhone: tester.phone,
     orgName: tester.org.name,
     checks: tester.checks.map((c) => ({
       id: c.id,
