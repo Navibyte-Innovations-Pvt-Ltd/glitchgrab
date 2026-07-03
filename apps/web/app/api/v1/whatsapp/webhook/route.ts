@@ -74,10 +74,10 @@ export async function POST(request: Request) {
 
     for (const status of statuses) {
       if (status.status === "failed") {
-        console.error("[whatsapp-webhook] delivery failed:", {
-          recipient: status.recipient_id,
-          errors: status.errors,
-        });
+        console.error(
+          "[whatsapp-webhook] delivery failed:",
+          JSON.stringify({ recipient: status.recipient_id, errors: status.errors })
+        );
       }
     }
 
