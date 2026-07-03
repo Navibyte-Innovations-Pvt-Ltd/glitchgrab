@@ -17,7 +17,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
 
-  const rate = checkRateLimit(`wa-otp-send:${session.user.id}`, 5, 60 * 60 * 1000);
+  const rate = await checkRateLimit(`wa-otp-send:${session.user.id}`, 5, 60 * 60 * 1000);
   if (!rate.allowed) {
     return NextResponse.json({ success: false, error: "Too many OTP requests. Try again later." }, { status: 429 });
   }
