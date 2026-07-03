@@ -24,6 +24,8 @@ export default async function QaTokenPage({ params }: { params: Promise<{ token:
     <QaClient
       token={token}
       testerName={view.testerName}
+      testerEmail={view.testerEmail}
+      testerPhone={view.testerPhone}
       orgName={view.orgName}
       checks={view.checks}
     />
