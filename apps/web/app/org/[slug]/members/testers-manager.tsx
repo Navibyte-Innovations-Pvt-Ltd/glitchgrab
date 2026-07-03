@@ -17,7 +17,7 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { Loader2, Copy, Trash2, Plus, FlaskConical } from "lucide-react";
+import { Loader2, Copy, Trash2, Plus, FlaskConical, Pencil } from "lucide-react";
 
 interface Repo {
   id: string;
@@ -47,6 +47,7 @@ export function TestersManager({
   const queryClient = useQueryClient();
   const queryKey = ["org-testers", orgSlug];
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [editingTester, setEditingTester] = useState<Tester | null>(null);
 
   const { data: testers = [] } = useQuery<Tester[]>({
     queryKey,
@@ -99,6 +100,7 @@ export function TestersManager({
               tester={t}
               onDelete={() => deleteMutation.mutate(t.id)}
               deleting={deleteMutation.isPending && deleteMutation.variables === t.id}
+              onEdit={() => setEditingTester(t)}
             />
           ))
         )}
@@ -112,6 +114,17 @@ export function TestersManager({
         onAdded={() => {
           queryClient.invalidateQueries({ queryKey });
           setSheetOpen(false);
+        }}
+      />
+
+      <EditTesterSheet
+        key={editingTester?.id}
+        tester={editingTester}
+        onOpenChange={(v) => !v && setEditingTester(null)}
+        orgSlug={orgSlug}
+        onSaved={() => {
+          queryClient.invalidateQueries({ queryKey });
+          setEditingTester(null);
         }}
       />
     </div>
@@ -252,14 +265,103 @@ function AddTesterSheet({
   );
 }
 
+function EditTesterSheet({
+  tester,
+  onOpenChange,
+  orgSlug,
+  onSaved,
+}: {
+  tester: Tester | null;
+  onOpenChange: (v: boolean) => void;
+  orgSlug: string;
+  onSaved: () => void;
+}) {
+  const [name, setName] = useState(tester?.name ?? "");
+  const [phone, setPhone] = useState<string | undefined>(tester?.phone ? `+${tester.phone}` : "");
+  const [email, setEmail] = useState(tester?.email ?? "");
+
+  const editMutation = useMutation({
+    mutationFn: async () => {
+      if (!tester) return;
+      const { data } = await axios.patch(`/api/v1/orgs/${orgSlug}/testers/${tester.id}`, {
+        name: name.trim(),
+        phone,
+        email: email.trim() || undefined,
+      });
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Tester updated");
+      onSaved();
+    },
+    onError: (err) => {
+      const msg = axios.isAxiosError(err) ? err.response?.data?.error : "Failed to update tester";
+      toast.error(msg ?? "Failed to update tester");
+    },
+  });
+
+  return (
+    <Sheet open={!!tester} onOpenChange={onOpenChange}>
+      <SheetContent className="w-full sm:max-w-md flex flex-col p-0">
+        <SheetHeader className="px-6 pt-6">
+          <SheetTitle>Edit tester</SheetTitle>
+          <SheetDescription>
+            Fix a wrong number or update contact details. Repo assignment stays the same.
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-tester-name">Name</Label>
+            <Input
+              id="edit-tester-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-tester-phone">WhatsApp number</Label>
+            <PhoneInput id="edit-tester-phone" value={phone} onChange={setPhone} />
+            <p className="text-[11px] text-muted-foreground">Used for OTP login + notifications.</p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-tester-email">Email (optional)</Label>
+            <Input
+              id="edit-tester-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <SheetFooter className="px-6 pb-6 pt-2 border-t border-border">
+          <Button
+            onClick={() => editMutation.mutate()}
+            disabled={editMutation.isPending || !name.trim()}
+            className="w-full"
+          >
+            {editMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Save changes
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 function TesterRow({
   tester,
   onDelete,
   deleting,
+  onEdit,
 }: {
   tester: Tester;
   onDelete: () => void;
   deleting: boolean;
+  onEdit: () => void;
 }) {
   const [confirming, setConfirming] = useState(false);
 
@@ -297,6 +399,9 @@ function TesterRow({
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
+          <Button size="sm" variant="ghost" onClick={onEdit} title="Edit tester">
+            <Pencil className="h-4 w-4" />
+          </Button>
           <Button size="sm" variant="ghost" onClick={copyLink} title="Copy QA link">
             <Copy className="h-4 w-4" />
           </Button>
