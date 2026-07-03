@@ -84,7 +84,7 @@ export async function POST(request: Request) {
     }
 
     // Rate limit check
-    const rateLimit = checkRateLimit(tokenHash);
+    const rateLimit = await checkRateLimit(tokenHash);
     if (!rateLimit.allowed) {
       const retryAfter = Math.ceil(
         (rateLimit.resetAt.getTime() - Date.now()) / 1000
