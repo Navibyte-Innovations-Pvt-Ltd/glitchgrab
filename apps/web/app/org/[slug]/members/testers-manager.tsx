@@ -118,6 +118,7 @@ export function TestersManager({
       />
 
       <EditTesterSheet
+        key={editingTester?.id}
         tester={editingTester}
         onOpenChange={(v) => !v && setEditingTester(null)}
         orgSlug={orgSlug}
@@ -301,7 +302,7 @@ function EditTesterSheet({
 
   return (
     <Sheet open={!!tester} onOpenChange={onOpenChange}>
-      <SheetContent key={tester?.id} className="w-full sm:max-w-md flex flex-col p-0">
+      <SheetContent className="w-full sm:max-w-md flex flex-col p-0">
         <SheetHeader className="px-6 pt-6">
           <SheetTitle>Edit tester</SheetTitle>
           <SheetDescription>
