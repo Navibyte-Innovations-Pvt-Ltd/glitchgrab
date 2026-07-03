@@ -134,6 +134,8 @@ model ApiToken {
   lastUsed  DateTime?
   expiresAt DateTime?
   createdAt DateTime  @default(now())
+  /// Public no-auth slug for the tester report link — null = link disabled
+  shareSlug String?   @unique
 
   repo           Repo           @relation(fields: [repoId], references: [id], onDelete: Cascade)
   reports        Report[]
@@ -148,6 +150,7 @@ enum ReportSource {
   DASHBOARD_UPLOAD
   HANDWRITTEN_NOTE
   MCP
+  PUBLIC_LINK
 }
 
 enum ReportStatus {
