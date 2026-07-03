@@ -6,16 +6,19 @@ import axios from "axios";
 import {
   AlertTriangle,
   Bug,
+  Check,
   ChevronRight,
   ClipboardList,
   Clock,
   ExternalLink,
   EyeOff,
   FileText,
+  FlaskConical,
   GitPullRequest,
   Loader2,
   MessageSquare,
   Paperclip,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -132,9 +135,11 @@ function formatAge(date: string): string {
 export function ReportsTabs({
   myReports,
   productIssues,
+  orgSlug,
 }: {
   myReports: ReportItem[];
   productIssues: ReportItem[];
+  orgSlug?: string;
 }) {
   const [tab, setTab] = useState<"product" | "my">("product");
   const [search, setSearch] = useState("");
@@ -142,7 +147,17 @@ export function ReportsTabs({
   const [dateFilter, setDateFilter] = useState<"ALL" | "TODAY" | "LAST_7_DAYS" | "LAST_30_DAYS">("ALL");
   const [cutoffTimestamp, setCutoffTimestamp] = useState<number | null>(null);
   const [issueStateFilter, setIssueStateFilter] = useState<"all" | "open" | "closed">("all");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const router = useRouter();
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   const reports = tab === "product" ? productIssues : myReports;
 
@@ -189,7 +204,40 @@ export function ReportsTabs({
     setDateFilter("ALL");
     setCutoffTimestamp(null);
     setSearch("");
+    setSelectedIds(new Set());
   }
+
+  const selectedReports = filtered.filter((r) => selectedIds.has(r.id));
+
+  const bulkSendMutation = useMutation({
+    mutationFn: async () => {
+      const withIssue = selectedReports.filter(
+        (r): r is ReportItem & { issue: NonNullable<ReportItem["issue"]> } => !!r.issue
+      );
+      const results = await Promise.allSettled(
+        withIssue.map((r) =>
+          axios.post(`/api/v1/orgs/${orgSlug}/qa/send`, {
+            repoFullName: r.repoFullName,
+            githubNumber: r.issue.githubNumber,
+            title: r.issue.title,
+            githubUrl: r.issue.githubUrl,
+          })
+        )
+      );
+      const skipped = selectedReports.length - results.length;
+      const failed = results.filter((r) => r.status === "rejected").length;
+      return { sent: results.length - failed, failed, skipped };
+    },
+    onSuccess: ({ sent, failed, skipped }) => {
+      const parts = [`sent ${sent}`];
+      if (failed > 0) parts.push(`${failed} failed`);
+      if (skipped > 0) parts.push(`${skipped} skipped (no linked issue)`);
+      toast.success(parts.join(", "));
+      setSelectedIds(new Set());
+      router.refresh();
+    },
+    onError: () => toast.error("Failed to send"),
+  });
 
   return (
     <div className="space-y-4">
@@ -313,14 +361,46 @@ export function ReportsTabs({
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className={cn("grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3", orgSlug && "pb-16")}>
           {filtered.map((report) => (
             <ReportRow
               key={report.id}
               report={report}
               onActionDone={() => router.refresh()}
+              orgSlug={orgSlug}
+              selectable={!!orgSlug}
+              selected={selectedIds.has(report.id)}
+              onToggleSelected={() => toggleSelected(report.id)}
             />
           ))}
+        </div>
+      )}
+
+      {/* Bulk send bar — only in org context, only when something's selected */}
+      {orgSlug && selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 bg-card border border-primary/40 rounded-lg shadow-lg px-4 py-2.5">
+          <span className="font-mono text-[11px] text-foreground">
+            {selectedIds.size} selected
+          </span>
+          <button
+            onClick={() => bulkSendMutation.mutate()}
+            disabled={bulkSendMutation.isPending}
+            className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wide bg-primary/10 border border-primary/30 text-primary px-2.5 py-1 rounded disabled:opacity-50 hover:bg-primary/20 transition-colors"
+          >
+            {bulkSendMutation.isPending ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <FlaskConical className="h-3 w-3" />
+            )}
+            send to qa
+          </button>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            title="Clear selection"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
       )}
     </div>
@@ -374,9 +454,17 @@ function TabButton({
 function ReportRow({
   report,
   onActionDone,
+  orgSlug,
+  selectable,
+  selected,
+  onToggleSelected,
 }: {
   report: ReportItem;
   onActionDone: () => void;
+  orgSlug?: string;
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelected?: () => void;
 }) {
   const stripClass = getStripClass(report.status);
   const sourceLabel = SOURCE_LABELS[report.source] ?? report.source.toLowerCase();
@@ -417,7 +505,29 @@ function ReportRow({
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to dismiss"),
   });
 
+  const sendToQaMutation = useMutation({
+    mutationFn: async () => {
+      if (!report.issue) throw new Error("No linked issue");
+      const { data } = await axios.post(`/api/v1/orgs/${orgSlug}/qa/send`, {
+        repoFullName: report.repoFullName,
+        githubNumber: report.issue.githubNumber,
+        title: report.issue.title,
+        githubUrl: report.issue.githubUrl,
+      });
+      return data as { data?: { sent?: number } };
+    },
+    onSuccess: (data) => {
+      const n = data?.data?.sent ?? 0;
+      toast.success(n > 0 ? `Sent to ${n} tester${n === 1 ? "" : "s"}` : "Already sent — no new testers");
+    },
+    onError: (err) => {
+      const msg = axios.isAxiosError(err) ? err.response?.data?.error : "Failed to send";
+      toast.error(msg ?? "Failed to send");
+    },
+  });
+
   const githubUrl = report.issue?.githubUrl ?? null;
+  const canSendToQa = !!orgSlug && !!report.issue;
 
   const cardContent = (
     <div className="relative flex flex-col gap-3 p-4 h-full">
@@ -425,8 +535,29 @@ function ReportRow({
 
       {/* Top: icon + status chip */}
       <div className="flex items-start justify-between gap-2">
-        <div className="w-8 h-8 rounded border border-border bg-background flex items-center justify-center text-muted-foreground shrink-0">
-          {renderSourceIcon(report.source, "h-3.5 w-3.5")}
+        <div className="flex items-center gap-1.5">
+          {selectable && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onToggleSelected?.();
+              }}
+              className={cn(
+                "w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-colors",
+                selected
+                  ? "bg-primary border-primary text-primary-foreground"
+                  : "border-border bg-background hover:border-primary/50"
+              )}
+              title={selected ? "Deselect" : "Select"}
+            >
+              {selected && <Check className="h-3 w-3" />}
+            </button>
+          )}
+          <div className="w-8 h-8 rounded border border-border bg-background flex items-center justify-center text-muted-foreground shrink-0">
+            {renderSourceIcon(report.source, "h-3.5 w-3.5")}
+          </div>
         </div>
         <div className="flex items-center gap-1.5">
           <div className={cn(
@@ -435,6 +566,25 @@ function ReportRow({
           )}>
             {statusChip.label}
           </div>
+          {canSendToQa && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                sendToQaMutation.mutate();
+              }}
+              disabled={sendToQaMutation.isPending}
+              className="p-1 rounded hover:bg-muted transition-colors shrink-0"
+              title="Send to tester for QA"
+            >
+              {sendToQaMutation.isPending ? (
+                <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+              ) : (
+                <FlaskConical className="h-3 w-3 text-primary" />
+              )}
+            </button>
+          )}
           {githubUrl && (
             <ExternalLink className="h-3 w-3 text-muted-foreground/50 shrink-0" />
           )}
