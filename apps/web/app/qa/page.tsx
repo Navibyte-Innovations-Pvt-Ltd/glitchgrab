@@ -20,6 +20,8 @@ export default async function QaPage() {
   return (
     <QaClient
       testerName={view.testerName}
+      testerEmail={view.testerEmail}
+      testerPhone={view.testerPhone}
       orgName={view.orgName}
       checks={view.checks}
       showLogout
