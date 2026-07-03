@@ -509,3 +509,11 @@ model QaCheck {
   @@index([testerId, status])
   @@index([repoId, githubNumber])
 }
+
+model RateLimit {
+  key     String   @id
+  count   Int      @default(0)
+  resetAt DateTime
+
+  @@index([resetAt])
+}
