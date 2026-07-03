@@ -17,7 +17,7 @@ export default async function OrgReportsPage({ params }: { params: Promise<{ slu
         subtitle="Bug reports captured via SDK and dashboard"
         meta="owner view · product issues + my reports"
       />
-      <ReportsList />
+      <ReportsList orgSlug={slug} />
     </div>
   );
 }

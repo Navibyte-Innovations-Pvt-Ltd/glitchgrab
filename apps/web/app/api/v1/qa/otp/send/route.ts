@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const rate = checkRateLimit(`qa-otp-send:${cleaned}`, 5, 60 * 60 * 1000);
+  const rate = await checkRateLimit(`qa-otp-send:${cleaned}`, 5, 60 * 60 * 1000);
   if (!rate.allowed) {
     return NextResponse.json({ success: false, error: "Too many OTP requests. Try again later." }, { status: 429 });
   }

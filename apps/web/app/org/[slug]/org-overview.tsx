@@ -388,7 +388,7 @@ function IssueRow({
           unassigned
         </span>
       )}
-      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+      <div className="flex items-center gap-0.5 shrink-0">
         <button
           type="button"
           onClick={(e) => {

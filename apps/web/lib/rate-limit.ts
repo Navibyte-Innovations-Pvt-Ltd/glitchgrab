@@ -1,7 +1,4 @@
-interface RateLimitEntry {
-  count: number;
-  resetAt: number;
-}
+import { prisma } from "@/lib/db";
 
 interface RateLimitResult {
   allowed: boolean;
@@ -9,68 +6,46 @@ interface RateLimitResult {
   resetAt: Date;
 }
 
-const store = new Map<string, RateLimitEntry>();
-
 const DEFAULT_LIMIT = 60;
 const DEFAULT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
-const CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
-
-// Periodic cleanup of expired entries
-let cleanupTimer: ReturnType<typeof setInterval> | null = null;
-
-function ensureCleanup() {
-  if (cleanupTimer) return;
-  cleanupTimer = setInterval(() => {
-    const now = Date.now();
-    for (const [key, entry] of store) {
-      if (entry.resetAt <= now) {
-        store.delete(key);
-      }
-    }
-  }, CLEANUP_INTERVAL_MS);
-  // Don't block process exit
-  (cleanupTimer as unknown as { unref?: () => void })?.unref?.();
-}
 
 /**
- * Checks and increments rate limit for a given token hash.
+ * Checks and increments rate limit for a given key.
+ * Backed by a DB row (not in-memory) so counts are shared across
+ * serverless instances/cold starts. The insert/update is a single
+ * atomic statement to avoid race conditions between concurrent requests.
  * Default: 60 requests per 60 minutes.
  */
-export function checkRateLimit(
-  tokenHash: string,
+export async function checkRateLimit(
+  key: string,
   limit: number = DEFAULT_LIMIT,
   windowMs: number = DEFAULT_WINDOW_MS
-): RateLimitResult {
-  ensureCleanup();
+): Promise<RateLimitResult> {
+  const now = new Date();
+  const resetAt = new Date(now.getTime() + windowMs);
 
-  const now = Date.now();
-  const entry = store.get(tokenHash);
+  const rows = await prisma.$queryRaw<{ count: number; resetAt: Date }[]>`
+    INSERT INTO "RateLimit" ("key", "count", "resetAt")
+    VALUES (${key}, 1, ${resetAt})
+    ON CONFLICT ("key") DO UPDATE SET
+      "count" = CASE WHEN "RateLimit"."resetAt" <= ${now} THEN 1 ELSE "RateLimit"."count" + 1 END,
+      "resetAt" = CASE WHEN "RateLimit"."resetAt" <= ${now} THEN ${resetAt} ELSE "RateLimit"."resetAt" END
+    RETURNING "count", "resetAt"
+  `;
 
-  // If no entry or window expired, start fresh
-  if (!entry || entry.resetAt <= now) {
-    const resetAt = now + windowMs;
-    store.set(tokenHash, { count: 1, resetAt });
-    return {
-      allowed: true,
-      remaining: limit - 1,
-      resetAt: new Date(resetAt),
-    };
-  }
-
-  // Window still active — increment
-  entry.count += 1;
+  const entry = rows[0];
 
   if (entry.count > limit) {
     return {
       allowed: false,
       remaining: 0,
-      resetAt: new Date(entry.resetAt),
+      resetAt: entry.resetAt,
     };
   }
 
   return {
     allowed: true,
     remaining: limit - entry.count,
-    resetAt: new Date(entry.resetAt),
+    resetAt: entry.resetAt,
   };
 }
