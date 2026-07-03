@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   const cleaned = (body.phone ?? "").replace(/\D/g, "");
   const otp = (body.otp ?? "").trim();
 
-  const rate = checkRateLimit(`qa-otp-verify:${cleaned}`, 20, 60 * 60 * 1000);
+  const rate = await checkRateLimit(`qa-otp-verify:${cleaned}`, 20, 60 * 60 * 1000);
   if (!rate.allowed) {
     return NextResponse.json({ success: false, error: "Too many attempts. Try again later." }, { status: 429 });
   }
