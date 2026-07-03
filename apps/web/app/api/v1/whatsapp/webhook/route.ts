@@ -58,12 +58,28 @@ export async function POST(request: Request) {
               type: string;
               button?: { payload: string; text: string };
             }>;
+            statuses?: Array<{
+              id: string;
+              status: string;
+              recipient_id: string;
+              errors?: Array<{ code: number; title: string; message: string }>;
+            }>;
           };
         }>;
       }>;
     };
 
     const messages = payload.entry?.[0]?.changes?.[0]?.value?.messages ?? [];
+    const statuses = payload.entry?.[0]?.changes?.[0]?.value?.statuses ?? [];
+
+    for (const status of statuses) {
+      if (status.status === "failed") {
+        console.error("[whatsapp-webhook] delivery failed:", {
+          recipient: status.recipient_id,
+          errors: status.errors,
+        });
+      }
+    }
 
     for (const message of messages) {
       if (message.type !== "button" || !message.button?.payload) continue;
