@@ -25,7 +25,7 @@ interface ReportItem {
   } | null;
 }
 
-export function ReportsList() {
+export function ReportsList({ orgSlug }: { orgSlug?: string } = {}) {
   // Fetch all reports via dashboard API (session auth)
   const { data: allReports, isLoading: loadingAll, isFetching } = useQuery<ReportItem[]>({
     queryKey: ["reports"],
@@ -95,6 +95,7 @@ export function ReportsList() {
       <ReportsTabs
         myReports={my}
         productIssues={productIssues}
+        orgSlug={orgSlug}
       />
     </div>
   );
