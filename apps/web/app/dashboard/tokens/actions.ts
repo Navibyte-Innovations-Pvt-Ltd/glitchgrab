@@ -2,7 +2,7 @@
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { generateToken, hashToken } from "@/lib/tokens";
+import { generateToken, generateShareSlug, hashToken } from "@/lib/tokens";
 import { revalidatePath } from "next/cache";
 
 export async function createToken(repoId: string, name: string) {
@@ -41,5 +41,41 @@ export async function deleteToken(tokenId: string) {
   if (!token) throw new Error("Token not found");
 
   await prisma.apiToken.delete({ where: { id: tokenId } });
+  revalidatePath("/dashboard/tokens");
+}
+
+export async function generateShareLink(tokenId: string) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+
+  const token = await prisma.apiToken.findFirst({
+    where: { id: tokenId, repo: { userId: session.user.id } },
+  });
+  if (!token) throw new Error("Token not found");
+
+  const slug = generateShareSlug();
+  await prisma.apiToken.update({
+    where: { id: tokenId },
+    data: { shareSlug: slug },
+  });
+
+  revalidatePath("/dashboard/tokens");
+  return slug;
+}
+
+export async function revokeShareLink(tokenId: string) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+
+  const token = await prisma.apiToken.findFirst({
+    where: { id: tokenId, repo: { userId: session.user.id } },
+  });
+  if (!token) throw new Error("Token not found");
+
+  await prisma.apiToken.update({
+    where: { id: tokenId },
+    data: { shareSlug: null },
+  });
+
   revalidatePath("/dashboard/tokens");
 }
