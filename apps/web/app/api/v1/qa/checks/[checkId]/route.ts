@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { reopenGitHubIssue, commentOnGitHubIssue } from "@/lib/github";
+import { reopenGitHubIssue, closeGitHubIssue, commentOnGitHubIssue, getGitHubIssue } from "@/lib/github";
 import { sendDeveloperQaFailed } from "@/lib/whatsapp";
 import { getTesterSession } from "@/lib/tester-session";
 
@@ -12,7 +12,7 @@ import { getTesterSession } from "@/lib/tester-session";
  * Body: { result: "PASS" | "FAIL", token?: string }
  *
  * FAIL → reopen the GitHub issue, comment, WhatsApp the developer.
- * PASS → leave the issue closed, add a confirming comment.
+ * PASS → close the issue if still open, add a confirming comment.
  */
 export async function POST(
   request: Request,
@@ -110,6 +110,14 @@ export async function POST(
     }
   } else {
     if (ghToken) {
+      try {
+        const issue = await getGitHubIssue(ghToken, owner, repoName, check.githubNumber);
+        if (issue?.state === "open") {
+          await closeGitHubIssue(ghToken, owner, repoName, check.githubNumber);
+        }
+      } catch (err) {
+        console.error("[qa] close failed:", err);
+      }
       try {
         await commentOnGitHubIssue(
           ghToken,
