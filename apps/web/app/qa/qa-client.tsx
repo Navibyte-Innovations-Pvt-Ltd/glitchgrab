@@ -18,7 +18,7 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, XCircle, Loader2, ExternalLink, LogOut, Pencil } from "lucide-react";
+import { CheckCircle2, XCircle, SkipForward, Loader2, ExternalLink, LogOut, Pencil } from "lucide-react";
 import type { QaCheckView } from "@/lib/qa-view";
 
 export function QaClient({
@@ -43,13 +43,19 @@ export function QaClient({
   const [editOpen, setEditOpen] = useState(false);
 
   const mutation = useMutation({
-    mutationFn: async ({ checkId, result }: { checkId: string; result: "PASS" | "FAIL" }) => {
+    mutationFn: async ({ checkId, result }: { checkId: string; result: "PASS" | "FAIL" | "SKIP" }) => {
       const { data } = await axios.post(`/api/v1/qa/checks/${checkId}`, { result, token });
       return data;
     },
     onMutate: ({ checkId }) => setPendingId(checkId),
     onSuccess: (_data, vars) => {
-      toast.success(vars.result === "PASS" ? "Marked as passed" : "Marked as failed — developer notified");
+      toast.success(
+        vars.result === "PASS"
+          ? "Marked as passed"
+          : vars.result === "FAIL"
+          ? "Marked as failed — developer notified"
+          : "Skipped"
+      );
       router.refresh();
     },
     onError: (err) => {
@@ -104,7 +110,7 @@ export function QaClient({
 
           <p className="mt-4 text-sm text-muted-foreground">
             Try each fix below, then mark it Pass or Fail. Failing an item reopens the issue and pings the
-            developer.
+            developer. Skip one if you can&apos;t verify it right now.
           </p>
         </header>
 
@@ -171,6 +177,19 @@ export function QaClient({
                     )}
                     Fail
                   </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => mutation.mutate({ checkId: c.id, result: "SKIP" })}
+                    disabled={mutation.isPending}
+                    title="Not testable right now — leaves the issue untouched, no notifications"
+                  >
+                    {pendingId === c.id && mutation.variables?.result === "SKIP" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <SkipForward className="h-4 w-4" />
+                    )}
+                  </Button>
                 </div>
               </div>
             ))}
@@ -198,7 +217,9 @@ export function QaClient({
                     "font-mono text-[10px] px-1.5 py-0.5 rounded border uppercase tracking-wide shrink-0",
                     c.status === "PASS"
                       ? "text-emerald-500 border-emerald-500/30 bg-emerald-500/10"
-                      : "text-red-500 border-red-500/30 bg-red-500/10"
+                      : c.status === "FAIL"
+                      ? "text-red-500 border-red-500/30 bg-red-500/10"
+                      : "text-muted-foreground border-border bg-muted"
                   )}
                 >
                   {c.status}
