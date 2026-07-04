@@ -7,12 +7,13 @@ import { sendDeveloperQaFailed } from "@/lib/whatsapp";
 import { getTesterSession } from "@/lib/tester-session";
 
 /**
- * POST /api/v1/qa/checks/[checkId] — a tester marks a check PASS or FAIL.
+ * POST /api/v1/qa/checks/[checkId] — a tester marks a check PASS, FAIL, or SKIP.
  * Auth: the gg_tester session cookie (OTP login) OR a magic `token` in the body.
- * Body: { result: "PASS" | "FAIL", token?: string }
+ * Body: { result: "PASS" | "FAIL" | "SKIP", token?: string }
  *
  * FAIL → reopen the GitHub issue, comment, WhatsApp the developer.
  * PASS → close the issue if still open, add a confirming comment.
+ * SKIP → just marks the check skipped. No GitHub call, no notification — a pure ignore.
  */
 export async function POST(
   request: Request,
@@ -20,7 +21,7 @@ export async function POST(
 ) {
   const { checkId } = await params;
   const { result, token } = (await request.json()) as {
-    result?: "PASS" | "FAIL";
+    result?: "PASS" | "FAIL" | "SKIP";
     token?: string;
   };
 
@@ -43,8 +44,8 @@ export async function POST(
     return NextResponse.json({ success: false, error: "Not signed in" }, { status: 401 });
   }
 
-  if (result !== "PASS" && result !== "FAIL") {
-    return NextResponse.json({ success: false, error: "result must be PASS or FAIL" }, { status: 400 });
+  if (result !== "PASS" && result !== "FAIL" && result !== "SKIP") {
+    return NextResponse.json({ success: false, error: "result must be PASS, FAIL, or SKIP" }, { status: 400 });
   }
 
   const check = await prisma.qaCheck.findFirst({
@@ -56,6 +57,14 @@ export async function POST(
   }
   if (check.status !== "PENDING") {
     return NextResponse.json({ success: false, error: "Already verified" }, { status: 409 });
+  }
+
+  if (result === "SKIP") {
+    const skipped = await prisma.qaCheck.update({
+      where: { id: check.id },
+      data: { status: "SKIPPED", verifiedAt: new Date() },
+    });
+    return NextResponse.json({ success: true, data: { id: skipped.id, status: skipped.status } });
   }
 
   const orgName = tester.org.name;
