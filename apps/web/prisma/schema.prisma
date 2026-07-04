@@ -488,6 +488,7 @@ enum QaStatus {
   PENDING
   PASS
   FAIL
+  SKIPPED
 }
 
 model QaCheck {

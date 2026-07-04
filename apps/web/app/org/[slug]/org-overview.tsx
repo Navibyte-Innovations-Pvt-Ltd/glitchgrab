@@ -933,6 +933,12 @@ function OrgIssuesClosedPreview({ orgSlug }: { orgSlug: string }) {
 
 // ─── Team Panel ───────────────────────────────────────────────────────────────
 
+interface TeamTester {
+  id: string;
+  name: string;
+  repos: { id: string; fullName: string }[];
+}
+
 function TeamPanel({
   orgSlug,
   isOwner,
@@ -957,6 +963,15 @@ function TeamPanel({
     },
     staleTime: 2 * 60_000,
     refetchInterval: 5 * 60_000,
+  });
+
+  const { data: testers } = useQuery<TeamTester[]>({
+    queryKey: ["org-testers", orgSlug],
+    queryFn: async () => {
+      const { data } = await axios.get(`/api/v1/orgs/${orgSlug}/testers`);
+      return data.data as TeamTester[];
+    },
+    staleTime: 30_000,
   });
 
   if (!membersData) {
@@ -1120,6 +1135,54 @@ function TeamPanel({
                   className="text-[11px] font-mono text-muted-foreground hover:text-primary transition-colors pl-1"
                 >
                   +{pending.length - 4} more →
+                </Link>
+              </li>
+            )}
+          </ul>
+        </div>
+      )}
+
+      {testers && testers.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2 pb-1">
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-mono px-2 py-0.5 rounded-full border border-primary/30 bg-primary/10 text-primary uppercase tracking-widest">
+              <FlaskConical className="w-2.5 h-2.5" />
+              {testers.length} tester{testers.length === 1 ? "" : "s"}
+            </span>
+          </div>
+          <ul className="flex flex-col gap-1.5">
+            {testers.slice(0, 4).map((t) => (
+              <li
+                key={t.id}
+                className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg border border-border/50 bg-card/40"
+              >
+                <div className="w-8 h-8 shrink-0 rounded-full bg-muted flex items-center justify-center text-xs font-mono font-bold">
+                  {t.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0 flex flex-col gap-1">
+                  <span className="text-sm font-medium text-foreground truncate">{t.name}</span>
+                  {t.repos.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {t.repos.map((r) => (
+                        <span
+                          key={r.id}
+                          className="text-[9px] font-mono px-1.5 py-0.5 rounded border border-border/60 bg-background/50 text-muted-foreground"
+                        >
+                          {r.fullName.split("/").pop()}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </li>
+            ))}
+            {testers.length > 4 && (
+              <li>
+                <Link
+                  href={`/org/${orgSlug}/members`}
+                  className="text-[11px] font-mono text-muted-foreground hover:text-primary transition-colors pl-1"
+                >
+                  +{testers.length - 4} more →
                 </Link>
               </li>
             )}
