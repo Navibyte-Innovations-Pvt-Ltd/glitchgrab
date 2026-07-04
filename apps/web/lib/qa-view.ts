@@ -8,7 +8,7 @@ export interface QaCheckView {
   prNumber: number | null;
   prUrl: string | null;
   developerLogin: string | null;
-  status: "PENDING" | "PASS" | "FAIL";
+  status: "PENDING" | "PASS" | "FAIL" | "SKIPPED";
   repoFullName: string;
   createdAt: string;
 }
