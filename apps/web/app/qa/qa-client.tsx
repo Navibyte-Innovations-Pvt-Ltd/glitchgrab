@@ -41,10 +41,20 @@ export function QaClient({
   const router = useRouter();
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [editOpen, setEditOpen] = useState(false);
+  const [failingId, setFailingId] = useState<string | null>(null);
+  const [failReason, setFailReason] = useState("");
 
   const mutation = useMutation({
-    mutationFn: async ({ checkId, result }: { checkId: string; result: "PASS" | "FAIL" | "SKIP" }) => {
-      const { data } = await axios.post(`/api/v1/qa/checks/${checkId}`, { result, token });
+    mutationFn: async ({
+      checkId,
+      result,
+      reason,
+    }: {
+      checkId: string;
+      result: "PASS" | "FAIL" | "SKIP";
+      reason?: string;
+    }) => {
+      const { data } = await axios.post(`/api/v1/qa/checks/${checkId}`, { result, reason, token });
       return data;
     },
     onMutate: ({ checkId }) => setPendingId(checkId),
@@ -56,6 +66,8 @@ export function QaClient({
           ? "Marked as failed — developer notified"
           : "Skipped"
       );
+      setFailingId(null);
+      setFailReason("");
       router.refresh();
     },
     onError: (err) => {
@@ -149,48 +161,93 @@ export function QaClient({
                   </div>
                 </div>
 
-                <div className="mt-3 flex gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() => mutation.mutate({ checkId: c.id, result: "PASS" })}
-                    disabled={mutation.isPending}
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                  >
-                    {pendingId === c.id && mutation.variables?.result === "PASS" ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <CheckCircle2 className="h-4 w-4" />
-                    )}
-                    Pass
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => mutation.mutate({ checkId: c.id, result: "FAIL" })}
-                    disabled={mutation.isPending}
-                    className="flex-1"
-                  >
-                    {pendingId === c.id && mutation.variables?.result === "FAIL" ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
+                {failingId === c.id ? (
+                  <div className="mt-3 space-y-2">
+                    <Label htmlFor={`fail-reason-${c.id}`} className="text-xs text-muted-foreground">
+                      What&apos;s not working?
+                    </Label>
+                    <textarea
+                      id={`fail-reason-${c.id}`}
+                      value={failReason}
+                      onChange={(e) => setFailReason(e.target.value)}
+                      placeholder="e.g. still throws the same error when I submit the form"
+                      rows={3}
+                      autoFocus
+                      className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:border-primary/40"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() =>
+                          mutation.mutate({ checkId: c.id, result: "FAIL", reason: failReason.trim() })
+                        }
+                        disabled={mutation.isPending || !failReason.trim()}
+                        className="flex-1"
+                      >
+                        {pendingId === c.id && mutation.variables?.result === "FAIL" ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <XCircle className="h-4 w-4" />
+                        )}
+                        Confirm fail
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setFailingId(null);
+                          setFailReason("");
+                        }}
+                        disabled={mutation.isPending}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-3 flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => mutation.mutate({ checkId: c.id, result: "PASS" })}
+                      disabled={mutation.isPending}
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                    >
+                      {pendingId === c.id && mutation.variables?.result === "PASS" ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="h-4 w-4" />
+                      )}
+                      Pass
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => {
+                        setFailingId(c.id);
+                        setFailReason("");
+                      }}
+                      disabled={mutation.isPending}
+                      className="flex-1"
+                    >
                       <XCircle className="h-4 w-4" />
-                    )}
-                    Fail
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => mutation.mutate({ checkId: c.id, result: "SKIP" })}
-                    disabled={mutation.isPending}
-                    title="Not testable right now — leaves the issue untouched, no notifications"
-                  >
-                    {pendingId === c.id && mutation.variables?.result === "SKIP" ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <SkipForward className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
+                      Fail
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => mutation.mutate({ checkId: c.id, result: "SKIP" })}
+                      disabled={mutation.isPending}
+                      title="Not testable right now — leaves the issue untouched, no notifications"
+                    >
+                      {pendingId === c.id && mutation.variables?.result === "SKIP" ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <SkipForward className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
