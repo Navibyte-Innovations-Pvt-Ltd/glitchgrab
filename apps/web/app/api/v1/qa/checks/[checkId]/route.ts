@@ -9,9 +9,9 @@ import { getTesterSession } from "@/lib/tester-session";
 /**
  * POST /api/v1/qa/checks/[checkId] — a tester marks a check PASS, FAIL, or SKIP.
  * Auth: the gg_tester session cookie (OTP login) OR a magic `token` in the body.
- * Body: { result: "PASS" | "FAIL" | "SKIP", token?: string }
+ * Body: { result: "PASS" | "FAIL" | "SKIP", reason?: string (required for FAIL), token?: string }
  *
- * FAIL → reopen the GitHub issue, comment, WhatsApp the developer.
+ * FAIL → reopen the GitHub issue, comment with the tester's reason, WhatsApp the developer.
  * PASS → close the issue if still open, add a confirming comment.
  * SKIP → just marks the check skipped. No GitHub call, no notification — a pure ignore.
  */
@@ -20,8 +20,9 @@ export async function POST(
   { params }: { params: Promise<{ checkId: string }> }
 ) {
   const { checkId } = await params;
-  const { result, token } = (await request.json()) as {
+  const { result, reason, token } = (await request.json()) as {
     result?: "PASS" | "FAIL" | "SKIP";
+    reason?: string;
     token?: string;
   };
 
@@ -46,6 +47,9 @@ export async function POST(
 
   if (result !== "PASS" && result !== "FAIL" && result !== "SKIP") {
     return NextResponse.json({ success: false, error: "result must be PASS, FAIL, or SKIP" }, { status: 400 });
+  }
+  if (result === "FAIL" && !reason?.trim()) {
+    return NextResponse.json({ success: false, error: "reason is required for FAIL" }, { status: 400 });
   }
 
   const check = await prisma.qaCheck.findFirst({
@@ -89,7 +93,7 @@ export async function POST(
           owner,
           repoName,
           check.githubNumber,
-          `❌ **QA failed** — tester **${tester.name}** verified this fix and it is **not working**. Reopened for rework.\n\n*Via [Glitchgrab](https://glitchgrab.dev) QA*`
+          `❌ **QA failed** — tester **${tester.name}** verified this fix and it is **not working**. Reopened for rework.\n\n**What's not working:**\n${reason?.trim()}\n\n*Via [Glitchgrab](https://glitchgrab.dev) QA*`
         );
       } catch (err) {
         console.error("[qa] comment failed:", err);
