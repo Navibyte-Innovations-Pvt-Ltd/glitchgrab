@@ -86,6 +86,23 @@ const GG_PING = "__gg_ping__";
     });
   } catch { /* context invalidated at load */ }
 
+  // Keep the background worker awake (or wake it) via a persistent port. Opening
+  // the port wakes a sleeping MV3 worker immediately, so it connects to the
+  // GlitchRecord bridge as soon as a page is open — instead of sleeping until a
+  // stray event, which left the recording's first seconds uncaptured. On
+  // disconnect (worker died / ext reloaded) we reconnect, which wakes it again.
+  const keepBgAlive = () => {
+    if (!isContextAlive()) return;
+    try {
+      const port = chrome.runtime.connect({ name: "gg-heartbeat" });
+      port.onDisconnect.addListener(() => {
+        void chrome.runtime.lastError; // swallow "receiving end" noise
+        setTimeout(keepBgAlive, 1000);
+      });
+    } catch { /* context invalidated */ }
+  };
+  keepBgAlive();
+
   // History-API navigation hooks → SPA navigations
   const onNavigate = () => capture.onNavigate(document.title);
   const origPushState = history.pushState.bind(history);
