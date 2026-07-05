@@ -56,8 +56,7 @@
     },
     "packages/extension": {
       "entry": ["src/background.ts", "src/content.ts", "src/popup/popup.ts"],
-      "project": ["src/**/*.ts"],
-      "ignoreDependencies": ["jsdom"]
+      "project": ["src/**/*.ts"]
     },
     "packages/sdk-nextjs": {
       "project": ["src/**/*.{ts,tsx}"],
