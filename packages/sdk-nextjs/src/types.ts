@@ -12,6 +12,12 @@ export interface GlitchgrabConfig {
   breadcrumbs?: boolean;
   /** Max breadcrumbs to keep (default: 50) */
   maxBreadcrumbs?: number;
+  /**
+   * Skip auto-capture for errors matching any of these patterns (checked against the
+   * error message). String = substring match, RegExp = `.test()`. Use for known-noisy
+   * signatures that aren't app bugs — e.g. browser extension bridge errors.
+   */
+  ignoreErrors?: (string | RegExp)[];
 }
 
 // ─── Report Types ────────────────────────────────────────
@@ -119,6 +125,12 @@ export interface GlitchgrabProviderProps {
   types?: ReportType[];
   /** Show severity picker for BUG type (default: true) */
   showSeverity?: boolean;
+  /**
+   * Skip auto-capture for errors matching any of these patterns (checked against the
+   * error message). String = substring match, RegExp = `.test()`. Use for known-noisy
+   * signatures that aren't app bugs — e.g. browser extension bridge errors.
+   */
+  ignoreErrors?: (string | RegExp)[];
 }
 
 export interface ReportButtonProps {

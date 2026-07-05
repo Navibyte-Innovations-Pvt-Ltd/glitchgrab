@@ -265,6 +265,9 @@ export class Capture {
   stop(): void {
     if (!this.capturing) return;
     this.capturing = false;
+    // Flush a trailing idle span so recordings ending on inactivity still
+    // report events up to the actual stop time, not the last real event.
+    this.breakIdle(Date.now());
     document.removeEventListener("click", this.onClick, { capture: true });
     document.removeEventListener("input", this.onInput, { capture: true });
     document.removeEventListener("keydown", this.onKeydown, { capture: true });

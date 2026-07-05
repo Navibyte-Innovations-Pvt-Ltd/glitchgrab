@@ -454,6 +454,20 @@ import { GlitchgrabErrorBoundary } from "glitchgrab";
 | `onError` | `(error: Error) => void` | - | Called on unhandled errors |
 | `onReportSent` | `(result: ReportResult) => void` | - | Called after a report is sent |
 | `fallback` | `ReactNode` | - | Error boundary fallback UI |
+| `ignoreErrors` | `(string \| RegExp)[]` | - | Skip auto-capture for errors whose message matches (substring for `string`, `.test()` for `RegExp`) |
+
+### Ignoring known-noisy errors
+
+Some errors that reach `window.onerror` aren't app bugs — browser extension bridges (Grammarly, password managers, etc.) can throw errors that look like they come from your page. If you keep seeing the same non-actionable signature auto-filed as a report, suppress it:
+
+```tsx
+<GlitchgrabProvider
+  token={process.env.NEXT_PUBLIC_GLITCHGRAB_TOKEN!}
+  ignoreErrors={[/Object Not Found Matching Id.*MethodName:update/]}
+>
+  {children}
+</GlitchgrabProvider>
+```
 
 ## Do I need a Content-Security-Policy allowance?
 

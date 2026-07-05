@@ -241,6 +241,16 @@ describe("Capture orchestration", () => {
     cap.stop();
   });
 
+  it("flushes a trailing idle span on stop() so recording end isn't lost", async () => {
+    const { events, cap } = setup();
+    cap.start();
+    dom.window.document.body.innerHTML = `<button aria-label="Go">x</button>`;
+    fire(dom.window.document.querySelector("button")!, "click");
+    await sleep(60); // > idleThreshold — recording stops WHILE still idle, no resuming activity
+    cap.stop();
+    expect(events.some((e) => e.type === "idle")).toBe(true);
+  });
+
   it("stop() removes listeners — no capture after stop", () => {
     const { events, cap } = setup();
     cap.start();

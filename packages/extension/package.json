@@ -8,8 +8,11 @@
     "test": "bun test src/"
   },
   "devDependencies": {
+    "@types/bun": "^1.3.7",
     "@types/chrome": "^0.0.279",
+    "@types/jsdom": "^21.1.7",
     "esbuild": "^0.24.0",
+    "jsdom": "^29.1.1",
     "typescript": "^5.0.0"
   }
 }

@@ -66,6 +66,7 @@ function GlitchgrabProviderInner({
   fallback,
   types,
   showSeverity,
+  ignoreErrors,
 }: GlitchgrabProviderProps) {
   const visitedPagesRef = useRef<string[]>([]);
 
@@ -131,6 +132,13 @@ function GlitchgrabProviderInner({
       // Matches chrome-extension://, safari-extension://, moz-extension://
       const EXTENSION_ORIGIN_RE = /\b(?:chrome|safari|moz)-extension:\/\//;
 
+      const matchesIgnore = (message: string): boolean => {
+        if (!ignoreErrors || ignoreErrors.length === 0) return false;
+        return ignoreErrors.some((pattern) =>
+          pattern instanceof RegExp ? pattern.test(message) : message.includes(pattern)
+        );
+      };
+
       const handleError = (event: ErrorEvent) => {
         try {
           // Ignore opaque cross-origin script errors — the browser masks these with no
@@ -140,6 +148,12 @@ function GlitchgrabProviderInner({
             event.message === "Script error" ||
             (!event.error && !event.filename);
           if (isOpaqueCrossOrigin) {
+            return;
+          }
+
+          // Caller-supplied ignore patterns — known-noisy signatures (e.g. browser
+          // extension bridge errors) that aren't app bugs.
+          if (matchesIgnore(event.message)) {
             return;
           }
 
@@ -207,6 +221,12 @@ function GlitchgrabProviderInner({
           if (errMsg === "Script error." || errMsg === "Script error") {
             return;
           }
+
+          // Caller-supplied ignore patterns — known-noisy signatures (e.g. browser
+          // extension bridge errors) that aren't app bugs.
+          if (matchesIgnore(errMsg)) {
+            return;
+          }
           const errStack = reason instanceof Error ? reason.stack : undefined;
 
           // Ignore unhandled rejections where the call chain passes through a browser
@@ -258,7 +278,7 @@ function GlitchgrabProviderInner({
     } catch {
       // Never crash
     }
-  }, [token, baseUrl, onError, onReportSent, session]);
+  }, [token, baseUrl, onError, onReportSent, session, ignoreErrors]);
 
   const report = useCallback(
     async (
