@@ -148,6 +148,18 @@ function connectBridge() {
 
 connectBridge();
 
+// Keepalive: the MV3 worker sleeps when idle, so a recording that STARTS while it
+// is asleep gets picked up late (the bridge can't push to a dead worker) — the
+// first seconds then capture nothing. A periodic alarm wakes the worker to
+// (re)connect to the bridge, bounding that gap. Chrome wakes a terminated worker
+// to fire the alarm. The content-script heartbeat port covers the fast path.
+try {
+  chrome.alarms.create("gg-keepalive", { periodInMinutes: 0.5 });
+  chrome.alarms.onAlarm.addListener((a) => {
+    if (a.name === "gg-keepalive") connectBridge();
+  });
+} catch { /* alarms unavailable */ }
+
 // Reconcile the toolbar icon on every service-worker (re)start. The MV3 worker is
 // ephemeral: if it dies mid-recording, in-memory state resets to inactive but
 // Chrome KEEPS the last icon (red dot). Fresh worker = not recording, so clear the
