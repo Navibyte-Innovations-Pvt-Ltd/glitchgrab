@@ -7,7 +7,6 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-// @ts-expect-error react-dom types handled by host app
 import { createPortal } from "react-dom";
 import type { ReportType, ReportSeverity, UseGlitchgrabReturn } from "./types";
 
