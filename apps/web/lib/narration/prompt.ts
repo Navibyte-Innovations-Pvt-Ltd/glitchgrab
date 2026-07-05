@@ -130,6 +130,25 @@ export function recordingContext(durationSec?: number, zooms?: ZoomCtx[]): strin
   return lines.length ? `\n\nRecording context:\n${lines.join("\n")}` : "";
 }
 
+// Parse the editor's `visualContext: [{ tMs, kind, dataUrl }]` (screenshots of
+// silent stretches) into base64 frames for the vision model. Drops any entry
+// with a bad time or malformed data URL; sorts by time; caps the count.
+const VISUAL_DATA_URL_RE = /^data:(image\/[a-zA-Z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/;
+export type VisualFrame = { tMs: number; kind: "lead-in" | "idle"; mimeType: string; data: string };
+export function parseVisualFrames(raw: unknown, max = 8): VisualFrame[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .flatMap((f): VisualFrame[] => {
+      const fr = f as { tMs?: unknown; dataUrl?: unknown; kind?: unknown };
+      if (typeof fr?.dataUrl !== "string" || typeof fr?.tMs !== "number") return [];
+      const m = VISUAL_DATA_URL_RE.exec(fr.dataUrl);
+      if (!m) return [];
+      return [{ tMs: fr.tMs, kind: fr.kind === "lead-in" ? "lead-in" : "idle", mimeType: m[1], data: m[2] }];
+    })
+    .sort((a, b) => a.tMs - b.tMs)
+    .slice(0, max);
+}
+
 // Screenshots for stretches where the presenter talked with NO captured clicks
 // (the recording's lead-in before the extension caught up, or a long idle pause).
 // The event list is empty there, so the model must narrate from what's visible.
