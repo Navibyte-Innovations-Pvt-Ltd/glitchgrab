@@ -2,16 +2,35 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { geminiChat } from "@/lib/gemini/client";
+import { geminiChat, geminiVisionChat } from "@/lib/gemini/client";
 import { deepseekChat } from "@/lib/deepseek/client";
 import {
   SCRIPT_SYSTEM_PROMPT,
   recordingContext,
   languageDirective,
+  visualContextDirective,
   isRomanHindiFallback,
   DEVANAGARI_FIX_INSTRUCTION,
   type ZoomCtx,
 } from "@/lib/narration/prompt";
+
+// Screenshots of silent stretches (lead-in / idle) sent by the editor so the
+// model can narrate what's on screen where no clicks were captured.
+const VISUAL_DATA_URL_RE = /^data:(image\/[a-zA-Z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/;
+type VisualFrame = { tMs: number; kind: "lead-in" | "idle"; mimeType: string; data: string };
+function parseVisualFrames(raw: unknown): VisualFrame[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .flatMap((f): VisualFrame[] => {
+      const fr = f as { tMs?: unknown; dataUrl?: unknown; kind?: unknown };
+      if (typeof fr?.dataUrl !== "string" || typeof fr?.tMs !== "number") return [];
+      const m = VISUAL_DATA_URL_RE.exec(fr.dataUrl);
+      if (!m) return [];
+      return [{ tMs: fr.tMs, kind: fr.kind === "lead-in" ? "lead-in" : "idle", mimeType: m[1], data: m[2] }];
+    })
+    .sort((a, b) => a.tMs - b.tMs)
+    .slice(0, 8);
+}
 import { buildScriptContext, buildOrderedStepsFromEvents, checkScriptOrder } from "@/lib/narration/events-context";
 import { recordGeneration } from "@/lib/narration/telemetry";
 
@@ -66,13 +85,18 @@ export async function GET(_req: Request, { params }: RouteParams) {
 export async function POST(req: Request, { params }: RouteParams) {
   const { id } = await params;
   try {
-    const { lang, gender, durationSec, zooms, noteAnswers } = (await req.json().catch(() => ({}))) as {
+    const { lang, gender, durationSec, zooms, noteAnswers, visualContext } = (await req.json().catch(() => ({}))) as {
       lang?: string;
       gender?: string;
       durationSec?: number;
       zooms?: ZoomCtx[];
       noteAnswers?: Array<{ label: string; answer: string }>;
+      visualContext?: unknown;
     };
+    const visualFrames = parseVisualFrames(visualContext);
+    const visualSection = visualFrames.length
+      ? visualContextDirective(visualFrames.map((f) => ({ tMs: f.tMs, kind: f.kind })))
+      : "";
     const noteSection =
       noteAnswers && noteAnswers.length
         ? `\n\nWhat the user wants explained at each shift-marked spot (USE these — explain exactly this at that element):\n${noteAnswers
@@ -104,7 +128,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       ? `\n\nRecording metadata (cuts made in Recordly):\n${JSON.stringify(session.meta, null, 2)}`
       : "";
 
-    const userContent = `Generate a narration script for this screen recording.\n\nEvents:\n${eventsJson}${appLine}${metaSection}${noteSection}${recordingContext(durationSec, zooms)}${languageDirective(lang, gender)}`;
+    const userContent = `Generate a narration script for this screen recording.\n\nEvents:\n${eventsJson}${appLine}${metaSection}${noteSection}${visualSection}${recordingContext(durationSec, zooms)}${languageDirective(lang, gender)}`;
     const messages = [
       { role: "system" as const, content: SCRIPT_SYSTEM_PROMPT },
       { role: "user" as const, content: userContent },
@@ -117,11 +141,29 @@ export async function POST(req: Request, { params }: RouteParams) {
     const genStart = Date.now();
     let model = "gemini-2.5-pro";
     let script: string;
-    try {
-      script = await geminiChat({ model: "gemini-2.5-pro", messages });
-    } catch {
-      model = "deepseek-v4-flash";
-      script = await deepseekChat({ model: "deepseek-v4-flash", messages });
+    if (visualFrames.length) {
+      // Silent stretches present → use the vision model so it can SEE those
+      // screens (Gemini 2.5 Pro is multimodal). DeepSeek is text-only, so the
+      // fallback loses the visual narration but still ships a script.
+      model = "gemini-2.5-pro-vision";
+      try {
+        script = await geminiVisionChat({
+          model: "gemini-2.5-pro",
+          system: SCRIPT_SYSTEM_PROMPT,
+          images: visualFrames.map((f) => ({ data: f.data, mimeType: f.mimeType })),
+          text: userContent,
+        });
+      } catch {
+        model = "deepseek-v4-flash";
+        script = await deepseekChat({ model: "deepseek-v4-flash", messages });
+      }
+    } else {
+      try {
+        script = await geminiChat({ model: "gemini-2.5-pro", messages });
+      } catch {
+        model = "deepseek-v4-flash";
+        script = await deepseekChat({ model: "deepseek-v4-flash", messages });
+      }
     }
     let devanagariRetried = false;
 
