@@ -9,28 +9,11 @@ import {
   recordingContext,
   languageDirective,
   visualContextDirective,
+  parseVisualFrames,
   isRomanHindiFallback,
   DEVANAGARI_FIX_INSTRUCTION,
   type ZoomCtx,
 } from "@/lib/narration/prompt";
-
-// Screenshots of silent stretches (lead-in / idle) sent by the editor so the
-// model can narrate what's on screen where no clicks were captured.
-const VISUAL_DATA_URL_RE = /^data:(image\/[a-zA-Z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/;
-type VisualFrame = { tMs: number; kind: "lead-in" | "idle"; mimeType: string; data: string };
-function parseVisualFrames(raw: unknown): VisualFrame[] {
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .flatMap((f): VisualFrame[] => {
-      const fr = f as { tMs?: unknown; dataUrl?: unknown; kind?: unknown };
-      if (typeof fr?.dataUrl !== "string" || typeof fr?.tMs !== "number") return [];
-      const m = VISUAL_DATA_URL_RE.exec(fr.dataUrl);
-      if (!m) return [];
-      return [{ tMs: fr.tMs, kind: fr.kind === "lead-in" ? "lead-in" : "idle", mimeType: m[1], data: m[2] }];
-    })
-    .sort((a, b) => a.tMs - b.tMs)
-    .slice(0, 8);
-}
 import { buildScriptContext, buildOrderedStepsFromEvents, checkScriptOrder } from "@/lib/narration/events-context";
 import { recordGeneration } from "@/lib/narration/telemetry";
 
