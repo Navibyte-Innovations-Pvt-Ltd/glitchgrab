@@ -4,8 +4,8 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "strict": true,
-    "lib": ["ES2020", "DOM"],
-    "types": ["chrome"],
+    "lib": ["ES2022", "DOM"],
+    "types": ["chrome", "bun"],
     "rootDir": "src",
     "outDir": "dist",
     "skipLibCheck": true
