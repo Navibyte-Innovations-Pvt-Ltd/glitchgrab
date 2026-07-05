@@ -113,10 +113,10 @@ function connectBridge() {
 
     ws.onmessage = (event) => {
       try {
-        const msg = JSON.parse(event.data) as { type: string; sessionId?: string; script?: string; issueUrl?: string };
+        const msg = JSON.parse(event.data) as { type: string; sessionId?: string; script?: string; issueUrl?: string; startedAt?: number };
         if (msg.type === "recording:start") {
           log("[GG] Bridge → recording:start");
-          startCapture(msg.sessionId);
+          startCapture(msg.sessionId, msg.startedAt);
         } else if (msg.type === "recording:stop") {
           log("[GG] Bridge → recording:stop");
           stopCapture();
@@ -306,7 +306,7 @@ function armAllTabs() {
   });
 }
 
-function startCapture(bridgeSessionId?: string) {
+function startCapture(bridgeSessionId?: string, bridgeStartedAt?: number) {
   // Resync guard: the bridge re-sends recording:start every time this (ephemeral
   // MV3) service worker reconnects. If we're ALREADY capturing this same session,
   // a reconnect must NOT reset events/startedAt — that wipes everything captured
@@ -318,7 +318,12 @@ function startCapture(bridgeSessionId?: string) {
     return;
   }
   state.active = true;
-  state.startedAt = Date.now();
+  // Timeline origin: prefer the bridge's authoritative session start so ALL profiles
+  // (and a restarted SW that died mid-recording) share ONE timeline. Without this,
+  // each profile's t is on its own clock and a dead-then-restarted SW resets t to
+  // the reconnect moment — post-restart events sort to the front, scrambling the
+  // cross-profile order the AI narration relies on. Fall back to now() (manual mode).
+  state.startedAt = bridgeStartedAt ?? Date.now();
   state.events = [];
   state.sessionId = bridgeSessionId ?? null; // use bridge session if provided
   state.fromBridge = !!bridgeSessionId;
