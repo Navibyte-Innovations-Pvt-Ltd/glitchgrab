@@ -130,6 +130,28 @@ export function recordingContext(durationSec?: number, zooms?: ZoomCtx[]): strin
   return lines.length ? `\n\nRecording context:\n${lines.join("\n")}` : "";
 }
 
+// Screenshots for stretches where the presenter talked with NO captured clicks
+// (the recording's lead-in before the extension caught up, or a long idle pause).
+// The event list is empty there, so the model must narrate from what's visible.
+export function visualContextDirective(gaps: Array<{ tMs: number; kind: "lead-in" | "idle" }>): string {
+  if (!gaps.length) return "";
+  const fmt = (ms: number) => {
+    const s = Math.round(ms / 1000);
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  };
+  const lines = gaps
+    .slice(0, 8)
+    .map(
+      (g, i) =>
+        `  - Screenshot ${i + 1} = ${fmt(g.tMs)}${g.kind === "lead-in" ? " (video OPENING — presenter talking before any click)" : " (a pause with no clicks)"}`
+    )
+    .join("\n");
+  return (
+    `\n\nSILENT STRETCHES — screenshots are attached IN THIS ORDER. These are moments where the presenter talks over the screen with NO captured clicks (nothing in the event list covers them), so narrate them from what is VISIBLE:\n${lines}\n` +
+    `Weave each screenshot into the script at its timeline position, in order — the OPENING screenshot is the very start of the video, so narrate it FIRST, before the first event. Describe only what is clearly on screen (headings, numbers, section names). Never invent data that isn't shown.`
+  );
+}
+
 // Build the language/voice directive appended to the user message.
 export function languageDirective(lang?: string, gender?: string): string {
   const g = gender === "male" ? "male" : "female";
