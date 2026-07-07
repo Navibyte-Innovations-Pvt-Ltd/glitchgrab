@@ -63,4 +63,14 @@ describe("visualContextDirective", () => {
     // Anti-hallucination guardrail is present.
     expect(d.toLowerCase()).toContain("never invent");
   });
+
+  it("labels a trailing gap as the ENDING and tells the model to narrate it last", () => {
+    const d = visualContextDirective([
+      { tMs: 369000, kind: "idle" },
+      { tMs: 496000, kind: "trailing" },
+    ]);
+    expect(d).toContain("ENDING");
+    expect(d).toContain("narrate it LAST");
+    expect(d).toContain("video keeps going");
+  });
 });
