@@ -134,7 +134,7 @@ export function recordingContext(durationSec?: number, zooms?: ZoomCtx[]): strin
 // silent stretches) into base64 frames for the vision model. Drops any entry
 // with a bad time or malformed data URL; sorts by time; caps the count.
 const VISUAL_DATA_URL_RE = /^data:(image\/[a-zA-Z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/;
-export type VisualFrame = { tMs: number; kind: "lead-in" | "idle"; mimeType: string; data: string };
+export type VisualFrame = { tMs: number; kind: "lead-in" | "idle" | "trailing"; mimeType: string; data: string };
 export function parseVisualFrames(raw: unknown, max = 8): VisualFrame[] {
   if (!Array.isArray(raw)) return [];
   return raw
@@ -149,25 +149,31 @@ export function parseVisualFrames(raw: unknown, max = 8): VisualFrame[] {
     .slice(0, max);
 }
 
-// Screenshots for stretches where the presenter talked with NO captured clicks
-// (the recording's lead-in before the extension caught up, or a long idle pause).
-// The event list is empty there, so the model must narrate from what's visible.
-export function visualContextDirective(gaps: Array<{ tMs: number; kind: "lead-in" | "idle" }>): string {
+// Screenshots for stretches where the presenter talked with NO captured clicks:
+// the recording's lead-in (before the extension caught up), a long idle pause,
+// or the TRAILING stretch after the last captured event to the actual end of
+// the video (an outro/wrap-up with no clicks — without this the model has zero
+// signal that the video keeps going, and stops narrating right at the last
+// event even if minutes of real footage follow). The event list is empty for
+// all of these, so the model must narrate from what's visible.
+export function visualContextDirective(gaps: Array<{ tMs: number; kind: "lead-in" | "idle" | "trailing" }>): string {
   if (!gaps.length) return "";
   const fmt = (ms: number) => {
     const s = Math.round(ms / 1000);
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   };
+  const label = (kind: "lead-in" | "idle" | "trailing") => {
+    if (kind === "lead-in") return " (video OPENING — presenter talking before any click)";
+    if (kind === "trailing") return " (video ENDING — presenter wrapping up after the last click, video keeps going)";
+    return " (a pause with no clicks)";
+  };
   const lines = gaps
     .slice(0, 8)
-    .map(
-      (g, i) =>
-        `  - Screenshot ${i + 1} = ${fmt(g.tMs)}${g.kind === "lead-in" ? " (video OPENING — presenter talking before any click)" : " (a pause with no clicks)"}`
-    )
+    .map((g, i) => `  - Screenshot ${i + 1} = ${fmt(g.tMs)}${label(g.kind)}`)
     .join("\n");
   return (
     `\n\nSILENT STRETCHES — screenshots are attached IN THIS ORDER. These are moments where the presenter talks over the screen with NO captured clicks (nothing in the event list covers them), so narrate them from what is VISIBLE:\n${lines}\n` +
-    `Weave each screenshot into the script at its timeline position, in order — the OPENING screenshot is the very start of the video, so narrate it FIRST, before the first event. Describe only what is clearly on screen (headings, numbers, section names). Never invent data that isn't shown.`
+    `Weave each screenshot into the script at its timeline position, in order — the OPENING screenshot is the very start of the video, so narrate it FIRST, before the first event; the ENDING screenshot is near the actual end of the video, so narrate it LAST, as a closing line, even though it comes after the last event. Describe only what is clearly on screen (headings, numbers, section names). Never invent data that isn't shown.`
   );
 }
 
