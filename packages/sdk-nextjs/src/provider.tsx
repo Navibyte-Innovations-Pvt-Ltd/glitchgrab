@@ -132,7 +132,14 @@ function GlitchgrabProviderInner({
       // Matches chrome-extension://, safari-extension://, moz-extension://
       const EXTENSION_ORIGIN_RE = /\b(?:chrome|safari|moz)-extension:\/\//;
 
+      // Well-known extension-injected noise that carries no extension origin in
+      // filename/stack, so EXTENSION_ORIGIN_RE can't catch it. Not app bugs.
+      const KNOWN_NOISE_RE = [
+        /Object Not Found Matching Id:\d+, MethodName:update, ParamCount:\d+/,
+      ];
+
       const matchesIgnore = (message: string): boolean => {
+        if (KNOWN_NOISE_RE.some((pattern) => pattern.test(message))) return true;
         if (!ignoreErrors || ignoreErrors.length === 0) return false;
         return ignoreErrors.some((pattern) =>
           pattern instanceof RegExp ? pattern.test(message) : message.includes(pattern)
