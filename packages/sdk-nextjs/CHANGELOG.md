@@ -1,3 +1,24 @@
+## [1.26.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.25.0...sdk-v1.26.0) (2026-07-08)
+
+### Features
+
+* **prompt:** add visual context directive to highlight silent stretches ([95dd72b](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/95dd72bfb6551f817e96c919c31ed26663288a1f))
+* **repo:** add support for silent stretches in narration script ([4fe8dac](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/4fe8daca739b829037a2eb38ba900fb5f57eee87))
+
+### Bug Fixes
+
+* **apps/mobile:** use plain semver range instead of workspace: protocol for sdk-expo dep ([58c4589](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/58c4589aae033a246a10745560b11c4886648f3d))
+* **background:** ensure bridge's authoritative session start is used for timeline ([45ffd7a](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/45ffd7a3fa8263c67f708dc297392ccbaf0051e5))
+* **background:** improve background script keepalive functionality ([4e04964](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/4e049642cf2723ef6c67d040fc25873c8ef8e401))
+* **content:** maintain worker connection ([74abcdd](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/74abcdd4b187c21ddb0c8ec29fd0e51e32be0e90))
+* **extension:** update permissions for alarms ([2093f9f](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/2093f9f50e32ce7c843dcf33178a299c7fca0dce))
+* **narration.test:** add test for trailing gap label and narration order ([ba364fd](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/ba364fdfd8477f16565fb3ed815acb6fb67efc0a))
+* **prompt.test.ts:** add silent-stretch visual context tests ([5f6b187](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/5f6b18788319b422e74ffa9aba04aea0266f38c3))
+* **prompt:** add support for silent stretches of presenter talk without any clicks ([67382b5](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/67382b54a5e46510d5b3f28b87e23cf3485f88a8))
+* **prompt:** parse and sort visual frames ([8255bfe](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/8255bfea16f5b2254f301957b05d72c925489c1b))
+* **repo:** refactor to simplify visual frame parsing and enhance readability ([3ba7b32](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/3ba7b323f54a10c296827b25a1c9ad75790ffe2a))
+* **sdk-nextjs:** suppress known extension RPC bridge noise by default ([18be08c](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/18be08c4b0e1272f36db3867175b645eea0e4bb9))
+
 ## [1.25.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.24.0...sdk-v1.25.0) (2026-07-05)
 
 ### Features
