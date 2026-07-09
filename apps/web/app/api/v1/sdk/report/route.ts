@@ -339,10 +339,10 @@ export async function POST(request: Request) {
     if (sessionUserId) reporterParts.push(`• ID: \`${sessionUserId}\``);
 
     if (reporterParts.length > 0) {
-      issueBody += `\n\n---\n> **Reported by:** ${reporterParts.join(" ")}`;
+      issueBody += `\n\n---\n> **Reported by:** ${reporterParts.join(" ")} • **Created:** ${report.createdAt.toISOString()}`;
       issueBody += "\n\n*Reported via [Glitchgrab](https://glitchgrab.dev) SDK*";
     } else {
-      issueBody += "\n\n---\n*Reported via [Glitchgrab](https://glitchgrab.dev) SDK*";
+      issueBody += `\n\n---\n> **Created:** ${report.createdAt.toISOString()}\n\n*Reported via [Glitchgrab](https://glitchgrab.dev) SDK*`;
     }
 
     try {
