@@ -3,11 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { dispatchWebhook } from "@/lib/webhooks";
-import {
-  sendIssueResolvedWhatsApp,
-  sendIssueAssignedNotification,
-  sendTesterQaRequest,
-} from "@/lib/whatsapp";
+import { sendIssueResolvedWhatsApp, sendIssueAssignedNotification } from "@/lib/whatsapp";
 import { getGitHubIssue } from "@/lib/github";
 import { parseClosingIssueRefs } from "@/lib/qa";
 
@@ -209,7 +205,9 @@ export async function POST(request: Request) {
 /**
  * A merged PR often closes several issues at once ("Closes #12, fixes #14").
  * For each referenced issue, create a PENDING QaCheck for every tester assigned
- * to the repo, then WhatsApp each tester one verification request.
+ * to the repo. The WhatsApp verification request is NOT sent here — the fix
+ * isn't actually live yet (Vercel deploy takes a few minutes after merge), so
+ * /api/v1/cron/qa-notify sends it once the QaCheck is ~10min old.
  */
 async function handlePullRequestEvent(
   payload: {
@@ -251,23 +249,6 @@ async function handlePullRequestEvent(
     select: { access_token: true },
   });
 
-  // Org name for the WhatsApp message
-  const ownerData = await prisma.user.findUnique({
-    where: { id: repo.userId },
-    select: {
-      name: true,
-      ownedOrgs: { where: { id: repo.orgId ?? "" }, select: { name: true }, take: 1 },
-    },
-  });
-  const orgName = ownerData?.ownedOrgs?.[0]?.name ?? ownerData?.name ?? "the team";
-
-  // A nicer developer name if the merger is a known Glitchgrab user
-  const devUser = await prisma.user.findFirst({
-    where: { githubLogin: pr.user.login },
-    select: { name: true },
-  });
-  const developerName = devUser?.name ?? pr.user.login;
-
   // Resolve each referenced issue's title/url once
   const issues = await Promise.all(
     issueNumbers.map(async (n) => {
@@ -284,7 +265,6 @@ async function handlePullRequestEvent(
 
   for (const tr of testerRepos) {
     const tester = tr.tester;
-    let created = 0;
 
     for (const issue of issues) {
       try {
@@ -300,25 +280,9 @@ async function handlePullRequestEvent(
             developerLogin: pr.user.login,
           },
         });
-        created++;
       } catch {
         // Unique constraint → this check already exists for this tester+PR+issue
       }
-    }
-
-    // One WhatsApp per tester per PR — never one per issue (avoids spam when a
-    // PR closes many issues). The count goes in the message; the QA page lists each.
-    // Awaited: an un-awaited send is killed when Vercel suspends the function
-    // after the webhook response (ECONNRESET mid-handshake).
-    if (created > 0 && tester.phone) {
-      await sendTesterQaRequest({
-        phone: tester.phone,
-        testerName: tester.name,
-        developerName,
-        issueCount: created,
-        orgName,
-        magicToken: tester.magicToken,
-      });
     }
   }
 }
