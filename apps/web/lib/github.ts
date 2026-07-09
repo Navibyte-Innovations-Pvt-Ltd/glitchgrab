@@ -207,16 +207,23 @@ export async function getGitHubIssue(
   owner: string,
   repo: string,
   issueNumber: number
-): Promise<{ number: number; title: string; html_url: string; state: string } | null> {
+): Promise<{ number: number; title: string; html_url: string; state: string; comments: number } | null> {
   try {
     const res = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/issues/${issueNumber}`, {
       headers: headers(accessToken),
     });
     if (!res.ok) return null;
-    const data = (await res.json()) as { number: number; title: string; html_url: string; state: string; pull_request?: unknown };
+    const data = (await res.json()) as {
+      number: number;
+      title: string;
+      html_url: string;
+      state: string;
+      comments: number;
+      pull_request?: unknown;
+    };
     // Filter out PRs — GitHub returns PRs from the issues endpoint too
     if (data.pull_request) return null;
-    return { number: data.number, title: data.title, html_url: data.html_url, state: data.state };
+    return { number: data.number, title: data.title, html_url: data.html_url, state: data.state, comments: data.comments };
   } catch {
     return null;
   }
