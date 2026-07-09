@@ -231,9 +231,9 @@ export async function POST(request: Request) {
     if (session.user.name) reporterParts.push(session.user.name);
     if (session.user.email) reporterParts.push(`(${session.user.email})`);
     if (reporterParts.length > 0) {
-      issueBody += `\n\n---\n> **Reported by:** ${reporterParts.join(" ")}\n\n*Reported via [Glitchgrab](https://glitchgrab.dev)*`;
+      issueBody += `\n\n---\n> **Reported by:** ${reporterParts.join(" ")} • **Created:** ${report.createdAt.toISOString()}\n\n*Reported via [Glitchgrab](https://glitchgrab.dev)*`;
     } else {
-      issueBody += "\n\n---\n*Reported via [Glitchgrab](https://glitchgrab.dev)*";
+      issueBody += `\n\n---\n> **Created:** ${report.createdAt.toISOString()}\n\n*Reported via [Glitchgrab](https://glitchgrab.dev)*`;
     }
 
     try {
