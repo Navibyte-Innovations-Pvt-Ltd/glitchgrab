@@ -134,7 +134,7 @@ export function recordingContext(durationSec?: number, zooms?: ZoomCtx[]): strin
 // silent stretches) into base64 frames for the vision model. Drops any entry
 // with a bad time or malformed data URL; sorts by time; caps the count.
 const VISUAL_DATA_URL_RE = /^data:(image\/[a-zA-Z0-9.+-]+);base64,([A-Za-z0-9+/=]+)$/;
-export type VisualFrame = { tMs: number; kind: "lead-in" | "idle" | "trailing"; mimeType: string; data: string };
+type VisualFrame = { tMs: number; kind: "lead-in" | "idle" | "trailing"; mimeType: string; data: string };
 export function parseVisualFrames(raw: unknown, max = 8): VisualFrame[] {
   if (!Array.isArray(raw)) return [];
   return raw
