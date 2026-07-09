@@ -5,13 +5,15 @@ import { prisma } from "@/lib/db";
 import { reopenGitHubIssue, closeGitHubIssue, commentOnGitHubIssue, getGitHubIssue } from "@/lib/github";
 import { sendDeveloperQaFailed } from "@/lib/whatsapp";
 import { getTesterSession } from "@/lib/tester-session";
+import { uploadScreenshotToS3 } from "@/lib/s3";
 
 /**
  * POST /api/v1/qa/checks/[checkId] — a tester marks a check PASS, FAIL, or SKIP.
  * Auth: the gg_tester session cookie (OTP login) OR a magic `token` in the body.
- * Body: { result: "PASS" | "FAIL" | "SKIP", reason?: string (required for FAIL), token?: string }
+ * Body: { result: "PASS" | "FAIL" | "SKIP", reason?: string (required for FAIL),
+ *         screenshot?: string (base64 data URL, required for FAIL), token?: string }
  *
- * FAIL → reopen the GitHub issue, comment with the tester's reason, WhatsApp the developer.
+ * FAIL → reopen the GitHub issue, comment with the tester's reason + screenshot, WhatsApp the developer.
  * PASS → close the issue if still open, add a confirming comment.
  * SKIP → just marks the check skipped. No GitHub call, no notification — a pure ignore.
  */
@@ -20,9 +22,10 @@ export async function POST(
   { params }: { params: Promise<{ checkId: string }> }
 ) {
   const { checkId } = await params;
-  const { result, reason, token } = (await request.json()) as {
+  const { result, reason, screenshot, token } = (await request.json()) as {
     result?: "PASS" | "FAIL" | "SKIP";
     reason?: string;
+    screenshot?: string;
     token?: string;
   };
 
@@ -50,6 +53,9 @@ export async function POST(
   }
   if (result === "FAIL" && !reason?.trim()) {
     return NextResponse.json({ success: false, error: "reason is required for FAIL" }, { status: 400 });
+  }
+  if (result === "FAIL" && !screenshot) {
+    return NextResponse.json({ success: false, error: "screenshot is required for FAIL" }, { status: 400 });
   }
 
   const check = await prisma.qaCheck.findFirst({
@@ -80,7 +86,12 @@ export async function POST(
   });
   const ghToken = account?.access_token ?? null;
 
+  const verifiedAt = new Date();
+  let screenshotUrl: string | null = null;
+
   if (result === "FAIL") {
+    screenshotUrl = screenshot ? await uploadScreenshotToS3(screenshot, `qa-${check.id}`) : null;
+
     if (ghToken) {
       try {
         await reopenGitHubIssue(ghToken, owner, repoName, check.githubNumber);
@@ -93,7 +104,9 @@ export async function POST(
           owner,
           repoName,
           check.githubNumber,
-          `❌ **QA failed** — tester **${tester.name}** verified this fix and it is **not working**. Reopened for rework.\n\n**What's not working:**\n${reason?.trim()}\n\n*Via [Glitchgrab](https://glitchgrab.dev) QA*`
+          `❌ **QA failed** — **[TESTER: ${tester.name}]** verified this fix and it is **not working**. Reopened for rework.\n\n**Reported:** ${verifiedAt.toISOString()}\n\n**What's not working:**\n${reason?.trim()}${
+            screenshotUrl ? `\n\n**Screenshot:**\n![QA fail screenshot](${screenshotUrl})` : ""
+          }\n\n*Via [Glitchgrab](https://glitchgrab.dev) QA*`
         );
       } catch (err) {
         console.error("[qa] comment failed:", err);
@@ -137,7 +150,7 @@ export async function POST(
           owner,
           repoName,
           check.githubNumber,
-          `✅ **QA passed** — tester **${tester.name}** verified this fix works.\n\n*Via [Glitchgrab](https://glitchgrab.dev) QA*`
+          `✅ **QA passed** — **[TESTER: ${tester.name}]** verified this fix works.\n\n**Verified:** ${verifiedAt.toISOString()}\n\n*Via [Glitchgrab](https://glitchgrab.dev) QA*`
         );
       } catch (err) {
         console.error("[qa] pass comment failed:", err);
@@ -147,7 +160,11 @@ export async function POST(
 
   const updated = await prisma.qaCheck.update({
     where: { id: check.id },
-    data: { status: result, verifiedAt: new Date() },
+    data: {
+      status: result,
+      verifiedAt,
+      ...(result === "FAIL" ? { failReason: reason?.trim(), failScreenshotUrl: screenshotUrl } : {}),
+    },
   });
 
   return NextResponse.json({ success: true, data: { id: updated.id, status: updated.status } });
