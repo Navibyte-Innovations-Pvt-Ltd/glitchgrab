@@ -43,18 +43,21 @@ export function QaClient({
   const [editOpen, setEditOpen] = useState(false);
   const [failingId, setFailingId] = useState<string | null>(null);
   const [failReason, setFailReason] = useState("");
+  const [failScreenshot, setFailScreenshot] = useState<string | null>(null);
 
   const mutation = useMutation({
     mutationFn: async ({
       checkId,
       result,
       reason,
+      screenshot,
     }: {
       checkId: string;
       result: "PASS" | "FAIL" | "SKIP";
       reason?: string;
+      screenshot?: string;
     }) => {
-      const { data } = await axios.post(`/api/v1/qa/checks/${checkId}`, { result, reason, token });
+      const { data } = await axios.post(`/api/v1/qa/checks/${checkId}`, { result, reason, screenshot, token });
       return data;
     },
     onMutate: ({ checkId }) => setPendingId(checkId),
@@ -68,6 +71,7 @@ export function QaClient({
       );
       setFailingId(null);
       setFailReason("");
+      setFailScreenshot(null);
       router.refresh();
     },
     onError: (err) => {
@@ -158,6 +162,12 @@ export function QaClient({
                     {c.repoFullName}
                     {c.prNumber && <> · PR #{c.prNumber}</>}
                     {c.developerLogin && <> · by @{c.developerLogin}</>}
+                    {!!c.commentCount && (
+                      <>
+                        {" "}
+                        · 💬 {c.commentCount} comment{c.commentCount === 1 ? "" : "s"}
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -175,14 +185,49 @@ export function QaClient({
                       autoFocus
                       className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:border-primary/40"
                     />
+                    <Label htmlFor={`fail-screenshot-${c.id}`} className="text-xs text-muted-foreground">
+                      Screenshot (required)
+                    </Label>
+                    {failScreenshot ? (
+                      <div className="relative w-fit">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={failScreenshot} alt="Fail screenshot" className="h-24 rounded-md border border-border" />
+                        <button
+                          type="button"
+                          onClick={() => setFailScreenshot(null)}
+                          className="absolute -right-2 -top-2 rounded-full bg-background border border-border p-0.5 text-muted-foreground hover:text-foreground"
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <Input
+                        id={`fail-screenshot-${c.id}`}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = (ev) => setFailScreenshot(ev.target?.result as string);
+                          reader.readAsDataURL(file);
+                        }}
+                        className="text-sm"
+                      />
+                    )}
                     <div className="flex gap-2">
                       <Button
                         size="sm"
                         variant="destructive"
                         onClick={() =>
-                          mutation.mutate({ checkId: c.id, result: "FAIL", reason: failReason.trim() })
+                          mutation.mutate({
+                            checkId: c.id,
+                            result: "FAIL",
+                            reason: failReason.trim(),
+                            screenshot: failScreenshot ?? undefined,
+                          })
                         }
-                        disabled={mutation.isPending || !failReason.trim()}
+                        disabled={mutation.isPending || !failReason.trim() || !failScreenshot}
                         className="flex-1"
                       >
                         {pendingId === c.id && mutation.variables?.result === "FAIL" ? (
@@ -198,6 +243,7 @@ export function QaClient({
                         onClick={() => {
                           setFailingId(null);
                           setFailReason("");
+                          setFailScreenshot(null);
                         }}
                         disabled={mutation.isPending}
                       >
@@ -268,6 +314,11 @@ export function QaClient({
                   className="text-sm truncate hover:underline"
                 >
                   #{c.githubNumber} {c.title}
+                  {!!c.commentCount && (
+                    <span className="ml-1.5 text-[11px] font-mono text-muted-foreground/70">
+                      💬 {c.commentCount}
+                    </span>
+                  )}
                 </a>
                 <span
                   className={cn(
