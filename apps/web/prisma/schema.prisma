@@ -505,6 +505,9 @@ model QaCheck {
   status         QaStatus @default(PENDING)
   createdAt      DateTime @default(now())
   verifiedAt     DateTime?
+  /// When the WhatsApp tester-notify was sent. Null = still waiting out the
+  /// post-merge deploy delay (see /api/v1/cron/qa-notify).
+  notifiedAt     DateTime?
 
   tester Tester @relation(fields: [testerId], references: [id], onDelete: Cascade)
   repo   Repo   @relation(fields: [repoId], references: [id], onDelete: Cascade)
@@ -512,6 +515,7 @@ model QaCheck {
   @@unique([testerId, repoId, githubNumber, prNumber])
   @@index([testerId, status])
   @@index([repoId, githubNumber])
+  @@index([notifiedAt])
 }
 
 model RateLimit {
