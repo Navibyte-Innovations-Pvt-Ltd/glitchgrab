@@ -18,6 +18,10 @@
     {
       "path": "/api/v1/cron/weekly-summary",
       "schedule": "30 2 * * 1"
+    },
+    {
+      "path": "/api/v1/cron/qa-notify",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
