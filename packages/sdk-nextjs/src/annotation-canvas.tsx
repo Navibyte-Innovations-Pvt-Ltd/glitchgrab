@@ -141,7 +141,10 @@ export function AnnotationCanvas({ imageSrc, onSave, onCancel }: AnnotationCanva
         justifyContent: "center",
         padding: "16px",
       }}
-      onClick={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (e.target === e.currentTarget) onCancel();
+      }}
       onPointerDown={(e) => e.stopPropagation()}
     >
       <canvas
