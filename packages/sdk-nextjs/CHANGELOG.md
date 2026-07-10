@@ -1,3 +1,41 @@
+## [1.27.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.26.0...sdk-v1.27.0) (2026-07-10)
+
+### Features
+
+* **annotation-canvas:** add freehand and circle stroke tools ([c2baa45](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/c2baa4592e465566da0c6c598aacaeffcc203658))
+* **annotation-canvas:** handle click and cancel events to properly close the annotation canvas ([5152bd2](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/5152bd294acaa116076424e58bee94a9e26b12af))
+* **api:** improve issues route for total open count ([a6c248c](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/a6c248c41acfe488730dba024cb936cb682d2818))
+* **dashboard-analytics:** fix query to fetch total number of open issues ([d6c0cb2](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/d6c0cb27ef0f514a04b4825664c8e675c992e972))
+* **github:** return comment count from getGitHubIssue ([727a93b](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/727a93b41f851ab3696c3a69f0a851dadfa66ada))
+* **migration:** add column 'notifiedAt' to QaCheck table ([001a61f](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/001a61fce3788598c2d63ce9a5ddf971f6b2f780))
+* **package:** update glitchgrab dependency to workspace:* ([4caf66b](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/4caf66be6ea141ddb7140bc22f79f6f6c629ba29))
+* **qa:** persist tester fail reason + screenshot on QaCheck ([860fbe2](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/860fbe246fe64853c0c00db56cb2525a5f907fa6))
+* **qa:** require screenshot on tester Fail, tag comments with tester + timestamp ([3a0a2d0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/3a0a2d08da1c7de738353e544c3c3fa10fadc335))
+* **qa:** required screenshot upload on fail form + comment count badge ([b3eda98](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/b3eda984ac10034121ad72aecd5f01cfc059879c))
+* **qa:** surface GitHub comment count per check in tester view ([ce6086e](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/ce6086e0f685a6cc2c94986b9b0bb5c2acb34335))
+* **reports:** add created-at timestamp to dashboard issue body ([cf4dca3](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/cf4dca3c2ebdf140ff96b15c2ac621e49edf36c2))
+* **sdk:** add created-at timestamp to SDK issue body ([598201f](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/598201fcc254a9e683ddd1d4e733984493bcd72e))
+* **webhook:** add handling of merged PR issue closure for WhatsApp notifications ([f289aab](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/f289aab1bfbf75830346ae1627a7306f236814c2))
+
+### Bug Fixes
+
+* **annotation-canvas:** add functionality to draw and save annotations in a Next.js app ([7bb811b](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/7bb811b040cd5dc21439c67229f42ea1c7331050))
+* **api:** add API endpoint to get open issue count ([5e71254](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/5e71254695d1f241d58a84c7d2d84b7af5527d9e))
+* **api:** update API response types ([20c537a](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/20c537af73c9d899805f0a60f10ed8fa17c3be7e))
+* **auth:** add logging for session setting in mobile/session/route.ts ([4f101e7](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/4f101e75e59ef012df04853fc19d2f21c2720406))
+* **bug-chat:** add annotate button to bug chat ([18b5d02](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/18b5d024f53d3b3db78830fceb287cc7df4468b8))
+* **bug-chat:** save staged screenshot on annotate and cancel ([5350e87](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/5350e875ecd44d6a9edc0f282307dc3a90d0e9ea))
+* **bugreportsheet:** update enum values for bug report types ([422dc29](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/422dc298ee7307df3d00791d720a920f49a991ad))
+* **chat:** add UI improvements and performance optimizations ([e537f53](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/e537f53fef0f5c78d518b2280b84ba89eea0b58e))
+* **org-overview:** update org overview component to fetch issues data and display total open count ([5e773ee](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/5e773eef81e526507b1e3e38dde74e2f3806b75e))
+* **prisma:** add notifiedAt column to QaCheck model ([ddefc96](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/ddefc967ed97ff59566d6968b3b681556ef63047))
+* **qa-notify:** update to handle new deploy delay and improve WhatsApp sending ([19fead0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/19fead018b4ab6aa01d9700a69ae3b64ea41d3aa))
+* **report-dialog:** add annotate button to report dialog ([cfbbe12](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/cfbbe1266818e36517dc7fcdcaa1f4b740da812e))
+* **report-dialog:** add annotate button to report dialog ([bf0e0a7](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/bf0e0a793c3c8a05cdb744c6529862faa341c21a))
+* **report:** update route handling for new report types ([0a1be52](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/0a1be52f229c44f10911fa4e515b0b256c290f7d))
+* **sidebar:** update data fetching to handle missing totalOpenCount ([d2a268e](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/d2a268ec1f5042bc2dd803b49c68066dc49f2cc5))
+* **vercel:** add cron jobs for weekly summary and qa notify ([f3a9c52](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/f3a9c524f64757c719c1064fb345e4c36798dc80))
+
 ## [1.26.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.25.0...sdk-v1.26.0) (2026-07-08)
 
 ### Features
