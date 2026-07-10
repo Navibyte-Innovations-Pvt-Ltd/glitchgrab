@@ -22,7 +22,14 @@ export interface GlitchgrabConfig {
 
 // ─── Report Types ────────────────────────────────────────
 
-export type ReportType = "BUG" | "FEATURE_REQUEST" | "QUESTION" | "OTHER";
+export type ReportType =
+  | "BUG"
+  | "FEATURE_REQUEST"
+  | "UI_IMPROVEMENT"
+  | "PERFORMANCE"
+  | "SECURITY"
+  | "QUESTION"
+  | "OTHER";
 
 export type ReportSeverity = "low" | "medium" | "high";
 
@@ -121,7 +128,7 @@ export interface GlitchgrabProviderProps {
   maxBreadcrumbs?: number;
   children: ReactNode;
   fallback?: ReactNode;
-  /** Which report types to show in the dialog (default: all four) */
+  /** Which report types to show in the dialog (default: all) */
   types?: ReportType[];
   /** Show severity picker for BUG type (default: true) */
   showSeverity?: boolean;
