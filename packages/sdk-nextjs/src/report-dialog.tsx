@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import { AnnotationCanvas } from "./annotation-canvas";
 import type { ReportType, ReportSeverity, UseGlitchgrabReturn } from "./types";
 
 /** Detect if the host page uses a dark or light theme */
@@ -289,9 +290,10 @@ export function ReportDialog({
   const [submitted, setSubmitted] = useState(false);
   const [screenshots, setScreenshots] = useState<string[]>([]);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [annotatingIndex, setAnnotatingIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
-  const previewImgRef = useRef<HTMLImageElement>(null);
+  const previewImgRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
@@ -327,6 +329,9 @@ export function ReportDialog({
   const availableTypes: ReportType[] = types ?? [
     "BUG",
     "FEATURE_REQUEST",
+    "UI_IMPROVEMENT",
+    "PERFORMANCE",
+    "SECURITY",
     "QUESTION",
     "OTHER",
   ];
@@ -359,6 +364,12 @@ export function ReportDialog({
         logging: false,
         useCORS: true,
         allowTaint: true,
+        x: window.scrollX,
+        y: window.scrollY,
+        width: window.innerWidth,
+        height: window.innerHeight,
+        windowWidth: window.innerWidth,
+        windowHeight: window.innerHeight,
       });
       setScreenshots([canvas.toDataURL("image/jpeg", 0.6)]);
     } catch {
@@ -380,6 +391,12 @@ export function ReportDialog({
         logging: false,
         useCORS: true,
         allowTaint: true,
+        x: window.scrollX,
+        y: window.scrollY,
+        width: window.innerWidth,
+        height: window.innerHeight,
+        windowWidth: window.innerWidth,
+        windowHeight: window.innerHeight,
       });
       setScreenshots([canvas.toDataURL("image/jpeg", 0.6)]);
     } catch {
@@ -421,7 +438,7 @@ export function ReportDialog({
   // so it fires before the host page's own outside-click handlers (e.g. Radix
   // DismissableLayer) can stop the event from ever bubbling to our onClick.
   useEffect(() => {
-    if (previewIndex === null) return;
+    if (previewIndex === null || annotatingIndex !== null) return;
     const handlePointerDown = (e: PointerEvent) => {
       if (!previewImgRef.current?.contains(e.target as Node)) {
         setPreviewIndex(null);
@@ -430,7 +447,7 @@ export function ReportDialog({
     document.addEventListener("pointerdown", handlePointerDown, true);
     return () =>
       document.removeEventListener("pointerdown", handlePointerDown, true);
-  }, [previewIndex]);
+  }, [previewIndex, annotatingIndex]);
 
   // Paste image from clipboard (Cmd+V / Ctrl+V) when dialog is open
   useEffect(() => {
@@ -1441,6 +1458,45 @@ export function ReportDialog({
                                       />
                                     </svg>
                                   </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setAnnotatingIndex(i)}
+                                    aria-label={`Annotate screenshot ${i + 1}`}
+                                    title="Annotate"
+                                    style={{
+                                      position: "absolute",
+                                      top: "50%",
+                                      left: "50%",
+                                      transform: "translate(-50%, -50%)",
+                                      width: "24px",
+                                      height: "24px",
+                                      borderRadius: "50%",
+                                      border: "none",
+                                      background: t.accent,
+                                      color: t.accentText,
+                                      padding: 0,
+                                      cursor: "pointer",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      boxShadow: "0 2px 8px rgba(0,0,0,0.45)",
+                                    }}
+                                  >
+                                    <svg
+                                      width="12"
+                                      height="12"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                    >
+                                      <path
+                                        d="M12 20h9M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"
+                                        stroke="currentColor"
+                                        strokeWidth="2.2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                      />
+                                    </svg>
+                                  </button>
                                 </div>
                               ))}
                             </div>
@@ -1704,31 +1760,98 @@ export function ReportDialog({
             }}
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <img
+            <div
               ref={previewImgRef}
-              src={screenshots[previewIndex]}
-              alt="Screenshot preview"
+              style={{ position: "relative", maxWidth: "100%" }}
               onClick={(e) => e.stopPropagation()}
-              style={{
-                maxWidth: "100%",
-                maxHeight: "calc(100vh - 80px)",
-                borderRadius: "8px",
-                objectFit: "contain",
-                cursor: "default",
-              }}
-            />
-            <span
+            >
+              <img
+                src={screenshots[previewIndex]}
+                alt="Screenshot preview"
+                style={{
+                  maxWidth: "100%",
+                  maxHeight: "calc(100vh - 80px)",
+                  borderRadius: "8px",
+                  objectFit: "contain",
+                  cursor: "default",
+                  display: "block",
+                }}
+              />
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setAnnotatingIndex(previewIndex);
+                }}
+                style={{
+                  position: "absolute",
+                  top: "12px",
+                  right: "12px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "8px 14px",
+                  borderRadius: "999px",
+                  border: "none",
+                  background: t.accent,
+                  color: t.accentText,
+                  fontSize: "13px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  boxShadow: "0 4px 14px rgba(0,0,0,0.35)",
+                  animation: "gg-pulse 2s ease-in-out infinite",
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M12 20h9M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                Annotate
+              </button>
+            </div>
+            <div
               style={{
                 marginTop: "12px",
-                color: t.textMuted,
-                fontSize: "12px",
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
               }}
             >
-              {screenshots.length > 1
-                ? `${previewIndex + 1} / ${screenshots.length} · Click outside to close`
-                : "Click outside to close"}
-            </span>
+              <span
+                style={{
+                  color: t.textMuted,
+                  fontSize: "12px",
+                }}
+              >
+                {screenshots.length > 1
+                  ? `${previewIndex + 1} / ${screenshots.length} · Click outside to close`
+                  : "Click outside to close"}
+              </span>
+            </div>
           </div>,
+          document.body,
+        )}
+
+      {/* Annotation overlay */}
+      {annotatingIndex !== null &&
+        screenshots[annotatingIndex] &&
+        createPortal(
+          <AnnotationCanvas
+            imageSrc={screenshots[annotatingIndex]}
+            onCancel={() => setAnnotatingIndex(null)}
+            onSave={(dataUrl) => {
+              setScreenshots((prev) =>
+                prev.map((s, i) => (i === annotatingIndex ? dataUrl : s)),
+              );
+              setAnnotatingIndex(null);
+            }}
+          />,
           document.body,
         )}
     </>
@@ -1743,6 +1866,12 @@ function getTypeLabel(type: ReportType): string {
       return "Bug Report";
     case "FEATURE_REQUEST":
       return "Feature Request";
+    case "UI_IMPROVEMENT":
+      return "UI Improvement";
+    case "PERFORMANCE":
+      return "Performance";
+    case "SECURITY":
+      return "Security";
     case "QUESTION":
       return "Question";
     case "OTHER":
@@ -1756,6 +1885,12 @@ function getTypeSubtitle(type: ReportType): string {
       return "Something isn't working";
     case "FEATURE_REQUEST":
       return "Suggest an improvement";
+    case "UI_IMPROVEMENT":
+      return "Something looks off";
+    case "PERFORMANCE":
+      return "Something is slow";
+    case "SECURITY":
+      return "Report a security concern";
     case "QUESTION":
       return "Ask a question";
     case "OTHER":
@@ -1770,6 +1905,12 @@ function getPlaceholder(type: ReportType, idx = 0, hasVoice = false): string {
       return "What went wrong? Describe it or paste an error...";
     case "FEATURE_REQUEST":
       return "Describe the feature you'd like...";
+    case "UI_IMPROVEMENT":
+      return "What looks off? Describe the visual issue...";
+    case "PERFORMANCE":
+      return "What's slow? Describe when it happens...";
+    case "SECURITY":
+      return "Describe the security concern...";
     case "QUESTION":
       return "What would you like to know?";
     case "OTHER":
@@ -1802,6 +1943,49 @@ function getTypeIcon(type: ReportType, color: string, size = 24): ReactNode {
         <svg {...props}>
           <path
             d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2z"
+            stroke={color}
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+        </svg>
+      );
+    case "UI_IMPROVEMENT":
+      return (
+        <svg {...props}>
+          <rect
+            x="3"
+            y="3"
+            width="18"
+            height="18"
+            rx="2"
+            stroke={color}
+            strokeWidth="1.5"
+          />
+          <path
+            d="M3 9h18M9 21V9"
+            stroke={color}
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </svg>
+      );
+    case "PERFORMANCE":
+      return (
+        <svg {...props}>
+          <path
+            d="M12 21a9 9 0 100-18 9 9 0 000 18zM12 12l4-4M12 7v.01"
+            stroke={color}
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      );
+    case "SECURITY":
+      return (
+        <svg {...props}>
+          <path
+            d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z"
             stroke={color}
             strokeWidth="1.5"
             strokeLinejoin="round"

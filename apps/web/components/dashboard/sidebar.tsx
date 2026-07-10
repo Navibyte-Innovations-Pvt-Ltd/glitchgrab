@@ -93,11 +93,11 @@ export function Sidebar({
   }, [handleKeyDown]);
 
   // Live counts from TanStack cache (fetched by the dashboard; sidebar just reads)
-  const { data: issues } = useQuery<unknown[]>({
+  const { data: issues } = useQuery<{ issues: unknown[]; totalOpenCount: number }>({
     queryKey: ["open-issues"],
     queryFn: async () => {
       const { data } = await axios.get("/api/v1/repos/issues");
-      return data.data ?? [];
+      return data.data ?? { issues: [], totalOpenCount: 0 };
     },
     staleTime: 60_000,
     enabled: true,
@@ -112,7 +112,7 @@ export function Sidebar({
     enabled: true,
   });
 
-  const issueCount = issues?.length ?? 0;
+  const issueCount = issues?.totalOpenCount ?? 0;
   const failedCount = analytics?.failed ?? 0;
 
   const reportsBadge: NavBadge | undefined =

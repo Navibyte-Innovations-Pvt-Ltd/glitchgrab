@@ -15,11 +15,21 @@ import { api } from "@/lib/api";
 import { useRepos } from "@/hooks/use-repos";
 import { Colors } from "@/lib/colors";
 
-type ReportType = "BUG" | "FEATURE_REQUEST" | "QUESTION" | "OTHER";
+type ReportType =
+  | "BUG"
+  | "FEATURE_REQUEST"
+  | "UI_IMPROVEMENT"
+  | "PERFORMANCE"
+  | "SECURITY"
+  | "QUESTION"
+  | "OTHER";
 
 const TYPE_OPTIONS: Array<{ type: ReportType; label: string; emoji: string; placeholder: string }> = [
   { type: "BUG", label: "Bug", emoji: "🐛", placeholder: "What went wrong? Describe the issue..." },
   { type: "FEATURE_REQUEST", label: "Feature", emoji: "⭐", placeholder: "Describe the feature you'd like..." },
+  { type: "UI_IMPROVEMENT", label: "UI", emoji: "🎨", placeholder: "What looks off? Describe the visual issue..." },
+  { type: "PERFORMANCE", label: "Performance", emoji: "⚡", placeholder: "What's slow? Describe when it happens..." },
+  { type: "SECURITY", label: "Security", emoji: "🔒", placeholder: "Describe the security concern..." },
   { type: "QUESTION", label: "Question", emoji: "❓", placeholder: "What would you like to know?" },
   { type: "OTHER", label: "Other", emoji: "💬", placeholder: "Tell us what's on your mind..." },
 ];

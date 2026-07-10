@@ -24,6 +24,20 @@ interface GithubPR {
 
 const CLOSING_RE = /(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)/gi;
 
+async function getOpenIssueCount(repoFullName: string, token: string): Promise<number> {
+  try {
+    const res = await fetch(
+      `https://api.github.com/search/issues?q=${encodeURIComponent(`repo:${repoFullName} is:issue is:open`)}&per_page=1`,
+      { headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" } }
+    );
+    if (!res.ok) return 0;
+    const json = (await res.json()) as { total_count?: number };
+    return json.total_count ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
 async function getLinkedIssueNumbers(repoFullName: string, token: string): Promise<Set<number>> {
   const linked = new Set<number>();
   try {
@@ -69,7 +83,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   });
 
   if (!account?.access_token) {
-    return NextResponse.json({ success: true, data: [] });
+    return NextResponse.json({ success: true, data: { issues: [], totalOpenCount: 0 } });
   }
 
   const token = account.access_token;
@@ -121,8 +135,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
 
   issues.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
+  const totalOpenCount = (
+    await Promise.all(
+      repos.map((repo: { fullName: string }) => getOpenIssueCount(repo.fullName, token))
+    )
+  ).reduce((sum, n) => sum + n, 0);
+
   return NextResponse.json(
-    { success: true, data: issues.slice(0, 30) },
+    { success: true, data: { issues: issues.slice(0, 30), totalOpenCount } },
     { headers: { "Cache-Control": "private, max-age=300, stale-while-revalidate=60" } },
   );
 }

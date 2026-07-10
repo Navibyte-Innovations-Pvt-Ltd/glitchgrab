@@ -26,12 +26,14 @@ import {
   Mic,
   MicOff,
   Paperclip,
+  Pencil,
   RotateCcw,
   Sparkles,
   Terminal,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { AnnotationCanvas } from "./annotation-canvas";
 
 interface SpeechRecognitionResult {
   readonly isFinal: boolean;
@@ -183,25 +185,40 @@ function FileToken({
   size,
   onRemove,
   onClick,
+  onAnnotate,
 }: {
   src: string;
   name: string;
   size?: number;
   onRemove?: () => void;
   onClick?: () => void;
+  onAnnotate?: () => void;
 }) {
   return (
     <div className="inline-flex items-center gap-3 bg-background/60 border border-border hover:border-muted-foreground/40 py-1.5 pl-1.5 pr-3 rounded-md group transition-colors">
-      <button
-        type="button"
-        onClick={onClick}
-        className="h-8 w-8 rounded overflow-hidden border border-border shrink-0 bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-default"
-        disabled={!onClick}
-        aria-label={onClick ? `View ${name}` : undefined}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt={name} className="w-full h-full object-cover" />
-      </button>
+      <div className="relative h-8 w-8 shrink-0">
+        <button
+          type="button"
+          onClick={onClick}
+          className="h-8 w-8 rounded overflow-hidden border border-border bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-default"
+          disabled={!onClick}
+          aria-label={onClick ? `View ${name}` : undefined}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={src} alt={name} className="w-full h-full object-cover" />
+        </button>
+        {onAnnotate && (
+          <button
+            type="button"
+            onClick={onAnnotate}
+            aria-label="Annotate"
+            title="Annotate"
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md"
+          >
+            <Pencil className="h-2.5 w-2.5" />
+          </button>
+        )}
+      </div>
       <div className="flex flex-col min-w-0">
         <span className="font-mono text-[11px] text-foreground truncate max-w-55">{name}</span>
         <span className="font-mono text-[10px] text-muted-foreground">
@@ -383,7 +400,8 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
   const [originalInput, setOriginalInput] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
-  const [stagedPreview, setStagedPreview] = useState<string | null>(null);
+  const [stagedPreviewIndex, setStagedPreviewIndex] = useState<number | null>(null);
+  const [annotating, setAnnotating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -467,6 +485,18 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
     setScreenshots([]);
     setScreenshotFiles([]);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  async function handleAnnotateSave(dataUrl: string) {
+    if (stagedPreviewIndex === null) return;
+    const idx = stagedPreviewIndex;
+    const blob = await (await fetch(dataUrl)).blob();
+    const file = new File([blob], screenshotFiles[idx]?.name ?? `screenshot_${idx + 1}.jpg`, {
+      type: "image/jpeg",
+    });
+    setScreenshots((prev) => prev.map((s, i) => (i === idx ? dataUrl : s)));
+    setScreenshotFiles((prev) => prev.map((f, i) => (i === idx ? file : f)));
+    setAnnotating(false);
   }
 
   function handleNewChat() {
@@ -973,8 +1003,12 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
                   src={src}
                   name={`screenshot_${i + 1}.jpg`}
                   size={screenshotFiles[i]?.size}
-                  onClick={() => setStagedPreview(src)}
+                  onClick={() => setStagedPreviewIndex(i)}
                   onRemove={() => removeScreenshot(i)}
+                  onAnnotate={() => {
+                    setStagedPreviewIndex(i);
+                    setAnnotating(true);
+                  }}
                 />
               ))}
             </div>
@@ -983,18 +1017,41 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
 
         {/* Staged screenshot lightbox */}
         <Dialog
-          open={stagedPreview !== null}
-          onOpenChange={(open) => { if (!open) setStagedPreview(null); }}
+          open={stagedPreviewIndex !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setStagedPreviewIndex(null);
+              setAnnotating(false);
+            }
+          }}
         >
           <DialogContent className="sm:max-w-3xl p-2">
             <DialogTitle className="sr-only">Screenshot preview</DialogTitle>
-            {stagedPreview && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={stagedPreview}
-                alt="Screenshot preview"
-                className="w-full h-auto rounded-lg object-contain max-h-[80vh]"
-              />
+            {stagedPreviewIndex !== null && screenshots[stagedPreviewIndex] && (
+              annotating ? (
+                <AnnotationCanvas
+                  imageSrc={screenshots[stagedPreviewIndex]}
+                  onCancel={() => setAnnotating(false)}
+                  onSave={handleAnnotateSave}
+                />
+              ) : (
+                <div className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={screenshots[stagedPreviewIndex]}
+                    alt="Screenshot preview"
+                    className="w-full h-auto rounded-lg object-contain max-h-[70vh]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setAnnotating(true)}
+                    className="absolute top-3 right-3 flex items-center gap-1.5 font-mono text-xs font-bold px-3.5 py-2 rounded-full bg-primary text-primary-foreground shadow-lg animate-pulse hover:animate-none hover:brightness-110 transition-all"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    Annotate
+                  </button>
+                </div>
+              )
             )}
           </DialogContent>
         </Dialog>

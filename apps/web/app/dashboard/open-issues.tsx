@@ -34,14 +34,18 @@ function repoName(fullName: string) {
 }
 
 export function OpenIssues() {
-  const { data, isLoading } = useQuery<IssueItem[]>({
+  const { data: issuesData, isLoading } = useQuery<{
+    issues: IssueItem[];
+    totalOpenCount: number;
+  }>({
     queryKey: ["open-issues"],
     queryFn: async () => {
       const { data } = await axios.get("/api/v1/repos/issues");
-      return data.data ?? [];
+      return data.data ?? { issues: [], totalOpenCount: 0 };
     },
     staleTime: 60_000,
   });
+  const data = issuesData?.issues;
 
   if (isLoading) {
     return (
