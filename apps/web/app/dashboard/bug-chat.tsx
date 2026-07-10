@@ -26,12 +26,14 @@ import {
   Mic,
   MicOff,
   Paperclip,
+  Pencil,
   RotateCcw,
   Sparkles,
   Terminal,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { AnnotationCanvas } from "./annotation-canvas";
 
 interface SpeechRecognitionResult {
   readonly isFinal: boolean;
@@ -383,7 +385,8 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
   const [originalInput, setOriginalInput] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
-  const [stagedPreview, setStagedPreview] = useState<string | null>(null);
+  const [stagedPreviewIndex, setStagedPreviewIndex] = useState<number | null>(null);
+  const [annotating, setAnnotating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -467,6 +470,18 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
     setScreenshots([]);
     setScreenshotFiles([]);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  async function handleAnnotateSave(dataUrl: string) {
+    if (stagedPreviewIndex === null) return;
+    const idx = stagedPreviewIndex;
+    const blob = await (await fetch(dataUrl)).blob();
+    const file = new File([blob], screenshotFiles[idx]?.name ?? `screenshot_${idx + 1}.jpg`, {
+      type: "image/jpeg",
+    });
+    setScreenshots((prev) => prev.map((s, i) => (i === idx ? dataUrl : s)));
+    setScreenshotFiles((prev) => prev.map((f, i) => (i === idx ? file : f)));
+    setAnnotating(false);
   }
 
   function handleNewChat() {
@@ -973,7 +988,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
                   src={src}
                   name={`screenshot_${i + 1}.jpg`}
                   size={screenshotFiles[i]?.size}
-                  onClick={() => setStagedPreview(src)}
+                  onClick={() => setStagedPreviewIndex(i)}
                   onRemove={() => removeScreenshot(i)}
                 />
               ))}
@@ -983,18 +998,41 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
 
         {/* Staged screenshot lightbox */}
         <Dialog
-          open={stagedPreview !== null}
-          onOpenChange={(open) => { if (!open) setStagedPreview(null); }}
+          open={stagedPreviewIndex !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setStagedPreviewIndex(null);
+              setAnnotating(false);
+            }
+          }}
         >
           <DialogContent className="sm:max-w-3xl p-2">
             <DialogTitle className="sr-only">Screenshot preview</DialogTitle>
-            {stagedPreview && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={stagedPreview}
-                alt="Screenshot preview"
-                className="w-full h-auto rounded-lg object-contain max-h-[80vh]"
-              />
+            {stagedPreviewIndex !== null && screenshots[stagedPreviewIndex] && (
+              annotating ? (
+                <AnnotationCanvas
+                  imageSrc={screenshots[stagedPreviewIndex]}
+                  onCancel={() => setAnnotating(false)}
+                  onSave={handleAnnotateSave}
+                />
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={screenshots[stagedPreviewIndex]}
+                    alt="Screenshot preview"
+                    className="w-full h-auto rounded-lg object-contain max-h-[70vh]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setAnnotating(true)}
+                    className="self-start flex items-center gap-1.5 font-mono text-xs px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:border-muted-foreground/40 transition-colors"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    Annotate
+                  </button>
+                </div>
+              )
             )}
           </DialogContent>
         </Dialog>
