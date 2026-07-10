@@ -24,29 +24,29 @@ model Waitlist {
 // ─── Auth ────────────────────────────────────────────────
 
 model User {
-  id             String    @id @default(cuid())
-  name           String?
-  email          String    @unique
-  emailVerified  DateTime?
-  image          String?
-  githubLogin    String?
-  whatsappPhone  String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  githubLogin   String?
+  whatsappPhone String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  accounts      Account[]
-  sessions      Session[]
-  repos         Repo[]
-  aiConfig      AiConfig?
-  subscription  Subscription?
-  webhooks      Webhook[]
-  gscProperties       GscProperty[]
-  gscConnectSessions  GscConnectSession[]
-  ownedOrgs     Organization[]
-  orgMemberships OrgMember[]
+  accounts           Account[]
+  sessions           Session[]
+  repos              Repo[]
+  aiConfig           AiConfig?
+  subscription       Subscription?
+  webhooks           Webhook[]
+  gscProperties      GscProperty[]
+  gscConnectSessions GscConnectSession[]
+  ownedOrgs          Organization[]
+  orgMemberships     OrgMember[]
   glitchRecordTokens GlitchRecordToken[]
   aiEnhanceLogs      AiEnhanceLog[]
-  whatsappOtps  WhatsappOtp[]
+  whatsappOtps       WhatsappOtp[]
 }
 
 model WhatsappOtp {
@@ -112,14 +112,14 @@ model Repo {
   isPrivate Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  org               Organization?      @relation(fields: [orgId], references: [id], onDelete: SetNull)
-  tokens            ApiToken[]
-  reports           Report[]
-  issues            Issue[]
-  gscProperties     GscProperty[]
-  testerRepos       TesterRepo[]
-  qaChecks          QaCheck[]
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org           Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  tokens        ApiToken[]
+  reports       Report[]
+  issues        Issue[]
+  gscProperties GscProperty[]
+  testerRepos   TesterRepo[]
+  qaChecks      QaCheck[]
 
   @@unique([userId, githubId])
   @@index([githubId])
@@ -137,9 +137,9 @@ model ApiToken {
   /// Public no-auth slug for the tester report link — null = link disabled
   shareSlug String?   @unique
 
-  repo           Repo           @relation(fields: [repoId], references: [id], onDelete: Cascade)
-  reports        Report[]
-  aiEnhanceLogs  AiEnhanceLog[]
+  repo          Repo           @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  reports       Report[]
+  aiEnhanceLogs AiEnhanceLog[]
 }
 
 // ─── Reports & Issues ────────────────────────────────────
@@ -253,14 +253,14 @@ model GscProperty {
   indexedCount          Int       @default(0)
   notIndexedCount       Int       @default(0)
   lastSyncAt            DateTime?
-  cachedNotIndexedPages   Json?
-  seoHealthIssueUrl       String?
-  seoHealthSnoozedUntil   DateTime?
+  cachedNotIndexedPages Json?
+  seoHealthIssueUrl     String?
+  seoHealthSnoozedUntil DateTime?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  repo Repo? @relation(fields: [repoId], references: [id], onDelete: SetNull)
+  user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repo              Repo?                 @relation(fields: [repoId], references: [id], onDelete: SetNull)
   indexingSnapshots GscIndexingSnapshot[]
 
   @@unique([userId, siteUrl])
@@ -294,7 +294,7 @@ model GscConnectSession {
   encryptedAccess  String
   encryptedRefresh String?
   tokenExpiresAt   DateTime
-  sites            Json     // Array of {siteUrl: string, permissionLevel: string}
+  sites            Json // Array of {siteUrl: string, permissionLevel: string}
   expiresAt        DateTime
   createdAt        DateTime @default(now())
 
@@ -367,10 +367,10 @@ model AiEnhanceLog {
   id           String   @id @default(cuid())
   originalText String
   enhancedText String
-  changed      Boolean  // false = AI returned same text
+  changed      Boolean // false = AI returned same text
   pageUrl      String?
-  apiTokenId   String?  // set when called from SDK
-  userId       String?  // set when called from dashboard session
+  apiTokenId   String? // set when called from SDK
+  userId       String? // set when called from dashboard session
   createdAt    DateTime @default(now())
 
   apiToken ApiToken? @relation(fields: [apiTokenId], references: [id], onDelete: SetNull)
@@ -379,12 +379,12 @@ model AiEnhanceLog {
 
 // Temporary click-capture sessions for Recordly script generation
 model CaptureSession {
-  id         String   @id @default(cuid())
-  events     Json
-  meta       Json?    // RecordingMeta from Recordly — clips, cuts, duration
-  script     String?
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  events    Json
+  meta      Json? // RecordingMeta from Recordly — clips, cuts, duration
+  script    String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 }
 
 // Persistent narration training/feedback telemetry. Unlike CaptureSession (which
@@ -393,41 +393,41 @@ model CaptureSession {
 // initial row, the refine route appends each user refinement turn. Writes are
 // best-effort — telemetry must NEVER break script generation.
 model NarrationTelemetry {
-  id          String   @id @default(cuid())
-  sessionId   String   @unique // the CaptureSession id this generation came from
+  id        String @id @default(cuid())
+  sessionId String @unique // the CaptureSession id this generation came from
 
   // ── Input context ───────────────────────────────────────────────
-  events      Json     // raw captured events, as-is (incl. typed previews)
-  meta        Json?    // RecordingMeta (cuts/zooms/duration)
-  appName     String?  // derived product name (deriveAppName)
+  events      Json // raw captured events, as-is (incl. typed previews)
+  meta        Json? // RecordingMeta (cuts/zooms/duration)
+  appName     String? // derived product name (deriveAppName)
   lang        String?
   gender      String?
   durationSec Int?
-  eventCount  Int      @default(0)
-  hasNotes    Boolean  @default(false) // any shift-mark "note" events present
-  noteCount   Int      @default(0)
-  noteAnswers Json?    // what the user said to explain at each marked spot
+  eventCount  Int     @default(0)
+  hasNotes    Boolean @default(false) // any shift-mark "note" events present
+  noteCount   Int     @default(0)
+  noteAnswers Json? // what the user said to explain at each marked spot
 
   // ── Initial generation ──────────────────────────────────────────
-  model            String  // deepseek model used for generation
-  genLatencyMs     Int     @default(0)
-  initialScript    String  @default("")
-  initialChars     Int     @default(0)
-  wasEmpty         Boolean @default(false) // generation returned nothing
-  wasRoman         Boolean @default(false) // lang=hi but came back Roman/Latin
+  model             String // deepseek model used for generation
+  genLatencyMs      Int     @default(0)
+  initialScript     String  @default("")
+  initialChars      Int     @default(0)
+  wasEmpty          Boolean @default(false) // generation returned nothing
+  wasRoman          Boolean @default(false) // lang=hi but came back Roman/Latin
   devanagariRetried Boolean @default(false) // the Devanagari-fix retry fired
-  devanagariRatio  Float   @default(0)
+  devanagariRatio   Float   @default(0)
 
   // ── Refinements (appended by the refine route) ──────────────────
   // refinements: [{ ts, userMessage, resultingScript, chars }] — full history of
   // what the user asked to change and the version it produced.
-  refinements Json    @default("[]")
-  refineCount Int     @default(0) // how many versions the user needed (quality proxy)
-  finalScript String  @default("")
-  finalChars  Int     @default(0)
+  refinements Json   @default("[]")
+  refineCount Int    @default(0) // how many versions the user needed (quality proxy)
+  finalScript String @default("")
+  finalChars  Int    @default(0)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([appName])
   @@index([createdAt])
@@ -443,7 +443,7 @@ model Tester {
   orgId       String
   name        String
   email       String?
-  phone       String?  // WhatsApp number (digits, optional country code)
+  phone       String? // WhatsApp number (digits, optional country code)
   /// Unguessable capability token — the /qa/<token> page is gated only by this
   magicToken  String   @unique
   invitedById String
@@ -492,22 +492,26 @@ enum QaStatus {
 }
 
 model QaCheck {
-  id             String   @id @default(cuid())
-  testerId       String
-  repoId         String
-  githubNumber   Int
-  githubUrl      String
-  title          String
-  prNumber       Int?
-  prUrl          String?
+  id                String    @id @default(cuid())
+  testerId          String
+  repoId            String
+  githubNumber      Int
+  githubUrl         String
+  title             String
+  prNumber          Int?
+  prUrl             String?
   /// GitHub login of the developer who merged the PR that closed this issue
-  developerLogin String?
-  status         QaStatus @default(PENDING)
-  createdAt      DateTime @default(now())
-  verifiedAt     DateTime?
+  developerLogin    String?
+  status            QaStatus  @default(PENDING)
+  createdAt         DateTime  @default(now())
+  verifiedAt        DateTime?
+  /// Tester's explanation of what's not working, required on FAIL
+  failReason        String?
+  /// S3/CDN URL of the screenshot the tester attached on FAIL
+  failScreenshotUrl String?
   /// When the WhatsApp tester-notify was sent. Null = still waiting out the
   /// post-merge deploy delay (see /api/v1/cron/qa-notify).
-  notifiedAt     DateTime?
+  notifiedAt        DateTime?
 
   tester Tester @relation(fields: [testerId], references: [id], onDelete: Cascade)
   repo   Repo   @relation(fields: [repoId], references: [id], onDelete: Cascade)
