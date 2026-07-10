@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import { AnnotationCanvas } from "./annotation-canvas";
 import type { ReportType, ReportSeverity, UseGlitchgrabReturn } from "./types";
 
 /** Detect if the host page uses a dark or light theme */
@@ -289,6 +290,7 @@ export function ReportDialog({
   const [submitted, setSubmitted] = useState(false);
   const [screenshots, setScreenshots] = useState<string[]>([]);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [annotatingIndex, setAnnotatingIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const previewImgRef = useRef<HTMLImageElement>(null);
@@ -1717,18 +1719,75 @@ export function ReportDialog({
                 cursor: "default",
               }}
             />
-            <span
+            <div
               style={{
                 marginTop: "12px",
-                color: t.textMuted,
-                fontSize: "12px",
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
               }}
             >
-              {screenshots.length > 1
-                ? `${previewIndex + 1} / ${screenshots.length} · Click outside to close`
-                : "Click outside to close"}
-            </span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setAnnotatingIndex(previewIndex);
+                }}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "5px",
+                  padding: "5px 10px",
+                  borderRadius: "6px",
+                  border: "1.5px solid rgba(255,255,255,0.25)",
+                  background: "rgba(255,255,255,0.08)",
+                  color: "#fff",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M12 20h9M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                Annotate
+              </button>
+              <span
+                style={{
+                  color: t.textMuted,
+                  fontSize: "12px",
+                }}
+              >
+                {screenshots.length > 1
+                  ? `${previewIndex + 1} / ${screenshots.length} · Click outside to close`
+                  : "Click outside to close"}
+              </span>
+            </div>
           </div>,
+          document.body,
+        )}
+
+      {/* Annotation overlay */}
+      {annotatingIndex !== null &&
+        screenshots[annotatingIndex] &&
+        createPortal(
+          <AnnotationCanvas
+            imageSrc={screenshots[annotatingIndex]}
+            onCancel={() => setAnnotatingIndex(null)}
+            onSave={(dataUrl) => {
+              setScreenshots((prev) =>
+                prev.map((s, i) => (i === annotatingIndex ? dataUrl : s)),
+              );
+              setAnnotatingIndex(null);
+            }}
+          />,
           document.body,
         )}
     </>
