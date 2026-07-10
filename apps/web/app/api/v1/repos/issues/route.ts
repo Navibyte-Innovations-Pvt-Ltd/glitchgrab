@@ -15,6 +15,20 @@ interface GithubIssue {
   comments: number;
 }
 
+async function getOpenIssueCount(repoFullName: string, token: string): Promise<number> {
+  try {
+    const res = await fetch(
+      `https://api.github.com/search/issues?q=${encodeURIComponent(`repo:${repoFullName} is:issue is:open`)}&per_page=1`,
+      { headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" } }
+    );
+    if (!res.ok) return 0;
+    const json = (await res.json()) as { total_count?: number };
+    return json.total_count ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
 export async function GET() {
   try {
     const session = await auth();
@@ -30,7 +44,7 @@ export async function GET() {
     });
 
     if (!account?.access_token) {
-      return NextResponse.json({ success: true, data: [] });
+      return NextResponse.json({ success: true, data: { issues: [], totalOpenCount: 0 } });
     }
 
     const repos = await prisma.repo.findMany({
@@ -77,7 +91,18 @@ export async function GET() {
 
     issues.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    return NextResponse.json({ success: true, data: issues.slice(0, 20) });
+    const totalOpenCount = (
+      await Promise.all(
+        repos.map((repo: { fullName: string }) =>
+          getOpenIssueCount(repo.fullName, account.access_token as string)
+        )
+      )
+    ).reduce((sum, n) => sum + n, 0);
+
+    return NextResponse.json({
+      success: true,
+      data: { issues: issues.slice(0, 20), totalOpenCount },
+    });
   } catch (error) {
     console.error("Fetch issues error:", error);
     return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
