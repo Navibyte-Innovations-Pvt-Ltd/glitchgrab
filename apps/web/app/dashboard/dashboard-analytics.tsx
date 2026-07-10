@@ -64,11 +64,11 @@ export function DashboardAnalytics() {
     refetchInterval: 60_000,
   });
 
-  const { data: issues } = useQuery<IssueItem[]>({
+  const { data: issues } = useQuery<{ issues: IssueItem[]; totalOpenCount: number }>({
     queryKey: ["open-issues"],
     queryFn: async () => {
       const { data } = await axios.get("/api/v1/repos/issues");
-      return data.data ?? [];
+      return data.data ?? { issues: [], totalOpenCount: 0 };
     },
     staleTime: 60_000,
     refetchOnWindowFocus: true,
@@ -107,7 +107,7 @@ export function DashboardAnalytics() {
 
   const hasData = analytics.total > 0;
   const openPrs = prs?.length ?? 0;
-  const openIssues = issues?.length ?? 0;
+  const openIssues = issues?.totalOpenCount ?? 0;
 
   return (
     <div className="flex flex-col gap-6 md:gap-8">
