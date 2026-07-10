@@ -720,16 +720,20 @@ function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
   const repoFilter = selectedRepo || null;
   const setRepoFilter = (r: string | null) => void setSelectedRepo(r ?? "");
 
-  const { data, isLoading } = useQuery<IssueItem[]>({
+  const { data: issuesData, isLoading } = useQuery<{
+    issues: IssueItem[];
+    totalOpenCount: number;
+  }>({
     queryKey: ["org-issues", orgSlug],
     queryFn: async () => {
       const { data } = await axios.get(`/api/v1/orgs/${orgSlug}/issues`);
-      return data.data ?? [];
+      return data.data ?? { issues: [], totalOpenCount: 0 };
     },
     staleTime: 5 * 60_000,
     refetchOnWindowFocus: false,
     refetchInterval: 10 * 60_000,
   });
+  const data = issuesData?.issues;
 
   // Apply local filters
   const filtered = (data ?? []).filter((issue) => {
@@ -2047,11 +2051,11 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
     refetchInterval: 10 * 60_000,
   });
 
-  const { data: issues } = useQuery<IssueItem[]>({
+  const { data: issues } = useQuery<{ issues: IssueItem[]; totalOpenCount: number }>({
     queryKey: ["org-issues", ctx.orgSlug],
     queryFn: async () => {
       const { data } = await axios.get(`/api/v1/orgs/${ctx.orgSlug}/issues`);
-      return data.data ?? [];
+      return data.data ?? { issues: [], totalOpenCount: 0 };
     },
     staleTime: 5 * 60_000,
     refetchOnWindowFocus: false,
@@ -2102,7 +2106,7 @@ export function OrgOverview({ ctx }: { ctx: OrgContext }) {
 
   const repoCount = ctx.repos.length;
   const memberCount = membersData?.total ?? "—";
-  const openIssues = issues?.length ?? 0;
+  const openIssues = issues?.totalOpenCount ?? 0;
   const totalIndexed =
     gscProperties?.reduce((s, p) => s + p.indexedCount, 0) ?? 0;
   const totalNotIndexed =
