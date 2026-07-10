@@ -2,7 +2,14 @@ const DEFAULT_BASE_URL = "https://glitchgrab.dev";
 
 export interface ReportPayload {
   description: string;
-  type: "BUG" | "FEATURE_REQUEST" | "QUESTION" | "OTHER";
+  type:
+    | "BUG"
+    | "FEATURE_REQUEST"
+    | "UI_IMPROVEMENT"
+    | "PERFORMANCE"
+    | "SECURITY"
+    | "QUESTION"
+    | "OTHER";
   source: "SDK_USER_REPORT";
   reporterPrimaryKey: string;
   reporterName: string;
