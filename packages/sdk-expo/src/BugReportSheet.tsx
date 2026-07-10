@@ -16,11 +16,21 @@ import type { GlitchgrabConfig } from "./context";
 import { submitReport } from "./lib/api";
 import { readUriAsBase64 } from "./lib/capture";
 
-type ReportType = "BUG" | "FEATURE_REQUEST" | "QUESTION" | "OTHER";
+type ReportType =
+  | "BUG"
+  | "FEATURE_REQUEST"
+  | "UI_IMPROVEMENT"
+  | "PERFORMANCE"
+  | "SECURITY"
+  | "QUESTION"
+  | "OTHER";
 
 const TYPE_OPTIONS: Array<{ type: ReportType; label: string; emoji: string }> = [
   { type: "BUG", label: "Bug", emoji: "🐛" },
   { type: "FEATURE_REQUEST", label: "Feature", emoji: "⭐" },
+  { type: "UI_IMPROVEMENT", label: "UI", emoji: "🎨" },
+  { type: "PERFORMANCE", label: "Performance", emoji: "⚡" },
+  { type: "SECURITY", label: "Security", emoji: "🔒" },
   { type: "QUESTION", label: "Question", emoji: "❓" },
   { type: "OTHER", label: "Other", emoji: "💬" },
 ];
