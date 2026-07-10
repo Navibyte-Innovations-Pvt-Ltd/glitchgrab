@@ -185,25 +185,40 @@ function FileToken({
   size,
   onRemove,
   onClick,
+  onAnnotate,
 }: {
   src: string;
   name: string;
   size?: number;
   onRemove?: () => void;
   onClick?: () => void;
+  onAnnotate?: () => void;
 }) {
   return (
     <div className="inline-flex items-center gap-3 bg-background/60 border border-border hover:border-muted-foreground/40 py-1.5 pl-1.5 pr-3 rounded-md group transition-colors">
-      <button
-        type="button"
-        onClick={onClick}
-        className="h-8 w-8 rounded overflow-hidden border border-border shrink-0 bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-default"
-        disabled={!onClick}
-        aria-label={onClick ? `View ${name}` : undefined}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt={name} className="w-full h-full object-cover" />
-      </button>
+      <div className="relative h-8 w-8 shrink-0">
+        <button
+          type="button"
+          onClick={onClick}
+          className="h-8 w-8 rounded overflow-hidden border border-border bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-default"
+          disabled={!onClick}
+          aria-label={onClick ? `View ${name}` : undefined}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={src} alt={name} className="w-full h-full object-cover" />
+        </button>
+        {onAnnotate && (
+          <button
+            type="button"
+            onClick={onAnnotate}
+            aria-label="Annotate"
+            title="Annotate"
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md"
+          >
+            <Pencil className="h-2.5 w-2.5" />
+          </button>
+        )}
+      </div>
       <div className="flex flex-col min-w-0">
         <span className="font-mono text-[11px] text-foreground truncate max-w-55">{name}</span>
         <span className="font-mono text-[10px] text-muted-foreground">
@@ -990,6 +1005,10 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
                   size={screenshotFiles[i]?.size}
                   onClick={() => setStagedPreviewIndex(i)}
                   onRemove={() => removeScreenshot(i)}
+                  onAnnotate={() => {
+                    setStagedPreviewIndex(i);
+                    setAnnotating(true);
+                  }}
                 />
               ))}
             </div>
@@ -1016,7 +1035,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
                   onSave={handleAnnotateSave}
                 />
               ) : (
-                <div className="flex flex-col gap-2">
+                <div className="relative">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={screenshots[stagedPreviewIndex]}
@@ -1026,9 +1045,9 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
                   <button
                     type="button"
                     onClick={() => setAnnotating(true)}
-                    className="self-start flex items-center gap-1.5 font-mono text-xs px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:border-muted-foreground/40 transition-colors"
+                    className="absolute top-3 right-3 flex items-center gap-1.5 font-mono text-xs font-bold px-3.5 py-2 rounded-full bg-primary text-primary-foreground shadow-lg animate-pulse hover:animate-none hover:brightness-110 transition-all"
                   >
-                    <Pencil className="h-3 w-3" />
+                    <Pencil className="h-3.5 w-3.5" />
                     Annotate
                   </button>
                 </div>
