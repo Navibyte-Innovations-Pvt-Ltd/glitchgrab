@@ -31,7 +31,14 @@ export async function OPTIONS() {
 
 interface SdkReportBody {
   source: "SDK_AUTO" | "SDK_USER_REPORT";
-  type?: "BUG" | "FEATURE_REQUEST" | "QUESTION" | "OTHER";
+  type?:
+    | "BUG"
+    | "FEATURE_REQUEST"
+    | "UI_IMPROVEMENT"
+    | "PERFORMANCE"
+    | "SECURITY"
+    | "QUESTION"
+    | "OTHER";
   description?: string;
   errorMessage?: string;
   errorStack?: string;
@@ -240,6 +247,9 @@ export async function POST(request: Request) {
     const typeToLabel: Record<string, string> = {
       BUG: "bug",
       FEATURE_REQUEST: "enhancement",
+      UI_IMPROVEMENT: "ui",
+      PERFORMANCE: "performance",
+      SECURITY: "security",
       QUESTION: "question",
       OTHER: "feedback",
     };
@@ -248,6 +258,9 @@ export async function POST(request: Request) {
     const labels = [typeLabel, ...(severityValue ? [`severity:${severityValue}`] : [])];
 
     const titlePrefix = reportTypeKey === "FEATURE_REQUEST" ? "[Feature] "
+      : reportTypeKey === "UI_IMPROVEMENT" ? "[UI] "
+      : reportTypeKey === "PERFORMANCE" ? "[Performance] "
+      : reportTypeKey === "SECURITY" ? "[Security] "
       : reportTypeKey === "QUESTION" ? "[Question] "
       : reportTypeKey === "OTHER" ? "[Feedback] "
       : "";
