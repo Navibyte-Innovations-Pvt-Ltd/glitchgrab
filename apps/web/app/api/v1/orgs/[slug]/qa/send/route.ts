@@ -79,6 +79,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
         title: issueTitle,
         // Manual send has no PR author; FAIL notifications fall back to repo owner.
         developerLogin: null,
+        // Manual send fires the WhatsApp right now (no deploy-delay wait), so
+        // mark it notified immediately — otherwise the QA page's notifiedAt gate
+        // would hide a check the tester was just pinged about.
+        notifiedAt: new Date(),
       },
     });
     sent++;
@@ -88,7 +92,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
         phone: tester.phone,
         testerName: tester.name,
         developerName,
-        issueCount: 1,
+        issueNumbers: [githubNumber],
         orgName: org.name,
         magicToken: tester.magicToken,
       });
