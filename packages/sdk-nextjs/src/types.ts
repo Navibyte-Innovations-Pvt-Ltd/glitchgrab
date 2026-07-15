@@ -163,6 +163,12 @@ export interface UseGlitchgrabReturn {
    * Returns the polished text, or the original text on any failure (never throws).
    */
   enhanceText: (text: string, screenshot?: string | null) => Promise<string>;
+  /**
+   * OS-aware label for the shortcut that opens the report dialog —
+   * `⌘⇧G` on Mac, `Ctrl+Shift+G` elsewhere. Render this instead of
+   * hardcoding the shortcut, so the hint stays in sync with the handler.
+   */
+  shortcutLabel: string;
   /** The token being used */
   token: string;
   /** The base URL of the Glitchgrab API */

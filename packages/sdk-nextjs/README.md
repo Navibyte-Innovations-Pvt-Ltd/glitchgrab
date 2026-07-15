@@ -158,6 +158,19 @@ Once `GlitchgrabProvider` is mounted, these shortcuts work globally:
 
 No configuration needed — shortcuts are active as long as the provider is in the tree.
 
+### Showing the shortcut in your own UI
+
+The report dialog shows the shortcut on its first step. To advertise it elsewhere — a support menu, a sidebar hint — read `shortcutLabel` instead of hardcoding the string. It resolves to `⌘⇧G` on Mac and `Ctrl+Shift+G` everywhere else, and stays in sync with the handler:
+
+```tsx
+function SupportHint() {
+  const { shortcutLabel } = useGlitchgrab();
+  return <p>Found a bug? Press {shortcutLabel} anywhere to report it.</p>;
+}
+```
+
+It is SSR-safe: it renders `Ctrl+Shift+G` on the server and corrects to the platform label after mount.
+
 ## How do I fetch reports by user?
 
 ### React hook (recommended)

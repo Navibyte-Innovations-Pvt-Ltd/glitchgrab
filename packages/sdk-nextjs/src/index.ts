@@ -19,6 +19,14 @@ export {
   initBreadcrumbs,
 } from "./breadcrumbs";
 
+// ─── Keyboard shortcut ───────────────────────────────────
+export {
+  GLITCHGRAB_SHORTCUT,
+  GLITCHGRAB_SHORTCUT_MAC,
+  getShortcutLabel,
+  matchesShortcut,
+} from "./shortcut";
+
 // ─── Utilities ───────────────────────────────────────────
 export { sanitizeUrl, captureContext, captureDeviceInfo, sendReport, enhanceText } from "./utils";
 export { computeSignature, shouldSkipDuplicate, clearDedupCache } from "./dedup";
