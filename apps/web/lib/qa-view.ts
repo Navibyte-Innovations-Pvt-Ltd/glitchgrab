@@ -30,6 +30,13 @@ export async function getQaView(testerId: string): Promise<QaView | null> {
     include: {
       org: { select: { name: true } },
       checks: {
+        // A QaCheck is created the instant a PR merges, but the fix isn't live
+        // until Vercel finishes deploying (~10min). The qa-notify cron stamps
+        // notifiedAt once the deploy should be up — that's the same gate that
+        // fires the tester's WhatsApp. Hide PENDING checks that haven't reached
+        // it yet so the direct link never shows an undeployed fix. Acted-on
+        // history (PASS/FAIL/SKIPPED) always stays visible.
+        where: { OR: [{ notifiedAt: { not: null } }, { status: { not: "PENDING" } }] },
         orderBy: [{ status: "asc" }, { createdAt: "desc" }],
         include: { repo: { select: { fullName: true, owner: true, name: true, userId: true } } },
       },
