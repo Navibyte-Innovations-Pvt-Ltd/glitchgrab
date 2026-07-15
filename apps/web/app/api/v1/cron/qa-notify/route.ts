@@ -30,6 +30,7 @@ export async function GET(request: Request) {
       testerId: true,
       repoId: true,
       prNumber: true,
+      githubNumber: true,
       developerLogin: true,
       tester: { select: { name: true, phone: true, magicToken: true } },
       repo: { select: { userId: true, orgId: true } },
@@ -74,7 +75,7 @@ export async function GET(request: Request) {
       phone: tester.phone,
       testerName: tester.name,
       developerName,
-      issueCount: group.length,
+      issueNumbers: group.map((r) => r.githubNumber),
       orgName,
       magicToken: tester.magicToken,
     });

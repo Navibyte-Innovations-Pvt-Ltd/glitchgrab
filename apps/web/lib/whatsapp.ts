@@ -74,6 +74,16 @@ function sanitizeParam(text: string): string {
 }
 
 /**
+ * Prefix an issue title with its GitHub number so devs can reference it in
+ * chat: "#42 Login button dead". Number is parsed from the issue URL
+ * (…/issues/42); falls back to the bare title if the URL has no number.
+ */
+function withIssueNumber(title: string, githubUrl: string): string {
+  const match = githubUrl.match(/\/issues\/(\d+)/);
+  return match ? `#${match[1]} ${title}` : title;
+}
+
+/**
  * Send issue-resolved notification to reporter.
  * Template "issue_resolved":
  *   Body:    Hi {{1}}, your issue "{{2}}" reported to {{3}} has been resolved! Was the fix helpful?
@@ -211,7 +221,7 @@ export async function sendDeveloperReopenedNotification({
               type: "body",
               parameters: [
                 { type: "text", text: sanitizeParam(reporterName) },
-                { type: "text", text: sanitizeParam(issueTitle) },
+                { type: "text", text: sanitizeParam(withIssueNumber(issueTitle, githubUrl)) },
                 { type: "text", text: sanitizeParam(orgName) },
                 { type: "text", text: formatPhone(reporterPhone ?? "") || "N/A" },
               ],
@@ -434,7 +444,7 @@ export async function sendIssueAssignedNotification({
               type: "body",
               parameters: [
                 { type: "text", text: sanitizeParam(developerName) },
-                { type: "text", text: sanitizeParam(issueTitle) },
+                { type: "text", text: sanitizeParam(withIssueNumber(issueTitle, githubUrl)) },
                 { type: "text", text: sanitizeParam(orgName) },
               ],
             },
@@ -526,6 +536,7 @@ export async function sendTesterInvite({
  * a count — the QA page lists every issue to check individually.
  * Template "qa_verify_request" (Utility):
  *   Body:   Hi {{1}}, developer {{2}} marked {{3}} issue(s) as fixed on {{4}}. Tap below to verify each one.
+ *           ({{3}} carries the count + the issue numbers, e.g. "3 (#918, #974, #917)".)
  *   Button 0 (URL): Verify now → https://glitchgrab.dev/qa/{{1}}
  *                   suffix = <magicToken>
  */
@@ -533,14 +544,14 @@ export async function sendTesterQaRequest({
   phone,
   testerName,
   developerName,
-  issueCount,
+  issueNumbers,
   orgName,
   magicToken,
 }: {
   phone: string;
   testerName: string;
   developerName: string;
-  issueCount: number;
+  issueNumbers: number[];
   orgName: string;
   magicToken: string;
 }): Promise<void> {
@@ -550,6 +561,13 @@ export async function sendTesterQaRequest({
 
   const to = formatPhone(phone);
   if (!to) return;
+
+  // Template body reads "marked {{3}} issue(s) as fixed". {{3}} is a count, but
+  // testers asked to see WHICH issues — so embed the numbers: "3 (#918, #974)".
+  const count = issueNumbers.length;
+  const countParam = count
+    ? `${count} (${issueNumbers.map((n) => `#${n}`).join(", ")})`
+    : String(count);
 
   try {
     const res = await fetch(`${META_API_BASE}/${phoneNumberId}/messages`, {
@@ -571,7 +589,7 @@ export async function sendTesterQaRequest({
               parameters: [
                 { type: "text", text: sanitizeParam(testerName) },
                 { type: "text", text: sanitizeParam(developerName) },
-                { type: "text", text: String(issueCount) },
+                { type: "text", text: countParam },
                 { type: "text", text: sanitizeParam(orgName) },
               ],
             },
@@ -639,7 +657,7 @@ export async function sendDeveloperQaFailed({
               type: "body",
               parameters: [
                 { type: "text", text: sanitizeParam(testerName) },
-                { type: "text", text: sanitizeParam(issueTitle) },
+                { type: "text", text: sanitizeParam(withIssueNumber(issueTitle, githubUrl)) },
                 { type: "text", text: sanitizeParam(orgName) },
               ],
             },
