@@ -19,6 +19,7 @@ import { GlitchgrabErrorBoundary } from "./error-boundary";
 import { ReportDialog } from "./report-dialog";
 import { sanitizeUrl, captureContext, sendReport, captureDeviceInfo, enhanceText, transcribeAudio, type EnhanceContext } from "./utils";
 import { computeSignature, shouldSkipDuplicate } from "./dedup";
+import { GLITCHGRAB_SHORTCUT, getShortcutLabel, matchesShortcut } from "./shortcut";
 import {
   initBreadcrumbs,
   addBreadcrumb as addBreadcrumbInternal,
@@ -376,7 +377,7 @@ function GlitchgrabProviderInner({
     try {
       if (typeof window === "undefined") return;
       const handleKeyDown = (e: KeyboardEvent) => {
-        if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "g") {
+        if (matchesShortcut(e)) {
           e.preventDefault();
           openReportDialog();
         }
@@ -388,6 +389,13 @@ function GlitchgrabProviderInner({
     }
   }, [openReportDialog]);
 
+  // Starts as the non-Mac label so SSR and the first client render agree,
+  // then resolves to the real platform label after mount.
+  const [shortcutLabel, setShortcutLabel] = useState(GLITCHGRAB_SHORTCUT);
+  useEffect(() => {
+    setShortcutLabel(getShortcutLabel());
+  }, []);
+
   return (
     <GlitchgrabContext.Provider
       value={{
@@ -398,6 +406,7 @@ function GlitchgrabProviderInner({
         addBreadcrumb,
         openReportDialog,
         enhanceText: enhance,
+        shortcutLabel,
       }}
     >
       <GlitchgrabErrorBoundary
