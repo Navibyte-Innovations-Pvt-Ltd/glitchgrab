@@ -120,6 +120,7 @@ export function TestersManager({
       <EditTesterSheet
         key={editingTester?.id}
         tester={editingTester}
+        repos={repos}
         onOpenChange={(v) => !v && setEditingTester(null)}
         orgSlug={orgSlug}
         onSaved={() => {
@@ -267,11 +268,13 @@ function AddTesterSheet({
 
 function EditTesterSheet({
   tester,
+  repos,
   onOpenChange,
   orgSlug,
   onSaved,
 }: {
   tester: Tester | null;
+  repos: Repo[];
   onOpenChange: (v: boolean) => void;
   orgSlug: string;
   onSaved: () => void;
@@ -279,6 +282,12 @@ function EditTesterSheet({
   const [name, setName] = useState(tester?.name ?? "");
   const [phone, setPhone] = useState<string | undefined>(tester?.phone ? `+${tester.phone}` : "");
   const [email, setEmail] = useState(tester?.email ?? "");
+  const [selectedRepos, setSelectedRepos] = useState<string[]>(
+    tester?.repos.map((r) => r.id) ?? []
+  );
+
+  const toggleRepo = (id: string) =>
+    setSelectedRepos((prev) => (prev.includes(id) ? prev.filter((r) => r !== id) : [...prev, id]));
 
   const editMutation = useMutation({
     mutationFn: async () => {
@@ -287,6 +296,7 @@ function EditTesterSheet({
         name: name.trim(),
         phone,
         email: email.trim() || undefined,
+        repoIds: selectedRepos,
       });
       return data;
     },
@@ -306,7 +316,7 @@ function EditTesterSheet({
         <SheetHeader className="px-6 pt-6">
           <SheetTitle>Edit tester</SheetTitle>
           <SheetDescription>
-            Fix a wrong number or update contact details. Repo assignment stays the same.
+            Fix a wrong number, update contact details, or change which repos this tester covers.
           </SheetDescription>
         </SheetHeader>
 
@@ -334,6 +344,37 @@ function EditTesterSheet({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Assign repos</Label>
+            {repos.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No repos connected to this org yet.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {repos.map((r) => {
+                  const active = selectedRepos.includes(r.id);
+                  return (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => toggleRepo(r.id)}
+                      className={cn(
+                        "font-mono text-[11px] px-2 py-1 rounded border transition-colors text-left",
+                        active
+                          ? "text-primary border-primary/40 bg-primary/10"
+                          : "text-muted-foreground border-border bg-muted hover:border-primary/30"
+                      )}
+                    >
+                      {r.fullName.split("/").pop()}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {selectedRepos.length > 0 && (
+              <p className="text-[11px] text-muted-foreground">{selectedRepos.length} selected</p>
+            )}
           </div>
         </div>
 

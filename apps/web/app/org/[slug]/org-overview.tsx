@@ -733,17 +733,17 @@ function OrgIssuesTriage({ orgSlug }: { orgSlug: string }) {
     refetchOnWindowFocus: false,
     refetchInterval: 10 * 60_000,
   });
-  const data = issuesData?.issues;
+  const data = Array.isArray(issuesData?.issues) ? issuesData.issues : [];
 
   // Apply local filters
-  const filtered = (data ?? []).filter((issue) => {
+  const filtered = data.filter((issue) => {
     if (repoFilter && issue.repoFullName !== repoFilter) return false;
     if (assignView === "assigned") return (issue.assignees?.length ?? 0) > 0;
     if (assignView === "unassigned") return (issue.assignees?.length ?? 0) === 0;
     return true;
   });
 
-  const grouped = (data ?? []).reduce<Record<string, IssueItem[]>>(
+  const grouped = data.reduce<Record<string, IssueItem[]>>(
     (acc, issue) => {
       (acc[issue.repoFullName] ??= []).push(issue);
       return acc;
