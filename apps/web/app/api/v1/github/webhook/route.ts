@@ -116,7 +116,9 @@ export async function POST(request: Request) {
         // Notify reporter via WhatsApp if phone is available
         const phone = glitchgrabIssue?.report?.reporterPhone;
         const name = glitchgrabIssue?.report?.reporterName ?? "there";
-        const title = payload.issue?.title ?? "your issue";
+        const rawTitle = payload.issue?.title ?? "your issue";
+        // Prefix the GitHub issue number so the reporter can reference it.
+        const title = `#${issueNumber} ${rawTitle}`;
         if (phone && glitchgrabIssue) {
           await sendIssueResolvedWhatsApp({
             phone,
