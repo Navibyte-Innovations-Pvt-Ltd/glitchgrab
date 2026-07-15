@@ -9,6 +9,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { AnnotationCanvas } from "./annotation-canvas";
+import { getShortcutLabel } from "./shortcut";
 import type { ReportType, ReportSeverity, UseGlitchgrabReturn } from "./types";
 
 /** Detect if the host page uses a dark or light theme */
@@ -833,6 +834,24 @@ export function ReportDialog({
                     >
                       {step === 1 ? "What's on your mind?" : "Tell us more"}
                     </span>
+                    {step === 1 && (
+                      <span
+                        title="Press this anywhere to open Glitchgrab"
+                        style={{
+                          fontSize: "10px",
+                          fontWeight: 600,
+                          lineHeight: 1,
+                          padding: "3px 6px",
+                          borderRadius: "4px",
+                          border: `1px solid ${t.inputBorder}`,
+                          background: t.inputBg,
+                          color: t.textMuted,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {getShortcutLabel()}
+                      </span>
+                    )}
                   </div>
                   <button
                     type="button"
