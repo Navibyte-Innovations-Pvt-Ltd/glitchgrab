@@ -1,3 +1,18 @@
+## [1.28.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.27.0...sdk-v1.28.0) (2026-07-15)
+
+### Features
+
+* **shortcut:** add global keyboard shortcut ([15d021d](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/15d021d0f1d59458d76caf81318c3e7ff48b2b9b))
+* **shortcut:** add tests for GLITCHGRAB_SHORTCUT on Mac and other platforms ([7b1f524](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/7b1f5243b497932652ea066d800b104ad700935f))
+* **src:** add OS-aware label for report dialog shortcut ([4eb3940](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/4eb394088c6420a4ab77e0645627f90b8cfa37d1))
+
+### Bug Fixes
+
+* **provider:** add shortcut label in GlitchgrabProvider ([23e2de2](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/23e2de23928caa0b40de06183ed5a9a214735a71))
+* **readme:** improve reporting shortcuts on desktop ([6521c68](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/6521c685d9c268088639a200026c4f69873f1488))
+* **report-dialog:** add Glitchgrab shortcut label ([fb0a0cf](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/fb0a0cf01b56c534fa2e7a9fd9bb71e7864edcd3))
+* **src:** update keyboard shortcut constants ([7b936e1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/7b936e11a91bb9e173da26fe1af836abd6408608))
+
 ## [1.27.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.26.0...sdk-v1.27.0) (2026-07-10)
 
 ### Features
