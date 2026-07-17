@@ -730,6 +730,21 @@ export function ReportDialog({
           @keyframes gg-b2{0%,100%{height:8px}50%{height:3px}}
           @keyframes gg-b3{0%,100%{height:4px}30%{height:14px}70%{height:5px}}
           @keyframes gg-b4{0%,100%{height:6px}60%{height:13px}}
+          @keyframes gg-bug-crawl{0%,100%{transform:translateX(0) rotate(0deg)}20%{transform:translateX(-1.5px) rotate(-6deg)}40%{transform:translateX(1.5px) rotate(5deg)}60%{transform:translateX(-1px) rotate(-4deg)}80%{transform:translateX(1px) rotate(3deg)}}
+          @keyframes gg-star-spin{0%,100%{transform:scale(1) rotate(0deg)}50%{transform:scale(1.15) rotate(15deg)}}
+          @keyframes gg-ui-grow{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.12)}}
+          @keyframes gg-perf-sweep{0%,100%{transform:rotate(0deg)}30%{transform:rotate(-12deg)}70%{transform:rotate(10deg)}}
+          @keyframes gg-shield-pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.08);opacity:.75}}
+          @keyframes gg-question-shake{0%,100%{transform:rotate(0deg)}25%{transform:rotate(-7deg)}75%{transform:rotate(7deg)}}
+          @keyframes gg-chat-tilt{0%,100%{transform:rotate(0deg) translateY(0)}50%{transform:rotate(-6deg) translateY(-2px)}}
+          button[data-gg-type] > svg{transform-origin:center}
+          button[data-gg-type="BUG"] > svg{animation:gg-bug-crawl 2.2s ease-in-out infinite}
+          button[data-gg-type="FEATURE_REQUEST"] > svg{animation:gg-star-spin 2.6s ease-in-out infinite}
+          button[data-gg-type="UI_IMPROVEMENT"] > svg{animation:gg-ui-grow 1.8s ease-in-out infinite;transform-origin:bottom}
+          button[data-gg-type="PERFORMANCE"] > svg{animation:gg-perf-sweep 2.4s ease-in-out infinite}
+          button[data-gg-type="SECURITY"] > svg{animation:gg-shield-pulse 2.2s ease-in-out infinite;transform-origin:top}
+          button[data-gg-type="QUESTION"] > svg{animation:gg-question-shake 2s ease-in-out infinite}
+          button[data-gg-type="OTHER"] > svg{animation:gg-chat-tilt 2.2s ease-in-out infinite}
         `}</style>,
           document.body,
         )}
@@ -838,6 +853,14 @@ export function ReportDialog({
                     >
                       {step === 1 ? "What's on your mind?" : "Tell us more"}
                     </span>
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
+                  >
                     {step === 1 && (
                       <span
                         title="Press this anywhere to open Glitchgrab"
@@ -856,36 +879,36 @@ export function ReportDialog({
                         {getShortcutLabel()}
                       </span>
                     )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleClose}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      padding: "4px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                    aria-label="Close"
-                  >
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 16 16"
-                      fill="none"
-                      style={{ display: "block" }}
+                    <button
+                      type="button"
+                      onClick={handleClose}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: "4px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                      aria-label="Close"
                     >
-                      <path
-                        d="M4 4L12 12M12 4L4 12"
-                        stroke={t.textMuted}
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  </button>
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 16 16"
+                        fill="none"
+                        style={{ display: "block" }}
+                      >
+                        <path
+                          d="M4 4L12 12M12 4L4 12"
+                          stroke={t.textMuted}
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
                 <div
                   style={{
@@ -962,6 +985,7 @@ export function ReportDialog({
                           <button
                             key={type}
                             type="button"
+                            data-gg-type={type}
                             onClick={() => {
                               setReportType(type);
                               setStep(2);
