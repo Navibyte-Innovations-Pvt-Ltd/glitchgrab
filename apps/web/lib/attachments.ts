@@ -1,6 +1,6 @@
 import { commitFileToRepo } from "@/lib/github";
 
-export interface CommittedDocument {
+interface CommittedDocument {
   filename: string;
   url: string;
 }
