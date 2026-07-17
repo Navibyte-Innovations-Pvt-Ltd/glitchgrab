@@ -69,11 +69,29 @@ jobs:
         working-directory: packages/sdk-nextjs
         run: |
           LOCAL=$(node -p "require('./package.json').version")
-          if npm view "glitchgrab@${LOCAL}" version >/dev/null 2>&1; then
+          ON_NPM=false
+          for i in 1 2 3 4 5; do
+            if npm view "glitchgrab@${LOCAL}" version >/dev/null 2>&1; then
+              ON_NPM=true
+              break
+            fi
+            echo "glitchgrab@${LOCAL} not visible on npm yet (attempt ${i}/5) — registry may still be propagating, retrying..."
+            sleep 5
+          done
+
+          if [ "$ON_NPM" = true ]; then
             echo "glitchgrab@${LOCAL} already on npm — in sync"
           else
-            echo "glitchgrab@${LOCAL} missing from npm — publishing to catch up"
-            npm publish --tag latest
+            echo "glitchgrab@${LOCAL} still missing from npm — publishing to catch up"
+            if ! npm publish --tag latest 2>publish.log; then
+              if grep -q "cannot publish over the previously published versions" publish.log; then
+                echo "npm reports ${LOCAL} already published (registry just hadn't caught up on 'npm view') — treating as in sync"
+                cat publish.log
+              else
+                cat publish.log
+                exit 1
+              fi
+            fi
           fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
