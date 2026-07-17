@@ -1,3 +1,5 @@
+## [1.48.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.47.0...v1.48.0) (2026-07-17)
+
 ## [1.47.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.46.1...v1.47.0) (2026-07-10)
 
 ## [1.46.1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.46.0...v1.46.1) (2026-07-09)
