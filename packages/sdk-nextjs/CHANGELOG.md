@@ -1,3 +1,9 @@
+## [1.29.1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.29.0...sdk-v1.29.1) (2026-07-17)
+
+### Bug Fixes
+
+* **report-dialog:** improve button animations ([9d3288a](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/9d3288a4593b852d6a3aae898c9caad13d44333b))
+
 ## [1.29.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.28.0...sdk-v1.29.0) (2026-07-17)
 
 ### Features
