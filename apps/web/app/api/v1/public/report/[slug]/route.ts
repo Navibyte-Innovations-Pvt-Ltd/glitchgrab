@@ -5,13 +5,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { createGitHubIssue } from "@/lib/github";
 import { checkRateLimit } from "@/lib/rate-limit";
-
-interface PublicReportBody {
-  name?: string;
-  email?: string;
-  phone?: string;
-  description: string;
-}
+import { uploadDocumentsToRepo, buildAttachmentsSection } from "@/lib/attachments";
+import { MAX_DOCUMENT_SIZE, isAllowedDocumentFile } from "@/lib/attachments-constants";
 
 export async function POST(
   request: Request,
@@ -19,13 +14,35 @@ export async function POST(
 ) {
   try {
     const { slug } = await params;
-    const body = (await request.json()) as PublicReportBody;
+    const formData = await request.formData();
+    const description = ((formData.getAll("description").at(0) ?? "") as string).trim();
+    const name = ((formData.getAll("name").at(0) ?? "") as string).trim();
+    const email = ((formData.getAll("email").at(0) ?? "") as string).trim();
+    const phone = ((formData.getAll("phone").at(0) ?? "") as string).trim();
+    const documentFiles = (formData.getAll("document") as unknown as File[]).filter(
+      (f) => f instanceof File && f.size > 0
+    );
 
-    if (!body.description?.trim()) {
+    if (!description) {
       return NextResponse.json(
         { success: false, error: "Description is required" },
         { status: 400 }
       );
+    }
+
+    for (const file of documentFiles) {
+      if (file.size > MAX_DOCUMENT_SIZE) {
+        return NextResponse.json(
+          { success: false, error: `${file.name} exceeds the 10MB limit` },
+          { status: 400 }
+        );
+      }
+      if (!isAllowedDocumentFile(file)) {
+        return NextResponse.json(
+          { success: false, error: `${file.name} must be a PDF, DOC, or DOCX file` },
+          { status: 400 }
+        );
+      }
     }
 
     const apiToken = await prisma.apiToken.findUnique({
@@ -59,17 +76,13 @@ export async function POST(
       );
     }
 
-    const name = body.name?.trim();
-    const email = body.email?.trim();
-    const phone = body.phone?.trim();
-
     const report = await prisma.report.create({
       data: {
         repoId: apiToken.repoId,
         tokenId: apiToken.id,
         source: "PUBLIC_LINK",
         status: "PENDING",
-        rawInput: body.description.trim(),
+        rawInput: description,
         reporterPrimaryKey: email || phone || randomUUID(),
         reporterName: name || "Anonymous tester",
         reporterEmail: email || null,
@@ -77,9 +90,21 @@ export async function POST(
       },
     });
 
-    const title = body.description.trim().slice(0, 80) + (body.description.trim().length > 80 ? "..." : "");
+    const title = description.slice(0, 80) + (description.length > 80 ? "..." : "");
 
-    let issueBody = `## Description\n\n${body.description.trim()}\n\n`;
+    let issueBody = `## Description\n\n${description}\n\n`;
+
+    const documentRefs =
+      documentFiles.length > 0
+        ? await uploadDocumentsToRepo(
+            account.access_token,
+            apiToken.repo.owner,
+            apiToken.repo.name,
+            report.id,
+            documentFiles
+          )
+        : [];
+    issueBody += buildAttachmentsSection(documentRefs);
 
     const reporterParts: string[] = [];
     if (name) reporterParts.push(name);
@@ -114,7 +139,12 @@ export async function POST(
 
       await prisma.report.update({
         where: { id: report.id },
-        data: { status: "CREATED" },
+        data: {
+          status: "CREATED",
+          ...(documentRefs.length > 0
+            ? { metadata: JSON.parse(JSON.stringify({ documents: documentRefs })) }
+            : {}),
+        },
       });
 
       return NextResponse.json({
