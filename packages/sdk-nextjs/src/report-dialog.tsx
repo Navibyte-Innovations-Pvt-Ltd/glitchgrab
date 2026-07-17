@@ -763,6 +763,9 @@ export function ReportDialog({
                 zIndex: 2147483647,
                 width: "340px",
                 maxWidth: "calc(100% - 32px)",
+                maxHeight: "calc(100dvh - 32px)",
+                display: "flex",
+                flexDirection: "column",
                 backgroundColor: t.bg,
                 borderRadius: "12px",
                 boxShadow:
@@ -777,6 +780,7 @@ export function ReportDialog({
               {/* Header */}
               <div
                 style={{
+                  flexShrink: 0,
                   padding: "16px 16px 12px",
                   borderBottom: `1px solid ${t.border}`,
                 }}
@@ -923,7 +927,14 @@ export function ReportDialog({
               </div>
 
               {/* Body */}
-              <div style={{ padding: "16px" }}>
+              <div
+                style={{
+                  padding: "16px",
+                  overflowY: "auto",
+                  flex: "1 1 auto",
+                  minHeight: 0,
+                }}
+              >
                 {submitted ? (
                   <div
                     style={{
