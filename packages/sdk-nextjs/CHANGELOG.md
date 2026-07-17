@@ -1,3 +1,29 @@
+## [1.29.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.28.0...sdk-v1.29.0) (2026-07-17)
+
+### Features
+
+* **github:** commit file to repo ([f8ba82d](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/f8ba82dd96e7854fdf90df44e460c77f81dd9243))
+* **org-overview:** add group issues functionality ([dffb3da](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/dffb3da859c8bf37d95571d65bb4de2be809954e))
+* **qa-notify:** add githubNumber to GET request for qa notifications ([87a6ac7](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/87a6ac71b0845398ffd0091c8fc587a2d8aa3a39))
+* **qa-view:** hide PENDING checks before notifiedAt ([2e98aa5](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/2e98aa5dd7e7b1bbcddd46a3ec070d9f53bec782))
+* **report:** add support for uploading documents in public report submissions ([b40f737](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/b40f737cc552cfd0997c6438f0339210b5109d32))
+* **whatsapp:** support issue-specific notification for QA verification request ([28402f4](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/28402f4446cc1a4a700ee253f1266824c463c5ef))
+
+### Bug Fixes
+
+* **attachments-constants:** add constants for max document size and allowed extensions ([aea5ce1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/aea5ce105edb4f2ede0a501a140d2e65c66c21b7))
+* **attachments-constants:** update allowed document extensions ([50d155b](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/50d155bed34dfb763e4d72eb84168d50e26883fe))
+* **attachments:** add download button to attachments list ([0ae9ab4](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/0ae9ab478a9637de8e4f7c6109b4a83dcb823a00))
+* **attachments:** add uploadDocumentsToRepo and buildAttachmentsSection to support attachments in reports ([e4a39cb](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/e4a39cbf71e71f3eae23b92bbab5dcde639a2002))
+* **docs:** add doc token and remove document files for bug-chat.tsx ([80ea902](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/80ea902e59ec5165e44d2f8664977a6fefe99c1d))
+* **public-report-form:** add doc upload feature ([9595aa3](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/9595aa38ecf75c3fc2b3b9c8b887ff17cf0b6898))
+* **report-dialog:** update dialog height calculations ([f185b30](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/f185b300d68239f99b4b1cbd79b424193031fc70))
+* **reports:** add support for uploading and attaching documents to reports ([ca436ba](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/ca436ba1ee7121436a7f26f04cd2121db936bd8b))
+* **repo:** update tester assignment with repoIds ([80df7d8](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/80df7d85af8df39ff45fc36a4da24955fabf3a88))
+* **send:** update manual send to notify immediately and add github issue numbers ([4c11557](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/4c11557c66fa1544886ada1fa59d03da2fb1494a))
+* **testers-manager:** add repo assignment dropdown and update on save ([4552c62](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/4552c62ba16356d35fee981243271b91d4ed6e67))
+* **webhook:** add prefix to GitHub issue number for WhatsApp notifications ([f59e7c5](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/f59e7c50d7681a8e5c5127b34b11555a7530e9b6))
+
 ## [1.28.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.27.0...sdk-v1.28.0) (2026-07-15)
 
 ### Features
