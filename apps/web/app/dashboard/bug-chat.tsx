@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { AnnotationCanvas } from "./annotation-canvas";
+import { MAX_DOCUMENT_SIZE, isAllowedDocumentFile } from "@/lib/attachments-constants";
 
 interface SpeechRecognitionResult {
   readonly isFinal: boolean;
@@ -132,6 +133,7 @@ interface Message {
   content: string;
   screenshots?: string[];
   screenshotFiles?: File[];
+  documentFiles?: File[];
   issueUrl?: string;
   issueNumber?: number;
   failed?: boolean;
@@ -241,6 +243,38 @@ function FileToken({
   );
 }
 
+function DocToken({
+  name,
+  size,
+  onRemove,
+}: {
+  name: string;
+  size?: number;
+  onRemove?: () => void;
+}) {
+  return (
+    <div className="inline-flex items-center gap-2.5 bg-background/60 border border-border hover:border-muted-foreground/40 py-1.5 pl-2.5 pr-3 rounded-md group transition-colors">
+      <FileIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+      <div className="flex flex-col min-w-0">
+        <span className="font-mono text-[11px] text-foreground truncate max-w-55">{name}</span>
+        <span className="font-mono text-[10px] text-muted-foreground">
+          {size !== undefined ? formatBytes(size) : ""} · document
+        </span>
+      </div>
+      {onRemove && (
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label="Remove attachment"
+          className="w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-red-400 hover:bg-red-400/10 transition-colors shrink-0"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 /* ---------- Memoized message rendering ---------- */
 
 const MessageBlock = memo(function MessageBlock({
@@ -317,6 +351,15 @@ const MessageBlock = memo(function MessageBlock({
         </div>
       )}
 
+      {/* Attached documents as file tokens */}
+      {msg.documentFiles && msg.documentFiles.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-3">
+          {msg.documentFiles.map((file, i) => (
+            <DocToken key={`${msg.id}-doc-${i}`} name={file.name} size={file.size} />
+          ))}
+        </div>
+      )}
+
       {/* Screenshot lightbox */}
       <Dialog
         open={selectedScreenshot !== null}
@@ -385,6 +428,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
   const [input, setInput] = useState("");
   const [screenshots, setScreenshots] = useState<string[]>([]);
   const [screenshotFiles, setScreenshotFiles] = useState<File[]>([]);
+  const [documentFiles, setDocumentFiles] = useState<File[]>([]);
   const [repoPickerOpen, setRepoPickerOpen] = useState(false);
   const [repoSearch, setRepoSearch] = useState("");
   const [messages, setMessages] = useState<Message[]>([
@@ -403,6 +447,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
   const [stagedPreviewIndex, setStagedPreviewIndex] = useState<number | null>(null);
   const [annotating, setAnnotating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const docFileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   // Web Speech API (Chrome/Edge — live word-by-word preview)
@@ -453,6 +498,38 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
     const files = e.target.files;
     if (!files || files.length === 0) return;
     addFiles(files);
+  }
+
+  function addDocuments(files: FileList | File[]) {
+    const accepted: File[] = [];
+    for (const file of Array.from(files)) {
+      if (!isAllowedDocumentFile(file)) {
+        toast.error(`${file.name} must be a PDF, DOC, or DOCX file`);
+        continue;
+      }
+      if (file.size > MAX_DOCUMENT_SIZE) {
+        toast.error(`${file.name} exceeds the 10MB limit`);
+        continue;
+      }
+      accepted.push(file);
+    }
+    if (accepted.length > 0) setDocumentFiles((prev) => [...prev, ...accepted]);
+  }
+
+  function handleDocFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    addDocuments(files);
+  }
+
+  function removeDocument(index: number) {
+    setDocumentFiles((prev) => prev.filter((_, i) => i !== index));
+    if (docFileInputRef.current) docFileInputRef.current.value = "";
+  }
+
+  function removeAllDocuments() {
+    setDocumentFiles([]);
+    if (docFileInputRef.current) docFileInputRef.current.value = "";
   }
 
   function handlePaste(e: React.ClipboardEvent) {
@@ -509,10 +586,11 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
     ]);
     setInput("");
     removeAllScreenshots();
+    removeAllDocuments();
     setSending(false);
   }
 
-  async function sendReport(description: string, files?: File[]) {
+  async function sendReport(description: string, files?: File[], docFiles?: File[]) {
     setSending(true);
 
     const thinkingMsg: Message = {
@@ -539,6 +617,18 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
       }
       for (const file of allFiles) formData.append("screenshot", file);
 
+      const allDocFiles: File[] = docFiles ? [...docFiles] : [];
+      if (allDocFiles.length === 0) {
+        for (let i = messages.length - 1; i >= 0; i--) {
+          const m = messages[i];
+          if (m.role === "user" && m.documentFiles && m.documentFiles.length > 0) {
+            allDocFiles.push(...m.documentFiles);
+            break;
+          }
+        }
+      }
+      for (const file of allDocFiles) formData.append("document", file);
+
       const { data } = await axios.post("/api/v1/reports", formData);
 
       const content = !data.success
@@ -558,7 +648,9 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
           });
         if (data.success) {
           updated = updated.map((m) =>
-            m.screenshotFiles ? { ...m, screenshotFiles: undefined } : m,
+            m.screenshotFiles || m.documentFiles
+              ? { ...m, screenshotFiles: undefined, documentFiles: undefined }
+              : m,
           );
         }
         return updated;
@@ -586,7 +678,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
   }
 
   async function handleSend() {
-    if (!input.trim() && screenshots.length === 0) return;
+    if (!input.trim() && screenshots.length === 0 && documentFiles.length === 0) return;
 
     if (!selectedRepo) {
       toast.error("Select a repo first");
@@ -600,22 +692,26 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
       screenshots: screenshots.length > 0 ? [...screenshots] : undefined,
       screenshotFiles:
         screenshotFiles.length > 0 ? [...screenshotFiles] : undefined,
+      documentFiles:
+        documentFiles.length > 0 ? [...documentFiles] : undefined,
     };
 
     setMessages((prev) => [...prev, userMsg]);
     const desc = input.trim();
     const files = screenshotFiles.length > 0 ? [...screenshotFiles] : undefined;
+    const docFiles = documentFiles.length > 0 ? [...documentFiles] : undefined;
     setInput("");
     removeAllScreenshots();
+    removeAllDocuments();
 
-    await sendReport(desc, files);
+    await sendReport(desc, files, docFiles);
   }
 
   async function handleRetry() {
     const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
     if (!lastUserMsg) return;
     setMessages((prev) => prev.filter((m) => !m.failed));
-    await sendReport(lastUserMsg.content, lastUserMsg.screenshotFiles);
+    await sendReport(lastUserMsg.content, lastUserMsg.screenshotFiles, lastUserMsg.documentFiles);
   }
 
   async function handleEnhance() {
@@ -865,10 +961,11 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
       toast.error("Select a repo first");
       return;
     }
-    const files = Array.from(e.dataTransfer.files).filter((f) =>
-      f.type.startsWith("image/"),
-    );
-    if (files.length > 0) addFiles(files);
+    const dropped = Array.from(e.dataTransfer.files);
+    const images = dropped.filter((f) => f.type.startsWith("image/"));
+    const docs = dropped.filter((f) => isAllowedDocumentFile(f));
+    if (images.length > 0) addFiles(images);
+    if (docs.length > 0) addDocuments(docs);
   }
 
   const hasConversation = messages.length > 1;
@@ -1015,6 +1112,25 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
           </div>
         )}
 
+        {documentFiles.length > 0 && (
+          <div className="mb-2 flex flex-col gap-1.5">
+            <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground/70 flex items-center gap-1.5">
+              <FileIcon className="h-3 w-3" />
+              docs staged ({documentFiles.length})
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {documentFiles.map((file, i) => (
+                <DocToken
+                  key={i}
+                  name={file.name}
+                  size={file.size}
+                  onRemove={() => removeDocument(i)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Staged screenshot lightbox */}
         <Dialog
           open={stagedPreviewIndex !== null}
@@ -1085,6 +1201,23 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
               title={selectedRepoName ? "Attach screenshots (multiple allowed)" : "Select a repo first"}
             >
               <ImagePlus className="h-4 w-4" />
+            </button>
+            <input
+              ref={docFileInputRef}
+              type="file"
+              accept=".pdf,.doc,.docx"
+              multiple
+              onChange={handleDocFileSelect}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => docFileInputRef.current?.click()}
+              disabled={sending || !selectedRepoName}
+              className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors disabled:opacity-50"
+              title={selectedRepoName ? "Attach docs — PDF, DOC, DOCX (max 10MB each)" : "Select a repo first"}
+            >
+              <Paperclip className="h-4 w-4" />
             </button>
             <div className="h-4 w-px bg-border mx-1" />
             <span className="font-mono text-[10px] text-muted-foreground/70 flex-1 truncate">
@@ -1162,7 +1295,10 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
               <button
                 type="button"
                 onClick={handleSend}
-                disabled={sending || (!input.trim() && screenshots.length === 0)}
+                disabled={
+                  sending ||
+                  (!input.trim() && screenshots.length === 0 && documentFiles.length === 0)
+                }
                 className="flex items-center justify-center h-7 w-7 rounded bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 hover:border-primary/50 transition-colors disabled:opacity-40 disabled:hover:bg-primary/10 disabled:hover:border-primary/30"
                 title="Send (Enter)"
               >

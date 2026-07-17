@@ -5,6 +5,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { createGitHubIssue } from "@/lib/github";
 import { uploadScreenshotToS3 } from "@/lib/s3";
+import { uploadDocumentsToRepo, buildAttachmentsSection } from "@/lib/attachments";
+import { MAX_DOCUMENT_SIZE, isAllowedDocumentFile } from "@/lib/attachments-constants";
 import { dispatchWebhook } from "@/lib/webhooks";
 import sharp from "sharp";
 
@@ -132,6 +134,9 @@ export async function POST(request: Request) {
     const repoId = (formData.getAll("repoId").at(0) ?? "") as string;
     const description = ((formData.getAll("description").at(0) ?? "") as string).trim();
     const screenshotFiles = formData.getAll("screenshot") as unknown as File[];
+    const documentFiles = (formData.getAll("document") as unknown as File[]).filter(
+      (f) => f instanceof File && f.size > 0
+    );
 
     if (!repoId) {
       return NextResponse.json(
@@ -140,11 +145,26 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!description && screenshotFiles.length === 0) {
+    if (!description && screenshotFiles.length === 0 && documentFiles.length === 0) {
       return NextResponse.json(
-        { success: false, error: "Provide a description or screenshot" },
+        { success: false, error: "Provide a description, screenshot, or document" },
         { status: 400 }
       );
+    }
+
+    for (const file of documentFiles) {
+      if (file.size > MAX_DOCUMENT_SIZE) {
+        return NextResponse.json(
+          { success: false, error: `${file.name} exceeds the 10MB limit` },
+          { status: 400 }
+        );
+      }
+      if (!isAllowedDocumentFile(file)) {
+        return NextResponse.json(
+          { success: false, error: `${file.name} must be a PDF, DOC, or DOCX file` },
+          { status: 400 }
+        );
+      }
     }
 
     const repo = await prisma.repo.findFirst({
@@ -226,6 +246,19 @@ export async function POST(request: Request) {
       }
     }
 
+    // Commit documents to the repo's attachments branch and append to body
+    const documentRefs =
+      documentFiles.length > 0
+        ? await uploadDocumentsToRepo(
+            account.access_token,
+            repo.owner,
+            repo.name,
+            report.id,
+            documentFiles
+          )
+        : [];
+    issueBody += buildAttachmentsSection(documentRefs);
+
     // Reporter footer
     const reporterParts: string[] = [];
     if (session.user.name) reporterParts.push(session.user.name);
@@ -260,7 +293,16 @@ export async function POST(request: Request) {
 
       await prisma.report.update({
         where: { id: report.id },
-        data: { status: "CREATED" },
+        data: {
+          status: "CREATED",
+          ...(documentRefs.length > 0
+            ? {
+                metadata: JSON.parse(
+                  JSON.stringify({ ...metadata, documents: documentRefs })
+                ),
+              }
+            : {}),
+        },
       });
 
       dispatchWebhook(repo.userId, "issue.created", {

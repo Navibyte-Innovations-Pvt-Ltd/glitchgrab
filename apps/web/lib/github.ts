@@ -371,6 +371,74 @@ export async function getClosedIssueCountSince(
   }
 }
 
+// ─── Commit File (doc attachments) ───────────────────
+
+const ATTACHMENTS_BRANCH = "glitchgrab-attachments";
+
+/**
+ * Commits a file to a dedicated `glitchgrab-attachments` branch (created from the
+ * default branch if missing) so uploaded docs live in the repo itself rather than
+ * external storage. Returns the GitHub blob view URL, or null on failure.
+ */
+export async function commitFileToRepo(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  path: string,
+  base64Content: string,
+  message: string
+): Promise<{ url: string } | null> {
+  try {
+    const branchRes = await fetch(
+      `${GITHUB_API}/repos/${owner}/${repo}/branches/${ATTACHMENTS_BRANCH}`,
+      { headers: headers(accessToken) }
+    );
+
+    if (!branchRes.ok) {
+      const repoRes = await fetch(`${GITHUB_API}/repos/${owner}/${repo}`, {
+        headers: headers(accessToken),
+      });
+      if (!repoRes.ok) return null;
+      const repoData = (await repoRes.json()) as { default_branch: string };
+
+      const refRes = await fetch(
+        `${GITHUB_API}/repos/${owner}/${repo}/git/ref/heads/${repoData.default_branch}`,
+        { headers: headers(accessToken) }
+      );
+      if (!refRes.ok) return null;
+      const refData = (await refRes.json()) as { object: { sha: string } };
+
+      // Ignore failure — another concurrent request may have created it first.
+      await fetch(`${GITHUB_API}/repos/${owner}/${repo}/git/refs`, {
+        method: "POST",
+        headers: headers(accessToken),
+        body: JSON.stringify({
+          ref: `refs/heads/${ATTACHMENTS_BRANCH}`,
+          sha: refData.object.sha,
+        }),
+      });
+    }
+
+    const putRes = await fetch(
+      `${GITHUB_API}/repos/${owner}/${repo}/contents/${path}`,
+      {
+        method: "PUT",
+        headers: headers(accessToken),
+        body: JSON.stringify({
+          message,
+          content: base64Content,
+          branch: ATTACHMENTS_BRANCH,
+        }),
+      }
+    );
+    if (!putRes.ok) return null;
+
+    return { url: `https://github.com/${owner}/${repo}/blob/${ATTACHMENTS_BRANCH}/${path}` };
+  } catch {
+    return null;
+  }
+}
+
 // ─── Org Types ──────────────────────────────────────────
 
 interface GitHubOrg {
