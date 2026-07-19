@@ -290,6 +290,9 @@ export function ReportDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [screenshots, setScreenshots] = useState<string[]>([]);
+  const [attachments, setAttachments] = useState<
+    { name: string; size: number; dataUrl: string }[]
+  >([]);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [annotatingIndex, setAnnotatingIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -343,14 +346,27 @@ export function ReportDialog({
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    Array.from(files).forEach((file) => {
+    addFiles(Array.from(files));
+    e.target.value = "";
+  };
+
+  const addFiles = (files: File[]) => {
+    files.forEach((file) => {
       const reader = new FileReader();
-      reader.onload = () => {
-        setScreenshots((prev) => [...prev, reader.result as string]);
-      };
+      if (file.type.startsWith("image/")) {
+        reader.onload = () => {
+          setScreenshots((prev) => [...prev, reader.result as string]);
+        };
+      } else {
+        reader.onload = () => {
+          setAttachments((prev) => [
+            ...prev,
+            { name: file.name, size: file.size, dataUrl: reader.result as string },
+          ]);
+        };
+      }
       reader.readAsDataURL(file);
     });
-    e.target.value = "";
   };
 
   const retakeScreenshot = async () => {
@@ -691,6 +707,7 @@ export function ReportDialog({
       setIsSubmitting(true);
       const metadata: Record<string, string> = {};
       if (screenshots.length > 0) metadata.screenshots = JSON.stringify(screenshots);
+      if (attachments.length > 0) metadata.attachments = JSON.stringify(attachments);
       if (showSeverity && reportType === "BUG") {
         metadata.severity = severity;
       }
@@ -705,6 +722,7 @@ export function ReportDialog({
         setSubmitted(true);
         setDescription("");
         setScreenshots([]);
+        setAttachments([]);
 
         setTimeout(() => {
           setSubmitted(false);
@@ -1433,9 +1451,9 @@ export function ReportDialog({
                               fontWeight: 500,
                             }}
                           >
-                            Screenshots
-                            {screenshots.length > 0
-                              ? ` (${screenshots.length})`
+                            Attachments
+                            {screenshots.length + attachments.length > 0
+                              ? ` (${screenshots.length + attachments.length})`
                               : ""}
                           </span>
                           {screenshots.length > 0 && (
@@ -1555,24 +1573,116 @@ export function ReportDialog({
                               ))}
                             </div>
                           )}
+                          {attachments.length > 0 && (
+                            <div
+                              style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "6px",
+                                marginBottom: "8px",
+                              }}
+                            >
+                              {attachments.map((a, i) => (
+                                <div
+                                  key={i}
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "8px",
+                                    padding: "6px 8px",
+                                    borderRadius: "6px",
+                                    border: `1px solid ${t.border}`,
+                                  }}
+                                >
+                                  <svg
+                                    width="14"
+                                    height="14"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    style={{ flexShrink: 0, opacity: 0.6 }}
+                                  >
+                                    <path
+                                      d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"
+                                      stroke={t.textMuted}
+                                      strokeWidth="1.5"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    />
+                                    <path
+                                      d="M14 2v6h6"
+                                      stroke={t.textMuted}
+                                      strokeWidth="1.5"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    />
+                                  </svg>
+                                  <span
+                                    style={{
+                                      fontSize: "11px",
+                                      color: t.text,
+                                      flex: 1,
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      whiteSpace: "nowrap",
+                                    }}
+                                  >
+                                    {a.name}
+                                  </span>
+                                  <span
+                                    style={{ fontSize: "10px", color: t.textMuted }}
+                                  >
+                                    {(a.size / 1024).toFixed(0)}KB
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setAttachments((prev) =>
+                                        prev.filter((_, idx) => idx !== i),
+                                      )
+                                    }
+                                    aria-label={`Remove ${a.name}`}
+                                    style={{
+                                      width: "16px",
+                                      height: "16px",
+                                      borderRadius: "50%",
+                                      border: "none",
+                                      background: "#ef4444",
+                                      color: "#fff",
+                                      fontSize: "10px",
+                                      lineHeight: 1,
+                                      padding: 0,
+                                      cursor: "pointer",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      flexShrink: 0,
+                                    }}
+                                  >
+                                    <svg
+                                      width="8"
+                                      height="8"
+                                      viewBox="0 0 10 10"
+                                      fill="none"
+                                    >
+                                      <path
+                                        d="M1 1L9 9M9 1L1 9"
+                                        stroke="currentColor"
+                                        strokeWidth="1.5"
+                                        strokeLinecap="round"
+                                      />
+                                    </svg>
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                           {/* Drop zone — always available to add more */}
                           <div
                             onClick={() => fileInputRef.current?.click()}
                             onDrop={(e) => {
                               e.preventDefault();
                               setScreenshotDragOver(false);
-                              const files = Array.from(
-                                e.dataTransfer.files,
-                              ).filter((f) => f.type.startsWith("image/"));
-                              files.forEach((file) => {
-                                const reader = new FileReader();
-                                reader.onload = () =>
-                                  setScreenshots((prev) => [
-                                    ...prev,
-                                    reader.result as string,
-                                  ]);
-                                reader.readAsDataURL(file);
-                              });
+                              addFiles(Array.from(e.dataTransfer.files));
                             }}
                             onDragOver={(e) => {
                               e.preventDefault();
@@ -1583,7 +1693,7 @@ export function ReportDialog({
                               border: `1.5px dashed ${screenshotDragOver ? t.accent : t.inputBorder}`,
                               borderRadius: "8px",
                               padding:
-                                screenshots.length > 0
+                                screenshots.length + attachments.length > 0
                                   ? "8px 12px"
                                   : "18px 12px",
                               textAlign: "center",
@@ -1597,7 +1707,7 @@ export function ReportDialog({
                                 "border-color 0.15s ease, background 0.15s ease",
                             }}
                           >
-                            {screenshots.length > 0 ? (
+                            {screenshots.length + attachments.length > 0 ? (
                               <p
                                 style={{
                                   margin: 0,
@@ -1657,7 +1767,7 @@ export function ReportDialog({
                                 >
                                   {screenshotDragOver
                                     ? "Drop to attach"
-                                    : "Add screenshots"}
+                                    : "Add screenshots or files"}
                                 </p>
                                 <p
                                   style={{
@@ -1666,8 +1776,8 @@ export function ReportDialog({
                                     color: t.textMuted,
                                   }}
                                 >
-                                  Drag & drop · Paste ⌘V / Ctrl+V · Click to
-                                  browse
+                                  Images, PDF, DOC, XLS · Drag & drop · Paste
+                                  ⌘V / Ctrl+V · Click to browse
                                 </p>
                               </>
                             )}
@@ -1785,7 +1895,7 @@ export function ReportDialog({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv"
         multiple
         onChange={handleFileUpload}
         style={{ display: "none" }}
