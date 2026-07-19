@@ -161,7 +161,7 @@ export async function POST(request: Request) {
       }
       if (!isAllowedDocumentFile(file)) {
         return NextResponse.json(
-          { success: false, error: `${file.name} must be a PDF, DOC, or DOCX file` },
+          { success: false, error: `${file.name} must be a PDF, DOC, DOCX, XLS, XLSX, or CSV file` },
           { status: 400 }
         );
       }
