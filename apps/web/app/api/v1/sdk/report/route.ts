@@ -5,6 +5,8 @@ import { prisma } from "@/lib/db";
 import { hashToken } from "@/lib/tokens";
 import { createGitHubIssue } from "@/lib/github";
 import { uploadScreenshotToS3 } from "@/lib/s3";
+import { uploadDocumentsToRepo, buildAttachmentsSection } from "@/lib/attachments";
+import { MAX_DOCUMENT_SIZE, isAllowedDocumentFile } from "@/lib/attachments-constants";
 import { dispatchWebhook } from "@/lib/webhooks";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { computeReportSignature, DEDUP_WINDOW_MS, OPEN_ISSUE_WINDOW_MS } from "@/lib/signature";
@@ -338,6 +340,43 @@ export async function POST(request: Request) {
       }
       if (refs.length > 0) {
         issueBody += `\n\n## Screenshot${refs.length > 1 ? "s" : ""}\n\n${refs.join("\n\n")}`;
+      }
+    }
+
+    const attachmentsRaw = body.metadata?.attachments;
+    if (attachmentsRaw) {
+      try {
+        const parsed = JSON.parse(attachmentsRaw);
+        if (Array.isArray(parsed)) {
+          const files: File[] = [];
+          for (const item of parsed) {
+            if (
+              !item ||
+              typeof item.name !== "string" ||
+              typeof item.dataUrl !== "string"
+            )
+              continue;
+            const match = item.dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+            if (!match) continue;
+            const buffer = Buffer.from(match[2], "base64");
+            const file = new File([buffer], item.name, { type: match[1] });
+            if (file.size === 0 || file.size > MAX_DOCUMENT_SIZE) continue;
+            if (!isAllowedDocumentFile(file)) continue;
+            files.push(file);
+          }
+          if (files.length > 0) {
+            const docs = await uploadDocumentsToRepo(
+              account.access_token,
+              apiToken.repo.owner,
+              apiToken.repo.name,
+              report.id,
+              files,
+            );
+            issueBody += buildAttachmentsSection(docs);
+          }
+        }
+      } catch {
+        // invalid JSON, skip
       }
     }
 
