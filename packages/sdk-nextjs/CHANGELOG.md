@@ -1,3 +1,19 @@
+## [1.30.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.29.1...sdk-v1.30.0) (2026-07-19)
+
+### Features
+
+* **attachments:** allow XLS/XLSX/CSV document uploads ([5592710](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/5592710336c7e37cf1dd0a334054ee84b3f37b28))
+* **sdk-nextjs:** support PDF/DOC/XLS attachments in report dialog ([72112fb](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/72112fb9dbb3f5e5b5c3227da2d2e38ac43685e4))
+* **sdk-report:** commit non-image attachments to GitHub repo instead of dropping them ([a28bac8](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/a28bac8ff5661823a3700c788d9aed0d067f62b8))
+
+### Bug Fixes
+
+* **attachments:** reject dangerous declared MIME types on document uploads ([3c0626e](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/3c0626e4f02243d8f96f4d3695511087dfd1f140))
+* **package:** update path to `../../packages/sdk-nextjs` ([1b01917](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/1b019171d304dd437dfcbf3b04be5b451c957653))
+* **publish-sdk:** add attempt to catch up on npm registry if glitchgrab@${LOCAL} is missing ([cdc8891](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/cdc88916e052dd2090c54c89c0002feb30d8180b))
+* **reports:** update file-type error message for new document allowlist ([3b46812](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/3b468128a41d1a7b4ac0b02f0da87e75983cba24))
+* **sdk-report:** cap attachment count and reject oversized payloads before base64 decode ([c9c73df](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/c9c73dfc61258ab2066f5c2664a54f84663161d2))
+
 ## [1.29.1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.29.0...sdk-v1.29.1) (2026-07-17)
 
 ### Bug Fixes

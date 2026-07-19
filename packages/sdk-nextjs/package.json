@@ -1,6 +1,6 @@
 {
   "name": "glitchgrab",
-  "version": "1.29.1",
+  "version": "1.30.0",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
