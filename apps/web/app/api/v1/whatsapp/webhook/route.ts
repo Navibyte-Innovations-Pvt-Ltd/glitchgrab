@@ -4,6 +4,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { reopenGitHubIssue } from "@/lib/github";
+import { getInstallationAccessToken } from "@/lib/github-app";
 import { sendDeveloperReopenedNotification } from "@/lib/whatsapp";
 
 function verifySignature(body: string, signature: string | null): boolean {
@@ -105,7 +106,15 @@ async function handleReporterSaidNo(issueId: string) {
     where: { id: issueId },
     include: {
       report: { select: { reporterName: true, reporterPhone: true } },
-      repo: { select: { owner: true, name: true, userId: true, orgId: true } },
+      repo: {
+        select: {
+          owner: true,
+          name: true,
+          userId: true,
+          orgId: true,
+          installation: { select: { installationId: true } },
+        },
+      },
     },
   });
 
@@ -114,29 +123,21 @@ async function handleReporterSaidNo(issueId: string) {
     return;
   }
 
-  const { owner, name: repoName, userId } = issue.repo;
+  const { owner, name: repoName, userId, installation } = issue.repo;
 
-  // Get repo owner's GitHub token
-  const account = await prisma.account.findFirst({
-    where: { userId, provider: "github" },
-    select: { access_token: true, expires_at: true },
-  });
-
-  if (!account?.access_token) {
-    console.warn("[whatsapp-webhook] no GitHub token for user:", userId);
+  if (!installation) {
+    console.warn("[whatsapp-webhook] GitHub App not installed for repo owner:", owner);
     return;
   }
 
-  if (account.expires_at && account.expires_at < Math.floor(Date.now() / 1000)) {
-    console.warn("[whatsapp-webhook] GitHub token may be expired for user:", userId);
-  }
+  const token = await getInstallationAccessToken(installation.installationId);
 
   try {
-    await reopenGitHubIssue(account.access_token, owner, repoName, issue.githubNumber);
+    await reopenGitHubIssue(token, owner, repoName, issue.githubNumber);
   } catch (err) {
     console.warn("[whatsapp-webhook] reopen attempt 1 failed, retrying:", err);
     try {
-      await reopenGitHubIssue(account.access_token, owner, repoName, issue.githubNumber);
+      await reopenGitHubIssue(token, owner, repoName, issue.githubNumber);
     } catch (retryErr) {
       console.error(
         `[whatsapp-webhook] reopen failed for issue ${issueId} (${owner}/${repoName}#${issue.githubNumber}):`,
