@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { hashToken } from "@/lib/tokens";
+import { getInstallationAccessToken } from "@/lib/github-app";
 
 /**
  * POST /api/v1/reports/[id]/actions
@@ -55,7 +56,7 @@ export async function POST(
     const report = await prisma.report.findUnique({
       where: { id },
       include: {
-        repo: true,
+        repo: { include: { installation: { select: { installationId: true } } } },
         issue: true,
       },
     });
@@ -91,20 +92,20 @@ export async function POST(
       );
     }
 
-    // Get GitHub access token
-    const account = await prisma.account.findFirst({
-      where: { userId: report.repo.userId, provider: "github" },
-    });
-
-    if (!account?.access_token) {
+    // Get GitHub installation token
+    if (!report.repo.installation) {
       return NextResponse.json(
-        { success: false, error: "GitHub access token not found" },
+        {
+          success: false,
+          error: "GitHub App not installed on this repo — reconnect in Connect Repo to grant access",
+        },
         { status: 500 }
       );
     }
 
+    const token = await getInstallationAccessToken(report.repo.installation.installationId);
     const ghHeaders = {
-      Authorization: `Bearer ${account.access_token}`,
+      Authorization: `Bearer ${token}`,
       Accept: "application/vnd.github+json",
       "Content-Type": "application/json",
     };
