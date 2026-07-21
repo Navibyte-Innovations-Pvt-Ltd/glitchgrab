@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { reopenGitHubIssue, closeGitHubIssue, commentOnGitHubIssue, getGitHubIssue } from "@/lib/github";
+import { getInstallationAccessToken } from "@/lib/github-app";
 import { sendDeveloperQaFailed } from "@/lib/whatsapp";
 import { getTesterSession } from "@/lib/tester-session";
 import { uploadScreenshotToS3 } from "@/lib/s3";
@@ -60,7 +61,16 @@ export async function POST(
 
   const check = await prisma.qaCheck.findFirst({
     where: { id: checkId, testerId: tester.id },
-    include: { repo: { select: { owner: true, name: true, userId: true } } },
+    include: {
+      repo: {
+        select: {
+          owner: true,
+          name: true,
+          userId: true,
+          installation: { select: { installationId: true } },
+        },
+      },
+    },
   });
   if (!check) {
     return NextResponse.json({ success: false, error: "Check not found" }, { status: 404 });
@@ -78,13 +88,11 @@ export async function POST(
   }
 
   const orgName = tester.org.name;
-  const { owner, name: repoName, userId } = check.repo;
+  const { owner, name: repoName, userId, installation } = check.repo;
 
-  const account = await prisma.account.findFirst({
-    where: { userId, provider: "github" },
-    select: { access_token: true },
-  });
-  const ghToken = account?.access_token ?? null;
+  const ghToken = installation
+    ? await getInstallationAccessToken(installation.installationId)
+    : null;
 
   const verifiedAt = new Date();
   let screenshotUrl: string | null = null;
