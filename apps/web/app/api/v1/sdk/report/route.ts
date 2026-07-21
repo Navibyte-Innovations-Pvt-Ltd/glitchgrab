@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { hashToken } from "@/lib/tokens";
 import { createGitHubIssue } from "@/lib/github";
+import { getInstallationAccessToken } from "@/lib/github-app";
 import { uploadScreenshotToS3 } from "@/lib/s3";
 import { uploadDocumentsToRepo, buildAttachmentsSection } from "@/lib/attachments";
 import {
@@ -86,7 +87,9 @@ export async function POST(request: Request) {
 
     const apiToken = await prisma.apiToken.findUnique({
       where: { tokenHash },
-      include: { repo: true },
+      include: {
+        repo: { include: { installation: { select: { installationId: true } } } },
+      },
     });
 
     if (!apiToken) {
@@ -232,20 +235,21 @@ export async function POST(request: Request) {
       },
     });
 
-    const account = await prisma.account.findFirst({
-      where: { userId: apiToken.repo.userId, provider: "github" },
-    });
-
-    if (!account?.access_token) {
+    if (!apiToken.repo.installation) {
+      const failReason = "GitHub App not installed on this repo — reconnect in Connect Repo to grant access";
       await prisma.report.update({
         where: { id: report.id },
-        data: { status: "FAILED", failReason: "GitHub access token not found" },
+        data: { status: "FAILED", failReason },
       });
       return NextResponse.json(
-        { success: false, error: "GitHub access token not found" },
+        { success: false, error: failReason },
         { status: 500, headers: rateLimitHeaders }
       );
     }
+
+    const installationToken = await getInstallationAccessToken(
+      apiToken.repo.installation.installationId
+    );
 
     // Map type → label and title prefix (SDK_USER_REPORT explicitly provides type;
     // SDK_AUTO defaults to BUG).
@@ -374,7 +378,7 @@ export async function POST(request: Request) {
           }
           if (files.length > 0) {
             const docs = await uploadDocumentsToRepo(
-              account.access_token,
+              installationToken,
               apiToken.repo.owner,
               apiToken.repo.name,
               report.id,
@@ -406,7 +410,7 @@ export async function POST(request: Request) {
     }
 
     try {
-      const createdIssue = await createGitHubIssue(account.access_token, {
+      const createdIssue = await createGitHubIssue(installationToken, {
         owner: apiToken.repo.owner,
         repo: apiToken.repo.name,
         title,
