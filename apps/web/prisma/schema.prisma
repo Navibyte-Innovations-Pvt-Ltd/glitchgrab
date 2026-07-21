@@ -205,8 +205,15 @@ model Issue {
   isDuplicate  Boolean  @default(false)
   createdAt    DateTime @default(now())
 
+  // Set when GitHub marks the issue closed; cleared if reopened before the
+  // delayed WhatsApp notify fires. See /api/v1/cron/resolved-notify.
+  resolvedAt         DateTime?
+  resolvedNotifiedAt DateTime?
+
   report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
   repo   Repo   @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  @@index([resolvedAt, resolvedNotifiedAt])
 }
 
 // ─── Billing ─────────────────────────────────────────────
