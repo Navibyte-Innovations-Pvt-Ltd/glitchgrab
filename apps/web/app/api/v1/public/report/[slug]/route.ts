@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { createGitHubIssue } from "@/lib/github";
+import { getInstallationAccessToken } from "@/lib/github-app";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { uploadDocumentsToRepo, buildAttachmentsSection } from "@/lib/attachments";
 import { MAX_DOCUMENT_SIZE, isAllowedDocumentFile } from "@/lib/attachments-constants";
@@ -47,7 +48,9 @@ export async function POST(
 
     const apiToken = await prisma.apiToken.findUnique({
       where: { shareSlug: slug },
-      include: { repo: true },
+      include: {
+        repo: { include: { installation: { select: { installationId: true } } } },
+      },
     });
 
     if (!apiToken) {
@@ -65,16 +68,19 @@ export async function POST(
       );
     }
 
-    const account = await prisma.account.findFirst({
-      where: { userId: apiToken.repo.userId, provider: "github" },
-    });
-
-    if (!account?.access_token) {
+    if (!apiToken.repo.installation) {
       return NextResponse.json(
-        { success: false, error: "GitHub access token not found" },
+        {
+          success: false,
+          error: "GitHub App not installed on this repo — reconnect in Connect Repo to grant access",
+        },
         { status: 500 }
       );
     }
+
+    const installationToken = await getInstallationAccessToken(
+      apiToken.repo.installation.installationId
+    );
 
     const report = await prisma.report.create({
       data: {
@@ -97,7 +103,7 @@ export async function POST(
     const documentRefs =
       documentFiles.length > 0
         ? await uploadDocumentsToRepo(
-            account.access_token,
+            installationToken,
             apiToken.repo.owner,
             apiToken.repo.name,
             report.id,
@@ -116,7 +122,7 @@ export async function POST(
     issueBody += "\n\n*Reported via [Glitchgrab](https://glitchgrab.dev) share link*";
 
     try {
-      const createdIssue = await createGitHubIssue(account.access_token, {
+      const createdIssue = await createGitHubIssue(installationToken, {
         owner: apiToken.repo.owner,
         repo: apiToken.repo.name,
         title,
