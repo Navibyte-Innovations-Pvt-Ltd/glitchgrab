@@ -48,7 +48,7 @@ export async function getInstallationAccessToken(installationId: number): Promis
   return token;
 }
 
-export interface InstallationMeta {
+interface InstallationMeta {
   accountLogin: string;
   accountType: "User" | "Organization";
 }
