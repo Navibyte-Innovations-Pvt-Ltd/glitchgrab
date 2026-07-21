@@ -2,7 +2,7 @@
 
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { ensureRepoWebhook } from "@/lib/github";
+import { buildGithubAppInstallUrl, getInstallationAccessToken } from "@/lib/github-app";
 import { revalidatePath } from "next/cache";
 
 export async function resyncRepo(repoId: string): Promise<{
@@ -16,19 +16,30 @@ export async function resyncRepo(repoId: string): Promise<{
 
   const repo = await prisma.repo.findFirst({
     where: { id: repoId, userId: session.user.id },
+    include: { installation: { select: { installationId: true } } },
   });
   if (!repo) throw new Error("Repo not found");
 
-  const account = await prisma.account.findFirst({
-    where: { userId: session.user.id, provider: "github" },
-  });
-  if (!account?.access_token) throw new Error("GitHub account not linked");
+  // Prefer the installation token (own rate-limit bucket) when the App is
+  // installed on this repo's owner; otherwise fall back to OAuth discovery —
+  // this is the one case where OAuth is the only option, since no installation
+  // exists yet to check whether the repo moved.
+  let token: string;
+  if (repo.installation) {
+    token = await getInstallationAccessToken(repo.installation.installationId);
+  } else {
+    const account = await prisma.account.findFirst({
+      where: { userId: session.user.id, provider: "github" },
+    });
+    if (!account?.access_token) throw new Error("GitHub account not linked");
+    token = account.access_token;
+  }
 
   const res = await fetch(
     `https://api.github.com/repositories/${repo.githubId}`,
     {
       headers: {
-        Authorization: `Bearer ${account.access_token}`,
+        Authorization: `Bearer ${token}`,
         Accept: "application/vnd.github+json",
       },
       cache: "no-store",
@@ -72,6 +83,11 @@ export async function resyncRepo(repoId: string): Promise<{
     gh.name !== repo.name;
 
   if (changed) {
+    // If the repo moved to a different owner, re-link to that owner's installation (if any).
+    const installation = await prisma.installation.findFirst({
+      where: { accountLogin: gh.owner.login },
+    });
+
     await prisma.repo.update({
       where: { id: repo.id },
       data: {
@@ -79,13 +95,9 @@ export async function resyncRepo(repoId: string): Promise<{
         owner: gh.owner.login,
         name: gh.name,
         isPrivate: gh.private,
+        installationId: installation?.id ?? null,
       },
     });
-
-    // Re-setup webhook on the new location (non-blocking)
-    setupGitHubWebhook(session.user.id, gh.owner.login, gh.name).catch((err) =>
-      console.error("Failed to setup webhook after resync:", err)
-    );
   }
 
   revalidatePath("/dashboard/repos");
@@ -104,7 +116,10 @@ export async function connectRepo(
   owner: string,
   name: string,
   isPrivate: boolean
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; installUrl?: string }
+  | { ok: false; error: string }
+> {
   const session = await auth();
 
   if (!session?.user?.id) {
@@ -119,6 +134,10 @@ export async function connectRepo(
     return { ok: false, error: "Repo already connected" };
   }
 
+  const installation = await prisma.installation.findFirst({
+    where: { accountLogin: owner },
+  });
+
   await prisma.repo.create({
     data: {
       userId: session.user.id,
@@ -127,23 +146,17 @@ export async function connectRepo(
       owner,
       name,
       isPrivate,
+      installationId: installation?.id,
     },
   });
 
-  // Auto-setup GitHub webhook on the repo (non-blocking)
-  setupGitHubWebhook(session.user.id, owner, name).catch((err) =>
-    console.error("Failed to setup GitHub webhook:", err)
-  );
-
   revalidatePath("/dashboard/repos");
 
-  return { ok: true };
-}
+  // No GitHub App installed on this owner yet — issue creation etc. won't work
+  // until the user installs it, so hand the UI a link to do that now.
+  if (!installation) {
+    return { ok: true, installUrl: buildGithubAppInstallUrl(session.user.id) };
+  }
 
-async function setupGitHubWebhook(userId: string, owner: string, repo: string) {
-  const account = await prisma.account.findFirst({
-    where: { userId, provider: "github" },
-  });
-  if (!account?.access_token) return;
-  await ensureRepoWebhook(account.access_token, owner, repo);
+  return { ok: true };
 }
