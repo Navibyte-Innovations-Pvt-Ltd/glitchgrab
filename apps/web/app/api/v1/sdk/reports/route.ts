@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { hashToken } from "@/lib/tokens";
+import { getInstallationAccessToken } from "@/lib/github-app";
 
 /**
  * GET /api/v1/sdk/reports
@@ -33,7 +34,9 @@ export async function GET(request: Request) {
 
     const apiToken = await prisma.apiToken.findUnique({
       where: { tokenHash },
-      include: { repo: true },
+      include: {
+        repo: { include: { installation: { select: { installationId: true } } } },
+      },
     });
 
     if (!apiToken) {
@@ -96,30 +99,24 @@ export async function GET(request: Request) {
     const issueStates: Record<number, string> = {};
     const issueCommentCounts: Record<number, number> = {};
 
-    if (issueNumbers.length > 0) {
-      const account = await prisma.account.findFirst({
-        where: { userId: apiToken.repo.userId, provider: "github" },
-        select: { access_token: true },
-      });
-
-      if (account?.access_token) {
-        try {
-          const res = await fetch(
-            `https://api.github.com/repos/${apiToken.repo.owner}/${apiToken.repo.name}/issues?state=all&per_page=100`,
-            { headers: { Authorization: `Bearer ${account.access_token}` } }
-          );
-          if (res.ok) {
-            const issues = (await res.json()) as { number: number; state: string; comments: number }[];
-            for (const issue of issues) {
-              if (issueNumbers.includes(issue.number)) {
-                issueStates[issue.number] = issue.state;
-                issueCommentCounts[issue.number] = issue.comments;
-              }
+    if (issueNumbers.length > 0 && apiToken.repo.installation) {
+      try {
+        const token = await getInstallationAccessToken(apiToken.repo.installation.installationId);
+        const res = await fetch(
+          `https://api.github.com/repos/${apiToken.repo.owner}/${apiToken.repo.name}/issues?state=all&per_page=100`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (res.ok) {
+          const issues = (await res.json()) as { number: number; state: string; comments: number }[];
+          for (const issue of issues) {
+            if (issueNumbers.includes(issue.number)) {
+              issueStates[issue.number] = issue.state;
+              issueCommentCounts[issue.number] = issue.comments;
             }
           }
-        } catch {
-          // skip — return without states
         }
+      } catch {
+        // skip — return without states
       }
     }
 
