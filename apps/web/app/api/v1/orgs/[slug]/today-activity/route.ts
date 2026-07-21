@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getInstallationAccessToken } from "@/lib/github-app";
 
 interface GithubBranch { name: string }
 interface GithubCommit { sha: string }
@@ -23,12 +24,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   });
   if (!requester) return NextResponse.json({ success: false, error: "Not a member" }, { status: 403 });
 
-  // Use requester's own token — has full access to private org repos they belong to
-  const account = await prisma.account.findFirst({
-    where: { userId: session.user.id, provider: "github" },
-    select: { access_token: true },
+  // Installation token — consistent access to org repos regardless of which member is viewing
+  const installation = await prisma.installation.findFirst({
+    where: { accountLogin: org.githubOrgLogin },
   });
-  if (!account?.access_token) {
+  if (!installation) {
     return NextResponse.json({ success: true, data: {} });
   }
 
@@ -56,7 +56,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   const sinceIso = since.toISOString();
 
   const headers = {
-    Authorization: `Bearer ${account.access_token}`,
+    Authorization: `Bearer ${await getInstallationAccessToken(installation.installationId)}`,
     Accept: "application/vnd.github+json",
   };
 
