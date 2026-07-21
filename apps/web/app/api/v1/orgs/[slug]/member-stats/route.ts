@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getGitHubOrgMembers } from "@/lib/github";
+import { getInstallationAccessToken } from "@/lib/github-app";
 
 interface RepoStat { name: string; commits: number; branches: string[]; prs: number }
 interface MemberStat { commits: number; repos: RepoStat[] }
@@ -24,14 +25,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   });
   if (!requester) return NextResponse.json({ success: false, error: "Not a member" }, { status: 403 });
 
-  const account = await prisma.account.findFirst({
-    where: { userId: org.ownerId, provider: "github" },
-    select: { access_token: true },
+  const installation = await prisma.installation.findFirst({
+    where: { accountLogin: org.githubOrgLogin },
   });
-  if (!account?.access_token) return NextResponse.json({ success: true, data: {} });
+  if (!installation) return NextResponse.json({ success: true, data: {} });
+
+  const token = await getInstallationAccessToken(installation.installationId);
 
   const [githubMembers, repos] = await Promise.all([
-    getGitHubOrgMembers(account.access_token, org.githubOrgLogin),
+    getGitHubOrgMembers(token, org.githubOrgLogin),
     prisma.repo.findMany({ where: { orgId: org.id }, select: { fullName: true } }),
   ]);
 
@@ -44,7 +46,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   const sinceIso = since.toISOString();
 
   const ghHeaders = {
-    Authorization: `Bearer ${account.access_token}`,
+    Authorization: `Bearer ${token}`,
     Accept: "application/vnd.github+json",
     "X-GitHub-Api-Version": "2022-11-28",
   };

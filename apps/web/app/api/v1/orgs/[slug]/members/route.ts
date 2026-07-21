@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getGitHubOrgMembers } from "@/lib/github";
+import { getInstallationAccessToken } from "@/lib/github-app";
 
 // GET — returns GitHub org members merged with DB OrgMember state
 export async function GET(_req: Request, { params }: { params: Promise<{ slug: string }> }) {
@@ -22,14 +23,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   });
   if (!requester) return NextResponse.json({ success: false, error: "Not a member" }, { status: 403 });
 
-  const account = await prisma.account.findFirst({
-    where: { userId: org.ownerId, provider: "github" },
-    select: { access_token: true },
+  const installation = await prisma.installation.findFirst({
+    where: { accountLogin: org.githubOrgLogin },
   });
 
-  // Fetch GitHub org members
-  const githubMembers = account?.access_token
-    ? await getGitHubOrgMembers(account.access_token, org.githubOrgLogin)
+  // Fetch GitHub org members (own rate-limit bucket once the App is installed on this org)
+  const githubMembers = installation
+    ? await getGitHubOrgMembers(
+        await getInstallationAccessToken(installation.installationId),
+        org.githubOrgLogin
+      )
     : [];
 
   // Fetch registered OrgMembers with user data

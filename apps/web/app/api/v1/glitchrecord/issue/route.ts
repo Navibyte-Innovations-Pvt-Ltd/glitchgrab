@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { hashToken } from "@/lib/tokens";
 import { createGitHubIssue } from "@/lib/github";
+import { getInstallationAccessToken } from "@/lib/github-app";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -44,21 +45,30 @@ export async function POST(request: Request) {
 
     const repo = await prisma.repo.findFirst({
       where: { id: body.repoId, userId },
-      select: { owner: true, name: true, fullName: true },
+      select: {
+        owner: true,
+        name: true,
+        fullName: true,
+        installation: { select: { installationId: true } },
+      },
     });
     if (!repo) {
       return NextResponse.json({ success: false, error: "Repo not found" }, { status: 404, headers: CORS });
     }
 
-    const account = await prisma.account.findFirst({
-      where: { userId, provider: "github" },
-      select: { access_token: true },
-    });
-    if (!account?.access_token) {
-      return NextResponse.json({ success: false, error: "GitHub not connected" }, { status: 400, headers: CORS });
+    if (!repo.installation) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "GitHub App not installed on this repo — reconnect in Connect Repo to grant access",
+        },
+        { status: 400, headers: CORS }
+      );
     }
 
-    const issue = await createGitHubIssue(account.access_token, {
+    const installationToken = await getInstallationAccessToken(repo.installation.installationId);
+
+    const issue = await createGitHubIssue(installationToken, {
       owner: repo.owner,
       repo: repo.name,
       title: body.title,

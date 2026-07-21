@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { hashToken } from "@/lib/tokens";
+import { getInstallationAccessToken } from "@/lib/github-app";
 
 /**
  * GET /api/v1/sdk/reports/[id]
@@ -41,7 +42,7 @@ export async function GET(
     const report = await prisma.report.findUnique({
       where: { id },
       include: {
-        repo: true,
+        repo: { include: { installation: { select: { installationId: true } } } },
         issue: true,
       },
     });
@@ -72,20 +73,19 @@ export async function GET(
     }
 
     // Fetch GitHub issue details + comments
-    const account = await prisma.account.findFirst({
-      where: { userId: report.repo.userId, provider: "github" },
-      select: { access_token: true },
-    });
-
-    if (!account?.access_token) {
+    if (!report.repo.installation) {
       return NextResponse.json(
-        { success: false, error: "GitHub access token not found" },
+        {
+          success: false,
+          error: "GitHub App not installed on this repo — reconnect in Connect Repo to grant access",
+        },
         { status: 500 }
       );
     }
 
+    const token = await getInstallationAccessToken(report.repo.installation.installationId);
     const ghHeaders = {
-      Authorization: `Bearer ${account.access_token}`,
+      Authorization: `Bearer ${token}`,
       Accept: "application/vnd.github+json",
     };
 

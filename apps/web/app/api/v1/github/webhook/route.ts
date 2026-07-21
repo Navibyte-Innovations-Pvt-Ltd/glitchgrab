@@ -1,11 +1,25 @@
 export const dynamic = "force-dynamic";
 
+import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { dispatchWebhook } from "@/lib/webhooks";
 import { sendIssueAssignedNotification } from "@/lib/whatsapp";
 import { getGitHubIssue } from "@/lib/github";
+import { getInstallationAccessToken } from "@/lib/github-app";
 import { parseClosingIssueRefs } from "@/lib/qa";
+
+function isValidSignature(body: string, signatureHeader: string | null): boolean {
+  const secret = process.env.GITHUB_APP_WEBHOOK_SECRET;
+  if (!secret || !signatureHeader) return false;
+
+  const expected = `sha256=${createHmac("sha256", secret).update(body).digest("hex")}`;
+  const expectedBuf = Buffer.from(expected);
+  const actualBuf = Buffer.from(signatureHeader);
+  if (expectedBuf.length !== actualBuf.length) return false;
+
+  return timingSafeEqual(expectedBuf, actualBuf);
+}
 
 /**
  * POST /api/v1/github/webhook
@@ -23,6 +37,11 @@ export async function POST(request: Request) {
   try {
     const body = await request.text();
     const event = request.headers.get("x-github-event");
+    const signature = request.headers.get("x-hub-signature-256");
+
+    if (!isValidSignature(body, signature)) {
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    }
 
     if (!event) {
       return NextResponse.json({ error: "Missing event header" }, { status: 400 });
@@ -30,6 +49,7 @@ export async function POST(request: Request) {
 
     const payload = JSON.parse(body) as {
       action: string;
+      installation?: { id: number };
       issue?: {
         number: number;
         title: string;
@@ -217,6 +237,7 @@ export async function POST(request: Request) {
 async function handlePullRequestEvent(
   payload: {
     action: string;
+    installation?: { id: number };
     pull_request?: {
       number: number;
       title: string;
@@ -248,17 +269,17 @@ async function handlePullRequestEvent(
   });
   if (testerRepos.length === 0) return;
 
-  // Repo owner's GitHub token — used to fetch issue titles
-  const account = await prisma.account.findFirst({
-    where: { userId: repo.userId, provider: "github" },
-    select: { access_token: true },
-  });
+  // The webhook payload already carries the installation this event came from —
+  // use it directly rather than looking up the repo owner's OAuth token.
+  const installationToken = payload.installation
+    ? await getInstallationAccessToken(payload.installation.id)
+    : null;
 
   // Resolve each referenced issue's title/url once
   const issues = await Promise.all(
     issueNumbers.map(async (n) => {
-      const gh = account?.access_token
-        ? await getGitHubIssue(account.access_token, repo.owner, repo.name, n)
+      const gh = installationToken
+        ? await getGitHubIssue(installationToken, repo.owner, repo.name, n)
         : null;
       return {
         number: n,

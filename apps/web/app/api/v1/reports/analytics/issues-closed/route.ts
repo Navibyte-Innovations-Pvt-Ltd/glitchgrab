@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getInstallationAccessToken } from "@/lib/github-app";
 
 interface GithubIssue {
   number: number;
@@ -24,8 +25,11 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const days = Math.min(90, Math.max(7, parseInt(searchParams.get("days") ?? "30", 10)));
 
-    const repos = await prisma.repo.findMany({ where: { userId }, select: { id: true, fullName: true } });
-    const repoIds = repos.map((r: { id: string; fullName: string }) => r.id);
+    const repos = await prisma.repo.findMany({
+      where: { userId },
+      select: { id: true, fullName: true, installation: { select: { installationId: true } } },
+    });
+    const repoIds = repos.map((r) => r.id);
 
     const today = new Date();
     today.setUTCHours(23, 59, 59, 999);
@@ -48,24 +52,17 @@ export async function GET(request: Request) {
       });
     }
 
-    let accessToken: string | null = null;
-    if (userId) {
-      const account = await prisma.account.findFirst({
-        where: { userId, provider: "github" },
-        select: { access_token: true },
-      });
-      accessToken = account?.access_token ?? null;
-    }
-
     const since = startDate.toISOString();
 
     await Promise.all(
-      repos.map(async (repo: { id: string; fullName: string }) => {
+      repos.map(async (repo) => {
+        if (!repo.installation) return;
         try {
+          const accessToken = await getInstallationAccessToken(repo.installation.installationId);
           const headers: Record<string, string> = {
             Accept: "application/vnd.github+json",
+            Authorization: `Bearer ${accessToken}`,
           };
-          if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
 
           let page = 1;
           while (page <= 5) {

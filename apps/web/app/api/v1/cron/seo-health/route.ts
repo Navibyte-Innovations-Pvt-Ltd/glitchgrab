@@ -4,6 +4,7 @@ export const maxDuration = 300;
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { createGitHubIssue, checkIssueIsOpen } from "@/lib/github";
+import { getInstallationAccessToken } from "@/lib/github-app";
 
 const SEO_LABEL = "glitchgrab-seo";
 
@@ -154,15 +155,8 @@ export async function POST(request: NextRequest) {
   const properties = await prisma.gscProperty.findMany({
     where: { repoId: { not: null } },
     include: {
-      repo: { select: { owner: true, name: true } },
-      user: {
-        include: {
-          accounts: {
-            where: { provider: "github" },
-            select: { access_token: true },
-            take: 1,
-          },
-        },
+      repo: {
+        select: { owner: true, name: true, installation: { select: { installationId: true } } },
       },
     },
   });
@@ -172,11 +166,11 @@ export async function POST(request: NextRequest) {
 
   for (const property of properties) {
     try {
-      const githubToken = property.user.accounts[0]?.access_token;
-      if (!githubToken || !property.repo) {
-        results.push({ siteUrl: property.siteUrl, status: "skipped: no github token or repo" });
+      if (!property.repo?.installation) {
+        results.push({ siteUrl: property.siteUrl, status: "skipped: GitHub App not installed or no repo" });
         continue;
       }
+      const githubToken = await getInstallationAccessToken(property.repo.installation.installationId);
 
       // Snooze: user reindexed recently — give Google time to re-crawl
       if (property.seoHealthSnoozedUntil && property.seoHealthSnoozedUntil > new Date()) {

@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getInstallationAccessToken } from "@/lib/github-app";
 
 interface GithubCommit {
   commit: {
@@ -27,15 +28,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   });
   if (!member) return NextResponse.json({ success: false, error: "Not a member" }, { status: 403 });
 
-  const account = await prisma.account.findFirst({
-    where: { userId: session.user.id, provider: "github" },
-    select: { access_token: true },
-  });
-
-  if (!account?.access_token) {
-    return NextResponse.json({ success: true, data: { total: 0, orgSlug: slug, weeks: [] } });
-  }
-
   const repos = await prisma.repo.findMany({
     where: { orgId: org.id },
     select: { fullName: true },
@@ -45,12 +37,20 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
     return NextResponse.json({ success: true, data: { total: 0, orgSlug: slug, weeks: [] } });
   }
 
+  const installation = await prisma.installation.findFirst({
+    where: { accountLogin: org.githubOrgLogin },
+  });
+
+  if (!installation) {
+    return NextResponse.json({ success: true, data: { total: 0, orgSlug: slug, weeks: [] } });
+  }
+
   const since = new Date();
   since.setFullYear(since.getFullYear() - 1);
   const sinceIso = since.toISOString();
 
   const headers = {
-    Authorization: `Bearer ${account.access_token}`,
+    Authorization: `Bearer ${await getInstallationAccessToken(installation.installationId)}`,
     Accept: "application/vnd.github+json",
   };
 

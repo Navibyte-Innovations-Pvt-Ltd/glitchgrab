@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { listWorkflowRuns, type WorkflowRun } from "@/lib/github";
+import { getInstallationAccessToken } from "@/lib/github-app";
 
 interface RepoWorkflowRuns {
   repoId: string;
@@ -28,25 +29,30 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   });
   if (!member) return NextResponse.json({ success: false, error: "Not a member" }, { status: 403 });
 
-  const account = await prisma.account.findFirst({
-    where: { userId: session.user.id, provider: "github" },
-    select: { access_token: true },
-  });
-
-  const token = account?.access_token;
-  if (!token) {
-    return NextResponse.json({ success: true, data: [] });
-  }
-
   const repos = await prisma.repo.findMany({
     where: { orgId: org.id },
-    select: { id: true, fullName: true, owner: true, name: true },
+    select: {
+      id: true,
+      fullName: true,
+      owner: true,
+      name: true,
+      installation: { select: { installationId: true } },
+    },
     orderBy: { createdAt: "desc" },
   });
 
   const results: RepoWorkflowRuns[] = await Promise.all(
-    repos.map(async (repo: { id: string; fullName: string; owner: string; name: string }) => {
+    repos.map(async (repo) => {
+      if (!repo.installation) {
+        return {
+          repoId: repo.id,
+          repoFullName: repo.fullName,
+          runs: [],
+          error: "GitHub App not installed on this repo",
+        };
+      }
       try {
+        const token = await getInstallationAccessToken(repo.installation.installationId);
         const runs = await listWorkflowRuns(token, repo.owner, repo.name, 20);
         return { repoId: repo.id, repoFullName: repo.fullName, runs, error: null };
       } catch (err) {

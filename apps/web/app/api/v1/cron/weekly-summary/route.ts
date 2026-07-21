@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getClosedIssueCountSince } from "@/lib/github";
+import { getInstallationAccessToken } from "@/lib/github-app";
 import { sendWeeklyIssueSummary } from "@/lib/whatsapp";
 
 export async function GET(request: Request) {
@@ -19,7 +20,9 @@ export async function GET(request: Request) {
       id: true,
       name: true,
       whatsappPhone: true,
-      repos: { select: { owner: true, name: true } },
+      repos: {
+        select: { owner: true, name: true, installation: { select: { installationId: true } } },
+      },
       ownedOrgs: { select: { name: true, githubOrgLogin: true }, take: 1 },
     },
   });
@@ -29,20 +32,11 @@ export async function GET(request: Request) {
   for (const dev of developers) {
     if (!dev.whatsappPhone || !dev.repos.length) continue;
 
-    const account = await prisma.account.findFirst({
-      where: { userId: dev.id, provider: "github" },
-      select: { access_token: true },
-    });
-    if (!account?.access_token) continue;
-
     let totalResolved = 0;
     for (const repo of dev.repos) {
-      totalResolved += await getClosedIssueCountSince(
-        account.access_token,
-        repo.owner,
-        repo.name,
-        sevenDaysAgo
-      );
+      if (!repo.installation) continue;
+      const token = await getInstallationAccessToken(repo.installation.installationId);
+      totalResolved += await getClosedIssueCountSince(token, repo.owner, repo.name, sevenDaysAgo);
     }
 
     const orgName = dev.ownedOrgs?.[0]?.name ?? dev.name ?? "your org";

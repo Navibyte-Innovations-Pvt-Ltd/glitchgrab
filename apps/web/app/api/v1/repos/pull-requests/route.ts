@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getInstallationAccessToken } from "@/lib/github-app";
 
 interface GithubPull {
   number: number;
@@ -75,26 +76,17 @@ export async function GET() {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    const account = await prisma.account.findFirst({
-      where: { userId, provider: "github" },
-      select: { access_token: true },
-    });
-
-    if (!account?.access_token) {
-      return NextResponse.json({ success: true, data: [] });
-    }
-
-    const accessToken = account.access_token;
-
     const repos = await prisma.repo.findMany({
       where: { userId },
-      select: { fullName: true },
+      select: { fullName: true, installation: { select: { installationId: true } } },
     });
 
     const pulls = (
       await Promise.all(
-        repos.map(async (repo: { fullName: string }) => {
+        repos.map(async (repo) => {
+          if (!repo.installation) return [];
           try {
+            const accessToken = await getInstallationAccessToken(repo.installation.installationId);
             const res = await fetch(
               `https://api.github.com/repos/${repo.fullName}/pulls?state=open&sort=updated&direction=desc&per_page=10`,
               {

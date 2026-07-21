@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { createGitHubIssue } from "@/lib/github";
+import { getInstallationAccessToken } from "@/lib/github-app";
 import { uploadScreenshotToS3 } from "@/lib/s3";
 import { uploadDocumentsToRepo, buildAttachmentsSection } from "@/lib/attachments";
 import { MAX_DOCUMENT_SIZE, isAllowedDocumentFile } from "@/lib/attachments-constants";
@@ -29,50 +30,56 @@ export async function GET() {
     const reports = await prisma.report.findMany({
       where: { repoId: { in: repoIds } },
       include: {
-        repo: { select: { id: true, fullName: true, userId: true, owner: true, name: true } },
+        repo: {
+          select: {
+            id: true,
+            fullName: true,
+            userId: true,
+            owner: true,
+            name: true,
+            installation: { select: { installationId: true } },
+          },
+        },
         issue: { select: { githubNumber: true, githubUrl: true, title: true, labels: true, severity: true } },
       },
       orderBy: { createdAt: "desc" },
       take: 100,
     });
 
-    // Fetch GitHub issue states
+    // Fetch GitHub issue states (per repo, using that repo's installation token)
     const issueStates: Record<string, string> = {};
-    if (userId) {
-      const account = await prisma.account.findFirst({
-        where: { userId, provider: "github" },
-        select: { access_token: true },
-      });
-      if (account?.access_token) {
-        const issuesByRepo = new Map<string, number[]>();
-        for (const r of reports) {
-          if (r.issue) {
-            const key = r.repo.fullName;
-            const existing = issuesByRepo.get(key) ?? [];
-            existing.push(r.issue.githubNumber);
-            issuesByRepo.set(key, existing);
-          }
-        }
-        await Promise.all(
-          Array.from(issuesByRepo.entries()).map(async ([fullName, numbers]) => {
-            try {
-              const res = await fetch(
-                `https://api.github.com/repos/${fullName}/issues?state=all&per_page=100`,
-                { headers: { Authorization: `Bearer ${account.access_token}` } }
-              );
-              if (res.ok) {
-                const issues = (await res.json()) as { number: number; state: string }[];
-                for (const issue of issues) {
-                  if (numbers.includes(issue.number)) {
-                    issueStates[`${fullName}#${issue.number}`] = issue.state;
-                  }
-                }
-              }
-            } catch { /* skip */ }
-          })
-        );
+    const issuesByRepo = new Map<string, { installationId: number | null; numbers: number[] }>();
+    for (const r of reports) {
+      if (r.issue) {
+        const key = r.repo.fullName;
+        const existing = issuesByRepo.get(key) ?? {
+          installationId: r.repo.installation?.installationId ?? null,
+          numbers: [],
+        };
+        existing.numbers.push(r.issue.githubNumber);
+        issuesByRepo.set(key, existing);
       }
     }
+    await Promise.all(
+      Array.from(issuesByRepo.entries()).map(async ([fullName, { installationId, numbers }]) => {
+        if (installationId === null) return;
+        try {
+          const token = await getInstallationAccessToken(installationId);
+          const res = await fetch(
+            `https://api.github.com/repos/${fullName}/issues?state=all&per_page=100`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          if (res.ok) {
+            const issues = (await res.json()) as { number: number; state: string }[];
+            for (const issue of issues) {
+              if (numbers.includes(issue.number)) {
+                issueStates[`${fullName}#${issue.number}`] = issue.state;
+              }
+            }
+          }
+        } catch { /* skip */ }
+      })
+    );
 
     const data = reports.map((r: typeof reports[number]) => ({
       id: r.id,
@@ -169,6 +176,7 @@ export async function POST(request: Request) {
 
     const repo = await prisma.repo.findFirst({
       where: { id: repoId, userId: session.user.id },
+      include: { installation: { select: { installationId: true } } },
     });
 
     if (!repo) {
@@ -178,16 +186,17 @@ export async function POST(request: Request) {
       );
     }
 
-    const account = await prisma.account.findFirst({
-      where: { userId: session.user.id, provider: "github" },
-    });
-
-    if (!account?.access_token) {
+    if (!repo.installation) {
       return NextResponse.json(
-        { success: false, error: "GitHub account not connected" },
+        {
+          success: false,
+          error: "GitHub App not installed on this repo — reconnect in Connect Repo to grant access",
+        },
         { status: 400 }
       );
     }
+
+    const installationToken = await getInstallationAccessToken(repo.installation.installationId);
 
     // Resize all screenshots
     const screenshotDataUrls: string[] = [];
@@ -250,7 +259,7 @@ export async function POST(request: Request) {
     const documentRefs =
       documentFiles.length > 0
         ? await uploadDocumentsToRepo(
-            account.access_token,
+            installationToken,
             repo.owner,
             repo.name,
             report.id,
@@ -270,7 +279,7 @@ export async function POST(request: Request) {
     }
 
     try {
-      const createdIssue = await createGitHubIssue(account.access_token, {
+      const createdIssue = await createGitHubIssue(installationToken, {
         owner: repo.owner,
         repo: repo.name,
         title,

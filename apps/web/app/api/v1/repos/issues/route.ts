@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getInstallationAccessToken } from "@/lib/github-app";
 
 interface GithubIssue {
   number: number;
@@ -38,29 +39,22 @@ export async function GET() {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    const account = await prisma.account.findFirst({
-      where: { userId, provider: "github" },
-      select: { access_token: true },
-    });
-
-    if (!account?.access_token) {
-      return NextResponse.json({ success: true, data: { issues: [], totalOpenCount: 0 } });
-    }
-
     const repos = await prisma.repo.findMany({
       where: { userId },
-      select: { fullName: true },
+      select: { fullName: true, installation: { select: { installationId: true } } },
     });
 
     const issues = (
       await Promise.all(
-        repos.map(async (repo: { fullName: string }) => {
+        repos.map(async (repo) => {
+          if (!repo.installation) return [];
           try {
+            const accessToken = await getInstallationAccessToken(repo.installation.installationId);
             const res = await fetch(
               `https://api.github.com/repos/${repo.fullName}/issues?state=open&sort=created&direction=desc&per_page=10`,
               {
                 headers: {
-                  Authorization: `Bearer ${account.access_token}`,
+                  Authorization: `Bearer ${accessToken}`,
                   Accept: "application/vnd.github+json",
                 },
               }
@@ -93,9 +87,11 @@ export async function GET() {
 
     const totalOpenCount = (
       await Promise.all(
-        repos.map((repo: { fullName: string }) =>
-          getOpenIssueCount(repo.fullName, account.access_token as string)
-        )
+        repos.map(async (repo) => {
+          if (!repo.installation) return 0;
+          const accessToken = await getInstallationAccessToken(repo.installation.installationId);
+          return getOpenIssueCount(repo.fullName, accessToken);
+        })
       )
     ).reduce((sum, n) => sum + n, 0);
 

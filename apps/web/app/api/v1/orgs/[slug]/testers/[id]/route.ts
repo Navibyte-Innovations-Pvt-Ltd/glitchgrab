@@ -3,7 +3,6 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { ensureRepoWebhook } from "@/lib/github";
 import { buildTesterUpdateData } from "./update-data";
 
 /** Resolve org by slug and require the caller to be its OWNER. */
@@ -87,28 +86,6 @@ export async function PATCH(
         ? [prisma.testerRepo.createMany({ data: toAdd.map((repoId) => ({ testerId: id, repoId })) })]
         : []),
     ]);
-
-    // Ensure newly-assigned repos have their GitHub pull_request webhook subscribed —
-    // without it a merged PR never reaches us and no QA check is ever created.
-    if (toAdd.length) {
-      const account = await prisma.account.findFirst({
-        where: { userId: session.user.id, provider: "github" },
-        select: { access_token: true },
-      });
-      if (account?.access_token) {
-        const token = account.access_token;
-        const addedRepos = await prisma.repo.findMany({
-          where: { id: { in: toAdd } },
-          select: { fullName: true },
-        });
-        await Promise.all(
-          addedRepos.map((r) => {
-            const [repoOwner, ...rest] = r.fullName.split("/");
-            return ensureRepoWebhook(token, repoOwner, rest.join("/"));
-          })
-        );
-      }
-    }
   }
 
   return NextResponse.json({ success: true });

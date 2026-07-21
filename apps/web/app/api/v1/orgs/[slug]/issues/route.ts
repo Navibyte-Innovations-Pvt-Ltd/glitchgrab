@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getInstallationAccessToken } from "@/lib/github-app";
 
 interface GithubIssue {
   number: number;
@@ -77,16 +78,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   });
   if (!member) return NextResponse.json({ success: false, error: "Not a member" }, { status: 403 });
 
-  const account = await prisma.account.findFirst({
-    where: { userId: session.user.id, provider: "github" },
-    select: { access_token: true },
+  const installation = await prisma.installation.findFirst({
+    where: { accountLogin: org.githubOrgLogin },
   });
 
-  if (!account?.access_token) {
+  if (!installation) {
     return NextResponse.json({ success: true, data: { issues: [], totalOpenCount: 0 } });
   }
 
-  const token = account.access_token;
+  const token = await getInstallationAccessToken(installation.installationId);
 
   const repos = await prisma.repo.findMany({
     where: { orgId: org.id },

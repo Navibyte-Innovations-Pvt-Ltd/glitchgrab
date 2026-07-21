@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { listWorkflowRuns, type WorkflowRun } from "@/lib/github";
+import { getInstallationAccessToken } from "@/lib/github-app";
 
 interface RepoWorkflowRuns {
   repoId: string;
@@ -21,26 +22,30 @@ export async function GET() {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    const account = await prisma.account.findFirst({
-      where: { userId, provider: "github" },
-      select: { access_token: true },
-    });
-
-    if (!account?.access_token) {
-      return NextResponse.json({ success: true, data: [] });
-    }
-
-    const accessToken = account.access_token;
-
     const repos = await prisma.repo.findMany({
       where: { userId },
-      select: { id: true, fullName: true, owner: true, name: true },
+      select: {
+        id: true,
+        fullName: true,
+        owner: true,
+        name: true,
+        installation: { select: { installationId: true } },
+      },
       orderBy: { createdAt: "desc" },
     });
 
     const results: RepoWorkflowRuns[] = await Promise.all(
-      repos.map(async (repo: { id: string; fullName: string; owner: string; name: string }) => {
+      repos.map(async (repo) => {
+        if (!repo.installation) {
+          return {
+            repoId: repo.id,
+            repoFullName: repo.fullName,
+            runs: [],
+            error: "GitHub App not installed on this repo",
+          };
+        }
         try {
+          const accessToken = await getInstallationAccessToken(repo.installation.installationId);
           // Fetch more runs than we need so the client has enough completed
           // samples to estimate median duration for in-progress workflows.
           const runs = await listWorkflowRuns(

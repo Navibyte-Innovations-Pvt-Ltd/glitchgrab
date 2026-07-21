@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { hashToken } from "@/lib/tokens";
+import { getInstallationAccessToken } from "@/lib/github-app";
 
 /**
  * POST /api/v1/sdk/reports/[id]/comments
@@ -56,7 +57,10 @@ export async function POST(
 
     const report = await prisma.report.findUnique({
       where: { id },
-      include: { repo: true, issue: true },
+      include: {
+        repo: { include: { installation: { select: { installationId: true } } } },
+        issue: true,
+      },
     });
 
     if (!report || report.repoId !== apiToken.repoId) {
@@ -73,17 +77,17 @@ export async function POST(
       );
     }
 
-    const account = await prisma.account.findFirst({
-      where: { userId: report.repo.userId, provider: "github" },
-      select: { access_token: true },
-    });
-
-    if (!account?.access_token) {
+    if (!report.repo.installation) {
       return NextResponse.json(
-        { success: false, error: "GitHub access token not found" },
+        {
+          success: false,
+          error: "GitHub App not installed on this repo — reconnect in Connect Repo to grant access",
+        },
         { status: 500 }
       );
     }
+
+    const token = await getInstallationAccessToken(report.repo.installation.installationId);
 
     // Build comment with reporter attribution
     const name = reporterName || report.reporterName || "Unknown";
@@ -97,7 +101,7 @@ export async function POST(
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${account.access_token}`,
+          Authorization: `Bearer ${token}`,
           Accept: "application/vnd.github+json",
           "Content-Type": "application/json",
         },

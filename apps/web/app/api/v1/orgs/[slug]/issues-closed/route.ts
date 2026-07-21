@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getInstallationAccessToken } from "@/lib/github-app";
 
 interface GithubIssue {
   number: number;
@@ -56,18 +57,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
     });
   }
 
-  const account = await prisma.account.findFirst({
-    where: { userId: session.user.id, provider: "github" },
-    select: { access_token: true },
+  const installation = await prisma.installation.findFirst({
+    where: { accountLogin: org.githubOrgLogin },
   });
 
-  if (!account?.access_token) {
+  if (!installation) {
     return NextResponse.json({
       success: true,
       data: { daily: buckets, total: 0, avgPerDay: 0, bestDay: null },
     });
   }
 
+  const token = await getInstallationAccessToken(installation.installationId);
   const since = startDate.toISOString();
 
   await Promise.all(
@@ -79,7 +80,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
             `https://api.github.com/repos/${repo.fullName}/issues?state=closed&sort=updated&direction=desc&per_page=100&page=${page}&since=${since}`,
             {
               headers: {
-                Authorization: `Bearer ${account.access_token}`,
+                Authorization: `Bearer ${token}`,
                 Accept: "application/vnd.github+json",
               },
             }

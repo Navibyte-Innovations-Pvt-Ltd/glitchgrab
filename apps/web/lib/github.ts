@@ -248,65 +248,6 @@ export async function commentOnGitHubIssue(
   }
 }
 
-// ─── Ensure repo webhook ─────────────────────────────
-
-const WEBHOOK_URL = process.env.NEXTAUTH_URL
-  ? `${process.env.NEXTAUTH_URL}/api/v1/github/webhook`
-  : "https://glitchgrab.dev/api/v1/github/webhook";
-
-// `pull_request` powers the QA/tester flow (merged PR closing "#N" → QA checks);
-// issues/issue_comment power reporter-notify + comment-forward.
-const WEBHOOK_EVENTS = ["issues", "issue_comment", "pull_request"];
-
-/**
- * Ensure the repo has a Glitchgrab webhook subscribed to every event we need.
- * Creates it if missing, or PATCHes an older hook that predates `pull_request`.
- * Idempotent + never throws — so it's safe to call on repo connect and on tester
- * assignment without gating the caller.
- */
-export async function ensureRepoWebhook(
-  accessToken: string,
-  owner: string,
-  repo: string
-): Promise<void> {
-  try {
-    const listRes = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/hooks`, {
-      headers: headers(accessToken),
-    });
-    if (listRes.ok) {
-      const hooks = (await listRes.json()) as {
-        id: number;
-        events: string[];
-        config: { url?: string };
-      }[];
-      const existing = hooks.find((h) => h.config.url?.includes("glitchgrab"));
-      if (existing) {
-        const missing = WEBHOOK_EVENTS.some((e) => !existing.events.includes(e));
-        if (missing) {
-          await fetch(`${GITHUB_API}/repos/${owner}/${repo}/hooks/${existing.id}`, {
-            method: "PATCH",
-            headers: headers(accessToken),
-            body: JSON.stringify({ events: WEBHOOK_EVENTS, active: true }),
-          });
-        }
-        return;
-      }
-    }
-    await fetch(`${GITHUB_API}/repos/${owner}/${repo}/hooks`, {
-      method: "POST",
-      headers: headers(accessToken),
-      body: JSON.stringify({
-        name: "web",
-        active: true,
-        events: WEBHOOK_EVENTS,
-        config: { url: WEBHOOK_URL, content_type: "json", insecure_ssl: "0" },
-      }),
-    });
-  } catch (err) {
-    console.error("[github] ensureRepoWebhook failed:", err);
-  }
-}
-
 // ─── Check If Issue Is Still Open ────────────────────
 
 export async function checkIssueIsOpen(
