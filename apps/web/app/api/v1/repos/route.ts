@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { hashToken } from "@/lib/tokens";
+import { buildGithubAppInstallUrl } from "@/lib/github-app";
 import { dedupeReposByGithubId } from "./dedupe";
 
 const CORS = {
@@ -42,26 +43,36 @@ export async function GET(request: Request) {
 
   const repos = await prisma.repo.findMany({
     where: { userId },
-    include: { _count: { select: { tokens: true, reports: true } } },
+    include: { _count: { select: { tokens: true, reports: true } }, installation: true },
     orderBy: { createdAt: "desc" },
   });
 
   // Dedupe: the same GitHub repo can end up with more than one Repo row (e.g.
   // connected twice). Collapse by githubId so the selector never shows it twice
   // (rows are ordered newest-first, so the newest is kept).
-  const ownRepos = dedupeReposByGithubId(repos).map(
-    (r: { id: string; githubId: number; fullName: string; isPrivate: boolean; _count: { tokens: number; reports: number } }) => ({
-      id: r.id,
-      githubId: r.githubId,
-      fullName: r.fullName,
-      isPrivate: r.isPrivate,
-      tokens: r._count.tokens,
-      reports: r._count.reports,
-    }),
-  );
+  const deduped = dedupeReposByGithubId(repos);
+  const ownRepos = deduped.map((r) => ({
+    id: r.id,
+    githubId: r.githubId,
+    fullName: r.fullName,
+    isPrivate: r.isPrivate,
+    tokens: r._count.tokens,
+    reports: r._count.reports,
+    installed: r.installationId !== null,
+  }));
+
+  const needsInstall = ownRepos.some((r) => !r.installed);
 
   return NextResponse.json(
-    { success: true, data: { ownRepos, sharedRepos: [] } },
+    {
+      success: true,
+      data: {
+        ownRepos,
+        sharedRepos: [],
+        needsInstall,
+        installUrl: needsInstall ? buildGithubAppInstallUrl(userId) : null,
+      },
+    },
     { headers: CORS }
   );
 }
