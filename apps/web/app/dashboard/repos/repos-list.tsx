@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import {
+  AlertTriangle,
   ChevronRight,
   FileText,
   GitFork,
@@ -24,11 +25,14 @@ interface Repo {
   isPrivate: boolean;
   tokens: number;
   reports: number;
+  installed: boolean;
 }
 
 interface ReposData {
   ownRepos: Repo[];
   sharedRepos: Repo[];
+  needsInstall: boolean;
+  installUrl: string | null;
 }
 
 export function ReposList({ isOwner }: { isOwner: boolean }) {
@@ -83,6 +87,23 @@ export function ReposList({ isOwner }: { isOwner: boolean }) {
 
   return (
     <div className="space-y-4">
+      {isOwner && data?.needsInstall && data.installUrl && (
+        <div className="flex items-center gap-3 p-3 rounded-lg border border-amber-500/30 bg-amber-500/10">
+          <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+          <p className="flex-1 text-xs text-foreground">
+            One or more repos need the GlitchGrab GitHub App installed to create issues.
+          </p>
+          <a
+            href={data.installUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 font-mono text-[10px] uppercase tracking-wider px-2.5 py-1.5 rounded border border-amber-500/40 text-amber-500 hover:bg-amber-500/10 transition-colors"
+          >
+            install app
+          </a>
+        </div>
+      )}
+
       <div className="flex items-center gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
@@ -181,10 +202,17 @@ function RepoCard({ repo, kind }: { repo: Repo; kind: "own" | "shared" }) {
           <span className="px-1.5 py-px rounded bg-muted text-[9px] font-mono text-muted-foreground uppercase border border-border">
             {repo.isPrivate ? "private" : "public"}
           </span>
-          <div className="flex items-center gap-1 px-1.5 py-px rounded bg-primary/10 border border-primary/30 text-primary font-mono text-[9px] uppercase tracking-wider">
-            <div className="w-1 h-1 rounded-full bg-primary animate-pulse" />
-            {kind === "shared" ? "shared" : "live"}
-          </div>
+          {kind === "own" && !repo.installed ? (
+            <div className="flex items-center gap-1 px-1.5 py-px rounded bg-amber-500/10 border border-amber-500/30 text-amber-500 font-mono text-[9px] uppercase tracking-wider">
+              <AlertTriangle className="h-2.5 w-2.5" />
+              not installed
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 px-1.5 py-px rounded bg-primary/10 border border-primary/30 text-primary font-mono text-[9px] uppercase tracking-wider">
+              <div className="w-1 h-1 rounded-full bg-primary animate-pulse" />
+              {kind === "shared" ? "shared" : "live"}
+            </div>
+          )}
         </div>
       </div>
 

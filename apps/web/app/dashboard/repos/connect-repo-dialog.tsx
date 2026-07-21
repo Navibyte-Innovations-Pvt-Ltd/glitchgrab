@@ -82,13 +82,26 @@ export function ConnectRepoDialog() {
         repo.isPrivate
       );
       if (!result.ok) throw new Error(result.error);
-      return repo;
+      return { ...repo, installUrl: result.installUrl };
     },
     onSuccess: (repo) => {
-      toast.success(`Connected ${repo.fullName}`);
       queryClient.invalidateQueries({ queryKey: ["repos"] });
       queryClient.invalidateQueries({ queryKey: ["github-repos"] });
       setOpen(false);
+
+      if (repo.installUrl) {
+        toast.success(`Connected ${repo.fullName}`, {
+          description: "Install the GlitchGrab GitHub App to enable issue creation",
+          action: {
+            label: "Install",
+            onClick: () =>
+              window.open(repo.installUrl, "_blank", "noopener,noreferrer"),
+          },
+          duration: 15000,
+        });
+      } else {
+        toast.success(`Connected ${repo.fullName}`);
+      }
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : "Failed to connect repo");

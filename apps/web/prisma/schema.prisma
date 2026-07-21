@@ -101,19 +101,32 @@ model VerificationToken {
 
 // ─── Core ────────────────────────────────────────────────
 
+model Installation {
+  id             String   @id @default(cuid())
+  installationId Int      @unique
+  accountLogin   String
+  accountType    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  repos Repo[]
+}
+
 model Repo {
-  id        String   @id @default(cuid())
-  userId    String
-  orgId     String?
-  githubId  Int
-  fullName  String
-  owner     String
-  name      String
-  isPrivate Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id             String   @id @default(cuid())
+  userId         String
+  orgId          String?
+  installationId String?
+  githubId       Int
+  fullName       String
+  owner          String
+  name           String
+  isPrivate      Boolean  @default(false)
+  createdAt      DateTime @default(now())
 
   user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   org           Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  installation  Installation? @relation(fields: [installationId], references: [id], onDelete: SetNull)
   tokens        ApiToken[]
   reports       Report[]
   issues        Issue[]
@@ -124,6 +137,7 @@ model Repo {
   @@unique([userId, githubId])
   @@index([githubId])
   @@index([orgId])
+  @@index([installationId])
 }
 
 model ApiToken {

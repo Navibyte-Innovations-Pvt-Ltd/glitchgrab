@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { getGitHubIssue } from "@/lib/github";
+import { getInstallationAccessToken } from "@/lib/github-app";
 
 export interface QaCheckView {
   id: string;
@@ -38,29 +39,25 @@ export async function getQaView(testerId: string): Promise<QaView | null> {
         // history (PASS/FAIL/SKIPPED) always stays visible.
         where: { OR: [{ notifiedAt: { not: null } }, { status: { not: "PENDING" } }] },
         orderBy: [{ status: "asc" }, { createdAt: "desc" }],
-        include: { repo: { select: { fullName: true, owner: true, name: true, userId: true } } },
+        include: {
+          repo: {
+            select: {
+              fullName: true,
+              owner: true,
+              name: true,
+              installation: { select: { installationId: true } },
+            },
+          },
+        },
       },
     },
   });
   if (!tester) return null;
 
-  // Cache one GitHub token lookup per repo owner (userId) — multiple checks often share a repo.
-  const tokenByUserId = new Map<string, string | null>();
-  async function tokenFor(userId: string): Promise<string | null> {
-    if (!tokenByUserId.has(userId)) {
-      const account = await prisma.account.findFirst({
-        where: { userId, provider: "github" },
-        select: { access_token: true },
-      });
-      tokenByUserId.set(userId, account?.access_token ?? null);
-    }
-    return tokenByUserId.get(userId) ?? null;
-  }
-
   const commentCounts = await Promise.all(
     tester.checks.map(async (c) => {
-      const ghToken = await tokenFor(c.repo.userId);
-      if (!ghToken) return null;
+      if (!c.repo.installation) return null;
+      const ghToken = await getInstallationAccessToken(c.repo.installation.installationId);
       const issue = await getGitHubIssue(ghToken, c.repo.owner, c.repo.name, c.githubNumber);
       return issue?.comments ?? null;
     })
