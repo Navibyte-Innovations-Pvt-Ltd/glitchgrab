@@ -5,7 +5,6 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { generateMagicToken, qaLink } from "@/lib/qa";
 import { sendTesterInvite } from "@/lib/whatsapp";
-import { ensureRepoWebhook } from "@/lib/github";
 
 /** Resolve org by slug and require the caller to be its OWNER. */
 async function requireOwner(slug: string, userId: string) {
@@ -100,25 +99,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     },
     include: { repos: { include: { repo: { select: { id: true, fullName: true } } } } },
   });
-
-  // Make sure each assigned repo's GitHub webhook is subscribed to pull_request
-  // (older hooks only had issues/issue_comment). Without this, a merged PR never
-  // reaches us and no QA check is ever created — the whole tester flow is silent.
-  if (tester.repos.length > 0) {
-    const account = await prisma.account.findFirst({
-      where: { userId: session.user.id, provider: "github" },
-      select: { access_token: true },
-    });
-    if (account?.access_token) {
-      const token = account.access_token;
-      await Promise.all(
-        tester.repos.map((tr) => {
-          const [repoOwner, ...rest] = tr.repo.fullName.split("/");
-          return ensureRepoWebhook(token, repoOwner, rest.join("/"));
-        })
-      );
-    }
-  }
 
   // WhatsApp welcome with their QA link. Must be awaited — on Vercel the function
   // suspends right after the response returns, killing any un-awaited outbound
