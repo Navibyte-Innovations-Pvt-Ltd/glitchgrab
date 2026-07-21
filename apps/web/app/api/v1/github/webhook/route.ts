@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { dispatchWebhook } from "@/lib/webhooks";
-import { sendIssueResolvedWhatsApp, sendIssueAssignedNotification } from "@/lib/whatsapp";
+import { sendIssueAssignedNotification } from "@/lib/whatsapp";
 import { getGitHubIssue } from "@/lib/github";
 import { parseClosingIssueRefs } from "@/lib/qa";
 
@@ -113,20 +113,14 @@ export async function POST(request: Request) {
           glitchgrabIssueId: glitchgrabIssue?.id,
         });
 
-        // Notify reporter via WhatsApp if phone is available
-        const phone = glitchgrabIssue?.report?.reporterPhone;
-        const name = glitchgrabIssue?.report?.reporterName ?? "there";
-        const rawTitle = payload.issue?.title ?? "your issue";
-        // Prefix the GitHub issue number so the reporter can reference it.
-        const title = `#${issueNumber} ${rawTitle}`;
-        if (phone && glitchgrabIssue) {
-          await sendIssueResolvedWhatsApp({
-            phone,
-            reporterName: name,
-            issueTitle: title,
-            orgName,
-            developerPhone: repoOwnerData?.whatsappPhone,
-            issueId: glitchgrabIssue.id,
+        // Mark resolved but don't notify the reporter yet — Vercel needs a
+        // few minutes to build and promote the deploy, so the fix isn't
+        // actually live. /api/v1/cron/resolved-notify sends the WhatsApp
+        // once resolvedAt is ~10min old (mirrors the qa-notify pattern).
+        if (glitchgrabIssue?.report?.reporterPhone) {
+          await prisma.issue.update({
+            where: { id: glitchgrabIssue.id },
+            data: { resolvedAt: new Date(), resolvedNotifiedAt: null },
           });
         }
       }
@@ -140,6 +134,15 @@ export async function POST(request: Request) {
           action: "reopened",
           glitchgrabIssueId: glitchgrabIssue?.id,
         });
+
+        // Cancel a pending "resolved" notify — reopened before the delayed
+        // WhatsApp fired would otherwise wrongly tell the reporter it's fixed.
+        if (glitchgrabIssue) {
+          await prisma.issue.update({
+            where: { id: glitchgrabIssue.id },
+            data: { resolvedAt: null, resolvedNotifiedAt: null },
+          });
+        }
       }
 
       if (payload.action === "labeled" || payload.action === "unlabeled") {
