@@ -158,7 +158,10 @@ const GG_API_BASE = "https://glitchgrab.dev";
 const HEARTBEAT_INTERVAL_MS = 60_000;
 
 interface TesterAuth {
-  token: string;
+  // Set only for the manual popup login (paste a gg_ token). Absent for a QA
+  // magic-link auto-login — that session is already created server-side and
+  // its id alone authenticates ping/end (see extension/session/[id] routes).
+  token?: string;
   name: string;
   email?: string;
   sessionId: string;
@@ -168,13 +171,17 @@ interface TesterAuth {
 let tester: TesterAuth | null = null;
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 
+function authHeaders(): Record<string, string> {
+  return tester?.token ? { Authorization: `Bearer ${tester.token}` } : {};
+}
+
 function startHeartbeat() {
   if (heartbeatTimer) return;
   heartbeatTimer = setInterval(() => {
     if (!tester) return;
     fetch(`${GG_API_BASE}/api/v1/extension/session/${tester.sessionId}/ping`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${tester.token}` },
+      headers: authHeaders(),
     }).catch(() => { /* best-effort — a missed ping just shortens counted work time */ });
   }, HEARTBEAT_INTERVAL_MS);
 }
@@ -187,7 +194,6 @@ function sendTesterIdentityToBridge() {
   if (!tester || !ws || ws.readyState !== WebSocket.OPEN) return;
   ws.send(JSON.stringify({
     type: "tester:identity",
-    token: tester.token,
     name: tester.name,
     email: tester.email,
     sessionId: tester.sessionId,
@@ -197,7 +203,7 @@ function sendTesterIdentityToBridge() {
 async function restoreTesterAuth() {
   try {
     const { gg_tester } = await chrome.storage.local.get("gg_tester");
-    if (gg_tester && typeof gg_tester === "object" && (gg_tester as TesterAuth).token) {
+    if (gg_tester && typeof gg_tester === "object" && (gg_tester as TesterAuth).sessionId) {
       tester = gg_tester as TesterAuth;
       startHeartbeat();
       sendTesterIdentityToBridge();
@@ -230,12 +236,23 @@ async function testerLogin(token: string, name: string, email?: string): Promise
   }
 }
 
+// Silent login from the QA magic-link handshake (#297) — the ExtensionSession
+// already exists server-side (created by /api/v1/qa/extension-auth), so this
+// just adopts it locally. No token involved.
+async function testerAutoLogin(sessionId: string, name: string, email?: string) {
+  tester = { name, email, sessionId, loginAt: Date.now() };
+  await chrome.storage.local.set({ gg_tester: tester });
+  startHeartbeat();
+  sendTesterIdentityToBridge();
+  log("[GG] Tester auto-logged in via QA link:", name);
+}
+
 async function testerLogout() {
   if (tester) {
     try {
       await fetch(`${GG_API_BASE}/api/v1/extension/session/${tester.sessionId}/end`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${tester.token}` },
+        headers: authHeaders(),
       });
     } catch { /* best-effort — stale session just stops accruing at its last ping */ }
   }
@@ -561,6 +578,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   if (msg.type === "TESTER_LOGOUT") {
     testerLogout().then(() => reply({ ok: true }));
     return true;
+  }
+  if (msg.type === "TESTER_AUTO_LOGIN") {
+    // Sender is the content script relaying a QA-page postMessage, not the
+    // popup — no reply expected.
+    void testerAutoLogin(msg.sessionId, msg.name, msg.email);
+    return false;
   }
   return false;
 });
