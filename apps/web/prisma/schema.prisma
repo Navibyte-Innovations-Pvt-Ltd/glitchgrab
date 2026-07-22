@@ -164,7 +164,9 @@ model ApiToken {
 // is the "tester work time" shown in the audit log.
 model ExtensionSession {
   id          String    @id @default(cuid())
-  tokenId     String
+  /// Null when the session came from a QA-tester magic link (no gg_ token
+  /// involved) instead of the manual popup token-paste login (#297).
+  tokenId     String?
   repoId      String
   testerName  String
   testerEmail String?
@@ -173,8 +175,8 @@ model ExtensionSession {
   endedAt     DateTime?
   createdAt   DateTime  @default(now())
 
-  token ApiToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
-  repo  Repo     @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  token ApiToken? @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  repo  Repo      @relation(fields: [repoId], references: [id], onDelete: Cascade)
 
   @@index([repoId])
   @@index([tokenId])
