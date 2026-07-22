@@ -75,6 +75,32 @@ const GG_PING = "__gg_ping__";
     });
   } catch { /* context invalidated at load */ }
 
+  // Silent tester auto-login handshake (#297) — the /qa/<token> QA-verifier
+  // page posts this to its OWN window after minting a tokenless
+  // ExtensionSession server-side. This content script runs on <all_urls>, so
+  // WITHOUT an origin check any site could postMessage into itself and spoof
+  // a fake tester identity (session fixation / attribution poisoning) —
+  // gate both the listener's existence and each message on the real origin.
+  const GG_AUTH_ORIGINS = ["https://glitchgrab.dev", "http://localhost:3000"];
+  if (GG_AUTH_ORIGINS.includes(window.location.origin)) {
+    window.addEventListener("message", (event) => {
+      if (event.source !== window) return;
+      if (!GG_AUTH_ORIGINS.includes(event.origin)) return;
+      const data = event.data as { source?: string; type?: string; sessionId?: string; name?: string; email?: string };
+      if (data?.source !== "glitchgrab-qa" || data.type !== "GG_AUTO_LOGIN") return;
+      if (!data.sessionId || !data.name) return;
+      if (!isContextAlive()) return;
+      try {
+        chrome.runtime.sendMessage({
+          type: "TESTER_AUTO_LOGIN",
+          sessionId: data.sessionId,
+          name: data.name,
+          email: data.email,
+        });
+      } catch { /* context invalidated */ }
+    });
+  }
+
   // CRITICAL: a page that LOADS during an active recording (new tab, or a
   // full-page navigation that tore down the previous content script) misses the
   // one-time CAPTURE_START broadcast. Ask the background if capture is active
