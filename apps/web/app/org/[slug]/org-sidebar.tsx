@@ -16,6 +16,7 @@ import {
   LogOut,
   UserCog,
   SearchCheck,
+  FlaskConical,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -26,6 +27,7 @@ const OWNER_NAV = [
   { href: "/chat", label: "Chat", icon: MessageSquare },
   { href: "/repos", label: "Repos", icon: GitFork },
   { href: "/reports", label: "Reports", icon: ClipboardList },
+  { href: "/tester-activity", label: "Tester Activity", icon: FlaskConical },
   { href: "/analytics", label: "Analytics", icon: Activity },
   { href: "/seo", label: "SEO", icon: SearchCheck },
 ];

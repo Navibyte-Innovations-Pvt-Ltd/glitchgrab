@@ -89,25 +89,41 @@ export async function POST(
 
   const orgName = tester.org.name;
   const { owner, name: repoName, userId, installation } = check.repo;
-
-  const ghToken = installation
-    ? await getInstallationAccessToken(installation.installationId)
-    : null;
+  const developerLogin = check.developerLogin;
 
   const verifiedAt = new Date();
   let screenshotUrl: string | null = null;
 
+  async function resolveDevPhone() {
+    const devUser = developerLogin
+      ? await prisma.user.findFirst({
+          where: { githubLogin: developerLogin },
+          select: { whatsappPhone: true },
+        })
+      : null;
+    return (
+      devUser?.whatsappPhone ??
+      (await prisma.user.findUnique({ where: { id: userId }, select: { whatsappPhone: true } }))?.whatsappPhone ??
+      null
+    );
+  }
+
   if (result === "FAIL") {
-    screenshotUrl = screenshot ? await uploadScreenshotToS3(screenshot, `qa-${check.id}`) : null;
+    // Token fetch, screenshot upload, and dev-phone lookup are independent — run concurrently.
+    const [ghToken, uploadedUrl, devPhone] = await Promise.all([
+      installation ? getInstallationAccessToken(installation.installationId) : Promise.resolve(null),
+      screenshot ? uploadScreenshotToS3(screenshot, `qa-${check.id}`) : Promise.resolve(null),
+      resolveDevPhone(),
+    ]);
+    screenshotUrl = uploadedUrl;
 
     if (ghToken) {
-      try {
-        await reopenGitHubIssue(ghToken, owner, repoName, check.githubNumber);
-      } catch (err) {
-        console.error("[qa] reopen failed:", err);
-      }
-      try {
-        await commentOnGitHubIssue(
+      // Reopen + comment don't depend on each other — run concurrently.
+      await Promise.all([
+        reopenGitHubIssue(ghToken, owner, repoName, check.githubNumber).catch((err) => {
+          console.error("[qa] reopen failed:", err);
+        }),
+        commentOnGitHubIssue(
           ghToken,
           owner,
           repoName,
@@ -115,21 +131,11 @@ export async function POST(
           `❌ **QA failed** — **[TESTER: ${tester.name}]** verified this fix and it is **not working**. Reopened for rework.\n\n**Reported:** ${verifiedAt.toISOString()}\n\n**What's not working:**\n${reason?.trim()}${
             screenshotUrl ? `\n\n**Screenshot:**\n![QA fail screenshot](${screenshotUrl})` : ""
           }\n\n*Via [Glitchgrab](https://glitchgrab.dev) QA*`
-        );
-      } catch (err) {
-        console.error("[qa] comment failed:", err);
-      }
+        ).catch((err) => {
+          console.error("[qa] comment failed:", err);
+        }),
+      ]);
     }
-
-    const devUser = check.developerLogin
-      ? await prisma.user.findFirst({
-          where: { githubLogin: check.developerLogin },
-          select: { whatsappPhone: true },
-        })
-      : null;
-    const devPhone =
-      devUser?.whatsappPhone ??
-      (await prisma.user.findUnique({ where: { id: userId }, select: { whatsappPhone: true } }))?.whatsappPhone;
 
     if (devPhone) {
       // Awaited: an un-awaited send is killed when Vercel suspends the function
@@ -143,26 +149,33 @@ export async function POST(
       });
     }
   } else {
+    const ghToken = installation
+      ? await getInstallationAccessToken(installation.installationId)
+      : null;
+
     if (ghToken) {
-      try {
-        const issue = await getGitHubIssue(ghToken, owner, repoName, check.githubNumber);
-        if (issue?.state === "open") {
-          await closeGitHubIssue(ghToken, owner, repoName, check.githubNumber);
-        }
-      } catch (err) {
-        console.error("[qa] close failed:", err);
-      }
-      try {
-        await commentOnGitHubIssue(
+      // Close-if-open and the confirming comment don't depend on each other — run concurrently.
+      await Promise.all([
+        (async () => {
+          try {
+            const issue = await getGitHubIssue(ghToken, owner, repoName, check.githubNumber);
+            if (issue?.state === "open") {
+              await closeGitHubIssue(ghToken, owner, repoName, check.githubNumber);
+            }
+          } catch (err) {
+            console.error("[qa] close failed:", err);
+          }
+        })(),
+        commentOnGitHubIssue(
           ghToken,
           owner,
           repoName,
           check.githubNumber,
           `✅ **QA passed** — **[TESTER: ${tester.name}]** verified this fix works.\n\n**Verified:** ${verifiedAt.toISOString()}\n\n*Via [Glitchgrab](https://glitchgrab.dev) QA*`
-        );
-      } catch (err) {
-        console.error("[qa] pass comment failed:", err);
-      }
+        ).catch((err) => {
+          console.error("[qa] pass comment failed:", err);
+        }),
+      ]);
     }
   }
 

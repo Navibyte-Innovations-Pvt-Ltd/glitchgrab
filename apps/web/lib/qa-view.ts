@@ -26,6 +26,13 @@ interface QaView {
 
 /** Load a tester's QA queue + history, serialized for the client. */
 export async function getQaView(testerId: string): Promise<QaView | null> {
+  const repoSelect = {
+    fullName: true,
+    owner: true,
+    name: true,
+    installation: { select: { installationId: true } },
+  } as const;
+
   const tester = await prisma.tester.findUnique({
     where: { id: testerId },
     include: {
@@ -36,24 +43,20 @@ export async function getQaView(testerId: string): Promise<QaView | null> {
         // notifiedAt once the deploy should be up — that's the same gate that
         // fires the tester's WhatsApp. Hide PENDING checks that haven't reached
         // it yet so the direct link never shows an undeployed fix. Acted-on
-        // history (PASS/FAIL/SKIPPED) always stays visible.
+        // history (PASS/FAIL/SKIPPED) always stays visible, capped to the most
+        // recent 200 — unbounded history would mean re-fetching a live GitHub
+        // comment count for every past check on every page load / post-verify refresh.
         where: { OR: [{ notifiedAt: { not: null } }, { status: { not: "PENDING" } }] },
         orderBy: [{ status: "asc" }, { createdAt: "desc" }],
-        include: {
-          repo: {
-            select: {
-              fullName: true,
-              owner: true,
-              name: true,
-              installation: { select: { installationId: true } },
-            },
-          },
-        },
+        take: 200,
+        include: { repo: { select: repoSelect } },
       },
     },
   });
   if (!tester) return null;
 
+  // getInstallationAccessToken is already memoized in-process per installationId,
+  // so N checks in the same repo cost one real token fetch, not N.
   const commentCounts = await Promise.all(
     tester.checks.map(async (c) => {
       if (!c.repo.installation) return null;

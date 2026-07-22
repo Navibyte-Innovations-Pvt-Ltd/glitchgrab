@@ -23,6 +23,29 @@
       </div>
     </div>
 
+    <!-- tester login (work-time tracking + bug attribution, #297) -->
+    <div class="tester-bar" id="tester-bar">
+      <div class="tester-loggedout" id="tester-loggedout">
+        <button class="tester-login-btn" id="tester-login-btn">👤 Tester login</button>
+      </div>
+      <div class="tester-loggedin" id="tester-loggedin" style="display:none">
+        <span class="tester-dot"></span>
+        <span class="tester-name" id="tester-name"></span>
+        <span class="tester-timer" id="tester-timer"></span>
+        <button class="tester-logout-btn" id="tester-logout-btn" title="Log out">⏻</button>
+      </div>
+      <form class="tester-form" id="tester-form" style="display:none">
+        <input type="password" id="tester-token" placeholder="gg_ token" autocomplete="off" />
+        <input type="text" id="tester-name-input" placeholder="Your name" autocomplete="off" />
+        <input type="email" id="tester-email-input" placeholder="Email (optional)" autocomplete="off" />
+        <div class="tester-form-actions">
+          <button type="submit" class="tester-submit">Log in</button>
+          <button type="button" class="tester-cancel" id="tester-cancel">Cancel</button>
+        </div>
+        <div class="tester-error" id="tester-error" style="display:none"></div>
+      </form>
+    </div>
+
     <!-- idle state -->
     <div class="panel" id="panel-idle">
       <div class="status">

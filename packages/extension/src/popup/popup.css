@@ -155,3 +155,42 @@ kbd {
   font-size: 9px; color: #444; flex-shrink: 0;
   font-family: monospace; padding-top: 2px;
 }
+
+/* tester login (#297) */
+.tester-bar {
+  border: 1px solid #2a2a2a; border-radius: 6px;
+  background: #141414; padding: 8px 10px;
+}
+.tester-login-btn {
+  width: 100%; background: transparent; border: none; cursor: pointer;
+  color: #999; font-size: 11px; font-weight: 600; padding: 2px 0;
+  text-align: left;
+}
+.tester-login-btn:hover { color: #d4d4d8; }
+
+.tester-loggedin { display: flex; align-items: center; gap: 6px; }
+.tester-dot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; flex-shrink: 0; }
+.tester-name { font-size: 11px; font-weight: 600; color: #d4d4d8; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tester-timer { font-size: 10px; color: #818cf8; font-family: monospace; }
+.tester-logout-btn {
+  background: transparent; border: none; cursor: pointer; color: #555;
+  font-size: 12px; padding: 2px 4px; border-radius: 4px;
+}
+.tester-logout-btn:hover { color: #f87171; background: #1e1e1e; }
+
+.tester-form { display: flex; flex-direction: column; gap: 6px; }
+.tester-form input {
+  background: #0f0f0f; border: 1px solid #2a2a2a; border-radius: 4px;
+  padding: 6px 8px; font-size: 11px; color: #e5e5e5; outline: none;
+  font-family: inherit;
+}
+.tester-form input:focus { border-color: #7c3aed; }
+.tester-form-actions { display: flex; gap: 6px; }
+.tester-submit, .tester-cancel {
+  flex: 1; padding: 6px; border-radius: 4px; font-size: 11px; font-weight: 600;
+  cursor: pointer; border: none;
+}
+.tester-submit { background: #7c3aed; color: #fff; }
+.tester-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+.tester-cancel { background: #27272a; color: #d4d4d8; }
+.tester-error { font-size: 10px; color: #f87171; }

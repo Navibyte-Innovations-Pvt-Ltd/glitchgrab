@@ -60,6 +60,7 @@ const SOURCE_LABELS: Record<string, string> = {
   DASHBOARD_UPLOAD: "dashboard",
   HANDWRITTEN_NOTE: "note",
   MCP: "mcp",
+  EXTENSION_TESTER: "tester",
 };
 
 function renderSourceIcon(source: string, className = "h-4 w-4") {
@@ -74,6 +75,8 @@ function renderSourceIcon(source: string, className = "h-4 w-4") {
       return <FileText className={className} />;
     case "MCP":
       return <Paperclip className={className} />;
+    case "EXTENSION_TESTER":
+      return <FlaskConical className={className} />;
     default:
       return <Bug className={className} />;
   }

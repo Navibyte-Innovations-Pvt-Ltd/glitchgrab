@@ -130,9 +130,10 @@ model Repo {
   tokens        ApiToken[]
   reports       Report[]
   issues        Issue[]
-  gscProperties GscProperty[]
-  testerRepos   TesterRepo[]
-  qaChecks      QaCheck[]
+  gscProperties     GscProperty[]
+  testerRepos       TesterRepo[]
+  qaChecks          QaCheck[]
+  extensionSessions ExtensionSession[]
 
   @@unique([userId, githubId])
   @@index([githubId])
@@ -151,9 +152,34 @@ model ApiToken {
   /// Public no-auth slug for the tester report link — null = link disabled
   shareSlug String?   @unique
 
-  repo          Repo           @relation(fields: [repoId], references: [id], onDelete: Cascade)
-  reports       Report[]
-  aiEnhanceLogs AiEnhanceLog[]
+  repo              Repo               @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  reports           Report[]
+  aiEnhanceLogs     AiEnhanceLog[]
+  extensionSessions ExtensionSession[]
+}
+
+// ─── Extension tester sessions (work-time tracking, #297) ────
+// A login session in the packages/extension popup — tester pastes a gg_
+// token + types name/email once. Duration (startedAt → endedAt/lastPingAt)
+// is the "tester work time" shown in the audit log.
+model ExtensionSession {
+  id          String    @id @default(cuid())
+  /// Null when the session came from a QA-tester magic link (no gg_ token
+  /// involved) instead of the manual popup token-paste login (#297).
+  tokenId     String?
+  repoId      String
+  testerName  String
+  testerEmail String?
+  startedAt   DateTime  @default(now())
+  lastPingAt  DateTime  @default(now())
+  endedAt     DateTime?
+  createdAt   DateTime  @default(now())
+
+  token ApiToken? @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  repo  Repo      @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  @@index([repoId])
+  @@index([tokenId])
 }
 
 // ─── Reports & Issues ────────────────────────────────────
@@ -165,6 +191,9 @@ enum ReportSource {
   HANDWRITTEN_NOTE
   MCP
   PUBLIC_LINK
+  /// Filed via the GlitchRecord/Chrome-extension capture pipeline by a
+  /// tester logged into the extension with a gg_ token (see #297)
+  EXTENSION_TESTER
 }
 
 enum ReportStatus {
