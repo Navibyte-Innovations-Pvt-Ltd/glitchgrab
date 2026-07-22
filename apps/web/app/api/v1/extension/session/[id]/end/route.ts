@@ -19,25 +19,27 @@ export function OPTIONS() {
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer gg_")) {
-    return NextResponse.json(
-      { success: false, error: "Invalid or missing API token" },
-      { status: 401, headers: CORS }
-    );
-  }
 
-  const tokenHash = hashToken(authHeader.replace("Bearer ", ""));
-  const apiToken = await prisma.apiToken.findUnique({ where: { tokenHash } });
-  if (!apiToken) {
-    return NextResponse.json(
-      { success: false, error: "Invalid API token" },
-      { status: 401, headers: CORS }
-    );
+  // Manual popup login (gg_ token) vs QA-magic-link auto-login (tokenless) —
+  // see ping/route.ts for the same split.
+  let where: { id: string; endedAt: null; tokenId: string | null };
+  if (authHeader?.startsWith("Bearer gg_")) {
+    const tokenHash = hashToken(authHeader.replace("Bearer ", ""));
+    const apiToken = await prisma.apiToken.findUnique({ where: { tokenHash } });
+    if (!apiToken) {
+      return NextResponse.json(
+        { success: false, error: "Invalid API token" },
+        { status: 401, headers: CORS }
+      );
+    }
+    where = { id, tokenId: apiToken.id, endedAt: null };
+  } else {
+    where = { id, tokenId: null, endedAt: null };
   }
 
   const now = new Date();
   const result = await prisma.extensionSession.updateMany({
-    where: { id, tokenId: apiToken.id, endedAt: null },
+    where,
     data: { endedAt: now, lastPingAt: now },
   });
 
