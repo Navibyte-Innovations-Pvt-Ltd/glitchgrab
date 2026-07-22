@@ -76,6 +76,9 @@ export async function fetchInstallationMeta(installationId: number): Promise<Ins
 /**
  * Link to install the GitHub App, carrying a signed `state` so the install
  * callback (app/api/v1/github/app/callback) can auto-link this user's repos.
+ * GitHub shows an account/org picker on this page unless the user already has
+ * exactly one installation, in which case it jumps straight to managing that
+ * one — there's no reliable URL param to force a specific target account.
  */
 export function buildGithubAppInstallUrl(userId: string): string {
   const secret = process.env.AUTH_SECRET ?? "";
