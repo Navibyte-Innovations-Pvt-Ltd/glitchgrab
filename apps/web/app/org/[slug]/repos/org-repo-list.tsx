@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import { FileText, GitFork, Key, Loader2, RefreshCw, Search } from "lucide-react";
+import { AlertTriangle, FileText, GitFork, Key, Loader2, RefreshCw, Search } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -16,9 +16,20 @@ interface MergedRepo {
   reports: number;
   tracked: boolean;
   inThisOrg: boolean;
+  installed: boolean;
 }
 
-export function OrgRepoList({ repos, orgSlug }: { repos: MergedRepo[]; orgSlug: string }) {
+export function OrgRepoList({
+  repos,
+  orgSlug,
+  needsInstall,
+  installUrl,
+}: {
+  repos: MergedRepo[];
+  orgSlug: string;
+  needsInstall: boolean;
+  installUrl: string | null;
+}) {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
 
@@ -42,6 +53,23 @@ export function OrgRepoList({ repos, orgSlug }: { repos: MergedRepo[]; orgSlug: 
 
   return (
     <div className="space-y-5">
+      {needsInstall && installUrl && (
+        <div className="flex items-center gap-3 p-3 rounded-lg border border-amber-500/30 bg-amber-500/10">
+          <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+          <p className="flex-1 text-xs text-foreground">
+            One or more tracked repos need the GlitchGrab GitHub App installed to create issues.
+          </p>
+          <a
+            href={installUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 font-mono text-[10px] uppercase tracking-wider px-2.5 py-1.5 rounded border border-amber-500/40 text-amber-500 hover:bg-amber-500/10 transition-colors"
+          >
+            install app
+          </a>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-foreground">Repos</h1>
@@ -161,10 +189,17 @@ function RepoCard({ repo }: { repo: MergedRepo }) {
             </span>
           )}
           {repo.tracked && (
-            <div className="flex items-center gap-1 px-1.5 py-px rounded bg-primary/10 border border-primary/30 text-primary font-mono text-[9px] uppercase tracking-wider">
-              <div className="w-1 h-1 rounded-full bg-primary animate-pulse" />
-              live
-            </div>
+            repo.installed ? (
+              <div className="flex items-center gap-1 px-1.5 py-px rounded bg-primary/10 border border-primary/30 text-primary font-mono text-[9px] uppercase tracking-wider">
+                <div className="w-1 h-1 rounded-full bg-primary animate-pulse" />
+                live
+              </div>
+            ) : (
+              <div className="flex items-center gap-1 px-1.5 py-px rounded bg-amber-500/10 border border-amber-500/30 text-amber-500 font-mono text-[9px] uppercase tracking-wider">
+                <AlertTriangle className="h-2.5 w-2.5" />
+                not installed
+              </div>
+            )
           )}
         </div>
       </div>

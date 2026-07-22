@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { getOrgContext } from "../lib/get-org-context";
 import { prisma } from "@/lib/db";
+import { buildGithubAppInstallUrl } from "@/lib/github-app";
 import { OrgRepoList } from "./org-repo-list";
 import { GitFork } from "lucide-react";
 
@@ -43,7 +44,10 @@ export default async function OrgReposPage({ params }: { params: Promise<{ slug:
       account?.access_token ? fetchAllGitHubRepos(account.access_token) : Promise.resolve([]),
       prisma.repo.findMany({
         where: { userId: ctx.userId },
-        include: { _count: { select: { tokens: true, reports: true } } },
+        include: {
+          _count: { select: { tokens: true, reports: true } },
+          installation: { select: { installationId: true } },
+        },
       }),
     ]);
 
@@ -60,10 +64,20 @@ export default async function OrgReposPage({ params }: { params: Promise<{ slug:
         reports: db?._count.reports ?? 0,
         tracked: !!db,
         inThisOrg: db?.orgId === ctx.orgId,
+        installed: db?.installation !== null && db?.installation !== undefined,
       };
     });
 
-    return <OrgRepoList repos={merged} orgSlug={slug} />;
+    const needsInstall = merged.some((r) => r.tracked && !r.installed);
+
+    return (
+      <OrgRepoList
+        repos={merged}
+        orgSlug={slug}
+        needsInstall={needsInstall}
+        installUrl={needsInstall ? buildGithubAppInstallUrl(ctx.userId) : null}
+      />
+    );
   }
 
   // MEMBER — repos fetched live from GitHub in getOrgContext
