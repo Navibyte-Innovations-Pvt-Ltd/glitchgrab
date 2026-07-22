@@ -75,7 +75,7 @@ export default async function OrgReposPage({ params }: { params: Promise<{ slug:
         repos={merged}
         orgSlug={slug}
         needsInstall={needsInstall}
-        installUrl={needsInstall ? buildGithubAppInstallUrl(ctx.userId) : null}
+        installUrl={needsInstall ? buildGithubAppInstallUrl(ctx.userId, ctx.orgGithubId) : null}
       />
     );
   }
