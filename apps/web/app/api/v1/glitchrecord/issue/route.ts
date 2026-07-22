@@ -1,7 +1,10 @@
 export const dynamic = "force-dynamic";
 
 // Dedicated issue-creation endpoint for the GlitchRecord desktop app.
-// Auth: Bearer GlitchRecordToken. Body: { repoId, title, body }.
+// Auth: Bearer GlitchRecordToken. Body: { repoId, title, body, testerName?, testerEmail? }.
+// testerName/testerEmail (#297) are pure attribution — when present, also
+// write a Report+Issue row tagged source=EXTENSION_TESTER alongside the
+// GitHub issue, so the tester's work shows up in the Reports/audit views.
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { hashToken } from "@/lib/tokens";
@@ -38,6 +41,8 @@ export async function POST(request: Request) {
       repoId?: string;
       title?: string;
       body?: string;
+      testerName?: string;
+      testerEmail?: string;
     };
     if (!body.repoId || !body.title) {
       return NextResponse.json({ success: false, error: "repoId and title required" }, { status: 400, headers: CORS });
@@ -75,6 +80,32 @@ export async function POST(request: Request) {
       body: body.body ?? "",
       labels: ["glitchrecord"],
     });
+
+    if (body.testerName?.trim()) {
+      const report = await prisma.report.create({
+        data: {
+          repoId: body.repoId,
+          source: "EXTENSION_TESTER",
+          status: "CREATED",
+          rawInput: body.body ?? null,
+          reporterPrimaryKey: body.testerEmail?.trim() || body.testerName.trim(),
+          reporterName: body.testerName.trim(),
+          reporterEmail: body.testerEmail?.trim() || null,
+        },
+      });
+      await prisma.issue.create({
+        data: {
+          reportId: report.id,
+          repoId: body.repoId,
+          githubNumber: issue.number,
+          githubUrl: issue.url,
+          title: body.title,
+          body: body.body ?? "",
+          labels: ["glitchrecord"],
+          severity: "medium",
+        },
+      });
+    }
 
     return NextResponse.json(
       { success: true, data: { issueUrl: issue.url, issueNumber: issue.number } },
