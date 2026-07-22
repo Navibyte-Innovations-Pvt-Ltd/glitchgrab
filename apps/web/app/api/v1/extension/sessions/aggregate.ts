@@ -1,6 +1,6 @@
 // Pure aggregation for the "Tester Activity" audit view (#297). Extracted so
 // the merge-by-tester + duration math is testable without a DB.
-export interface TesterSessionRow {
+interface TesterSessionRow {
   testerName: string;
   testerEmail: string | null;
   startedAt: Date;
@@ -8,13 +8,13 @@ export interface TesterSessionRow {
   endedAt: Date | null;
 }
 
-export interface TesterReportCountRow {
+interface TesterReportCountRow {
   reporterName: string;
   reporterEmail: string | null;
   count: number;
 }
 
-export interface TesterActivity {
+interface TesterActivity {
   testerName: string;
   testerEmail: string | null;
   workTimeMs: number;
