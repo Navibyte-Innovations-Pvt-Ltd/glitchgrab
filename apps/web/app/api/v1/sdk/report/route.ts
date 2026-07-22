@@ -37,7 +37,7 @@ export async function OPTIONS() {
 }
 
 interface SdkReportBody {
-  source: "SDK_AUTO" | "SDK_USER_REPORT";
+  source: "SDK_AUTO" | "SDK_USER_REPORT" | "EXTENSION_TESTER";
   type?:
     | "BUG"
     | "FEATURE_REQUEST"
@@ -220,7 +220,12 @@ export async function POST(request: Request) {
       data: {
         repoId: apiToken.repoId,
         tokenId: apiToken.id,
-        source: body.source === "SDK_USER_REPORT" ? "SDK_USER_REPORT" : "SDK_AUTO",
+        source:
+          body.source === "SDK_USER_REPORT"
+            ? "SDK_USER_REPORT"
+            : body.source === "EXTENSION_TESTER"
+              ? "EXTENSION_TESTER"
+              : "SDK_AUTO",
         status: "PENDING",
         rawInput: description || null,
         errorStack: body.errorStack || null,
