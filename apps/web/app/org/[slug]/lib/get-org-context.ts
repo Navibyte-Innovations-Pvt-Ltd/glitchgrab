@@ -40,6 +40,7 @@ interface OrgRepo {
 
 export interface OrgContext {
   orgId: string;
+  orgGithubId: number;
   orgName: string;
   orgSlug: string;
   userId: string;
@@ -81,6 +82,7 @@ export async function getOrgContext(slug: string): Promise<OrgContext> {
 
   return {
     orgId: org.id,
+    orgGithubId: org.githubOrgId,
     orgName: org.name,
     orgSlug: org.githubOrgLogin,
     userId: session.user.id,
