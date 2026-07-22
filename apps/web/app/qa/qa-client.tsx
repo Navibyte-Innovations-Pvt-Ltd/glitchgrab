@@ -3,7 +3,7 @@
 import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +44,9 @@ export function QaClient({
   const [failingId, setFailingId] = useState<string | null>(null);
   const [failReason, setFailReason] = useState("");
   const [failScreenshot, setFailScreenshot] = useState<string | null>(null);
+  // Optimistically hidden from "To verify" the instant a Pass/Fail/Skip is clicked,
+  // put back if the request fails — the row shouldn't wait on GitHub/S3/WhatsApp round-trips.
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
 
   const mutation = useMutation({
     mutationFn: async ({
@@ -60,7 +63,10 @@ export function QaClient({
       const { data } = await axios.post(`/api/v1/qa/checks/${checkId}`, { result, reason, screenshot, token });
       return data;
     },
-    onMutate: ({ checkId }) => setPendingId(checkId),
+    onMutate: ({ checkId }) => {
+      setPendingId(checkId);
+      setHiddenIds((prev) => new Set(prev).add(checkId));
+    },
     onSuccess: (_data, vars) => {
       toast.success(
         vars.result === "PASS"
@@ -74,9 +80,14 @@ export function QaClient({
       setFailScreenshot(null);
       router.refresh();
     },
-    onError: (err) => {
+    onError: (err, vars) => {
       const msg = axios.isAxiosError(err) ? err.response?.data?.error : "Something went wrong";
       toast.error(msg ?? "Something went wrong");
+      setHiddenIds((prev) => {
+        const next = new Set(prev);
+        next.delete(vars.checkId);
+        return next;
+      });
     },
     onSettled: () => setPendingId(null),
   });
@@ -86,7 +97,33 @@ export function QaClient({
     onSuccess: () => router.refresh(),
   });
 
-  const pending = checks.filter((c) => c.status === "PENDING");
+  // Silent extension auto-login (#297) — no token paste. Fires once per page
+  // load, for BOTH entry points: the magic-link page (token prop) and the
+  // OTP-session login (no token — the API falls back to the gg_tester
+  // cookie). The extension's content script picks up the postMessage if it's
+  // installed, and does nothing (harmlessly) if it isn't.
+  useEffect(() => {
+    let cancelled = false;
+    axios
+      .post("/api/v1/qa/extension-auth", token ? { token } : {})
+      .then(({ data }) => {
+        if (cancelled || !data?.success) return;
+        window.postMessage(
+          {
+            source: "glitchgrab-qa",
+            type: "GG_AUTO_LOGIN",
+            sessionId: data.data.sessionId,
+            name: data.data.testerName,
+            email: data.data.testerEmail,
+          },
+          window.location.origin
+        );
+      })
+      .catch(() => { /* extension not installed, or nothing assigned — silent */ });
+    return () => { cancelled = true; };
+  }, [token]);
+
+  const pending = checks.filter((c) => c.status === "PENDING" && !hiddenIds.has(c.id));
   const done = checks.filter((c) => c.status !== "PENDING");
 
   return (
