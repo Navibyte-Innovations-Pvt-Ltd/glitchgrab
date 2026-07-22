@@ -76,21 +76,17 @@ export async function fetchInstallationMeta(installationId: number): Promise<Ins
 /**
  * Link to install the GitHub App, carrying a signed `state` so the install
  * callback (app/api/v1/github/app/callback) can auto-link this user's repos.
- *
- * `targetGithubId` (a GitHub account/org numeric id) jumps straight to that
- * account's install flow — without it, GitHub defaults to the installing
- * user's personal account instead of showing an org picker, which is wrong
- * when we already know which org's repos need covering.
+ * GitHub shows an account/org picker on this page unless the user already has
+ * exactly one installation, in which case it jumps straight to managing that
+ * one — there's no reliable URL param to force a specific target account.
  */
-export function buildGithubAppInstallUrl(userId: string, targetGithubId?: number): string {
+export function buildGithubAppInstallUrl(userId: string): string {
   const secret = process.env.AUTH_SECRET ?? "";
   const payload = JSON.stringify({ userId, ts: Date.now() });
   const sig = createHmac("sha256", secret).update(payload).digest("hex");
   const state = Buffer.from(JSON.stringify({ payload, sig })).toString("base64url");
 
   const slug = process.env.GITHUB_APP_SLUG;
-  const path = targetGithubId ? "installations/new/permissions" : "installations/new";
   const params = new URLSearchParams({ state });
-  if (targetGithubId) params.set("target_id", String(targetGithubId));
-  return `https://github.com/apps/${slug}/${path}?${params.toString()}`;
+  return `https://github.com/apps/${slug}/installations/new?${params.toString()}`;
 }
