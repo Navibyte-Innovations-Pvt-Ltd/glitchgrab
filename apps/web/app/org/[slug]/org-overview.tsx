@@ -940,7 +940,17 @@ function OrgIssuesClosedPreview({ orgSlug }: { orgSlug: string }) {
 interface TeamTester {
   id: string;
   name: string;
+  qaUrl: string;
   repos: { id: string; fullName: string }[];
+}
+
+async function copyTesterLink(qaUrl: string) {
+  try {
+    await navigator.clipboard.writeText(qaUrl);
+    toast.success("QA link copied");
+  } catch {
+    toast.error("Couldn't copy link");
+  }
 }
 
 function TeamPanel({
@@ -1178,6 +1188,14 @@ function TeamPanel({
                     </div>
                   )}
                 </div>
+                <button
+                  type="button"
+                  onClick={() => void copyTesterLink(t.qaUrl)}
+                  title="Copy QA login link"
+                  className="shrink-0 p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                </button>
               </li>
             ))}
             {testers.length > 4 && (
