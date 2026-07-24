@@ -87,7 +87,7 @@ const GG_PING = "__gg_ping__";
       if (event.source !== window) return;
       if (!GG_AUTH_ORIGINS.includes(event.origin)) return;
       const data = event.data as { source?: string; type?: string; sessionId?: string; name?: string; email?: string };
-      if (data?.source !== "glitchgrab-qa" || data.type !== "GG_AUTO_LOGIN") return;
+      if (data?.source !== "glitchgrab-auth" || data.type !== "GG_AUTO_LOGIN") return;
       if (!data.sessionId || !data.name) return;
       if (!isContextAlive()) return;
       try {
