@@ -24,22 +24,28 @@ export async function getExtensionSessionIdentity(
  * gets ONLY their assigned repos (TesterRepo), a dashboard owner gets every
  * repo they own. Server-authoritative: never trust a client-supplied repoId
  * without checking it's in this list (#297 — this was an IDOR before).
+ *
+ * Excludes dot-prefixed meta repos (e.g. `.github`, the org profile
+ * README repo) — nobody files application bugs there, and alphabetically
+ * `.` sorts before letters, so it was winning the "default selected repo"
+ * slot ahead of every real project.
  */
 export async function getExtensionSessionRepos(
   identity: ExtensionSessionIdentity
 ): Promise<{ id: string; fullName: string }[]> {
   if (identity.testerId) {
     const rows = await prisma.testerRepo.findMany({
-      where: { testerId: identity.testerId },
+      where: { testerId: identity.testerId, repo: { name: { not: { startsWith: "." } } } },
       include: { repo: { select: { id: true, fullName: true } } },
+      orderBy: { createdAt: "desc" },
     });
     return rows.map((r) => r.repo);
   }
   if (identity.userId) {
     return prisma.repo.findMany({
-      where: { userId: identity.userId },
+      where: { userId: identity.userId, name: { not: { startsWith: "." } } },
       select: { id: true, fullName: true },
-      orderBy: { fullName: "asc" },
+      orderBy: { createdAt: "desc" },
     });
   }
   return [];
