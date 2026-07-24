@@ -43,6 +43,7 @@
     "dist"
   ],
   "dependencies": {
-    "html2canvas-pro": "^2.0.2"
+    "html2canvas-pro": "^2.0.2",
+    "@glitchgrab/report-ui": "workspace:*"
   }
 }
