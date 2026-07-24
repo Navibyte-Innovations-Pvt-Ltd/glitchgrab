@@ -11,6 +11,7 @@
       "/api/v1/me",
       "/api/v1/capture-sessions/**",
       "/api/v1/glitchrecord/**",
+      "/api/v1/extension/session/*/repo",
       "/api/v1/narration-telemetry",
       "/api/v1/github/app/callback"
     ],
