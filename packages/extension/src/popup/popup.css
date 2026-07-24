@@ -164,9 +164,16 @@ kbd {
 .tester-loggedin { display: flex; align-items: center; gap: 6px; }
 .tester-dot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; flex-shrink: 0; }
 .tester-name { font-size: 11px; font-weight: 600; color: #d4d4d8; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tester-timer { font-size: 10px; color: #818cf8; font-family: monospace; }
 .tester-logout-btn {
   background: transparent; border: none; cursor: pointer; color: #555;
   font-size: 12px; padding: 2px 4px; border-radius: 4px;
 }
 .tester-logout-btn:hover { color: #f87171; background: #1e1e1e; }
+
+.btn-report {
+  margin-top: 8px; width: 100%; padding: 7px; border-radius: 6px;
+  background: #7c3aed; color: #fff; border: none; cursor: pointer;
+  font-size: 12px; font-weight: 600;
+}
+.btn-report:hover { opacity: 0.85; }
+.btn-report:disabled { opacity: 0.5; cursor: not-allowed; }
