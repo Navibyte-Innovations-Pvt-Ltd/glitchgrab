@@ -117,28 +117,12 @@ btnLog.addEventListener("click", () => {
 // Nothing shown here until that happens; no manual login UI.
 const testerBar       = document.getElementById("tester-bar")!;
 const testerNameEl    = document.getElementById("tester-name")!;
-const testerTimerEl   = document.getElementById("tester-timer")!;
 const testerLogoutBtn = document.getElementById("tester-logout-btn")!;
 
-let testerTimerHandle: ReturnType<typeof setInterval> | null = null;
-
-function formatElapsed(ms: number): string {
-  const s = Math.max(0, Math.floor(ms / 1000));
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  return h > 0 ? `${h}h${String(m).padStart(2, "0")}m` : `${m}m${String(sec).padStart(2, "0")}s`;
-}
-
-function renderTesterStatus(s: { loggedIn: boolean; name?: string; loginAt?: number }) {
-  if (testerTimerHandle) { clearInterval(testerTimerHandle); testerTimerHandle = null; }
+function renderTesterStatus(s: { loggedIn: boolean; name?: string }) {
   if (s.loggedIn) {
     testerBar.style.display = "block";
     testerNameEl.textContent = s.name ?? "Tester";
-    const loginAt = s.loginAt ?? Date.now();
-    const tick = () => { testerTimerEl.textContent = formatElapsed(Date.now() - loginAt); };
-    tick();
-    testerTimerHandle = setInterval(tick, 1000);
   } else {
     testerBar.style.display = "none";
   }
@@ -149,6 +133,22 @@ chrome.runtime.sendMessage({ type: "GET_TESTER_STATUS" }, (s) => { if (s) render
 testerLogoutBtn.addEventListener("click", () => {
   chrome.runtime.sendMessage({ type: "TESTER_LOGOUT" }, () => {
     renderTesterStatus({ loggedIn: false });
+  });
+});
+
+// ── Report Bug (#297) — opens a persistent window hosting the shared
+// @glitchgrab/report-ui dialog. Popup would unload on blur mid-report.
+const btnReport = document.getElementById("btn-report") as HTMLButtonElement;
+btnReport.addEventListener("click", () => {
+  btnReport.disabled = true;
+  chrome.runtime.sendMessage({ type: "OPEN_REPORT_WINDOW" }, (res) => {
+    btnReport.disabled = false;
+    if (!res?.ok) {
+      btnReport.textContent = res?.error ? `⚠ ${res.error}` : "⚠ Couldn't open";
+      setTimeout(() => { btnReport.textContent = "🐞 Report Bug"; }, 2500);
+      return;
+    }
+    window.close();
   });
 });
 
