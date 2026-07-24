@@ -47,6 +47,7 @@ model User {
   glitchRecordTokens GlitchRecordToken[]
   aiEnhanceLogs      AiEnhanceLog[]
   whatsappOtps       WhatsappOtp[]
+  extensionSessions  ExtensionSession[]
 }
 
 model WhatsappOtp {
@@ -173,6 +174,13 @@ model ExtensionSession {
   /// may have dozens; a QA tester may be assigned several). Backfilled with
   /// the REAL repo being recorded once known — see broadcastRecordingStart.
   repoId      String?
+  /// Set for a QA magic-link auto-login — scopes the extension's own report
+  /// UI to ONLY this tester's assigned repos (TesterRepo), never the full
+  /// account. Mutually exclusive with userId.
+  testerId    String?
+  /// Set for a dashboard-owner auto-login — scopes the report UI to every
+  /// repo that user owns. Mutually exclusive with testerId.
+  userId      String?
   testerName  String
   testerEmail String?
   startedAt   DateTime  @default(now())
@@ -180,11 +188,15 @@ model ExtensionSession {
   endedAt     DateTime?
   createdAt   DateTime  @default(now())
 
-  token ApiToken? @relation(fields: [tokenId], references: [id], onDelete: Cascade)
-  repo  Repo?     @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  token  ApiToken? @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+  repo   Repo?     @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  tester Tester?   @relation(fields: [testerId], references: [id], onDelete: Cascade)
+  user   User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([repoId])
   @@index([tokenId])
+  @@index([testerId])
+  @@index([userId])
 }
 
 // ─── Reports & Issues ────────────────────────────────────
@@ -504,10 +516,11 @@ model Tester {
   invitedById String
   createdAt   DateTime @default(now())
 
-  org    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  repos  TesterRepo[]
-  checks QaCheck[]
-  otps   TesterOtp[]
+  org               Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  repos             TesterRepo[]
+  checks            QaCheck[]
+  otps              TesterOtp[]
+  extensionSessions ExtensionSession[]
 
   @@index([orgId])
 }
