@@ -557,5 +557,50 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
     void testerAutoLogin(msg.sessionId, msg.name, msg.email);
     return false;
   }
+  if (msg.type === "OPEN_REPORT_WINDOW") {
+    openReportWindow().then(reply);
+    return true;
+  }
+  if (msg.type === "RECAPTURE_TAB") {
+    captureTab(msg.windowId).then((dataUrl) => reply({ dataUrl }));
+    return true;
+  }
   return false;
 });
+
+// ── "Report Bug" from the extension itself (#297) ────────────
+// Popups unload on blur (would kill an in-progress voice recording), so the
+// report dialog lives in its own persistent window, not the popup.
+async function captureTab(windowId: number): Promise<string | null> {
+  try {
+    return await chrome.tabs.captureVisibleTab(windowId, { format: "jpeg", quality: 70 });
+  } catch {
+    return null;
+  }
+}
+
+async function openReportWindow(): Promise<{ ok: boolean; error?: string }> {
+  if (!tester) return { ok: false, error: "Log in first — open a QA link or the dashboard." };
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    const screenshotDataUrl = tab?.windowId != null ? await captureTab(tab.windowId) : null;
+    await chrome.storage.local.set({
+      gg_pending_report: {
+        sessionId: tester.sessionId,
+        screenshotDataUrl,
+        pageUrl: tab?.url ?? null,
+        pageTitle: tab?.title ?? null,
+        targetWindowId: tab?.windowId ?? null,
+      },
+    });
+    await chrome.windows.create({
+      url: chrome.runtime.getURL("report/report.html"),
+      type: "popup",
+      width: 480,
+      height: 760,
+    });
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Failed to open report window" };
+  }
+}
