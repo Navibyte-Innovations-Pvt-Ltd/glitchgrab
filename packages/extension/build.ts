@@ -20,6 +20,12 @@ const options = {
   target: "chrome120",
   minify: false,
   jsx: "automatic" as const,
+  // React's DEV build uses new Function() for component stack traces — MV3's
+  // default CSP blocks unsafe-eval, so it throws before anything renders
+  // (blank report window, no visible error unless devtools is open). This
+  // forces esbuild to resolve react/react-dom's PRODUCTION entry point,
+  // which has no eval/Function-based code paths.
+  define: { "process.env.NODE_ENV": '"production"' },
 };
 
 function copyStatic() {
