@@ -164,10 +164,15 @@ model ApiToken {
 // is the "tester work time" shown in the audit log.
 model ExtensionSession {
   id          String    @id @default(cuid())
-  /// Null when the session came from a QA-tester magic link (no gg_ token
-  /// involved) instead of the manual popup token-paste login (#297).
+  /// Null when the session came from a QA-tester magic link, or a dashboard
+  /// user's own auto-login (no gg_ token involved) instead of the manual
+  /// popup token-paste login (#297).
   tokenId     String?
-  repoId      String
+  /// Null until GlitchRecord actually starts recording against a repo — the
+  /// dashboard/QA auto-login doesn't know a repo up front (a dashboard owner
+  /// may have dozens; a QA tester may be assigned several). Backfilled with
+  /// the REAL repo being recorded once known — see broadcastRecordingStart.
+  repoId      String?
   testerName  String
   testerEmail String?
   startedAt   DateTime  @default(now())
@@ -176,7 +181,7 @@ model ExtensionSession {
   createdAt   DateTime  @default(now())
 
   token ApiToken? @relation(fields: [tokenId], references: [id], onDelete: Cascade)
-  repo  Repo      @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  repo  Repo?     @relation(fields: [repoId], references: [id], onDelete: Cascade)
 
   @@index([repoId])
   @@index([tokenId])
