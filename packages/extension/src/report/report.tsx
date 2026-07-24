@@ -3,10 +3,12 @@ import { createRoot } from "react-dom/client";
 import { ReportDialog } from "@glitchgrab/report-ui";
 import type { ReportFn, ReportResult, ReportType } from "@glitchgrab/report-ui";
 
-const API_BASE = "https://glitchgrab.dev";
-
 interface PendingReport {
   sessionId: string;
+  // The backend the login session actually lives in (dev vs prod) — every
+  // fetch below must target THIS, not a hardcoded origin, or it 404s against
+  // whichever environment you weren't logged into.
+  apiBase: string;
   screenshotDataUrl: string | null;
   pageUrl: string | null;
   pageTitle: string | null;
@@ -32,7 +34,7 @@ function App() {
         return;
       }
       setPending(p);
-      fetch(`${API_BASE}/api/v1/extension/repos?sessionId=${encodeURIComponent(p.sessionId)}`)
+      fetch(`${p.apiBase}/api/v1/extension/repos?sessionId=${encodeURIComponent(p.sessionId)}`)
         .then((r) => r.json())
         .then((data) => {
           if (!data?.success) {
@@ -55,7 +57,7 @@ function App() {
   ): Promise<ReportResult | null> => {
     if (!pending || !repoId) return { success: false, message: "Pick a repo first" };
     try {
-      const res = await fetch(`${API_BASE}/api/v1/extension/report`, {
+      const res = await fetch(`${pending.apiBase}/api/v1/extension/report`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
