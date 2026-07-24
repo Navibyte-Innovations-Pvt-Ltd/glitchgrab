@@ -96,6 +96,10 @@ const GG_PING = "__gg_ping__";
           sessionId: data.sessionId,
           name: data.name,
           email: data.email,
+          // The trusted origin THIS login actually came from (dev vs prod) —
+          // every subsequent API call (ping/end/repos/report) must target the
+          // same backend the session lives in, not a hardcoded one.
+          apiBase: event.origin,
         });
       } catch { /* context invalidated */ }
     });
