@@ -212,30 +212,6 @@ async function restoreTesterAuth() {
 }
 restoreTesterAuth();
 
-async function testerLogin(token: string, name: string, email?: string): Promise<{ ok: boolean; error?: string }> {
-  try {
-    const res = await fetch(`${GG_API_BASE}/api/v1/extension/session`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ testerName: name, testerEmail: email }),
-    });
-    const data = await res.json().catch(() => null) as
-      | { success: boolean; data?: { sessionId: string }; error?: string }
-      | null;
-    if (!res.ok || !data?.success || !data.data?.sessionId) {
-      return { ok: false, error: data?.error || "Login failed — check the token" };
-    }
-    tester = { token, name, email, sessionId: data.data.sessionId, loginAt: Date.now() };
-    await chrome.storage.local.set({ gg_tester: tester });
-    startHeartbeat();
-    sendTesterIdentityToBridge();
-    log("[GG] Tester logged in:", name);
-    return { ok: true };
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Network error" };
-  }
-}
-
 // Silent login from the QA magic-link handshake (#297) — the ExtensionSession
 // already exists server-side (created by /api/v1/qa/extension-auth), so this
 // just adopts it locally. No token involved.
@@ -569,10 +545,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   }
   if (msg.type === "GET_TESTER_STATUS") {
     reply({ loggedIn: !!tester, name: tester?.name, email: tester?.email, loginAt: tester?.loginAt });
-    return true;
-  }
-  if (msg.type === "TESTER_LOGIN") {
-    testerLogin(msg.token, msg.name, msg.email).then(reply);
     return true;
   }
   if (msg.type === "TESTER_LOGOUT") {
