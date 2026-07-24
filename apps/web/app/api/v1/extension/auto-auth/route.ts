@@ -21,6 +21,7 @@ export async function POST() {
     data: {
       tokenId: null,
       repoId: null,
+      userId: user.id,
       testerName: user.name ?? user.email ?? "Glitchgrab user",
       testerEmail: user.email ?? null,
     },
