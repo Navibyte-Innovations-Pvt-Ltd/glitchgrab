@@ -110,7 +110,7 @@ export function QaClient({
         if (cancelled || !data?.success) return;
         window.postMessage(
           {
-            source: "glitchgrab-qa",
+            source: "glitchgrab-auth",
             type: "GG_AUTO_LOGIN",
             sessionId: data.data.sessionId,
             name: data.data.testerName,
