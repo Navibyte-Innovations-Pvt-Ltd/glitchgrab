@@ -3,6 +3,7 @@ import "./globals.css";
 import { AuthSessionProvider } from "@/components/providers/session-provider";
 import { GlitchgrabSDKProvider } from "@/components/providers/glitchgrab-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
+import { ExtensionAutoLogin } from "@/components/extension-auto-login";
 import { Toaster } from "@/components/ui/sonner";
 import { OrganizationJsonLd, WebSiteJsonLd, FounderPersonJsonLd } from "@/components/seo/json-ld";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -102,6 +103,7 @@ export default function RootLayout({
               </TooltipProvider>
             </NuqsAdapter>
           </QueryProvider>
+          <ExtensionAutoLogin />
           <Toaster />
         </AuthSessionProvider>
       </body>
