@@ -5,24 +5,28 @@ const OUT = "dist";
 const WATCH = process.argv.includes("--watch");
 
 mkdirSync(`${OUT}/popup`, { recursive: true });
+mkdirSync(`${OUT}/report`, { recursive: true });
 
 const options = {
   entryPoints: {
     background: "src/background.ts",
     content: "src/content.ts",
     "popup/popup": "src/popup/popup.ts",
+    "report/report": "src/report/report.tsx",
   },
   bundle: true,
   outdir: OUT,
   format: "esm" as const,
   target: "chrome120",
   minify: false,
+  jsx: "automatic" as const,
 };
 
 function copyStatic() {
   copyFileSync("src/manifest.json", `${OUT}/manifest.json`);
   copyFileSync("src/popup/popup.html", `${OUT}/popup/popup.html`);
   copyFileSync("src/popup/popup.css", `${OUT}/popup/popup.css`);
+  copyFileSync("src/report/report.html", `${OUT}/report/report.html`);
   for (const s of [16, 32, 48, 128]) {
     copyFileSync(`src/icons/icon${s}.png`, `${OUT}/icon${s}.png`);
   }
