@@ -30,7 +30,7 @@ There are existing tools in this space (see [Competitive Landscape](#competitive
 3. **MCP server**: Query and create issues from Claude directly. No other bug tool has this.
 4. **Open source**: Full codebase available. Built by developers, for developers.
 
-## Three Components
+## Components
 
 ### 1. SDK (`glitchgrab`)
 
@@ -63,6 +63,21 @@ export default function RootLayout({ children }) {
 - "What bugs were reported on my-app today?"
 - "Create a feature request for dark mode"
 
+### 4. Screen Recording → Tutorial + Issue (GlitchRecord + Chrome Extension)
+
+- **GlitchRecord** (`apps/glitchrecord`) — desktop screen recorder/editor (a
+  Recordly fork) that pairs with a **Chrome extension** (`packages/extension`)
+  over a local WebSocket bridge.
+- The extension captures what you clicked/typed/navigated while GlitchRecord
+  records your screen; on stop, that turns into an AI-narrated tutorial script
+  and can auto-create a GitHub issue.
+- The same extension also lets a QA tester (or the dashboard owner) log in
+  silently and file a bug directly from any tab — screenshot, description,
+  voice dictation, annotation — using the same dialog UI as the SDK's
+  `ReportButton` (`packages/report-ui`), with work-time tracked for the audit
+  log.
+- Also available as a mobile app (Android + iOS) — see `apps/mobile`.
+
 ## Competitive Landscape
 
 | Tool                                    | What it does                                                                            | Pricing           | Limitations                                                                 |
@@ -94,17 +109,24 @@ Glitchgrab is **not** trying to be Sentry (full observability) or Marker.io (age
 ```
 glitchgrab/
 ├── apps/
-│   ├── web/                    # Next.js dashboard + API
-│   └── mobile/                 # React Native (Expo) mobile app
+│   ├── web/                    # Next.js 15 dashboard + API — deployed to glitchgrab.dev
+│   ├── mobile/                 # React Native (Expo) mobile app — WebView wrapper around web
+│   ├── glitchrecord/            # Electron screen recorder/editor (Recordly fork) + GlitchBridge
+│   └── scripts/                 # db-sync.ts — pull prod DB into local
 ├── packages/
-│   ├── sdk-nextjs/             # glitchgrab npm package
-│   ├── mcp-server/             # MCP server for Claude
-│   └── shared/                 # Shared types
-├── CLAUDE.md                   # Instructions for Claude Code
+│   ├── sdk-nextjs/              # glitchgrab npm package (Next.js SDK)
+│   ├── sdk-expo/                # @glitchgrab/sdk-expo (React Native SDK)
+│   ├── report-ui/               # shared "report a bug" dialog — used by sdk-nextjs AND the extension
+│   ├── extension/               # Chrome MV3 extension — capture pipeline + tester Report Bug
+│   └── recordly-extension/      # in-app GlitchRecord plugin — AI narration script generator
+├── CLAUDE.md                    # Instructions for Claude Code
 ├── README.md
 ├── package.json
 └── turbo.json
 ```
+
+MCP server integration is planned but not yet built as a standalone package
+(see Roadmap).
 
 ## Getting Started
 
