@@ -48,6 +48,9 @@ jobs:
       - name: Generate Prisma Client
         run: cd apps/web && bunx prisma generate --schema=prisma/schema.prisma
 
+      - name: Build shared report UI (workspace dependency of the SDK)
+        run: cd packages/report-ui && bun run build
+
       - name: Build SDK (needed for type declarations)
         run: cd packages/sdk-nextjs && bun run build
 
