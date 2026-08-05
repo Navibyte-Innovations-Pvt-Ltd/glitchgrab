@@ -59,6 +59,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   const developerName = session.user.name ?? "A developer";
   const issueTitle = title?.trim() || `Issue #${githubNumber}`;
   let sent = 0;
+  // Testers whose WhatsApp bounced. The QaCheck still exists and is visible on
+  // their /qa page, but the owner should know the ping never landed.
+  const failures: string[] = [];
 
   for (const tr of testerRepos) {
     const tester = tr.tester;
@@ -87,17 +90,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     });
     sent++;
 
-    if (tester.phone) {
-      await sendTesterQaRequest({
-        phone: tester.phone,
-        testerName: tester.name,
-        developerName,
-        issueNumbers: [githubNumber],
-        orgName: org.name,
-        magicToken: tester.magicToken,
-      });
+    if (!tester.phone) {
+      failures.push(`${tester.name} (no phone on file)`);
+      continue;
+    }
+
+    const result = await sendTesterQaRequest({
+      phone: tester.phone,
+      testerName: tester.name,
+      developerName,
+      issueNumbers: [githubNumber],
+      orgName: org.name,
+      magicToken: tester.magicToken,
+    });
+    if (!result.ok) {
+      console.error(`[qa/send] WhatsApp to tester ${tester.id} failed for issue #${githubNumber}: ${result.error}`);
+      failures.push(`${tester.name}: ${result.error}`);
     }
   }
 
-  return NextResponse.json({ success: true, data: { sent, testers: testerRepos.length } });
+  return NextResponse.json({
+    success: true,
+    data: { sent, testers: testerRepos.length, failures },
+  });
 }
