@@ -517,10 +517,15 @@ function ReportRow({
         title: report.issue.title,
         githubUrl: report.issue.githubUrl,
       });
-      return data as { data?: { sent?: number } };
+      return data as { data?: { sent?: number; failures?: string[] } };
     },
     onSuccess: (data) => {
       const n = data?.data?.sent ?? 0;
+      const failures = data?.data?.failures ?? [];
+      if (failures.length > 0) {
+        toast.warning(`Queued, but WhatsApp failed for ${failures.length}: ${failures.join("; ")}`);
+        return;
+      }
       toast.success(n > 0 ? `Sent to ${n} tester${n === 1 ? "" : "s"}` : "Already sent — no new testers");
     },
     onError: (err) => {
