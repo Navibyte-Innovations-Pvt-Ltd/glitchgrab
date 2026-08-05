@@ -71,12 +71,73 @@ export default function RootLayout({ children }) {
 - The extension captures what you clicked/typed/navigated while GlitchRecord
   records your screen; on stop, that turns into an AI-narrated tutorial script
   and can auto-create a GitHub issue.
-- The same extension also lets a QA tester (or the dashboard owner) log in
-  silently and file a bug directly from any tab — screenshot, description,
-  voice dictation, annotation — using the same dialog UI as the SDK's
+- **Report Bug** — a QA tester (or the dashboard owner) can also file a bug
+  with no recording at all, using the same dialog UI as the SDK's
   `ReportButton` (`packages/report-ui`), with work-time tracked for the audit
-  log.
+  log. It lives in **GlitchRecord** so it captures the whole screen and works
+  no matter which browser (or native app) the tester was in; the Chrome
+  extension offers the same button for Chrome tabs. Both share one identity
+  model and one API endpoint.
 - Also available as a mobile app (Android + iOS) — see `apps/mobile`.
+
+## For testers — installing GlitchRecord
+
+If someone asked you to test their app and report bugs, this is all you need.
+You do **not** need to clone this repo, install Node, or use Chrome.
+
+### 1. Download
+
+**→ [glitchgrab.dev/download](https://glitchgrab.dev/download)**
+
+The page detects your OS and gives you one button. (Direct links live on the
+[releases page](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchrecord/releases)
+if you'd rather pick a build yourself.)
+
+| Your machine        | File                              |
+| ------------------- | --------------------------------- |
+| Mac (M1–M4)         | `GlitchRecord-arm64.dmg`          |
+| Mac (Intel)         | `GlitchRecord-x64.dmg`            |
+| Windows 10 / 11     | `GlitchRecord-windows-x64.exe`    |
+| Linux               | `GlitchRecord-linux-x64.AppImage` |
+
+### 2. Install
+
+- **Mac** — open the `.dmg`, drag **GlitchRecord** into **Applications**. Then
+  open Terminal and paste this once:
+
+  ```bash
+  xattr -cr /Applications/GlitchRecord.app
+  ```
+
+  > **Why?** The app isn't notarized by Apple yet, so macOS claims it is
+  > *"damaged and can't be opened"*. It isn't — that command just clears the
+  > download quarantine flag. You only ever do this once.
+
+- **Windows** — run the `.exe`. SmartScreen may warn you: click
+  **More info → Run anyway**.
+- **Linux** — `chmod +x GlitchRecord-linux-x64.AppImage`, then run it.
+
+### 3. Sign in
+
+- **QA testers** — open the QA link your team sent you **in whatever browser you
+  normally use** (Chrome, Firefox, Safari, Edge — any of them), then press
+  **"Open in GlitchRecord"**. Confirm the prompt showing your name. Done.
+- **Everyone else** — press **Connect Glitchgrab** in the app and sign in with
+  GitHub.
+
+### 4. Report a bug
+
+Press **Report Bug** in the app header. It screenshots your whole screen —
+whatever browser or app you were testing — then you write what went wrong, pick
+the repo, and submit. A GitHub issue is filed under your name.
+
+Press **New Recording** instead if the bug is easier to show than describe;
+GlitchRecord narrates the recording and can open the issue from it.
+
+> **Do I need the Chrome extension?** No. It only adds click-and-keystroke
+> logging inside Chrome tabs during a recording. Everything above works
+> without it — which is exactly why testers who use more than one browser
+> should use the desktop app.
 
 ## Competitive Landscape
 
