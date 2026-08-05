@@ -47,6 +47,9 @@ export function QaClient({
   // Optimistically hidden from "To verify" the instant a Pass/Fail/Skip is clicked,
   // put back if the request fails — the row shouldn't wait on GitHub/S3/WhatsApp round-trips.
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  // Reporter session id, kept so the tester can hand it to the GlitchRecord
+  // desktop app (see the "Open in GlitchRecord" button below).
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
   const mutation = useMutation({
     mutationFn: async ({
@@ -108,6 +111,7 @@ export function QaClient({
       .post("/api/v1/qa/extension-auth", token ? { token } : {})
       .then(({ data }) => {
         if (cancelled || !data?.success) return;
+        setSessionId(data.data.sessionId);
         window.postMessage(
           {
             source: "glitchgrab-auth",
@@ -165,6 +169,30 @@ export function QaClient({
             Try each fix below, then mark it Pass or Fail. Failing an item reopens the issue and pings the
             developer. Skip one if you can&apos;t verify it right now.
           </p>
+
+          {/* Hands this login to the GlitchRecord desktop app so "Report Bug"
+              works from any browser — the Chrome extension can't. */}
+          {sessionId && (
+            <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium">Found something else broken?</p>
+                <p className="text-xs text-muted-foreground">
+                  Sign in to GlitchRecord and report bugs from any browser or app.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0"
+                onClick={() => {
+                  window.location.href = `glitchrecord://tester-auth?sessionId=${encodeURIComponent(sessionId)}`;
+                }}
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Open in GlitchRecord
+              </Button>
+            </div>
+          )}
         </header>
 
         <EditProfileSheet
