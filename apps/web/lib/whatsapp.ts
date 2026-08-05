@@ -539,6 +539,10 @@ export async function sendTesterInvite({
  *           ({{3}} carries the count + the issue numbers, e.g. "3 (#918, #974, #917)".)
  *   Button 0 (URL): Verify now → https://glitchgrab.dev/qa/{{1}}
  *                   suffix = <magicToken>
+ *
+ * Returns the outcome rather than swallowing it — callers stamp QaCheck.notifiedAt
+ * either way, so a silent failure here means a tester is never pinged and nobody
+ * ever finds out. The reason belongs in the logs.
  */
 export async function sendTesterQaRequest({
   phone,
@@ -554,13 +558,15 @@ export async function sendTesterQaRequest({
   issueNumbers: number[];
   orgName: string;
   magicToken: string;
-}): Promise<void> {
+}): Promise<{ ok: boolean; error?: string }> {
   const phoneNumberId = process.env.META_WA_PHONE_NUMBER_ID;
   const accessToken = process.env.META_WA_ACCESS_TOKEN;
-  if (!phoneNumberId || !accessToken) return;
+  if (!phoneNumberId || !accessToken) {
+    return { ok: false, error: "META_WA_PHONE_NUMBER_ID or META_WA_ACCESS_TOKEN not set" };
+  }
 
   const to = formatPhone(phone);
-  if (!to) return;
+  if (!to) return { ok: false, error: "Invalid phone number" };
 
   // Template body reads "marked {{3}} issue(s) as fixed". {{3}} is a count, but
   // testers asked to see WHICH issues — so embed the numbers: "3 (#918, #974)".
@@ -603,9 +609,20 @@ export async function sendTesterQaRequest({
         },
       }),
     });
-    if (!res.ok) console.error("[whatsapp] qa request failed:", await res.text());
+    if (!res.ok) {
+      const body = await res.text();
+      console.error("[whatsapp] qa request failed:", res.status, body);
+      let message = `Meta API error ${res.status}`;
+      try {
+        const json = JSON.parse(body) as { error?: { message?: string } };
+        if (json.error?.message) message = json.error.message;
+      } catch { /* non-JSON body */ }
+      return { ok: false, error: message };
+    }
+    return { ok: true };
   } catch (err) {
     console.error("[whatsapp] qa request error:", err);
+    return { ok: false, error: err instanceof Error ? err.message : "Network error" };
   }
 }
 
