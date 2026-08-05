@@ -112,7 +112,9 @@ export function AnnotationCanvas({ imageSrc, onSave, onCancel }: AnnotationCanva
   const handleSave = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    onSave(canvas.toDataURL("image/jpeg", 0.85));
+    // Annotating is a second lossy JPEG pass over an already-encoded capture —
+    // 0.85 here was compounding into visible mush on UI text (#302).
+    onSave(canvas.toDataURL("image/jpeg", 0.95));
   };
 
   return (
