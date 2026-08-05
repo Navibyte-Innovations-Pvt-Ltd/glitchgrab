@@ -9,7 +9,7 @@ interface CommittedDocument {
 /** Max characters of a single text attachment embedded in the issue body. */
 export const MAX_INLINE_CHARS_PER_FILE = 20_000;
 /** Combined budget for all inlined attachments (GitHub caps issue bodies at 65,536). */
-export const MAX_INLINE_CHARS_TOTAL = 40_000;
+const MAX_INLINE_CHARS_TOTAL = 40_000;
 
 /** Splits validated attachments into the inline-text set and the repo-commit set. */
 export function splitAttachments(files: File[]): {
