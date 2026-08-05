@@ -6,7 +6,12 @@ import { hashToken } from "@/lib/tokens";
 import { createGitHubIssue } from "@/lib/github";
 import { getInstallationAccessToken } from "@/lib/github-app";
 import { uploadScreenshotToS3 } from "@/lib/s3";
-import { uploadDocumentsToRepo, buildAttachmentsSection } from "@/lib/attachments";
+import {
+  uploadDocumentsToRepo,
+  buildAttachmentsSection,
+  buildInlineAttachmentsSection,
+  splitAttachments,
+} from "@/lib/attachments";
 import {
   MAX_DOCUMENT_SIZE,
   MAX_ATTACHMENTS_PER_REPORT,
@@ -348,7 +353,12 @@ export async function POST(request: Request) {
     if (screenshotsData.length > 0) {
       const refs: string[] = [];
       for (let i = 0; i < screenshotsData.length; i++) {
-        const url = await uploadScreenshotToS3(screenshotsData[i], report.id);
+        // The S3 key is derived from this id, so every screenshot needs its own
+        // suffix — passing report.id for all of them overwrote the first upload.
+        const url = await uploadScreenshotToS3(
+          screenshotsData[i],
+          `${report.id}${i > 0 ? `-${i + 1}` : ""}`,
+        );
         if (url) refs.push(`![Screenshot${screenshotsData.length > 1 ? ` ${i + 1}` : ""}](${url})`);
       }
       if (refs.length > 0) {
@@ -382,14 +392,20 @@ export async function POST(request: Request) {
             files.push(file);
           }
           if (files.length > 0) {
-            const docs = await uploadDocumentsToRepo(
-              installationToken,
-              apiToken.repo.owner,
-              apiToken.repo.name,
-              report.id,
-              files,
-            );
-            issueBody += buildAttachmentsSection(docs);
+            // Text files are embedded in the issue body; only binaries reach the repo.
+            const { textFiles, binaryFiles } = splitAttachments(files);
+            issueBody += await buildInlineAttachmentsSection(textFiles);
+
+            if (binaryFiles.length > 0) {
+              const docs = await uploadDocumentsToRepo(
+                installationToken,
+                apiToken.repo.owner,
+                apiToken.repo.name,
+                report.id,
+                binaryFiles,
+              );
+              issueBody += buildAttachmentsSection(docs);
+            }
           }
         }
       } catch {
