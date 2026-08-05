@@ -38,6 +38,12 @@ export function PublicNav() {
           >
             /docs
           </Link>
+          <Link
+            href="/download"
+            className="font-mono text-xs uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors"
+          >
+            /download
+          </Link>
           <a
             href="https://github.com/webnaresh/glitchgrab"
             target="_blank"
