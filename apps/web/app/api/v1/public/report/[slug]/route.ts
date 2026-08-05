@@ -6,7 +6,12 @@ import { prisma } from "@/lib/db";
 import { createGitHubIssue } from "@/lib/github";
 import { getInstallationAccessToken } from "@/lib/github-app";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { uploadDocumentsToRepo, buildAttachmentsSection } from "@/lib/attachments";
+import {
+  uploadDocumentsToRepo,
+  buildAttachmentsSection,
+  buildInlineAttachmentsSection,
+  splitAttachments,
+} from "@/lib/attachments";
 import { MAX_DOCUMENT_SIZE, isAllowedDocumentFile } from "@/lib/attachments-constants";
 
 export async function POST(
@@ -40,7 +45,7 @@ export async function POST(
       }
       if (!isAllowedDocumentFile(file)) {
         return NextResponse.json(
-          { success: false, error: `${file.name} must be a PDF, DOC, or DOCX file` },
+          { success: false, error: `${file.name} — unsupported file type` },
           { status: 400 }
         );
       }
@@ -100,14 +105,18 @@ export async function POST(
 
     let issueBody = `## Description\n\n${description}\n\n`;
 
+    // Text files are embedded in the issue body; only binaries reach the repo.
+    const { textFiles, binaryFiles } = splitAttachments(documentFiles);
+    issueBody += await buildInlineAttachmentsSection(textFiles);
+
     const documentRefs =
-      documentFiles.length > 0
+      binaryFiles.length > 0
         ? await uploadDocumentsToRepo(
             installationToken,
             apiToken.repo.owner,
             apiToken.repo.name,
             report.id,
-            documentFiles
+            binaryFiles
           )
         : [];
     issueBody += buildAttachmentsSection(documentRefs);

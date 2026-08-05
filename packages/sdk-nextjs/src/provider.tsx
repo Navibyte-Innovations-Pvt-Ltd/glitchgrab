@@ -16,7 +16,7 @@ import type {
   ReportType,
 } from "./types";
 import { GlitchgrabErrorBoundary } from "./error-boundary";
-import { ReportDialog } from "./report-dialog";
+import { ReportDialog } from "@glitchgrab/report-ui";
 import { sanitizeUrl, captureContext, sendReport, captureDeviceInfo, enhanceText, transcribeAudio, type EnhanceContext } from "./utils";
 import { computeSignature, shouldSkipDuplicate } from "./dedup";
 import { GLITCHGRAB_SHORTCUT, getShortcutLabel, matchesShortcut } from "./shortcut";

@@ -34,7 +34,12 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { AnnotationCanvas } from "./annotation-canvas";
-import { MAX_DOCUMENT_SIZE, isAllowedDocumentFile } from "@/lib/attachments-constants";
+import { ScreenshotPreview } from "./screenshot-preview";
+import {
+  MAX_DOCUMENT_SIZE,
+  DOCUMENT_ACCEPT,
+  isAllowedDocumentFile,
+} from "@/lib/attachments-constants";
 
 interface SpeechRecognitionResult {
   readonly isFinal: boolean;
@@ -68,12 +73,14 @@ interface SpeechRecognitionWindow {
   webkitSpeechRecognition?: SpeechRecognitionCtor;
 }
 
+// Screenshots are read at 100% zoom to check UI text, so 1024px/q0.7 destroyed
+// the very thing they document (#302). Only step in for genuinely large files.
 async function compressImage(
   file: File,
-  maxWidth = 1024,
-  quality = 0.7,
+  maxWidth = 2560,
+  quality = 0.92,
 ): Promise<File> {
-  if (file.size <= 500_000) return file;
+  if (file.size <= 2_000_000) return file;
 
   try {
     const img = document.createElement("img");
@@ -365,15 +372,10 @@ const MessageBlock = memo(function MessageBlock({
         open={selectedScreenshot !== null}
         onOpenChange={(open) => { if (!open) setSelectedScreenshot(null); }}
       >
-        <DialogContent className="sm:max-w-3xl p-2">
+        <DialogContent className="sm:max-w-5xl p-2">
           <DialogTitle className="sr-only">Screenshot preview</DialogTitle>
           {selectedScreenshot && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={selectedScreenshot}
-              alt="Screenshot preview"
-              className="w-full h-auto rounded-lg object-contain max-h-[80vh]"
-            />
+            <ScreenshotPreview key={selectedScreenshot} src={selectedScreenshot} />
           )}
         </DialogContent>
       </Dialog>
@@ -504,7 +506,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
     const accepted: File[] = [];
     for (const file of Array.from(files)) {
       if (!isAllowedDocumentFile(file)) {
-        toast.error(`${file.name} must be a PDF, DOC, or DOCX file`);
+        toast.error(`${file.name} — unsupported file type`);
         continue;
       }
       if (file.size > MAX_DOCUMENT_SIZE) {
@@ -536,20 +538,24 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
     const items = e.clipboardData?.items;
     if (!items) return;
     const imageFiles: File[] = [];
+    const docFiles: File[] = [];
     for (let i = 0; i < items.length; i++) {
-      if (items[i].type.startsWith("image/")) {
-        e.preventDefault();
-        const file = items[i].getAsFile();
-        if (file) imageFiles.push(file);
-      }
+      // `kind === "file"` also covers pasted documents (html, json, pdf…), not
+      // just images — plain text keeps the browser's default paste behaviour.
+      if (items[i].kind !== "file") continue;
+      const file = items[i].getAsFile();
+      if (!file) continue;
+      e.preventDefault();
+      if (items[i].type.startsWith("image/")) imageFiles.push(file);
+      else docFiles.push(file);
     }
-    if (imageFiles.length > 0) {
-      if (!selectedRepo) {
-        toast.error("Select a repo first");
-        return;
-      }
-      addFiles(imageFiles);
+    if (imageFiles.length === 0 && docFiles.length === 0) return;
+    if (!selectedRepo) {
+      toast.error("Select a repo first");
+      return;
     }
+    if (imageFiles.length > 0) addFiles(imageFiles);
+    if (docFiles.length > 0) addDocuments(docFiles);
   }
 
   function removeScreenshot(index: number) {
@@ -963,7 +969,9 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
     }
     const dropped = Array.from(e.dataTransfer.files);
     const images = dropped.filter((f) => f.type.startsWith("image/"));
-    const docs = dropped.filter((f) => isAllowedDocumentFile(f));
+    // Everything non-image goes through addDocuments so unsupported types get
+    // a toast instead of vanishing silently.
+    const docs = dropped.filter((f) => !f.type.startsWith("image/"));
     if (images.length > 0) addFiles(images);
     if (docs.length > 0) addDocuments(docs);
   }
@@ -1141,7 +1149,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
             }
           }}
         >
-          <DialogContent className="sm:max-w-3xl p-2">
+          <DialogContent className="sm:max-w-5xl p-2">
             <DialogTitle className="sr-only">Screenshot preview</DialogTitle>
             {stagedPreviewIndex !== null && screenshots[stagedPreviewIndex] && (
               annotating ? (
@@ -1151,13 +1159,10 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
                   onSave={handleAnnotateSave}
                 />
               ) : (
-                <div className="relative">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={screenshots[stagedPreviewIndex]}
-                    alt="Screenshot preview"
-                    className="w-full h-auto rounded-lg object-contain max-h-[70vh]"
-                  />
+                <ScreenshotPreview
+                  key={screenshots[stagedPreviewIndex]}
+                  src={screenshots[stagedPreviewIndex]}
+                >
                   <button
                     type="button"
                     onClick={() => setAnnotating(true)}
@@ -1166,7 +1171,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
                     <Pencil className="h-3.5 w-3.5" />
                     Annotate
                   </button>
-                </div>
+                </ScreenshotPreview>
               )
             )}
           </DialogContent>
@@ -1205,7 +1210,7 @@ export function BugChat({ repos, userName }: { repos: Repo[]; userName: string }
             <input
               ref={docFileInputRef}
               type="file"
-              accept=".pdf,.doc,.docx"
+              accept={DOCUMENT_ACCEPT}
               multiple
               onChange={handleDocFileSelect}
               className="hidden"

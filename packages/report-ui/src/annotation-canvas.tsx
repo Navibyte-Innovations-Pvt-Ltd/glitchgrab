@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { encodeScreenshot } from "./image-encode";
 
 type Point = { x: number; y: number };
 
@@ -111,7 +112,10 @@ export function AnnotationCanvas({ imageSrc, onSave, onCancel }: AnnotationCanva
   const handleSave = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    onSave(canvas.toDataURL("image/jpeg", 0.85));
+    // Annotating re-encodes an already-JPEG image, so quality is chosen by the
+    // shared budget ladder rather than a fixed low value — a second lossy pass
+    // at 0.85 was visibly degrading text.
+    onSave(encodeScreenshot(canvas));
   };
 
   const iconBtn = (active = false): React.CSSProperties => ({

@@ -154,8 +154,21 @@ connectBridge();
 // an ExtensionSession on the backend (its duration = "tester work time" in
 // the dashboard audit log) and the identity rides along on every WS message
 // so GlitchRecord can tag the eventual GitHub issue as EXTENSION_TESTER.
-const GG_API_BASE = "https://glitchgrab.dev";
+// Fallback only — every real login sets tester.apiBase from the trusted
+// origin the handshake actually came from (dev vs prod). A stale
+// chrome.storage entry from before this fix won't have it; default to prod.
+const DEFAULT_API_BASE = "https://glitchgrab.dev";
 const HEARTBEAT_INTERVAL_MS = 60_000;
+
+// content.ts already checks event.origin before relaying TESTER_AUTO_LOGIN,
+// but background.ts is the component that actually MAKES authenticated
+// fetches to apiBase — re-validate here too (defense in depth), so a bug in
+// content.ts or a future sender that skips that check can't point an
+// authenticated session's fetches at an arbitrary origin.
+const ALLOWED_API_BASES = new Set(["https://glitchgrab.dev", "http://localhost:3000"]);
+function resolveApiBase(candidate: string | undefined): string {
+  return candidate && ALLOWED_API_BASES.has(candidate) ? candidate : DEFAULT_API_BASE;
+}
 
 interface TesterAuth {
   // Set only for the manual popup login (paste a gg_ token). Absent for a QA
@@ -166,6 +179,10 @@ interface TesterAuth {
   email?: string;
   sessionId: string;
   loginAt: number;
+  // The origin the login came from (https://glitchgrab.dev or
+  // http://localhost:3000) — the session only exists in THAT backend's DB,
+  // so every follow-up call (ping/end/repos/report) must target it too.
+  apiBase: string;
 }
 
 let tester: TesterAuth | null = null;
@@ -179,7 +196,7 @@ function startHeartbeat() {
   if (heartbeatTimer) return;
   heartbeatTimer = setInterval(() => {
     if (!tester) return;
-    fetch(`${GG_API_BASE}/api/v1/extension/session/${tester.sessionId}/ping`, {
+    fetch(`${tester.apiBase}/api/v1/extension/session/${tester.sessionId}/ping`, {
       method: "POST",
       headers: authHeaders(),
     }).catch(() => { /* best-effort — a missed ping just shortens counted work time */ });
@@ -204,7 +221,8 @@ async function restoreTesterAuth() {
   try {
     const { gg_tester } = await chrome.storage.local.get("gg_tester");
     if (gg_tester && typeof gg_tester === "object" && (gg_tester as TesterAuth).sessionId) {
-      tester = gg_tester as TesterAuth;
+      const stored = gg_tester as TesterAuth;
+      tester = { ...stored, apiBase: resolveApiBase(stored.apiBase) };
       startHeartbeat();
       sendTesterIdentityToBridge();
     }
@@ -212,45 +230,21 @@ async function restoreTesterAuth() {
 }
 restoreTesterAuth();
 
-async function testerLogin(token: string, name: string, email?: string): Promise<{ ok: boolean; error?: string }> {
-  try {
-    const res = await fetch(`${GG_API_BASE}/api/v1/extension/session`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ testerName: name, testerEmail: email }),
-    });
-    const data = await res.json().catch(() => null) as
-      | { success: boolean; data?: { sessionId: string }; error?: string }
-      | null;
-    if (!res.ok || !data?.success || !data.data?.sessionId) {
-      return { ok: false, error: data?.error || "Login failed — check the token" };
-    }
-    tester = { token, name, email, sessionId: data.data.sessionId, loginAt: Date.now() };
-    await chrome.storage.local.set({ gg_tester: tester });
-    startHeartbeat();
-    sendTesterIdentityToBridge();
-    log("[GG] Tester logged in:", name);
-    return { ok: true };
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Network error" };
-  }
-}
-
 // Silent login from the QA magic-link handshake (#297) — the ExtensionSession
 // already exists server-side (created by /api/v1/qa/extension-auth), so this
 // just adopts it locally. No token involved.
-async function testerAutoLogin(sessionId: string, name: string, email?: string) {
-  tester = { name, email, sessionId, loginAt: Date.now() };
+async function testerAutoLogin(sessionId: string, name: string, email: string | undefined, apiBase: string) {
+  tester = { name, email, sessionId, loginAt: Date.now(), apiBase };
   await chrome.storage.local.set({ gg_tester: tester });
   startHeartbeat();
   sendTesterIdentityToBridge();
-  log("[GG] Tester auto-logged in via QA link:", name);
+  log("[GG] Tester auto-logged in via", apiBase, ":", name);
 }
 
 async function testerLogout() {
   if (tester) {
     try {
-      await fetch(`${GG_API_BASE}/api/v1/extension/session/${tester.sessionId}/end`, {
+      await fetch(`${tester.apiBase}/api/v1/extension/session/${tester.sessionId}/end`, {
         method: "POST",
         headers: authHeaders(),
       });
@@ -571,10 +565,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
     reply({ loggedIn: !!tester, name: tester?.name, email: tester?.email, loginAt: tester?.loginAt });
     return true;
   }
-  if (msg.type === "TESTER_LOGIN") {
-    testerLogin(msg.token, msg.name, msg.email).then(reply);
-    return true;
-  }
   if (msg.type === "TESTER_LOGOUT") {
     testerLogout().then(() => reply({ ok: true }));
     return true;
@@ -582,8 +572,56 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   if (msg.type === "TESTER_AUTO_LOGIN") {
     // Sender is the content script relaying a QA-page postMessage, not the
     // popup — no reply expected.
-    void testerAutoLogin(msg.sessionId, msg.name, msg.email);
+    void testerAutoLogin(msg.sessionId, msg.name, msg.email, resolveApiBase(msg.apiBase));
     return false;
+  }
+  if (msg.type === "OPEN_REPORT_WINDOW") {
+    openReportWindow().then(reply);
+    return true;
+  }
+  if (msg.type === "RECAPTURE_TAB") {
+    captureTab(msg.windowId).then((dataUrl) => reply({ dataUrl }));
+    return true;
   }
   return false;
 });
+
+// ── "Report Bug" from the extension itself (#297) ────────────
+// Popups unload on blur (would kill an in-progress voice recording), so the
+// report dialog lives in its own persistent window, not the popup.
+async function captureTab(windowId: number): Promise<string | null> {
+  try {
+    // q70 left visible artifacts on UI text (#302). captureVisibleTab already
+    // returns the tab at device pixel density, so quality is the only knob.
+    return await chrome.tabs.captureVisibleTab(windowId, { format: "jpeg", quality: 92 });
+  } catch {
+    return null;
+  }
+}
+
+async function openReportWindow(): Promise<{ ok: boolean; error?: string }> {
+  if (!tester) return { ok: false, error: "Log in first — open a QA link or the dashboard." };
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    const screenshotDataUrl = tab?.windowId != null ? await captureTab(tab.windowId) : null;
+    await chrome.storage.local.set({
+      gg_pending_report: {
+        sessionId: tester.sessionId,
+        apiBase: tester.apiBase,
+        screenshotDataUrl,
+        pageUrl: tab?.url ?? null,
+        pageTitle: tab?.title ?? null,
+        targetWindowId: tab?.windowId ?? null,
+      },
+    });
+    await chrome.windows.create({
+      url: chrome.runtime.getURL("report/report.html"),
+      type: "popup",
+      width: 480,
+      height: 760,
+    });
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Failed to open report window" };
+  }
+}

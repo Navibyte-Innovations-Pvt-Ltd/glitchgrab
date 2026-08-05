@@ -47,11 +47,25 @@ export async function GET(request: Request) {
   }
 
   let notified = 0;
+  let failed = 0;
 
   for (const group of groups.values()) {
     const first = group[0];
     const tester = first.tester;
-    if (!tester.phone) continue;
+    const ids = group.map((r) => r.githubNumber);
+
+    // No phone → nothing to send, but still stamp notifiedAt: it doubles as the
+    // QA page's visibility gate (see lib/qa-view.ts). Leaving it null would hide
+    // these checks from the tester's /qa link forever.
+    if (!tester.phone) {
+      console.error(`[qa-notify] tester ${first.testerId} has no phone; issues ${ids.join(",")} visible on the QA page only`);
+      await prisma.qaCheck.updateMany({
+        where: { id: { in: group.map((r) => r.id) } },
+        data: { notifiedAt: new Date() },
+      });
+      failed++;
+      continue;
+    }
 
     const [ownerData, devUser] = await Promise.all([
       prisma.user.findUnique({
@@ -71,21 +85,28 @@ export async function GET(request: Request) {
     const orgName = ownerData?.ownedOrgs?.[0]?.name ?? ownerData?.name ?? "the team";
     const developerName = devUser?.name ?? first.developerLogin ?? "the developer";
 
-    await sendTesterQaRequest({
+    const result = await sendTesterQaRequest({
       phone: tester.phone,
       testerName: tester.name,
       developerName,
-      issueNumbers: group.map((r) => r.githubNumber),
+      issueNumbers: ids,
       orgName,
       magicToken: tester.magicToken,
     });
 
+    if (result.ok) notified++;
+    else {
+      failed++;
+      console.error(`[qa-notify] WhatsApp to tester ${first.testerId} failed for issues ${ids.join(",")}: ${result.error}`);
+    }
+
+    // Stamped on failure too — a bad number would otherwise be retried every 5
+    // minutes forever AND keep the checks hidden from the tester's QA page.
     await prisma.qaCheck.updateMany({
       where: { id: { in: group.map((r) => r.id) } },
       data: { notifiedAt: new Date() },
     });
-    notified++;
   }
 
-  return NextResponse.json({ ok: true, notified });
+  return NextResponse.json({ ok: true, notified, failed });
 }

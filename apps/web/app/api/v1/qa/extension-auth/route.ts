@@ -35,6 +35,7 @@ export async function POST(request: Request) {
     data: {
       tokenId: null,
       repoId: testerRepo.repoId,
+      testerId: tester.id,
       testerName: tester.name,
       testerEmail: tester.email,
     },

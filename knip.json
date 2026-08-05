@@ -55,8 +55,8 @@
       ]
     },
     "packages/extension": {
-      "entry": ["src/background.ts", "src/content.ts", "src/popup/popup.ts"],
-      "project": ["src/**/*.ts"]
+      "entry": ["src/background.ts", "src/content.ts", "src/popup/popup.ts", "src/report/report.tsx"],
+      "project": ["src/**/*.{ts,tsx}"]
     },
     "packages/sdk-nextjs": {
       "project": ["src/**/*.{ts,tsx}"],
@@ -65,7 +65,8 @@
         "@semantic-release/github",
         "@semantic-release/npm",
         "@semantic-release/release-notes-generator",
-        "conventional-changelog-conventionalcommits"
+        "conventional-changelog-conventionalcommits",
+        "html2canvas-pro"
       ]
     },
     "packages/sdk-expo": {

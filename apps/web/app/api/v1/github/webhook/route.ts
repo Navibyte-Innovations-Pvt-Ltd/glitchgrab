@@ -9,16 +9,26 @@ import { getGitHubIssue } from "@/lib/github";
 import { getInstallationAccessToken } from "@/lib/github-app";
 import { parseClosingIssueRefs } from "@/lib/qa";
 
-function isValidSignature(body: string, signatureHeader: string | null): boolean {
+/**
+ * Verify the GitHub App's HMAC signature.
+ *
+ * Returns a reason string instead of a bare false: a rejected webhook is
+ * otherwise a silent 401, and an unset GITHUB_APP_WEBHOOK_SECRET once killed the
+ * whole QA chain (no QaCheck rows → no tester WhatsApp) for two weeks unnoticed.
+ */
+function checkSignature(body: string, signatureHeader: string | null): { ok: true } | { ok: false; reason: string } {
   const secret = process.env.GITHUB_APP_WEBHOOK_SECRET;
-  if (!secret || !signatureHeader) return false;
+  if (!secret) return { ok: false, reason: "GITHUB_APP_WEBHOOK_SECRET is not set" };
+  if (!signatureHeader) return { ok: false, reason: "missing x-hub-signature-256 header" };
 
   const expected = `sha256=${createHmac("sha256", secret).update(body).digest("hex")}`;
   const expectedBuf = Buffer.from(expected);
   const actualBuf = Buffer.from(signatureHeader);
-  if (expectedBuf.length !== actualBuf.length) return false;
+  if (expectedBuf.length !== actualBuf.length) return { ok: false, reason: "signature mismatch (malformed header)" };
 
-  return timingSafeEqual(expectedBuf, actualBuf);
+  return timingSafeEqual(expectedBuf, actualBuf)
+    ? { ok: true }
+    : { ok: false, reason: "signature mismatch (secret does not match the GitHub App's webhook secret)" };
 }
 
 /**
@@ -39,7 +49,9 @@ export async function POST(request: Request) {
     const event = request.headers.get("x-github-event");
     const signature = request.headers.get("x-hub-signature-256");
 
-    if (!isValidSignature(body, signature)) {
+    const sig = checkSignature(body, signature);
+    if (!sig.ok) {
+      console.error(`[github-webhook] rejected ${event ?? "unknown"} event: ${sig.reason}`);
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 

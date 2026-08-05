@@ -10,7 +10,9 @@ import {
 import { createPortal } from "react-dom";
 import { AnnotationCanvas } from "./annotation-canvas";
 import { getShortcutLabel } from "./shortcut";
-import type { ReportType, ReportSeverity, UseGlitchgrabReturn } from "./types";
+import { ATTACHMENT_ACCEPT } from "./attachments";
+import { encodeScreenshot } from "./image-encode";
+import type { ReportType, ReportSeverity, ReportFn, EnhanceTextFn } from "./types";
 
 /** Detect if the host page uses a dark or light theme */
 function useIsDark(): boolean {
@@ -252,11 +254,46 @@ function isLowQualityText(text: string): string | null {
 }
 
 interface ReportDialogProps {
-  report: UseGlitchgrabReturn["report"];
-  enhanceText?: UseGlitchgrabReturn["enhanceText"];
+  report: ReportFn;
+  enhanceText?: EnhanceTextFn;
   transcribeAudio?: (blob: Blob) => Promise<string>;
   types?: ReportType[];
   showSeverity?: boolean;
+  /**
+   * Overrides how the initial/retake screenshot is captured. Defaults to
+   * html2canvas-pro over `document.body` (correct for the SDK, embedded in
+   * the host page). Standalone hosts must inject their own — `document.body`
+   * there is the host's OWN tiny window, not the thing being reported:
+   *   - Chrome extension → `chrome.tabs.captureVisibleTab`
+   *   - GlitchRecord desktop → Electron `desktopCapturer` (whole screen, so it
+   *     works for any browser or native app, not just Chrome)
+   * Return `null` to open without a screenshot.
+   */
+  captureScreenshot?: () => Promise<string | null>;
+}
+
+async function captureViaHtml2Canvas(): Promise<string | null> {
+  try {
+    const { default: html2canvas } = await import("html2canvas-pro");
+    // Capture at the display's own pixel density so UI text stays readable.
+    // Capped at 2 — beyond that the payload grows faster than the legibility.
+    const scale = Math.min(Math.max(window.devicePixelRatio || 1, 1), 2);
+    const canvas = await html2canvas(document.body, {
+      scale,
+      logging: false,
+      useCORS: true,
+      allowTaint: true,
+      x: window.scrollX,
+      y: window.scrollY,
+      width: window.innerWidth,
+      height: window.innerHeight,
+      windowWidth: window.innerWidth,
+      windowHeight: window.innerHeight,
+    });
+    return encodeScreenshot(canvas);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -269,6 +306,7 @@ export function ReportDialog({
   transcribeAudio,
   types,
   showSeverity = true,
+  captureScreenshot = captureViaHtml2Canvas,
 }: ReportDialogProps) {
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [isEnhanced, setIsEnhanced] = useState(false);
@@ -295,6 +333,39 @@ export function ReportDialog({
   >([]);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [annotatingIndex, setAnnotatingIndex] = useState<number | null>(null);
+  // Lightbox zoom: false = fit to screen, true = 100% natural size with pan.
+  const [previewZoomed, setPreviewZoomed] = useState(false);
+  const [previewNatural, setPreviewNatural] = useState<{
+    w: number;
+    h: number;
+  } | null>(null);
+  const previewScrollRef = useRef<HTMLDivElement>(null);
+  const previewImgElRef = useRef<HTMLImageElement>(null);
+  const panRef = useRef<{
+    x: number;
+    y: number;
+    left: number;
+    top: number;
+    moved: boolean;
+  } | null>(null);
+  // Fraction of the image the user clicked, so zooming in keeps that spot centred.
+  const zoomAnchorRef = useRef<{ fx: number; fy: number } | null>(null);
+
+  // Every preview opens fit-to-screen, so zoom state is reset alongside the
+  // index rather than by an effect chasing it.
+  const resetPreviewZoom = () => {
+    setPreviewZoomed(false);
+    setPreviewNatural(null);
+    zoomAnchorRef.current = null;
+  };
+  const openPreview = (i: number) => {
+    resetPreviewZoom();
+    setPreviewIndex(i);
+  };
+  const closePreview = () => {
+    resetPreviewZoom();
+    setPreviewIndex(null);
+  };
   const fileInputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const previewImgRef = useRef<HTMLDivElement>(null);
@@ -343,6 +414,14 @@ export function ReportDialog({
   const isDark = useIsDark();
   const t = getTheme(isDark);
 
+  // Zooming only earns its place when the screenshot holds more pixels than the
+  // fit-to-screen view can show.
+  const canZoomPreview =
+    previewNatural !== null &&
+    typeof window !== "undefined" &&
+    (previewNatural.w > window.innerWidth - 32 ||
+      previewNatural.h > window.innerHeight - 80);
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -369,56 +448,14 @@ export function ReportDialog({
     });
   };
 
-  const retakeScreenshot = async () => {
-    setPreviewIndex(null);
-    setIsOpen(false);
-    setScreenshots([]);
-    await new Promise((r) => setTimeout(r, 300));
-    try {
-      const { default: html2canvas } = await import("html2canvas-pro");
-      const canvas = await html2canvas(document.body, {
-        scale: 0.5,
-        logging: false,
-        useCORS: true,
-        allowTaint: true,
-        x: window.scrollX,
-        y: window.scrollY,
-        width: window.innerWidth,
-        height: window.innerHeight,
-        windowWidth: window.innerWidth,
-        windowHeight: window.innerHeight,
-      });
-      setScreenshots([canvas.toDataURL("image/jpeg", 0.6)]);
-    } catch {
-      // silently fail
-    }
-    setIsOpen(true);
-  };
-
   const handleOpen = async () => {
     setSubmitted(false);
     if (availableTypes.length === 1) {
       setReportType(availableTypes[0]);
       setStep(2);
     }
-    try {
-      const { default: html2canvas } = await import("html2canvas-pro");
-      const canvas = await html2canvas(document.body, {
-        scale: 0.5,
-        logging: false,
-        useCORS: true,
-        allowTaint: true,
-        x: window.scrollX,
-        y: window.scrollY,
-        width: window.innerWidth,
-        height: window.innerHeight,
-        windowWidth: window.innerWidth,
-        windowHeight: window.innerHeight,
-      });
-      setScreenshots([canvas.toDataURL("image/jpeg", 0.6)]);
-    } catch {
-      // screenshot failed — open without it
-    }
+    const shot = await captureScreenshot();
+    if (shot) setScreenshots([shot]);
     setIsOpen(true);
   };
 
@@ -443,13 +480,15 @@ export function ReportDialog({
     if (!isOpen) return;
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (previewIndex !== null) setPreviewIndex(null);
+        // Escape unwinds one layer at a time: zoom → preview → dialog.
+        if (previewZoomed) setPreviewZoomed(false);
+        else if (previewIndex !== null) closePreview();
         else handleClose();
       }
     };
     document.addEventListener("keydown", handleEsc);
     return () => document.removeEventListener("keydown", handleEsc);
-  }, [isOpen, previewIndex]);
+  }, [isOpen, previewIndex, previewZoomed]);
 
   // Close screenshot preview on outside click. Registered in the CAPTURE phase
   // so it fires before the host page's own outside-click handlers (e.g. Radix
@@ -458,7 +497,7 @@ export function ReportDialog({
     if (previewIndex === null || annotatingIndex !== null) return;
     const handlePointerDown = (e: PointerEvent) => {
       if (!previewImgRef.current?.contains(e.target as Node)) {
-        setPreviewIndex(null);
+        closePreview();
       }
     };
     document.addEventListener("pointerdown", handlePointerDown, true);
@@ -466,26 +505,96 @@ export function ReportDialog({
       document.removeEventListener("pointerdown", handlePointerDown, true);
   }, [previewIndex, annotatingIndex]);
 
-  // Paste image from clipboard (Cmd+V / Ctrl+V) when dialog is open
+  // After zooming in, scroll so the point the user clicked is centred.
+  useEffect(() => {
+    const el = previewScrollRef.current;
+    if (!previewZoomed || !el) return;
+    const anchor = zoomAnchorRef.current ?? { fx: 0.5, fy: 0.5 };
+    el.scrollLeft = anchor.fx * el.scrollWidth - el.clientWidth / 2;
+    el.scrollTop = anchor.fy * el.scrollHeight - el.clientHeight / 2;
+  }, [previewZoomed]);
+
+  // Lives on the scroll container, not the <img>: while panning we hold pointer
+  // capture on the container, and Chrome retargets the resulting click there
+  // too — a handler on the image would never fire in the zoomed state.
+  const togglePreviewZoom = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    // A drag that panned the image must not also flip the zoom state.
+    if (panRef.current?.moved) return;
+    if (!previewZoomed && !canZoomPreview) return;
+    const img = previewImgElRef.current;
+    if (!previewZoomed && img) {
+      const rect = img.getBoundingClientRect();
+      zoomAnchorRef.current = {
+        fx: (e.clientX - rect.left) / rect.width,
+        fy: (e.clientY - rect.top) / rect.height,
+      };
+    }
+    setPreviewZoomed((z) => !z);
+  };
+
+  const handlePanStart = (e: React.PointerEvent<HTMLDivElement>) => {
+    const el = previewScrollRef.current;
+    if (!previewZoomed || !el) return;
+    panRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      left: el.scrollLeft,
+      top: el.scrollTop,
+      moved: false,
+    };
+    el.setPointerCapture(e.pointerId);
+  };
+
+  const handlePanMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const el = previewScrollRef.current;
+    const start = panRef.current;
+    if (!el || !start) return;
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) start.moved = true;
+    el.scrollLeft = start.left - dx;
+    el.scrollTop = start.top - dy;
+  };
+
+  const handlePanEnd = (e: React.PointerEvent<HTMLDivElement>) => {
+    const el = previewScrollRef.current;
+    const moved = panRef.current?.moved ?? false;
+    try {
+      el?.releasePointerCapture(e.pointerId);
+    } catch {
+      /* pointer already released */
+    }
+    // Keep `moved` readable through the click that follows this pointerup.
+    if (moved) {
+      panRef.current = { x: 0, y: 0, left: 0, top: 0, moved: true };
+      setTimeout(() => {
+        panRef.current = null;
+      }, 0);
+    } else {
+      panRef.current = null;
+    }
+  };
+
+  // Paste files from clipboard (Cmd+V / Ctrl+V) when dialog is open. Images land
+  // in the screenshot strip, any other pasted file becomes an attachment. Plain
+  // text is untouched so typing into the textarea still pastes normally.
   useEffect(() => {
     if (!isOpen) return;
     const handlePaste = (e: ClipboardEvent) => {
       try {
         const items = e.clipboardData?.items;
         if (!items) return;
-        let matched = false;
+        const pasted: File[] = [];
         for (let i = 0; i < items.length; i++) {
-          if (items[i].type.startsWith("image/")) {
-            const file = items[i].getAsFile();
-            if (!file) continue;
-            matched = true;
-            const reader = new FileReader();
-            reader.onload = () =>
-              setScreenshots((prev) => [...prev, reader.result as string]);
-            reader.readAsDataURL(file);
-          }
+          if (items[i].kind !== "file") continue;
+          const file = items[i].getAsFile();
+          if (file) pasted.push(file);
         }
-        if (matched) e.preventDefault();
+        if (pasted.length > 0) {
+          e.preventDefault();
+          addFiles(pasted);
+        }
       } catch {
         // silently fail
       }
@@ -1477,7 +1586,7 @@ export function ReportDialog({
                                   <img
                                     src={src}
                                     alt={`Screenshot ${i + 1}`}
-                                    onClick={() => setPreviewIndex(i)}
+                                    onClick={() => openPreview(i)}
                                     style={{
                                       width: "100%",
                                       height: "100%",
@@ -1895,7 +2004,7 @@ export function ReportDialog({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv"
+        accept={ATTACHMENT_ACCEPT}
         multiple
         onChange={handleFileUpload}
         style={{ display: "none" }}
@@ -1920,27 +2029,72 @@ export function ReportDialog({
             }}
             onClick={(e) => {
               e.stopPropagation();
-              setPreviewIndex(null);
+              closePreview();
             }}
             onMouseDown={(e) => e.stopPropagation()}
           >
             <div
               ref={previewImgRef}
-              style={{ position: "relative", maxWidth: "100%" }}
+              style={{
+                position: "relative",
+                display: "flex",
+                maxWidth: "100%",
+                maxHeight: "calc(100vh - 80px)",
+              }}
               onClick={(e) => e.stopPropagation()}
             >
-              <img
-                src={screenshots[previewIndex]}
-                alt="Screenshot preview"
-                style={{
-                  maxWidth: "100%",
-                  maxHeight: "calc(100vh - 80px)",
-                  borderRadius: "8px",
-                  objectFit: "contain",
-                  cursor: "default",
-                  display: "block",
-                }}
-              />
+              <div
+                ref={previewScrollRef}
+                onPointerDown={handlePanStart}
+                onPointerMove={handlePanMove}
+                onPointerUp={handlePanEnd}
+                onPointerCancel={handlePanEnd}
+                onClick={togglePreviewZoom}
+                style={
+                  previewZoomed
+                    ? {
+                        // Fill the overlay so there is room to pan around a
+                        // full-resolution screenshot.
+                        width: "calc(100vw - 32px)",
+                        height: "calc(100vh - 80px)",
+                        overflow: "auto",
+                        borderRadius: "8px",
+                        touchAction: "none",
+                        cursor: "grab",
+                      }
+                    : { maxWidth: "100%", lineHeight: 0 }
+                }
+              >
+                <img
+                  ref={previewImgElRef}
+                  src={screenshots[previewIndex]}
+                  alt="Screenshot preview"
+                  onLoad={(e) =>
+                    setPreviewNatural({
+                      w: e.currentTarget.naturalWidth,
+                      h: e.currentTarget.naturalHeight,
+                    })
+                  }
+                  style={
+                    previewZoomed
+                      ? {
+                          // Natural size — one image pixel per CSS pixel.
+                          maxWidth: "none",
+                          maxHeight: "none",
+                          display: "block",
+                          cursor: "zoom-out",
+                        }
+                      : {
+                          maxWidth: "100%",
+                          maxHeight: "calc(100vh - 80px)",
+                          borderRadius: "8px",
+                          objectFit: "contain",
+                          cursor: canZoomPreview ? "zoom-in" : "default",
+                          display: "block",
+                        }
+                  }
+                />
+              </div>
               <button
                 type="button"
                 onClick={(e) => {
@@ -1993,9 +2147,19 @@ export function ReportDialog({
                   fontSize: "12px",
                 }}
               >
-                {screenshots.length > 1
-                  ? `${previewIndex + 1} / ${screenshots.length} · Click outside to close`
-                  : "Click outside to close"}
+                {[
+                  screenshots.length > 1
+                    ? `${previewIndex + 1} / ${screenshots.length}`
+                    : null,
+                  canZoomPreview
+                    ? previewZoomed
+                      ? "Drag to pan · click image to fit"
+                      : "Click image to zoom to full size"
+                    : null,
+                  previewZoomed ? "Esc to fit" : "Click outside to close",
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
               </span>
             </div>
           </div>,
