@@ -8,7 +8,7 @@ export const MAX_ATTACHMENTS_PER_REPORT = 5;
  * embedded directly in the issue body inside a fenced code block, so a renderable
  * payload (HTML, JS, SVG) can never be served from the repo attachments branch.
  */
-export const TEXT_INLINE_EXTENSIONS = [
+const TEXT_INLINE_EXTENSIONS = [
   ".html",
   ".htm",
   ".txt",
@@ -33,7 +33,7 @@ export const TEXT_INLINE_EXTENSIONS = [
 ] as const;
 
 /** Binary documents. Committed to the repo's attachments branch and linked. */
-export const BINARY_DOCUMENT_EXTENSIONS = [
+const BINARY_DOCUMENT_EXTENSIONS = [
   ".pdf",
   ".doc",
   ".docx",
