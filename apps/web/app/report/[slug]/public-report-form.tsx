@@ -9,6 +9,7 @@ import { CheckCircle2, File as FileIcon, Loader2, Paperclip, Send, X } from "luc
 import { toast } from "sonner";
 import {
   MAX_DOCUMENT_SIZE,
+  DOCUMENT_ACCEPT,
   isAllowedDocumentFile,
 } from "@/lib/attachments-constants";
 
@@ -26,13 +27,14 @@ export function PublicReportForm({ slug }: { slug: string }) {
   const [documents, setDocuments] = useState<File[]>([]);
   const [pending, setPending] = useState(false);
   const [issueUrl, setIssueUrl] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
   const docInputRef = useRef<HTMLInputElement>(null);
 
   function addDocuments(files: FileList | File[]) {
     const accepted: File[] = [];
     for (const file of Array.from(files)) {
       if (!isAllowedDocumentFile(file)) {
-        toast.error(`${file.name} must be a PDF, DOC, or DOCX file`);
+        toast.error(`${file.name} — unsupported file type`);
         continue;
       }
       if (file.size > MAX_DOCUMENT_SIZE) {
@@ -47,6 +49,29 @@ export function PublicReportForm({ slug }: { slug: string }) {
   function removeDocument(index: number) {
     setDocuments((prev) => prev.filter((_, i) => i !== index));
     if (docInputRef.current) docInputRef.current.value = "";
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+    const dropped = Array.from(e.dataTransfer.files);
+    if (dropped.length > 0) addDocuments(dropped);
+  }
+
+  function handlePaste(e: React.ClipboardEvent) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const files: File[] = [];
+    for (let i = 0; i < items.length; i++) {
+      // Only pasted files are captured — plain text keeps the default behaviour.
+      if (items[i].kind !== "file") continue;
+      const file = items[i].getAsFile();
+      if (file) files.push(file);
+    }
+    if (files.length > 0) {
+      e.preventDefault();
+      addDocuments(files);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -97,14 +122,23 @@ export function PublicReportForm({ slug }: { slug: string }) {
             placeholder="Describe the bug you ran into..."
             rows={4}
             required
+            onPaste={handlePaste}
           />
         </div>
-        <div className="space-y-1.5">
-          <Label>Attach docs (optional)</Label>
+        <div
+          className="space-y-1.5"
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragOver(true);
+          }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+        >
+          <Label>Attach files (optional)</Label>
           <input
             ref={docInputRef}
             type="file"
-            accept=".pdf,.doc,.docx"
+            accept={DOCUMENT_ACCEPT}
             multiple
             onChange={(e) => {
               if (e.target.files && e.target.files.length > 0) addDocuments(e.target.files);
@@ -115,10 +149,14 @@ export function PublicReportForm({ slug }: { slug: string }) {
             type="button"
             variant="outline"
             onClick={() => docInputRef.current?.click()}
-            className="w-full justify-start text-muted-foreground"
+            className={`w-full justify-start text-muted-foreground ${
+              dragOver ? "border-primary bg-primary/5" : ""
+            }`}
           >
             <Paperclip className="h-4 w-4 mr-2" />
-            Attach PDF, DOC, or DOCX (max 10MB each)
+            {dragOver
+              ? "Drop to attach"
+              : "Attach or drop files — HTML, logs, JSON, PDF, DOCX… (max 10MB each)"}
           </Button>
           {documents.length > 0 && (
             <div className="flex flex-col gap-1.5 pt-1">
