@@ -6,7 +6,12 @@ import { prisma } from "@/lib/db";
 import { createGitHubIssue } from "@/lib/github";
 import { getInstallationAccessToken } from "@/lib/github-app";
 import { uploadScreenshotToS3 } from "@/lib/s3";
-import { uploadDocumentsToRepo, buildAttachmentsSection } from "@/lib/attachments";
+import {
+  uploadDocumentsToRepo,
+  buildAttachmentsSection,
+  buildInlineAttachmentsSection,
+  splitAttachments,
+} from "@/lib/attachments";
 import { MAX_DOCUMENT_SIZE, isAllowedDocumentFile } from "@/lib/attachments-constants";
 import { dispatchWebhook } from "@/lib/webhooks";
 import sharp from "sharp";
@@ -168,7 +173,7 @@ export async function POST(request: Request) {
       }
       if (!isAllowedDocumentFile(file)) {
         return NextResponse.json(
-          { success: false, error: `${file.name} must be a PDF, DOC, DOCX, XLS, XLSX, or CSV file` },
+          { success: false, error: `${file.name} — unsupported file type` },
           { status: 400 }
         );
       }
@@ -198,14 +203,16 @@ export async function POST(request: Request) {
 
     const installationToken = await getInstallationAccessToken(repo.installation.installationId);
 
-    // Resize all screenshots
+    // Resize all screenshots. This is the second lossy pass (the client already
+    // ran compressImage), so keep it generous — 1024/q80 here was what made
+    // screenshot text unreadable in #302.
     const screenshotDataUrls: string[] = [];
     for (const file of screenshotFiles) {
       if (!(file instanceof File) || file.size === 0) continue;
       const buffer = Buffer.from(await file.arrayBuffer());
       const resized = await sharp(buffer)
-        .resize(1024, 1024, { fit: "inside", withoutEnlargement: true })
-        .jpeg({ quality: 80 })
+        .resize(2560, 2560, { fit: "inside", withoutEnlargement: true })
+        .jpeg({ quality: 92, chromaSubsampling: "4:4:4" })
         .toBuffer();
       const base64 = resized.toString("base64");
       screenshotDataUrls.push(`data:image/jpeg;base64,${base64}`);
@@ -255,15 +262,18 @@ export async function POST(request: Request) {
       }
     }
 
-    // Commit documents to the repo's attachments branch and append to body
+    // Text files are embedded in the issue body; only binaries reach the repo.
+    const { textFiles, binaryFiles } = splitAttachments(documentFiles);
+    issueBody += await buildInlineAttachmentsSection(textFiles);
+
     const documentRefs =
-      documentFiles.length > 0
+      binaryFiles.length > 0
         ? await uploadDocumentsToRepo(
             installationToken,
             repo.owner,
             repo.name,
             report.id,
-            documentFiles
+            binaryFiles
           )
         : [];
     issueBody += buildAttachmentsSection(documentRefs);
