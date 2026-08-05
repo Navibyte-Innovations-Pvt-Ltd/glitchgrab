@@ -323,10 +323,17 @@ function IssueRow({
         title: issue.title,
         githubUrl: issue.url,
       });
-      return data as { data?: { sent?: number } };
+      return data as { data?: { sent?: number; failures?: string[] } };
     },
     onSuccess: (data) => {
       const n = data?.data?.sent ?? 0;
+      const failures = data?.data?.failures ?? [];
+      // The QaCheck exists either way, but a bounced WhatsApp means the tester
+      // only sees it if they open their /qa link unprompted — say so.
+      if (failures.length > 0) {
+        toast.warning(`Queued, but WhatsApp failed for ${failures.length}: ${failures.join("; ")}`);
+        return;
+      }
       toast.success(n > 0 ? `Sent to ${n} tester${n === 1 ? "" : "s"}` : "Already sent — no new testers");
     },
     onError: (err) => {
