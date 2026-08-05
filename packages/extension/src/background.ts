@@ -591,7 +591,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
 // report dialog lives in its own persistent window, not the popup.
 async function captureTab(windowId: number): Promise<string | null> {
   try {
-    return await chrome.tabs.captureVisibleTab(windowId, { format: "jpeg", quality: 70 });
+    // q70 left visible artifacts on UI text (#302). captureVisibleTab already
+    // returns the tab at device pixel density, so quality is the only knob.
+    return await chrome.tabs.captureVisibleTab(windowId, { format: "jpeg", quality: 92 });
   } catch {
     return null;
   }
