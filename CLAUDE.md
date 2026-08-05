@@ -175,6 +175,22 @@ Turns a screen recording into a narrated tutorial + auto-created GitHub issue. T
 ### Auth model
 Capturing works WITHOUT login. Login + a selected repo are only needed for DB upload + AI script + GitHub issue. `broadcastRecordingStart` no longer gates on auth.
 
+### Report Bug (standalone, no recording)
+A tester can file a bug without recording anything. Two hosts, **one pipeline**:
+
+- **GlitchRecord desktop** (preferred — browser-agnostic). "Report Bug" in the Home window header → main process screenshots the whole screen via `desktopCapturer` (hiding our own windows first) → opens a `windowType=report` BrowserWindow rendering the shared `ReportDialog`.
+- **Chrome extension** — same dialog, `chrome.tabs.captureVisibleTab`, Chrome tabs only.
+
+Both authenticate as an **`ExtensionSession`** and both POST `/api/v1/extension/report`. That session is the single identity primitive: it encodes *who* is reporting (QA `Tester` vs dashboard `User`) and `getExtensionSessionRepos()` derives the server-authoritative repo scope from it (tester → assigned `TesterRepo`s only; owner → repos they own). Never trust a client-supplied `repoId`.
+
+How the desktop app gets a session:
+- **owner** → `mintReporterSession()` posts its `GlitchRecordToken` to `/api/v1/glitchrecord/session`.
+- **tester** → opens their QA magic link in *any* browser, presses "Open in GlitchRecord" on `/qa` → `glitchrecord://tester-auth?sessionId=…`. A tester session outranks the owner's.
+
+⚠️ **Deep links are attacker-reachable** — any local app or web page can fire `glitchrecord://`. Never trust anything in that URL beyond the id: the handler resolves the id via `GET /api/v1/extension/session/[id]` and shows the **server's** name + repo list in a confirm dialog before switching reporter. Skipping that would let a drive-by page repoint Report Bug at the attacker's repo, and every report carries a full-screen screenshot — i.e. screen exfiltration, not just spoofing.
+
+The dialog itself is `packages/report-ui`, vendored into `apps/glitchrecord/src/vendor/report-ui/` by `scripts/sync-report-ui.mjs` (the submodule isn't in the bun workspace — see that package's README). **Never hand-edit `src/vendor/`** — edit `packages/report-ui` and re-run the sync.
+
 ### Debugging
 - **Unified debug log**: `~/Library/Application Support/GlitchRecord-dev/glitchgrab-debug.log` (dev). Extension logs forward over WS (`{type:"log"}`); GlitchRecord appends `appendDebugLog("rec", …)`. One file, both sides — read it directly.
 - Extension `log()` also mirrors to every page console as `[GG-bg]` (read via any open tab).
