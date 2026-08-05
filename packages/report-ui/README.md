@@ -3,7 +3,8 @@
 Internal, unpublished workspace package. Holds the actual "report a bug" UI —
 the 2-step wizard (description, screenshot, annotation, voice dictation, AI
 enhance, severity) — shared between **`glitchgrab`** (the published Next.js
-SDK, `packages/sdk-nextjs`) and the **Chrome extension** (`packages/extension`).
+SDK, `packages/sdk-nextjs`), the **Chrome extension** (`packages/extension`),
+and the **GlitchRecord desktop app** (`apps/glitchrecord`).
 
 ## Why this package exists
 
@@ -61,6 +62,23 @@ who's hosting it:
   screenshot the wrong thing), and wires `report` to
   `POST /api/v1/extension/report` using the tester's `ExtensionSession`
   identity instead of a `gg_` token.
+- **GlitchRecord desktop**
+  (`apps/glitchrecord/src/components/report/ReportWindow.tsx`): a dedicated
+  `windowType=report` BrowserWindow. Overrides `captureScreenshot` with
+  Electron's `desktopCapturer` — the **whole screen**, so a tester can report
+  from Firefox, Safari, a native app or a terminal, which the Chrome-only
+  extension can't. Submits through the main process, which holds the
+  `ExtensionSession` and hits the same `POST /api/v1/extension/report`.
+
+  This consumer does **not** import the package — `apps/glitchrecord` is a
+  separate git submodule with its own `package.json` and its own standalone
+  `npm ci` CI job, so `workspace:*` can't resolve and a
+  `file:../../packages/report-ui` path breaks a solo clone. Instead
+  `apps/glitchrecord/scripts/sync-report-ui.mjs` copies `src/` into
+  `apps/glitchrecord/src/vendor/report-ui/` on every `npm run dev` / `npm run
+  build`, falling back to the committed copy when the monorepo isn't present.
+  Copying *source* also means it compiles against GlitchRecord's own React,
+  which sidesteps the duplicate-React trap described under Build.
 
 ## Build
 
