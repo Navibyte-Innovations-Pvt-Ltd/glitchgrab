@@ -43,11 +43,18 @@ export function computeSignature(params: {
   errorMessage: string | undefined;
   pageUrl: string | undefined;
   errorStack?: string | undefined;
+  /**
+   * Next.js error digest. Production strips server-boundary errors to a generic
+   * message with no useful stack, so without the digest every distinct server
+   * crash on one page collapses into a single signature.
+   */
+  digest?: string | undefined;
 }): string {
   const msg = params.errorMessage?.trim() ?? "";
   const page = stripUrlQuery(params.pageUrl);
   const frame = topStackFrame(params.errorStack);
-  return hashString(`${msg}|${page}|${frame}`);
+  const digest = params.digest?.trim() ?? "";
+  return hashString(digest ? `${msg}|${page}|${frame}|${digest}` : `${msg}|${page}|${frame}`);
 }
 
 export function shouldSkipDuplicate(
