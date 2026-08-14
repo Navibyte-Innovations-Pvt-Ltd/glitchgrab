@@ -10,6 +10,14 @@ export type ReportType =
   | "QUESTION"
   | "OTHER";
 
+/**
+ * What the user can pick on step 1. A superset of `ReportType`: `RATING` is a
+ * tile, not a report type — it never reaches the report API or GitHub, it saves
+ * a star rating through `FeedbackFn` instead. Kept out of `ReportType` so the
+ * report endpoint's validated enum stays exactly what it was.
+ */
+export type DialogTile = ReportType | "RATING";
+
 export type ReportSeverity = "low" | "medium" | "high";
 
 export interface ReportResult {
@@ -46,6 +54,16 @@ export type ReportFn = (
   description: string,
   metadata?: Record<string, string>
 ) => Promise<ReportResult | null>;
+
+/**
+ * Saves a 1–5 star rating. Supplying this is what makes the `RATING` tile
+ * appear — a host with no feedback wiring (GlitchRecord desktop today) simply
+ * doesn't show it rather than showing a tile that fails on submit.
+ */
+export type FeedbackFn = (
+  rating: number,
+  message?: string
+) => Promise<{ success: boolean } | null>;
 
 /** Optional: polish description text. Never throws — returns original text on failure. */
 export type EnhanceTextFn = (text: string, screenshot?: string | null) => Promise<string>;
