@@ -1,6 +1,22 @@
 const BASE_URL = "https://glitchgrab.dev";
 const ORG_NAME = "Glitchgrab";
 
+/**
+ * Serialise a schema for a `<script type="application/ld+json">` body.
+ *
+ * `JSON.stringify` alone is not safe inside a script element: a `</script>` in
+ * any string value closes the tag and everything after it is parsed as HTML.
+ * Every schema below except the review one is static, but reviews carry
+ * user-submitted text, so escaping the three characters that can terminate a
+ * script context is mandatory. `\uXXXX` escapes stay valid JSON.
+ */
+function serializeJsonLd(schema: unknown): string {
+  return JSON.stringify(schema)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026");
+}
+
 export function FounderPersonJsonLd() {
   const schema = {
     "@context": "https://schema.org",
@@ -140,6 +156,62 @@ export function FAQJsonLd({
     <script
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
+}
+
+/**
+ * Review + AggregateRating for the published testimonials (#309).
+ *
+ * Attached to the SoftwareApplication so the stars can surface in search
+ * results. Only ever fed entries an owner pressed **publish** on — Google
+ * penalises invented or self-authored reviews, so this must stay wired to real
+ * `approved` rows and nothing else. Renders nothing when there are none, since
+ * an AggregateRating with `reviewCount: 0` is invalid markup.
+ */
+export function ReviewJsonLd({
+  items,
+  average,
+  count,
+}: {
+  items: { id: string; rating: number; message: string; reporterName: string; createdAt: Date }[];
+  average: number;
+  count: number;
+}) {
+  if (items.length === 0 || count === 0) return null;
+
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "Glitchgrab",
+    applicationCategory: "DeveloperApplication",
+    operatingSystem: "Web",
+    url: "https://glitchgrab.dev",
+    aggregateRating: {
+      "@type": "AggregateRating",
+      ratingValue: average,
+      reviewCount: count,
+      bestRating: 5,
+      worstRating: 1,
+    },
+    review: items.map((item) => ({
+      "@type": "Review",
+      author: { "@type": "Person", name: item.reporterName },
+      datePublished: item.createdAt.toISOString().slice(0, 10),
+      reviewBody: item.message,
+      reviewRating: {
+        "@type": "Rating",
+        ratingValue: item.rating,
+        bestRating: 5,
+        worstRating: 1,
+      },
+    })),
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: serializeJsonLd(schema) }}
     />
   );
 }
