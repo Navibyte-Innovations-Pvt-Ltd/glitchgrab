@@ -6,6 +6,7 @@ import {
   MessageSquare,
   GitFork,
   ClipboardList,
+  MessageSquareHeart,
   Activity,
   SearchCheck,
 } from "lucide-react";
@@ -24,6 +25,7 @@ export function OrgBottomNav({ ctx }: { ctx: OrgContext }) {
         { href: "/chat", label: "Chat", icon: MessageSquare },
         { href: "/repos", label: "Repos", icon: GitFork },
         { href: "/reports", label: "Reports", icon: ClipboardList },
+        { href: "/feedback", label: "Feedback", icon: MessageSquareHeart },
         { href: "/analytics", label: "Analytics", icon: Activity },
         { href: "/seo", label: "SEO", icon: SearchCheck },
       ]

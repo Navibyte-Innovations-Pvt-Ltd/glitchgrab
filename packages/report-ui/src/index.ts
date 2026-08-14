@@ -16,7 +16,10 @@ export {
 export type {
   ReportType,
   ReportSeverity,
+  DialogTile,
   ReportResult,
   ReportFn,
+  FeedbackFn,
   EnhanceTextFn,
+  ReportReporter,
 } from "./types";

@@ -38,13 +38,41 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ success: false, error: "Repo not found" }, { status: 404 });
   }
 
-  const result = await prisma.extensionSession.updateMany({
-    where: { id, endedAt: null },
-    data: { repoId },
+  // Owning the repo is not enough — the SESSION has to be ours too. Without this
+  // any valid GlitchRecordToken holder who learns a session id could repoint
+  // someone else's tester session at their own repo, moving that tester's tracked
+  // work time into the caller's audit log (IDOR). A session is ours when it is:
+  //   • a dashboard owner's auto-login  → userId is us
+  //   • a QA tester's magic-link login  → that tester is assigned to this repo,
+  //     which we already proved we own
+  //   • a popup gg_-token login         → that token belongs to a repo we own
+  // 404 rather than 403 throughout, so a probe can't confirm an id exists.
+  const session = await prisma.extensionSession.findUnique({
+    where: { id },
+    select: { endedAt: true, userId: true, testerId: true, tokenId: true },
   });
-  if (result.count === 0) {
+  if (!session || session.endedAt) {
     return NextResponse.json({ success: false, error: "Session not found or already ended" }, { status: 404 });
   }
+
+  let ownsSession = session.userId === record.userId;
+  if (!ownsSession && session.testerId) {
+    const assigned = await prisma.testerRepo.count({
+      where: { testerId: session.testerId, repoId },
+    });
+    ownsSession = assigned > 0;
+  }
+  if (!ownsSession && session.tokenId) {
+    const ownToken = await prisma.apiToken.count({
+      where: { id: session.tokenId, repo: { userId: record.userId } },
+    });
+    ownsSession = ownToken > 0;
+  }
+  if (!ownsSession) {
+    return NextResponse.json({ success: false, error: "Session not found or already ended" }, { status: 404 });
+  }
+
+  await prisma.extensionSession.update({ where: { id }, data: { repoId } });
 
   return NextResponse.json({ success: true });
 }

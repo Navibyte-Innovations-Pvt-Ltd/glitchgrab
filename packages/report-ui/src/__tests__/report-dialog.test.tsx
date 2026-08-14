@@ -149,7 +149,7 @@ describe("ReportDialog", () => {
   // ─── Stepper Flow ───────────────────────────────────────
 
   describe("stepper flow", () => {
-    it("shows all 4 category cards by default", async () => {
+    it("shows the report category cards by default", async () => {
       render(<ReportDialog report={mockReport} />);
 
       await act(async () => {
@@ -162,6 +162,21 @@ describe("ReportDialog", () => {
       expect(screen.getByText("Bug Report")).toBeInTheDocument();
       expect(screen.getByText("Feature Request")).toBeInTheDocument();
       expect(screen.getByText("Question")).toBeInTheDocument();
+      // "Other" was retired from the default set — the rating hero is where
+      // general feedback goes now. Hosts can still opt back in via `types`.
+      expect(screen.queryByText("Other")).not.toBeInTheDocument();
+    });
+
+    it("still shows Other when a host asks for it explicitly", async () => {
+      render(<ReportDialog report={mockReport} types={["BUG", "OTHER"]} />);
+
+      await act(async () => {
+        window.dispatchEvent(
+          new CustomEvent("glitchgrab:open-report", { detail: {} })
+        );
+        await new Promise((r) => setTimeout(r, 50));
+      });
+
       expect(screen.getByText("Other")).toBeInTheDocument();
     });
 
@@ -483,6 +498,93 @@ describe("ReportDialog", () => {
       });
 
       expect(screen.getByText("What's on your mind?")).toBeInTheDocument();
+    });
+  });
+  // ─── Reporter identity ──────────────────────────────────
+
+  describe("reporter identity", () => {
+    it("shows the signed-in reporter's name", async () => {
+      render(
+        <ReportDialog report={mockReport} reporter={{ name: "Naresh Bhosale" }} />
+      );
+      await openDialog();
+
+      expect(screen.getByText("Naresh Bhosale")).toBeInTheDocument();
+      expect(screen.queryByText("Anonymous")).not.toBeInTheDocument();
+    });
+
+    it("falls back to initials when there is no avatar", async () => {
+      render(
+        <ReportDialog report={mockReport} reporter={{ name: "Naresh Bhosale" }} />
+      );
+      await openDialog();
+
+      expect(screen.getByText("NB")).toBeInTheDocument();
+    });
+
+    it("renders the avatar image when one is supplied", async () => {
+      render(
+        <ReportDialog
+          report={mockReport}
+          reporter={{ name: "Asha", avatarUrl: "https://cdn.example.com/a.png" }}
+        />
+      );
+      await openDialog();
+
+      // The dialog portals into document.body, so the RTL container is empty.
+      const img = document.body.querySelector('img[src="https://cdn.example.com/a.png"]');
+      expect(img).toBeInTheDocument();
+    });
+
+    it("falls back to initials when the avatar fails to load", async () => {
+      // A 404 or a host CSP that blocks img-src must not leave an empty circle.
+      render(
+        <ReportDialog
+          report={mockReport}
+          reporter={{ name: "Asha Rao", avatarUrl: "https://cdn.example.com/gone.png" }}
+        />
+      );
+      await openDialog();
+
+      const img = document.body.querySelector<HTMLImageElement>(
+        'img[src="https://cdn.example.com/gone.png"]'
+      );
+      expect(img).toBeInTheDocument();
+
+      await act(async () => {
+        fireEvent.error(img!);
+      });
+
+      expect(
+        document.body.querySelector('img[src="https://cdn.example.com/gone.png"]')
+      ).toBeNull();
+      expect(screen.getByText("AR")).toBeInTheDocument();
+    });
+
+    it("appends the role when the host supplies one", async () => {
+      render(
+        <ReportDialog report={mockReport} reporter={{ name: "Priya", role: "tester" }} />
+      );
+      await openDialog();
+
+      expect(screen.getByText(/Priya/)).toBeInTheDocument();
+      expect(screen.getByText(/tester/)).toBeInTheDocument();
+    });
+
+    it("says 'Anonymous' when no reporter is passed", async () => {
+      // Silence here would read as "you are signed in" — the exact thing that
+      // lets someone file a report nobody can follow up on.
+      render(<ReportDialog report={mockReport} />);
+      await openDialog();
+
+      expect(screen.getByText("Anonymous")).toBeInTheDocument();
+    });
+
+    it("treats a whitespace-only name as anonymous", async () => {
+      render(<ReportDialog report={mockReport} reporter={{ name: "   " }} />);
+      await openDialog();
+
+      expect(screen.getByText("Anonymous")).toBeInTheDocument();
     });
   });
 });

@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Github } from "lucide-react";
 import { version } from "@/package.json";
+import { RateGlitchgrabNavLink } from "@/components/rate-glitchgrab";
 
 export function PublicNav() {
   return (
@@ -53,6 +54,9 @@ export function PublicNav() {
             <Github className="h-3.5 w-3.5" />
             repo
           </a>
+          {/* Feedback lives here and not only in the footer — ⌘⇧G opens the bug
+              report dialog, so a rating needs its own visible entry point. */}
+          <RateGlitchgrabNavLink />
         </div>
 
         <Link

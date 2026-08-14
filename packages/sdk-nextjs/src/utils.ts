@@ -1,5 +1,14 @@
-import type { ReportPayload, ReportResult, CapturedContext, DeviceInfo } from "./types";
+import type {
+  CapturedContext,
+  DeviceInfo,
+  FeedbackPayload,
+  FeedbackResult,
+  ReportPayload,
+  ReportResult,
+} from "./types";
 import { getBreadcrumbs } from "./breadcrumbs";
+import { captureRuntimeInfo } from "./runtime";
+import { getAppContext, getRelease } from "./app-context";
 
 const SENSITIVE_PARAMS = [
   "token", "key", "secret", "password", "passwd", "auth", "authorization",
@@ -53,6 +62,9 @@ export function captureContext(visitedPages: string[]): CapturedContext {
       visitedPages: visitedPages.map(sanitizeUrl),
       breadcrumbs: getBreadcrumbs(),
       deviceInfo: captureDeviceInfo(),
+      runtime: captureRuntimeInfo(),
+      appContext: getAppContext(),
+      release: getRelease(),
     };
   } catch {
     return {
@@ -62,7 +74,57 @@ export function captureContext(visitedPages: string[]): CapturedContext {
       visitedPages: [],
       breadcrumbs: [],
       deviceInfo: null,
+      runtime: null,
+      appContext: {},
     };
+  }
+}
+
+/**
+ * Metadata every report carries regardless of how it was raised — release,
+ * runtime health, and the host app's own context. One builder so a user-filed
+ * report and an auto-captured crash describe the same world; the payload sites
+ * only add what is specific to them.
+ *
+ * App context is prefixed so a key named `timestamp` or `status` can't quietly
+ * overwrite a field the dashboard relies on.
+ */
+export function contextMetadata(context: CapturedContext): Record<string, string> {
+  try {
+    const runtime = context.runtime;
+    const appContext = Object.entries(context.appContext ?? {}).reduce<Record<string, string>>(
+      (acc, [key, value]) => {
+        acc[`ctx_${key}`] = value;
+        return acc;
+      },
+      {}
+    );
+
+    return {
+      ...(context.release ? { release: context.release } : {}),
+      ...(runtime
+        ? {
+            timeOnPageMs: String(runtime.timeOnPageMs),
+            errorCount: String(runtime.errorCount),
+            visibility: runtime.visibility,
+            ...(runtime.jsHeapUsedMb !== undefined
+              ? { jsHeapUsedMb: String(runtime.jsHeapUsedMb) }
+              : {}),
+            ...(runtime.jsHeapLimitMb !== undefined
+              ? { jsHeapLimitMb: String(runtime.jsHeapLimitMb) }
+              : {}),
+            ...(runtime.connectionType ? { connectionType: runtime.connectionType } : {}),
+            ...(runtime.downlinkMbps !== undefined
+              ? { downlinkMbps: String(runtime.downlinkMbps) }
+              : {}),
+            ...(runtime.rttMs !== undefined ? { rttMs: String(runtime.rttMs) } : {}),
+            ...(runtime.saveData !== undefined ? { saveData: String(runtime.saveData) } : {}),
+          }
+        : {}),
+      ...appContext,
+    };
+  } catch {
+    return {};
   }
 }
 
@@ -126,6 +188,62 @@ export async function sendReport(
         navigator.sendBeacon(url, new Blob([body], { type: "application/json" }));
       } catch {
         // Silently fail
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Save a star rating your end-user left about your app.
+ * Never throws — returns null on failure.
+ *
+ * Unlike `sendReport`, this is always a deliberate user action with a dialog
+ * open in front of them, so it retries on transient failure but skips the
+ * sendBeacon fallback: the caller needs a real result to show a thank-you.
+ */
+export async function sendFeedback(
+  payload: FeedbackPayload,
+  baseUrl?: string
+): Promise<FeedbackResult | null> {
+  try {
+    const url = `${baseUrl ?? DEFAULT_BASE_URL}/api/v1/sdk/feedback`;
+    const body = JSON.stringify(payload);
+
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      try {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${payload.token}`,
+          },
+          body,
+        });
+
+        if (response.ok) {
+          const envelope = (await response.json()) as {
+            success: boolean;
+            data?: Omit<FeedbackResult, "success">;
+          };
+          return { success: envelope.success, ...(envelope.data ?? {}) };
+        }
+
+        // 4xx other than rate limiting is a caller mistake — retrying won't help.
+        if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+          return null;
+        }
+      } catch {
+        // Will retry
+      }
+
+      if (attempt < MAX_RETRIES - 1) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, RETRY_BASE_MS * Math.pow(2, attempt))
+        );
       }
     }
 

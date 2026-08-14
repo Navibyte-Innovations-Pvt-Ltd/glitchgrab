@@ -4,9 +4,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { LayoutDashboard, GitFork, Menu, Key, CreditCard, Settings, LogOut, ClipboardList, MessageSquare, SearchCheck } from "lucide-react";
-import { ReportButton } from "glitchgrab";
-import { Bug, Loader2 } from "lucide-react";
+import { LayoutDashboard, GitFork, Menu, Key, CreditCard, Settings, LogOut, ClipboardList, MessageSquare, MessageSquareHeart, SearchCheck } from "lucide-react";
+import { FeedbackButton, ReportButton } from "glitchgrab";
+import { Bug, Loader2, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ const SHEET_NAV_ITEMS = [
   { href: "/dashboard/chat", label: "Chat", icon: MessageSquare, ownerOnly: false },
   { href: "/dashboard/repos", label: "Repos", icon: GitFork, ownerOnly: false },
   { href: "/dashboard/reports", label: "Reports", icon: ClipboardList, ownerOnly: false },
+  { href: "/dashboard/feedback", label: "Feedback", icon: MessageSquareHeart, ownerOnly: false },
   { href: "/dashboard/seo", label: "SEO", icon: SearchCheck, ownerOnly: true },
   { href: "/dashboard/tokens", label: "API Tokens", icon: Key, ownerOnly: true },
   { href: "/dashboard/billing", label: "Billing", icon: CreditCard, ownerOnly: true },
@@ -179,6 +180,18 @@ export function BottomNav({ user, planBadge = "none", trialDaysLeft = 0 }: Botto
                     </Button>
                   )}
                 </ReportButton>
+                <FeedbackButton>
+                  {({ onClick }: { onClick: () => void }) => (
+                    <Button
+                      variant="ghost"
+                      onClick={onClick}
+                      className="flex w-full justify-start items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+                    >
+                      <Star className="h-4 w-4" />
+                      Rate Glitchgrab
+                    </Button>
+                  )}
+                </FeedbackButton>
               </div>
             </nav>
 

@@ -10,6 +10,7 @@ import axios from "axios";
 import {
   ClipboardList,
   Loader2,
+  MessageSquareHeart,
   SearchCheck,
 } from "lucide-react";
 import { BugIcon } from "@/components/ui/bug";
@@ -23,6 +24,7 @@ import { CreditCardIcon } from "@/components/ui/credit-card";
 import { SettingsIcon } from "@/components/ui/settings";
 import { LogoutIcon } from "@/components/ui/logout";
 import { ReportButton } from "glitchgrab";
+import { RateGlitchgrabSidebarButton } from "@/components/rate-glitchgrab";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { PlanBadgeType } from "@/components/dashboard/plan-badge";
@@ -146,6 +148,12 @@ export function Sidebar({
           ownerOnly: false,
           badge: reportsBadge,
         },
+        {
+          href: "/dashboard/feedback",
+          label: "Feedback",
+          icon: MessageSquareHeart as unknown as AnyIcon,
+          ownerOnly: false,
+        },
         { href: "/dashboard/analytics", label: "Analytics", icon: ActivityIcon as unknown as AnyIcon, ownerOnly: false },
         { href: "/dashboard/seo", label: "SEO", icon: SearchCheck as unknown as AnyIcon, ownerOnly: true },
       ],
@@ -230,9 +238,10 @@ export function Sidebar({
           );
         })}
 
-        {/* Report Bug — keyboard-styled command, sticks to bottom of nav */}
-        <div className="mt-auto pt-2">
+        {/* Report Bug + Rate — keyboard-styled commands, stick to bottom of nav */}
+        <div className="mt-auto pt-2 space-y-2">
           <ReportBugButton reportBtnRef={reportBtnRef} />
+          <RateGlitchgrabSidebarButton />
         </div>
       </nav>
 

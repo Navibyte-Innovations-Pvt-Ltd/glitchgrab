@@ -11,6 +11,7 @@ import { HeroVideo } from "./hero-video";
 import { HeroTerminal } from "./hero-terminal";
 import { HeroWaitlist } from "./hero-waitlist";
 import { Footer } from "@/components/footer";
+import { TestimonialsSection } from "./testimonials-section";
 import {
   Github,
   ChevronsRight,
@@ -915,6 +916,10 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Testimonials — social proof before the FAQ handles objections.
+          Renders nothing until an owner publishes a review in the dashboard. */}
+      <TestimonialsSection />
 
       {/* FAQ */}
       <section id="faq" className="border-y border-border bg-card/30">
