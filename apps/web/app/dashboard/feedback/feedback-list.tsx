@@ -7,7 +7,7 @@ import { Eye, EyeOff, Loader2, MessageSquareHeart, Star, Trash2 } from "lucide-r
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-export interface FeedbackItem {
+interface FeedbackItem {
   id: string;
   repoId: string;
   repoFullName: string;
