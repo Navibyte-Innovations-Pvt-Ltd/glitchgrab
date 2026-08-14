@@ -73,11 +73,12 @@ There is NO AI dedup, NO AI label generation, NO AI severity inference, NO AI re
 
 ## Database models (Prisma)
 
-Key models: `User`, `Repo`, `ApiToken`, `Report`, `Issue`, `AiConfig`, `Subscription`, `Webhook`
+Key models: `User`, `Repo`, `ApiToken`, `Report`, `Feedback`, `Issue`, `AiConfig`, `Subscription`, `Webhook`
 
 - `Report` has enum `source`: SDK_AUTO, SDK_USER_REPORT, DASHBOARD_UPLOAD, HANDWRITTEN_NOTE, MCP, COLLABORATOR
 - `Report` has enum `status`: PENDING, PROCESSING (legacy — unused; kept for migration safety), CREATED, DUPLICATE, FAILED
 - `Report` stores reporter info: `reporterPrimaryKey` (required), `reporterName` (required), `reporterEmail`, `reporterPhone`
+- `Feedback` is **not** feedback about Glitchgrab — it's a 1–5 star rating the consumer's own end-users left about the *consumer's* app, hosted so they write zero DB code. Repo always derived from the hashed token. `approved` (default false) gates public display.
 - `AiConfig` stores per-user AI provider choice + encrypted API key (if BYOK)
 - User AI keys encrypted with AES-256-GCM using `ENCRYPTION_KEY` env var
 - `Subscription` tracks Razorpay billing: plan, status, period dates
@@ -92,11 +93,15 @@ Key models: `User`, `Repo`, `ApiToken`, `Report`, `Issue`, `AiConfig`, `Subscrip
 ### SDK API endpoints (token auth)
 - `POST /api/v1/sdk/report` — submit a bug report; creates a GitHub issue directly (no AI). SDK_AUTO uses signature-based dedup.
 - `POST /api/v1/ai/enhance-text` — polish user description text (grammar/clarity only). Accepts Bearer `gg_…` token OR dashboard session. Rate limit: 20/hr.
+- `POST /api/v1/sdk/feedback` — save a 1–5 star rating an end-user left about the *consumer's* app. DB only, never a GitHub issue. Rate limit: 30/hr per token.
+- `GET /api/v1/sdk/feedback` — read that feedback back (`?approved=true`, `?reporterPrimaryKey=`, `?minRating=`, `?limit=`). Omits email/phone so it's safe to render publicly.
 - `GET /api/v1/sdk/reports` — fetch reports for a repo. Supports `?reporterPrimaryKey=xxx`, `?status=CREATED`, `?limit=20`
 - `GET /api/v1/repos/github` — list user's GitHub repos for connect dialog
 
 ### Dashboard API endpoints (session auth)
 - `POST /api/v1/reports` — submit report from dashboard chat; creates a GitHub issue directly (no AI)
+- `GET /api/v1/feedback` — end-user feedback across every repo the signed-in user owns
+- `PATCH /api/v1/feedback/:id` — flip `approved` (the gate for public display); `DELETE` removes the entry
 - `GET /api/v1/repos` — list connected repos with token/report counts
 - `POST /api/v1/billing/subscribe` — create Razorpay subscription
 - `POST /api/v1/billing/verify` — verify Razorpay payment
