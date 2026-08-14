@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { ReportDialog } from "@glitchgrab/report-ui";
-import type { ReportFn, ReportResult, ReportType } from "@glitchgrab/report-ui";
+import type {
+  ReportFn,
+  ReportResult,
+  ReportType,
+  ReportReporter,
+} from "@glitchgrab/report-ui";
 
 interface PendingReport {
   sessionId: string;
@@ -25,6 +30,7 @@ function App() {
   const [repos, setRepos] = useState<RepoOption[] | null>(null);
   const [repoId, setRepoId] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+  const [reporter, setReporter] = useState<ReportReporter | null>(null);
 
   useEffect(() => {
     chrome.storage.local.get("gg_pending_report", ({ gg_pending_report }) => {
@@ -47,6 +53,28 @@ function App() {
           setRepoId(saved && list.some((r) => r.id === saved) ? saved : (list[0]?.id ?? ""));
         })
         .catch(() => setError("Couldn't reach Glitchgrab — check your connection"));
+
+      // Identity is resolved server-side from the session id, never read from
+      // anything local — the same rule the tester-auth deep link follows. A
+      // failure here leaves the footer anonymous rather than blocking the report.
+      fetch(`${p.apiBase}/api/v1/extension/session/${encodeURIComponent(p.sessionId)}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (!data?.success) return;
+          const { testerName, testerEmail, isTester } = data.data as {
+            testerName?: string | null;
+            testerEmail?: string | null;
+            isTester?: boolean;
+          };
+          setReporter({
+            name: testerName ?? null,
+            email: testerEmail ?? null,
+            role: isTester ? "tester" : null,
+          });
+        })
+        .catch(() => {
+          // Anonymous footer is the honest fallback
+        });
     });
   }, []);
 
@@ -135,7 +163,7 @@ function App() {
           ))}
         </select>
       </label>
-      <ReportDialog report={report} captureScreenshot={captureScreenshot} />
+      <ReportDialog report={report} captureScreenshot={captureScreenshot} reporter={reporter} />
     </div>
   );
 }
