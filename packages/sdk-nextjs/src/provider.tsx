@@ -20,7 +20,6 @@ import type {
 } from "./types";
 import { GlitchgrabErrorBoundary } from "./error-boundary";
 import { ReportDialog } from "@glitchgrab/report-ui";
-import { FeedbackDialog, FEEDBACK_OPEN_EVENT } from "./feedback-dialog";
 import { sanitizeUrl, captureContext, contextMetadata, sendReport, sendFeedback, captureDeviceInfo, enhanceText, transcribeAudio, type EnhanceContext } from "./utils";
 import {
   setContext as setContextInternal,
@@ -428,9 +427,14 @@ function GlitchgrabProviderInner({
     [token, baseUrl, session]
   );
 
+  // One dialog, not two — this opens the same report dialog straight onto its
+  // RATING tile. A user answering "what's on your mind?" shouldn't have to know
+  // in advance whether their thought is a bug or a compliment.
   const openFeedbackDialog = useCallback(() => {
     if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent(FEEDBACK_OPEN_EVENT));
+      window.dispatchEvent(
+        new CustomEvent("glitchgrab:open-report", { detail: { type: "RATING" } })
+      );
     }
   }, []);
 
@@ -557,8 +561,7 @@ function GlitchgrabProviderInner({
       >
         {children}
       </GlitchgrabErrorBoundary>
-      <ReportDialog report={report} enhanceText={enhance} transcribeAudio={transcribe} types={types} showSeverity={showSeverity} reporter={reporter} />
-      <FeedbackDialog sendFeedback={feedback} />
+      <ReportDialog report={report} sendFeedback={feedback} enhanceText={enhance} transcribeAudio={transcribe} types={types} showSeverity={showSeverity} reporter={reporter} />
     </GlitchgrabContext.Provider>
   );
 }
