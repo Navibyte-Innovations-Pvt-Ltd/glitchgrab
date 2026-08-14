@@ -130,6 +130,7 @@ model Repo {
   installation  Installation? @relation(fields: [installationId], references: [id], onDelete: SetNull)
   tokens        ApiToken[]
   reports       Report[]
+  feedback      Feedback[]
   issues        Issue[]
   gscProperties     GscProperty[]
   testerRepos       TesterRepo[]
@@ -155,8 +156,43 @@ model ApiToken {
 
   repo              Repo               @relation(fields: [repoId], references: [id], onDelete: Cascade)
   reports           Report[]
+  feedback          Feedback[]
   aiEnhanceLogs     AiEnhanceLog[]
   extensionSessions ExtensionSession[]
+}
+
+// ─── End-user feedback (#309) ────────────────────────────
+// NOT feedback about Glitchgrab — this is feedback the SDK consumer's own
+// end-users leave about the consumer's app. Glitchgrab hosts the storage so
+// the consumer writes zero DB code. Never creates a GitHub issue.
+model Feedback {
+  id     String @id @default(cuid())
+  repoId String
+  /// Always derived from the hashed gg_ token — never client-supplied.
+  tokenId String?
+  /// 1–5 stars.
+  rating  Int
+  message String?
+  pageUrl String?
+  userAgent String?
+  metadata  Json?
+  /// Owner moderation flag. Off by default — the consumer opts each entry in
+  /// before it can be served as a public testimonial via ?approved=true.
+  approved Boolean @default(false)
+  /// Primary key of the end-user in the host app's database
+  reporterPrimaryKey String
+  reporterName       String
+  reporterEmail      String?
+  reporterPhone      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  repo  Repo      @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  token ApiToken? @relation(fields: [tokenId], references: [id], onDelete: SetNull)
+
+  @@index([repoId, createdAt])
+  @@index([repoId, approved])
+  @@index([repoId, reporterPrimaryKey])
 }
 
 // ─── Extension tester sessions (work-time tracking, #297) ────
