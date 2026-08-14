@@ -1158,7 +1158,7 @@ export function ReportDialog({
               style={{
                 position: "relative",
                 zIndex: 2147483647,
-                width: "340px",
+                width: "420px",
                 maxWidth: "calc(100% - 32px)",
                 maxHeight: "calc(100dvh - 32px)",
                 display: "flex",
@@ -1334,7 +1334,7 @@ export function ReportDialog({
               {/* Body */}
               <div
                 style={{
-                  padding: "16px",
+                  padding: "18px",
                   overflowY: "auto",
                   flex: "1 1 auto",
                   minHeight: 0,
@@ -1365,8 +1365,8 @@ export function ReportDialog({
                           border: "1px solid rgba(245,158,11,0.35)",
                           background: "rgba(245,158,11,0.07)",
                           borderRadius: "10px",
-                          padding: "12px 14px",
-                          marginBottom: "12px",
+                          padding: "14px 16px",
+                          marginBottom: "16px",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "space-between",
@@ -1428,7 +1428,7 @@ export function ReportDialog({
                           display: "flex",
                           alignItems: "center",
                           gap: "10px",
-                          marginBottom: "12px",
+                          marginBottom: "16px",
                         }}
                       >
                         <span style={{ flex: 1, height: "1px", background: t.border }} />
@@ -1447,9 +1447,9 @@ export function ReportDialog({
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: "8px",
-                          marginTop: "10px",
-                          padding: "6px 8px",
+                          gap: "10px",
+                          marginBottom: "14px",
+                          padding: "8px 10px",
                           border: `1px solid ${t.inputBorder}`,
                           borderRadius: "8px",
                           background: t.inputBg,
@@ -1496,7 +1496,7 @@ export function ReportDialog({
                         style={{
                           display: "grid",
                           gridTemplateColumns: "1fr 1fr 1fr",
-                          gap: "6px",
+                          gap: "10px",
                         }}
                       >
                         {availableTypes.map((type) => (
@@ -1512,8 +1512,8 @@ export function ReportDialog({
                               display: "flex",
                               flexDirection: "column",
                               alignItems: "center",
-                              gap: "7px",
-                              padding: "14px 6px",
+                              gap: "9px",
+                              padding: "18px 10px",
                               borderRadius: "8px",
                               border: `1px solid ${t.inputBorder}`,
                               background: t.inputBg,
