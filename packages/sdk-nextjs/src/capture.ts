@@ -43,10 +43,6 @@ export function registerCaptureConfig(next: CaptureConfig): void {
   config = next;
 }
 
-export function getCaptureConfig(): CaptureConfig | null {
-  return config;
-}
-
 /** Test-only — reset the module registry between cases. */
 export function clearCaptureConfig(): void {
   config = null;
