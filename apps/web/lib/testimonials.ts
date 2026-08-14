@@ -11,7 +11,7 @@ import { hashToken } from "@/lib/tokens";
  * landing page.
  */
 
-export interface Testimonial {
+interface Testimonial {
   id: string;
   rating: number;
   message: string;
@@ -19,7 +19,7 @@ export interface Testimonial {
   createdAt: Date;
 }
 
-export interface TestimonialSummary {
+interface TestimonialSummary {
   items: Testimonial[];
   /** Mean rating across the published entries, rounded to 1dp. 0 when empty. */
   average: number;
