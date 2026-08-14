@@ -1,3 +1,9 @@
+## [1.31.1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.31.0...sdk-v1.31.1) (2026-08-14)
+
+### Bug Fixes
+
+* **package:** update dependencies ([02b0c28](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/02b0c289f637def7476aae4242f3a80d20c61340))
+
 ## [1.31.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.30.0...sdk-v1.31.0) (2026-08-14)
 
 ### Features
