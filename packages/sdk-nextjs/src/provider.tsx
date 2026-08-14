@@ -9,6 +9,8 @@ import {
   useState,
 } from "react";
 import type {
+  CaptureErrorOptions,
+  FeedbackResult,
   GlitchgrabProviderProps,
   UseGlitchgrabReturn,
   ReportPayload,
@@ -17,8 +19,15 @@ import type {
 } from "./types";
 import { GlitchgrabErrorBoundary } from "./error-boundary";
 import { ReportDialog } from "@glitchgrab/report-ui";
-import { sanitizeUrl, captureContext, sendReport, captureDeviceInfo, enhanceText, transcribeAudio, type EnhanceContext } from "./utils";
+import { FeedbackDialog, FEEDBACK_OPEN_EVENT } from "./feedback-dialog";
+import { sanitizeUrl, captureContext, sendReport, sendFeedback, captureDeviceInfo, enhanceText, transcribeAudio, type EnhanceContext } from "./utils";
 import { computeSignature, shouldSkipDuplicate } from "./dedup";
+import { describeRejection, isUnactionableRejection } from "./rejection";
+import {
+  captureError as captureErrorStandalone,
+  matchesIgnorePatterns,
+  registerCaptureConfig,
+} from "./capture";
 import { GLITCHGRAB_SHORTCUT, getShortcutLabel, matchesShortcut } from "./shortcut";
 import {
   initBreadcrumbs,
@@ -35,10 +44,13 @@ const GlitchgrabContext = createContext<UseGlitchgrabReturn | null>(null);
  *
  * @example
  * ```tsx
- * const { reportBug, report, addBreadcrumb } = useGlitchgrab();
+ * const { reportBug, report, captureError, addBreadcrumb } = useGlitchgrab();
  *
  * // Report a bug
  * reportBug("Login button crashes on mobile");
+ *
+ * // Report an error your own boundary already caught (e.g. app/error.tsx)
+ * captureError(error, { digest: error.digest, boundary: "next-app-router" });
  *
  * // Report a feature request
  * report("FEATURE_REQUEST", "Add dark mode");
@@ -70,6 +82,24 @@ function GlitchgrabProviderInner({
   ignoreErrors,
 }: GlitchgrabProviderProps) {
   const visitedPagesRef = useRef<string[]>([]);
+
+  // Publish config for the standalone `captureError` export.
+  //
+  // Written in the render body, not an effect: a crash during a child's *initial*
+  // render unwinds to the framework boundary (Next's `error.tsx`) before any effect
+  // commits, so an effect-based registration would leave `captureError` unconfigured
+  // for exactly the case it exists to cover. The write is idempotent, so React's
+  // strict-mode double-invoke and discarded renders are harmless. Never torn down on
+  // unmount — `global-error.tsx` replaces the root layout, provider tree included.
+  registerCaptureConfig({
+    token,
+    baseUrl,
+    session,
+    ignoreErrors,
+    getVisitedPages: () => visitedPagesRef.current,
+    onError,
+    onReportSent,
+  });
 
   // Initialize breadcrumbs
   useEffect(() => {
@@ -141,10 +171,7 @@ function GlitchgrabProviderInner({
 
       const matchesIgnore = (message: string): boolean => {
         if (KNOWN_NOISE_RE.some((pattern) => pattern.test(message))) return true;
-        if (!ignoreErrors || ignoreErrors.length === 0) return false;
-        return ignoreErrors.some((pattern) =>
-          pattern instanceof RegExp ? pattern.test(message) : message.includes(pattern)
-        );
+        return matchesIgnorePatterns(message, ignoreErrors);
       };
 
       const handleError = (event: ErrorEvent) => {
@@ -224,7 +251,12 @@ function GlitchgrabProviderInner({
         try {
           const context = captureContext(visitedPagesRef.current);
           const reason = event.reason;
-          const errMsg = reason instanceof Error ? reason.message : String(reason);
+          // Non-Error reasons used to stringify to "[object Object]", discarding
+          // every field and every chance of a stack.
+          const description = describeRejection(reason);
+          const errMsg = description.message;
+          const errStack = description.stack;
+
           // Ignore generic cross-origin script errors.
           if (errMsg === "Script error." || errMsg === "Script error") {
             return;
@@ -235,11 +267,14 @@ function GlitchgrabProviderInner({
           if (matchesIgnore(errMsg)) {
             return;
           }
-          const errStack = reason instanceof Error ? reason.stack : undefined;
 
           // Ignore unhandled rejections where the call chain passes through a browser
           // extension — these are the extension's own failures, not the app's.
           if (errStack && EXTENSION_ORIGIN_RE.test(errStack)) return;
+
+          // No message and no stack — nothing a human or an AI could triage. Reporting
+          // it only produces issues titled "[object Object]".
+          if (isUnactionableRejection(description)) return;
 
           const sig = computeSignature({
             errorMessage: errMsg,
@@ -261,6 +296,7 @@ function GlitchgrabProviderInner({
               timestamp: context.timestamp,
               visitedPages: JSON.stringify(context.visitedPages),
               type: "unhandledrejection",
+              ...(description.details ? { rejectionReason: description.details } : {}),
               ...(session?.userId ? { sessionUserId: session.userId } : {}),
               ...(session?.name ? { sessionUserName: String(session.name) } : {}),
               ...(session?.email ? { sessionUserEmail: String(session.email) } : {}),
@@ -329,6 +365,54 @@ function GlitchgrabProviderInner({
     (description: string, metadata?: Record<string, string>) =>
       report("BUG", description, metadata),
     [report]
+  );
+
+  const feedback = useCallback(
+    async (
+      rating: number,
+      message?: string,
+      metadata?: Record<string, string>
+    ): Promise<FeedbackResult | null> => {
+      try {
+        const context = captureContext(visitedPagesRef.current);
+        return await sendFeedback(
+          {
+            token,
+            rating,
+            message,
+            pageUrl: context.url,
+            userAgent: context.userAgent,
+            metadata: {
+              timestamp: context.timestamp,
+              ...(session?.userId ? { sessionUserId: session.userId } : {}),
+              ...(session?.name ? { sessionUserName: String(session.name) } : {}),
+              ...(session?.email ? { sessionUserEmail: String(session.email) } : {}),
+              ...(session?.phone ? { sessionUserPhone: String(session.phone) } : {}),
+              ...metadata,
+            },
+          },
+          baseUrl
+        );
+      } catch {
+        return null;
+      }
+    },
+    [token, baseUrl, session]
+  );
+
+  const openFeedbackDialog = useCallback(() => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent(FEEDBACK_OPEN_EVENT));
+    }
+  }, []);
+
+  // Stable identity — the documented usage puts this in a `useEffect` dep array.
+  // Reads config from the module registry, which this render already refreshed.
+  const captureError = useCallback(
+    (error: unknown, options?: CaptureErrorOptions) => {
+      captureErrorStandalone(error, options);
+    },
+    []
   );
 
   const addBreadcrumb = useCallback(
@@ -403,6 +487,9 @@ function GlitchgrabProviderInner({
         baseUrl: baseUrl ?? DEFAULT_BASE_URL,
         reportBug,
         report,
+        captureError,
+        sendFeedback: feedback,
+        openFeedbackDialog,
         addBreadcrumb,
         openReportDialog,
         enhanceText: enhance,
@@ -420,6 +507,7 @@ function GlitchgrabProviderInner({
         {children}
       </GlitchgrabErrorBoundary>
       <ReportDialog report={report} enhanceText={enhance} transcribeAudio={transcribe} types={types} showSeverity={showSeverity} />
+      <FeedbackDialog sendFeedback={feedback} />
     </GlitchgrabContext.Provider>
   );
 }
