@@ -16,10 +16,6 @@ export function incrementErrorCount(): number {
   return errorCount;
 }
 
-export function getErrorCount(): number {
-  return errorCount;
-}
-
 /** Test-only — reset the per-session counter. */
 export function resetErrorCount(): void {
   errorCount = 0;
