@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Github, ArrowRight } from "lucide-react";
+import { RateGlitchgrabLink } from "@/components/rate-glitchgrab";
 
 export function Footer() {
   return (
@@ -98,6 +99,9 @@ export function Footer() {
               <Link href="/contact" className="text-muted-foreground hover:text-primary transition-colors">
                 Contact
               </Link>
+            </li>
+            <li>
+              <RateGlitchgrabLink />
             </li>
           </ul>
         </div>
