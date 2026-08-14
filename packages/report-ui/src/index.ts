@@ -19,4 +19,5 @@ export type {
   ReportResult,
   ReportFn,
   EnhanceTextFn,
+  ReportReporter,
 } from "./types";
