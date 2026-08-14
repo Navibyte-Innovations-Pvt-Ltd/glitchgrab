@@ -12,7 +12,13 @@ import { AnnotationCanvas } from "./annotation-canvas";
 import { getShortcutLabel } from "./shortcut";
 import { ATTACHMENT_ACCEPT } from "./attachments";
 import { encodeScreenshot } from "./image-encode";
-import type { ReportType, ReportSeverity, ReportFn, EnhanceTextFn } from "./types";
+import type {
+  ReportType,
+  ReportSeverity,
+  ReportFn,
+  EnhanceTextFn,
+  ReportReporter,
+} from "./types";
 
 /** Detect if the host page uses a dark or light theme */
 function useIsDark(): boolean {
@@ -158,6 +164,111 @@ function detectHostAccent(): { accent: string; accentText: string } | null {
   }
 }
 
+/** First letters of the first two words — "Naresh Bhosale" → "NB". */
+function initialsOf(name: string): string {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
+/**
+ * Who this report will be filed as. Anonymous is shown, never hidden — a
+ * reporter who assumes they're signed in and isn't would otherwise file
+ * something nobody can follow up on, and find out only when no one replies.
+ */
+function ReporterChip({
+  reporter,
+  t,
+}: {
+  reporter: ReportReporter | null | undefined;
+  t: ReturnType<typeof getTheme>;
+}) {
+  // An avatar URL that 404s, or one a host's CSP blocks, must not leave an empty
+  // circle — fall back to the same initials/glyph as if none had been given.
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  const avatarUrl = reporter?.avatarUrl || "";
+  useEffect(() => {
+    setAvatarFailed(false);
+  }, [avatarUrl]);
+
+  const name = reporter?.name?.trim() || "";
+  const isAnonymous = !name;
+  const initials = isAnonymous ? "" : initialsOf(name);
+  // "Anonymous", not "Not signed in": `session` is optional in the SDK and many
+  // report surfaces are public, so an unauthenticated reporter is a normal state,
+  // not an error to flag on every single report.
+  const label = isAnonymous ? "Anonymous" : name;
+  const title = isAnonymous
+    ? "No reporter identity was passed to Glitchgrab — this report won't be attributed to anyone"
+    : [name, reporter?.email, reporter?.role].filter(Boolean).join(" · ");
+  const showAvatarImage = !!avatarUrl && !avatarFailed;
+
+  return (
+    <span
+      title={title}
+      style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0 }}
+    >
+      <span
+        aria-hidden="true"
+        style={{
+          width: "18px",
+          height: "18px",
+          flexShrink: 0,
+          borderRadius: "50%",
+          overflow: "hidden",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: "8px",
+          fontWeight: 700,
+          letterSpacing: "0.02em",
+          background: isAnonymous ? t.inputBg : t.accent,
+          color: isAnonymous ? t.textMuted : t.accentText,
+          border: `1px solid ${isAnonymous ? t.inputBorder : "transparent"}`,
+        }}
+      >
+        {showAvatarImage ? (
+          <img
+            src={avatarUrl}
+            alt=""
+            width={18}
+            height={18}
+            onError={() => setAvatarFailed(true)}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        ) : initials ? (
+          initials
+        ) : (
+          <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="5.5" r="2.75" stroke="currentColor" strokeWidth="1.4" />
+            <path
+              d="M2.75 13.5c0-2.35 2.35-3.75 5.25-3.75s5.25 1.4 5.25 3.75"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+            />
+          </svg>
+        )}
+      </span>
+      <span
+        style={{
+          fontSize: "11px",
+          color: t.textMuted,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {label}
+        {reporter?.role ? ` · ${reporter.role}` : ""}
+      </span>
+    </span>
+  );
+}
+
 function getTheme(dark: boolean) {
   const hostAccent = detectHostAccent();
   const defaults = dark
@@ -270,6 +381,12 @@ interface ReportDialogProps {
    * Return `null` to open without a screenshot.
    */
   captureScreenshot?: () => Promise<string | null>;
+  /**
+   * Who the report will be attributed to. Omit or pass `null` and the footer
+   * says "Not signed in" rather than showing nothing — silence there reads as
+   * "you're signed in", which is the failure worth preventing.
+   */
+  reporter?: ReportReporter | null;
 }
 
 async function captureViaHtml2Canvas(): Promise<string | null> {
@@ -307,6 +424,7 @@ export function ReportDialog({
   types,
   showSeverity = true,
   captureScreenshot = captureViaHtml2Canvas,
+  reporter,
 }: ReportDialogProps) {
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [isEnhanced, setIsEnhanced] = useState(false);
@@ -1983,15 +2101,26 @@ export function ReportDialog({
                 )}
               </div>
 
-              {/* Footer */}
+              {/* Footer — who's reporting, and the attribution */}
               <div
                 style={{
                   padding: "8px 16px 10px",
                   borderTop: `1px solid ${t.border}`,
-                  textAlign: "center",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "12px",
                 }}
               >
-                <span style={{ fontSize: "11px", color: t.textMuted }}>
+                <ReporterChip reporter={reporter} t={t} />
+                <span
+                  style={{
+                    fontSize: "11px",
+                    color: t.textMuted,
+                    whiteSpace: "nowrap",
+                    flexShrink: 0,
+                  }}
+                >
                   Powered by Glitchgrab
                 </span>
               </div>
