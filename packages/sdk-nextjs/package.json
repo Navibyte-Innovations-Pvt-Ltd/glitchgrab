@@ -23,6 +23,7 @@
     "next": ">=13"
   },
   "devDependencies": {
+    "@glitchgrab/report-ui": "workspace:*",
     "@semantic-release/commit-analyzer": "^13",
     "@semantic-release/github": "^11",
     "@semantic-release/npm": "^12",
@@ -43,7 +44,6 @@
     "dist"
   ],
   "dependencies": {
-    "html2canvas-pro": "^2.0.2",
-    "@glitchgrab/report-ui": "workspace:*"
+    "html2canvas-pro": "^2.0.2"
   }
 }
