@@ -146,6 +146,84 @@ function FeedbackWidget() {
 
 Note: `openReportDialog()` requires a `<ReportButton>` to be mounted somewhere in the component tree. It triggers the same modal with screenshot capture.
 
+## How do I collect feedback about my app?
+
+Reports are for bugs. **Feedback** is for how your users feel about your app — a 1–5 star rating with an optional message. Glitchgrab stores it, so you don't write a table, a route, or a migration. Feedback never becomes a GitHub issue.
+
+### Drop-in button
+
+```tsx
+import { FeedbackButton } from "glitchgrab";
+
+<FeedbackButton />                              // floating, bottom-left
+<FeedbackButton position="bottom-right" label="Rate us" />
+
+// Your own trigger
+<FeedbackButton>
+  {({ onClick }) => <button onClick={onClick}>How are we doing?</button>}
+</FeedbackButton>
+```
+
+The dialog (stars + message) ships inside `GlitchgrabProvider` — the button is only the trigger. Open it from anywhere with `openFeedbackDialog()`.
+
+### Your own UI
+
+```tsx
+function RatingRow() {
+  const { sendFeedback } = useGlitchgrab();
+
+  return [1, 2, 3, 4, 5].map((stars) => (
+    <button key={stars} onClick={() => sendFeedback(stars, "Loved the new export flow")}>
+      {stars}★
+    </button>
+  ));
+}
+```
+
+`sendFeedback(rating, message?, metadata?)` never throws — it returns `null` on failure. The reporter is taken from the `session` prop on `GlitchgrabProvider`, so pass a session if you want to know who rated you.
+
+### Reading it back
+
+Every entry shows up on your Glitchgrab **Feedback** page, where you press **publish** on the ones you want to reuse. Published entries are the only ones returned with `approvedOnly` — so a testimonials wall can never leak an unvetted complaint:
+
+```tsx
+import { useGlitchgrabFeedback } from "glitchgrab";
+
+function Testimonials() {
+  const { feedback, isLoading } = useGlitchgrabFeedback({
+    token: process.env.NEXT_PUBLIC_GLITCHGRAB_TOKEN!,
+    approvedOnly: true,
+    minRating: 4,
+  });
+
+  if (isLoading) return null;
+
+  return feedback.map((f) => (
+    <blockquote key={f.id}>
+      {f.message} — {f.reporterName} ({f.rating}★)
+    </blockquote>
+  ));
+}
+```
+
+Pass `userId` instead to show one user their own past ratings. `fetchGlitchgrabFeedback(...)` is the standalone fetcher for TanStack Query. Neither response includes email or phone, so both are safe to render on a public page.
+
+### REST
+
+```bash
+# Submit
+curl -X POST https://glitchgrab.dev/api/v1/sdk/feedback \
+  -H "Authorization: Bearer gg_xxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{"rating":5,"message":"Fast and simple","metadata":{"sessionUserId":"user_123","sessionUserName":"Asha"}}'
+
+# Read published entries
+curl "https://glitchgrab.dev/api/v1/sdk/feedback?approved=true&minRating=4&limit=20" \
+  -H "Authorization: Bearer gg_xxxxx"
+```
+
+The repo is always derived from the token — there is no `repoId` to pass. Rate limit: 30 submissions per token per hour.
+
 ## What keyboard shortcuts are available?
 
 Once `GlitchgrabProvider` is mounted, these shortcuts work globally:
@@ -455,6 +533,114 @@ import { GlitchgrabErrorBoundary } from "glitchgrab";
 </GlitchgrabErrorBoundary>
 ```
 
+⚠️ **This does not cover the Next.js App Router.** If your app has an `app/error.tsx`, Next's own boundary sits closer to the crashing component and catches first — `GlitchgrabErrorBoundary` never runs, and the crash is never reported. See [How do I capture App Router crashes?](#how-do-i-capture-app-router-crashes) below.
+
+## How do I capture App Router crashes?
+
+**Read this if you use `app/error.tsx` or `app/global-error.tsx` — otherwise your render crashes are silently lost.**
+
+A React error that a boundary *handles* never reaches `window.onerror`, so provider auto-capture cannot see it. In an App Router app, Next's `error.tsx` is that boundary. The user sees the fallback screen, and the message and stack are gone.
+
+Report it yourself with `captureError`:
+
+```tsx
+// app/error.tsx
+"use client";
+
+import { useEffect } from "react";
+import { useGlitchgrab } from "glitchgrab";
+
+export default function Error({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  const { captureError } = useGlitchgrab();
+
+  useEffect(() => {
+    captureError(error, { digest: error.digest, boundary: "next-app-router" });
+  }, [error, captureError]);
+
+  return (
+    <div>
+      <p>Something went wrong</p>
+      <button onClick={reset}>Try again</button>
+    </div>
+  );
+}
+```
+
+`global-error.tsx` replaces the root layout, so it renders **outside** the provider tree and `useGlitchgrab()` would throw. Use the standalone export there — it reads the token from the last mounted provider:
+
+```tsx
+// app/global-error.tsx
+"use client";
+
+import { useEffect } from "react";
+import { captureError } from "glitchgrab";
+
+export default function GlobalError({
+  error,
+}: {
+  error: Error & { digest?: string };
+}) {
+  useEffect(() => {
+    captureError(error, { digest: error.digest, boundary: "next-global-error" });
+  }, [error]);
+
+  return (
+    <html>
+      <body>
+        <p>Something went wrong</p>
+      </body>
+    </html>
+  );
+}
+```
+
+The same applies to React Router `errorElement`, Remix `ErrorBoundary`, and any hand-rolled `componentDidCatch` — call `captureError` from each.
+
+### Catching every boundary error in one place (React 19)
+
+React 19 lets you intercept *all* boundary-caught errors at the root, so you don't have to wire each boundary by hand:
+
+```tsx
+// app/instrumentation-client.ts (or your custom hydrateRoot call)
+import { captureError } from "glitchgrab";
+
+hydrateRoot(document, <App />, {
+  onCaughtError: (error, errorInfo) => {
+    captureError(error, {
+      componentStack: errorInfo.componentStack ?? undefined,
+      boundary: "react-onCaughtError",
+    });
+  },
+});
+```
+
+Next.js does not expose `hydrateRoot` options, so App Router apps should use the `error.tsx` snippets above.
+
+### captureError options
+
+```ts
+captureError(error: unknown, options?: {
+  componentStack?: string;  // from componentDidCatch / onCaughtError
+  digest?: string;          // Next.js error digest — also feeds dedup
+  boundary?: string;        // which boundary caught it, stored as metadata
+  metadata?: Record<string, string>;
+})
+```
+
+- Sends `source: "SDK_AUTO"`, `type: "BUG"` with the message, stack, component stack, breadcrumbs, device info, page URL and session identity — same shape as auto-capture.
+- **Deduped.** An identical error repeating within 5 minutes files one issue, not N — a crash loop won't spam your repo.
+- Honours the provider's `ignoreErrors`.
+- Fire-and-forget. Never throws, never blocks your fallback UI from rendering.
+- Runs in development too (unlike passive auto-capture), so you can verify the wiring the moment you add it.
+- Pass `digest` whenever you have it. In production Next replaces server-boundary error messages with one generic string — without the digest, every distinct server crash on a page collapses into a single deduped issue.
+- No-ops if no `GlitchgrabProvider` has rendered yet.
+
 ## What configuration options are available?
 
 | Prop | Type | Default | Description |
@@ -468,6 +654,9 @@ import { GlitchgrabErrorBoundary } from "glitchgrab";
 | `onReportSent` | `(result: ReportResult) => void` | - | Called after a report is sent |
 | `fallback` | `ReactNode` | - | Error boundary fallback UI |
 | `ignoreErrors` | `(string \| RegExp)[]` | - | Skip auto-capture for errors whose message matches (substring for `string`, `.test()` for `RegExp`) |
+| `release` | `string` | env fallback | Build identifier on every report — version, tag, or commit SHA |
+| `context` | `Record<string, unknown>` | - | App-owned key-values on every report (orgId, plan, flags) |
+| `responseBodyOrigins` | `string[]` | - | Extra origins whose failed-request bodies may be recorded. Same-origin is always recorded; third parties never are unless listed |
 
 ### Ignoring known-noisy errors
 
@@ -481,6 +670,48 @@ Some errors that reach `window.onerror` aren't app bugs — browser extension br
   {children}
 </GlitchgrabProvider>
 ```
+
+## How do I attach my own context to reports?
+
+The SDK captures what a browser can see. It cannot know that this user is on the enterprise plan, in org 42, with the new billing flow switched on — and that is usually the difference between "a crash" and "a crash for one tenant on one flag".
+
+Attach your own keys once; every report from then on carries them:
+
+```tsx
+const { setContext, setContexts } = useGlitchgrab();
+
+setContext("orgId", org.id);
+setContexts({ plan: org.plan, role: user.role, newBilling: flags.newBilling });
+
+// Pass null to remove a key — a user who leaves an org stops reporting it
+setContext("orgId", null);
+```
+
+Or set them declaratively on the provider:
+
+```tsx
+<GlitchgrabProvider
+  token={process.env.NEXT_PUBLIC_GLITCHGRAB_TOKEN!}
+  context={{ plan: org.plan, region: "in-south" }}
+>
+  {children}
+</GlitchgrabProvider>
+```
+
+They arrive on the report prefixed with `ctx_` (`ctx_orgId`, `ctx_plan`), so an app key named `timestamp` or `status` can never overwrite a field the dashboard relies on. `setContext` / `setContexts` are also exported standalone for non-React code, and the values survive navigation and provider remounts. Limits: 30 keys, 200 chars per value.
+
+## How do I tell which deploy broke?
+
+Pass a `release` and every report names the build it came from:
+
+```tsx
+<GlitchgrabProvider
+  token={process.env.NEXT_PUBLIC_GLITCHGRAB_TOKEN!}
+  release={process.env.NEXT_PUBLIC_APP_VERSION}
+>
+```
+
+If you don't pass one, the SDK falls back to `NEXT_PUBLIC_APP_VERSION`, then `NEXT_PUBLIC_RELEASE`, then `NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA` — so on Vercel this works with no configuration at all.
 
 ## Do I need a Content-Security-Policy allowance?
 
@@ -497,6 +728,7 @@ response.headers.set(
 - `connect-src https://glitchgrab.dev` — required for `sendReport`, `enhanceText`, `transcribeAudio`, and the report-fetching hooks/REST calls. All SDK requests go to this single host by default.
 - If you pass a custom `baseUrl` prop, allow that host instead (self-hosted or proxied deployments).
 - Screenshot capture (`html2canvas-pro`) runs entirely client-side against `document.body` — no network request, no extra `img-src`/`connect-src` needed for it.
+- `img-src` only matters if your `session` carries an avatar URL — the report dialog renders it. If your CSP blocks that host the dialog falls back to the reporter's initials, so it degrades rather than breaking.
 - No `script-src`, `style-src`, or `frame-src` allowances are required — the SDK doesn't load remote scripts, styles, or iframes.
 
 ## How does auto-capture work?
@@ -506,9 +738,26 @@ In production (`NODE_ENV=production`), the SDK automatically captures:
 - Unhandled promise rejections
 - Console errors (as breadcrumbs)
 - Navigation events (as breadcrumbs)
-- API calls (as breadcrumbs)
+- API calls, both `fetch` and `XMLHttpRequest` (as breadcrumbs)
+
+Both HTTP paths are patched, so **axios works** — axios uses `XMLHttpRequest` in the browser, not `fetch`.
+
+For a failed request the breadcrumb also carries the response body, so a `→ 500` says *why*. Guardrails:
+
+- **Same-origin only.** Your own API's error shape is yours; a third-party 422 from Stripe or Auth0 echoes fields you don't control (dates of birth, phone numbers) that would end up in a public GitHub issue. Third-party calls are still recorded — status, method, duration — just never their body.
+- Add trusted hosts explicitly when your API is on another origin:
+  ```tsx
+  <GlitchgrabProvider
+    token={process.env.NEXT_PUBLIC_GLITCHGRAB_TOKEN!}
+    responseBodyOrigins={["https://api.myapp.com"]}
+  >
+  ```
+- Truncated to 500 chars; sensitively-named JSON keys dropped; emails, JWTs and bearer tokens scrubbed.
+- **Only non-2xx responses are read.** Successful traffic is never buffered.
 
 Auto-capture is **disabled in development** to avoid noisy issues.
+
+It does **not** cover React errors that a framework error boundary handles — those never reach `window.onerror`. Call [`captureError`](#how-do-i-capture-app-router-crashes) from your boundary to report them.
 
 ## What data is included in each report?
 
@@ -517,8 +766,11 @@ Auto-capture is **disabled in development** to avoid noisy issues.
 - Page URL and user agent
 - Device info (screen size, viewport, platform, language, color scheme)
 - Page navigation history
-- Activity log (last 15 breadcrumbs)
+- Activity log (last 15 breadcrumbs), including failed API calls with their response body
 - Session info (userId, name, email, phone)
+- Release / build identifier
+- Your own context keys (`ctx_orgId`, `ctx_plan`, …)
+- Runtime health — time on page, error count this session, tab visibility, JS heap usage, connection type and RTT (heap and connection are Chromium-only)
 
 ## License
 
