@@ -1,9 +1,9 @@
 "use client";
 
 import * as React from "react";
-import type { GlitchgrabSession, ReportPayload } from "./types";
-import { captureContext, sendReport } from "./utils";
-import { computeSignature, shouldSkipDuplicate } from "./dedup";
+import type { GlitchgrabSession } from "./types";
+import { sendReport } from "./utils";
+import { buildCapturedErrorPayload } from "./capture";
 
 interface ErrorBoundaryProps {
   token: string;
@@ -34,41 +34,26 @@ export class GlitchgrabErrorBoundary extends React.Component<
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
     try {
-      const context = captureContext(this.props.visitedPages);
-
-      const sig = computeSignature({
-        errorMessage: error.message,
-        pageUrl: context.url,
-        errorStack: error.stack,
-      });
-      if (shouldSkipDuplicate(sig)) {
-        if (this.props.onError) this.props.onError(error);
-        return;
-      }
-
-      const session = this.props.session;
-      const payload: ReportPayload = {
-        token: this.props.token,
-        source: "SDK_AUTO",
-        type: "BUG",
-        errorMessage: error.message,
-        errorStack: error.stack,
-        componentStack: errorInfo.componentStack ?? undefined,
-        pageUrl: context.url,
-        userAgent: context.userAgent,
-        breadcrumbs: context.breadcrumbs,
-        deviceInfo: context.deviceInfo ?? undefined,
-        metadata: {
-          timestamp: context.timestamp,
-          visitedPages: JSON.stringify(context.visitedPages),
-          ...(session?.userId ? { sessionUserId: session.userId } : {}),
-          ...(session?.name ? { sessionUserName: String(session.name) } : {}),
-          ...(session?.email ? { sessionUserEmail: String(session.email) } : {}),
-          ...(session?.phone ? { sessionUserPhone: String(session.phone) } : {}),
+      // Same payload shape and dedup as `captureError` — this boundary is just
+      // another caught-error source. Config comes from props, not the module
+      // registry, so the boundary works standalone (it's exported on its own).
+      // No `ignoreErrors` by design: those are a provider prop this component
+      // cannot see when mounted directly by a host app.
+      const payload = buildCapturedErrorPayload(
+        error,
+        { componentStack: errorInfo.componentStack ?? undefined },
+        {
+          token: this.props.token,
+          baseUrl: this.props.baseUrl,
+          session: this.props.session,
+          getVisitedPages: () => this.props.visitedPages,
         },
-      };
+        "GlitchgrabErrorBoundary"
+      );
 
-      sendReport(payload, this.props.baseUrl);
+      if (payload) {
+        sendReport(payload, this.props.baseUrl);
+      }
 
       if (this.props.onError) {
         this.props.onError(error);
