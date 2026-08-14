@@ -208,12 +208,12 @@
     },
     "packages/sdk-nextjs": {
       "name": "glitchgrab",
-      "version": "1.30.0",
+      "version": "1.31.0",
       "dependencies": {
-        "@glitchgrab/report-ui": "workspace:*",
         "html2canvas-pro": "^2.0.2",
       },
       "devDependencies": {
+        "@glitchgrab/report-ui": "workspace:*",
         "@semantic-release/commit-analyzer": "^13",
         "@semantic-release/github": "^11",
         "@semantic-release/npm": "^12",
