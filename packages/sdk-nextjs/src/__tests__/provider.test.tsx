@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, act } from "@testing-library/react";
 import { GlitchgrabProvider } from "../provider";
+import { clearDedupCache } from "../dedup";
 import * as utils from "../utils";
 
 vi.mock("../utils", async () => {
@@ -14,6 +15,8 @@ vi.mock("../utils", async () => {
 describe("GlitchgrabProvider error filtering", () => {
   beforeEach(() => {
     vi.mocked(utils.sendReport).mockClear();
+    // `seen` is module-level — without this, cases poison each other via dedup.
+    clearDedupCache();
   });
 
   it("filters out 'Script error.' from error event", async () => {
@@ -115,5 +118,93 @@ describe("GlitchgrabProvider error filtering", () => {
     });
 
     expect(utils.sendReport).toHaveBeenCalled();
+  });
+
+  const dispatchRejection = async (reason: unknown) => {
+    const promise = Promise.reject(reason);
+    promise.catch(() => {}); // Prevent unhandled rejection warning/error in test runner
+
+    await act(async () => {
+      window.dispatchEvent(
+        new PromiseRejectionEvent("unhandledrejection", { promise, reason })
+      );
+    });
+  };
+
+  it("reports plain-object rejections with their real fields, not [object Object]", async () => {
+    render(
+      <GlitchgrabProvider token="test-token">
+        <div>Child component</div>
+      </GlitchgrabProvider>
+    );
+
+    await dispatchRejection({ code: "TIMEOUT", endpoint: "/token" });
+
+    expect(utils.sendReport).toHaveBeenCalled();
+    const payload = vi.mocked(utils.sendReport).mock.calls[0][0];
+    expect(payload.errorMessage).toBe("TIMEOUT");
+    expect(payload.errorMessage).not.toBe("[object Object]");
+    expect(payload.metadata?.rejectionReason).toContain("/token");
+  });
+
+  it("drops rejections with no message and no stack", async () => {
+    render(
+      <GlitchgrabProvider token="test-token">
+        <div>Child component</div>
+      </GlitchgrabProvider>
+    );
+
+    await dispatchRejection({});
+    await dispatchRejection(undefined);
+    await dispatchRejection(null);
+
+    expect(utils.sendReport).not.toHaveBeenCalled();
+  });
+
+  it("filters extension rejections whose stack survives a failed instanceof Error", async () => {
+    render(
+      <GlitchgrabProvider token="test-token">
+        <div>Child component</div>
+      </GlitchgrabProvider>
+    );
+
+    await dispatchRejection({
+      name: "Error",
+      message: "extensionService request failed",
+      stack: "Error: request failed\n  at chrome-extension://abcdef/inject.js:1:1",
+    });
+
+    expect(utils.sendReport).not.toHaveBeenCalled();
+  });
+
+  it("dedups repeat rejections whose payload fields are volatile", async () => {
+    render(
+      <GlitchgrabProvider token="test-token">
+        <div>Child component</div>
+      </GlitchgrabProvider>
+    );
+
+    // No stable rung — the message must describe the shape, not the values, or
+    // every occurrence gets a unique signature and an error spike files N issues.
+    await dispatchRejection({ endpoint: "/token", reqId: "a7f3" });
+    await dispatchRejection({ endpoint: "/token", reqId: "b91c" });
+
+    expect(utils.sendReport).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not throw on a circular rejection reason", async () => {
+    render(
+      <GlitchgrabProvider token="test-token">
+        <div>Child component</div>
+      </GlitchgrabProvider>
+    );
+
+    const circular: Record<string, unknown> = { code: "LOOP" };
+    circular.self = circular;
+
+    await dispatchRejection(circular);
+
+    expect(utils.sendReport).toHaveBeenCalled();
+    expect(vi.mocked(utils.sendReport).mock.calls[0][0].errorMessage).toBe("LOOP");
   });
 });
