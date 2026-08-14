@@ -149,7 +149,7 @@ describe("ReportDialog", () => {
   // ─── Stepper Flow ───────────────────────────────────────
 
   describe("stepper flow", () => {
-    it("shows all 4 category cards by default", async () => {
+    it("shows the report category cards by default", async () => {
       render(<ReportDialog report={mockReport} />);
 
       await act(async () => {
@@ -162,6 +162,21 @@ describe("ReportDialog", () => {
       expect(screen.getByText("Bug Report")).toBeInTheDocument();
       expect(screen.getByText("Feature Request")).toBeInTheDocument();
       expect(screen.getByText("Question")).toBeInTheDocument();
+      // "Other" was retired from the default set — the rating hero is where
+      // general feedback goes now. Hosts can still opt back in via `types`.
+      expect(screen.queryByText("Other")).not.toBeInTheDocument();
+    });
+
+    it("still shows Other when a host asks for it explicitly", async () => {
+      render(<ReportDialog report={mockReport} types={["BUG", "OTHER"]} />);
+
+      await act(async () => {
+        window.dispatchEvent(
+          new CustomEvent("glitchgrab:open-report", { detail: {} })
+        );
+        await new Promise((r) => setTimeout(r, 50));
+      });
+
       expect(screen.getByText("Other")).toBeInTheDocument();
     });
 
