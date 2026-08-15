@@ -1,3 +1,18 @@
+## [1.32.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.31.1...sdk-v1.32.0) (2026-08-15)
+
+### Features
+
+* **report-dialog:** apply host focus trap to GlitchGrab's textarea in report dialog ([8c6df20](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/8c6df20c3f6229e61b0b7e8fed0c57b3c812ab33))
+
+### Bug Fixes
+
+* **annotation-canvas:** add support for glitchgrab layer ([226e04c](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/226e04c9412d681710cb77c389fbb9b9eff33d89))
+* **bun.lock:** update aria-query dependency to v5.3.0 ([80ef08f](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/80ef08fbdb539f2bc968ede39a91957489a87166))
+* **package:** update @glitchgrab/report-ui dependency from workspace to wildcard ([95785a2](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/95785a242a8598203d5da14e09e00bb269290ebe))
+* **package:** update @glitchgrab/report-ui dependency from workspace to wildcard ([80a3cc4](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/80a3cc405d0cfa6cbc57ebe183138add0972b2c1))
+* **report-dialog.test:** fix for overlay and host focus traps ([932c35a](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/932c35a9aee5096b822c5917593e9852d5cbb3ff))
+* **report-ui:** update devDependencies ([c9fb294](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/c9fb294ef865cfe3164a4ba7c6c7b446766a7756))
+
 ## [1.31.1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.31.0...sdk-v1.31.1) (2026-08-14)
 
 ### Bug Fixes
