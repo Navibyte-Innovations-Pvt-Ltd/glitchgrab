@@ -587,4 +587,153 @@ describe("ReportDialog", () => {
       expect(screen.getByText("Anonymous")).toBeInTheDocument();
     });
   });
+
+  // ─── Overlay layers ─────────────────────────────────────
+  //
+  // The preview and annotation overlays are full-viewport portals pinned to the
+  // top of the stacking order. One left mounted after the dialog closes swallows
+  // every click, keystroke and drag on the page underneath — including the next
+  // time the dialog opens, which then appears but accepts no input.
+
+  describe("overlay layers", () => {
+    /** Opens the dialog, advances to step 2, and starts annotating the screenshot. */
+    async function openAnnotator() {
+      render(<ReportDialog report={mockReport} />);
+      await openDialog();
+      await act(async () => {
+        fireEvent.click(screen.getByText("Bug Report"));
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByLabelText("Annotate screenshot 1"));
+      });
+    }
+
+    it("Escape closes the annotation overlay before the dialog", async () => {
+      await openAnnotator();
+      expect(document.querySelectorAll("[data-glitchgrab-layer]").length).toBe(2);
+
+      await act(async () => {
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      });
+
+      // Topmost layer gone, dialog still standing.
+      expect(document.querySelectorAll("[data-glitchgrab-layer]").length).toBe(1);
+      expect(screen.getByText("Tell us more")).toBeInTheDocument();
+    });
+
+    it("leaves no overlay behind once the dialog is closed", async () => {
+      await openAnnotator();
+
+      await act(async () => {
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      });
+      await act(async () => {
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      });
+
+      expect(document.querySelector("[data-glitchgrab-layer]")).toBeNull();
+      // The canvas is the annotator's own element — checked separately so this
+      // still fails loudly if the layer marker is ever dropped.
+      expect(document.querySelector("canvas")).toBeNull();
+    });
+
+    it("reopens without a stale overlay on top", async () => {
+      await openAnnotator();
+
+      // Close straight from the annotator, the way a click on the host page or a
+      // submit would — the annotation index must not survive into the next open.
+      await act(async () => {
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      });
+      await act(async () => {
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      });
+      await openDialog();
+
+      expect(document.querySelectorAll("[data-glitchgrab-layer]").length).toBe(1);
+      expect(screen.getByText("What's on your mind?")).toBeInTheDocument();
+    });
+  });
+
+  // ─── Host focus traps ───────────────────────────────────
+  //
+  // A Radix (or any other) focus trap on the host page keeps document-level
+  // focusin/focusout listeners that pull focus back into its own container,
+  // which makes our textarea impossible to type into.
+
+  describe("host focus traps", () => {
+    function addHostLayer(role: string) {
+      const el = document.createElement("div");
+      el.setAttribute("role", role);
+      document.body.appendChild(el);
+      return el;
+    }
+
+    it("makes host dialogs, menus and listboxes inert while open", async () => {
+      const layers = ["dialog", "alertdialog", "menu", "listbox"].map(addHostLayer);
+
+      render(<ReportDialog report={mockReport} />);
+      await openDialog();
+
+      layers.forEach((el) => expect(el.hasAttribute("inert")).toBe(true));
+
+      await act(async () => {
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      });
+
+      layers.forEach((el) => {
+        expect(el.hasAttribute("inert")).toBe(false);
+        el.remove();
+      });
+    });
+
+    it("catches a host layer that opens after the dialog is already up", async () => {
+      render(<ReportDialog report={mockReport} />);
+      await openDialog();
+
+      // The one-shot snapshot this replaced missed exactly this: a host modal
+      // mounting on top of an open dialog, e.g. a prompt fired by a late query.
+      const late = addHostLayer("dialog");
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0));
+      });
+
+      expect(late.hasAttribute("inert")).toBe(true);
+
+      await act(async () => {
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      });
+      expect(late.hasAttribute("inert")).toBe(false);
+      late.remove();
+    });
+
+    it("leaves a host layer that was already inert alone", async () => {
+      const preInert = addHostLayer("dialog");
+      preInert.setAttribute("inert", "");
+
+      render(<ReportDialog report={mockReport} />);
+      await openDialog();
+      await act(async () => {
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      });
+
+      expect(preInert.hasAttribute("inert")).toBe(true);
+      preInert.remove();
+    });
+
+    it("never marks its own layers inert", async () => {
+      addHostLayer("dialog");
+      render(<ReportDialog report={mockReport} />);
+      await openDialog();
+
+      document.querySelectorAll("[data-glitchgrab-layer]").forEach((el) => {
+        expect(el.hasAttribute("inert")).toBe(false);
+      });
+
+      await act(async () => {
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      });
+      document.querySelectorAll('[role="dialog"]').forEach((el) => el.remove());
+    });
+  });
 });

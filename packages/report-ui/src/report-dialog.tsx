@@ -510,17 +510,53 @@ export function ReportDialog({
   const spaceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isPushToTalkRef = useRef(false);
 
-  // When open, set inert on any host Radix/shadcn dialogs so their FocusScope
-  // doesn't steal focus back from GlitchGrab's textarea via focusout interception.
+  // A host focus trap — Radix `FocusScope` inside a Dialog, DropdownMenu, Select,
+  // or any other library doing the same — keeps document-level `focusin`/`focusout`
+  // listeners that yank focus straight back into its own container. While one is
+  // live, GlitchGrab's textarea is unusable: clicks land, but typing and
+  // drag-select do nothing, because focus never stays where the user put it.
+  //
+  // `inert` is the counter: focusing *into* an inert subtree is a no-op, so the
+  // trap's grab fails silently instead of fighting us for the caret. Re-applied
+  // by a MutationObserver rather than snapshotted once at open — a host layer
+  // that mounts after GlitchGrab (a prompt fired by a late query, a menu still
+  // mounted through its close animation) would otherwise keep its trap.
   useEffect(() => {
     if (!isOpen) return;
-    const dialogs = Array.from(
-      document.querySelectorAll<HTMLElement>(
-        '[role="dialog"][data-state="open"]',
-      ),
-    );
-    dialogs.forEach((d) => d.setAttribute("inert", ""));
-    return () => dialogs.forEach((d) => d.removeAttribute("inert"));
+
+    const HOST_LAYERS =
+      '[role="dialog"],[role="alertdialog"],[role="menu"],[role="listbox"]';
+    // Only the ones *we* set inert get it removed again on cleanup — a host that
+    // was already inert must stay that way.
+    const inerted = new Set<HTMLElement>();
+
+    const applyInert = () => {
+      document.querySelectorAll<HTMLElement>(HOST_LAYERS).forEach((el) => {
+        // Our own layers, and anything wrapping them, must stay interactive.
+        if (el.closest("[data-glitchgrab-layer]")) return;
+        if (el.querySelector("[data-glitchgrab-layer]")) return;
+        if (inerted.has(el) || el.hasAttribute("inert")) return;
+        el.setAttribute("inert", "");
+        inerted.add(el);
+      });
+    };
+
+    applyInert();
+
+    const observer = new MutationObserver((mutations) => {
+      // Attribute-only churn (a `data-state` flip, a class swap) can't introduce a
+      // layer we haven't seen, so skip the query unless nodes actually moved.
+      const structural = mutations.some(
+        (m) => m.addedNodes.length > 0 || m.removedNodes.length > 0,
+      );
+      if (structural) applyInert();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      observer.disconnect();
+      inerted.forEach((el) => el.removeAttribute("inert"));
+    };
   }, [isOpen]);
 
   // Stepper state
@@ -659,6 +695,11 @@ export function ReportDialog({
 
   const handleOpen = async () => {
     setSubmitted(false);
+    // Belt to `handleClose`'s braces: every open starts on the form, never on a
+    // preview or annotator left over from last time. Asserted here rather than
+    // only on close so it holds however the dialog was dismissed.
+    closePreview();
+    setAnnotatingIndex(null);
     if (availableTypes.length === 1) {
       setReportType(availableTypes[0]);
       setStep(2);
@@ -689,15 +730,19 @@ export function ReportDialog({
     if (!isOpen) return;
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        // Escape unwinds one layer at a time: zoom → preview → dialog.
-        if (previewZoomed) setPreviewZoomed(false);
+        // Escape unwinds one layer at a time, topmost first:
+        // annotate → zoom → preview → dialog. Annotate has to lead — it renders
+        // above the preview, so skipping it would close the layer *underneath*
+        // the one the user is looking at and strand the canvas on screen.
+        if (annotatingIndex !== null) setAnnotatingIndex(null);
+        else if (previewZoomed) setPreviewZoomed(false);
         else if (previewIndex !== null) closePreview();
         else handleClose();
       }
     };
     document.addEventListener("keydown", handleEsc);
     return () => document.removeEventListener("keydown", handleEsc);
-  }, [isOpen, previewIndex, previewZoomed]);
+  }, [isOpen, previewIndex, previewZoomed, annotatingIndex]);
 
   // Close screenshot preview on outside click. Registered in the CAPTURE phase
   // so it fires before the host page's own outside-click handlers (e.g. Radix
@@ -845,6 +890,12 @@ export function ReportDialog({
   const handleClose = () => {
     stopVoice();
     setIsOpen(false);
+    // The preview and annotation overlays are full-viewport portals at the top of
+    // the stacking order. Leaving their indices set on close leaves one of them
+    // mounted over a dialog that is no longer there — the page stops accepting
+    // typing or selection entirely, and the next open renders *underneath* it.
+    closePreview();
+    setAnnotatingIndex(null);
     setStep(1);
     setRating(0);
     setHoveredStar(0);
@@ -1134,6 +1185,7 @@ export function ReportDialog({
       {isOpen &&
         createPortal(
           <div
+            data-glitchgrab-layer=""
             style={{
               position: "fixed",
               inset: 0,
@@ -2485,10 +2537,12 @@ export function ReportDialog({
       />
 
       {/* Full-screen screenshot preview */}
-      {previewIndex !== null &&
+      {isOpen &&
+        previewIndex !== null &&
         screenshots[previewIndex] &&
         createPortal(
           <div
+            data-glitchgrab-layer=""
             style={{
               position: "fixed",
               inset: 0,
@@ -2641,7 +2695,8 @@ export function ReportDialog({
         )}
 
       {/* Annotation overlay */}
-      {annotatingIndex !== null &&
+      {isOpen &&
+        annotatingIndex !== null &&
         screenshots[annotatingIndex] &&
         createPortal(
           <AnnotationCanvas

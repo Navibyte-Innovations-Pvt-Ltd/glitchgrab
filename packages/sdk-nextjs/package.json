@@ -23,7 +23,7 @@
     "next": ">=13"
   },
   "devDependencies": {
-    "@glitchgrab/report-ui": "workspace:*",
+    "@glitchgrab/report-ui": "*",
     "@semantic-release/commit-analyzer": "^13",
     "@semantic-release/github": "^11",
     "@semantic-release/npm": "^12",
