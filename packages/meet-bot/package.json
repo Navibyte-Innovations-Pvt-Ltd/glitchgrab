@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "bun run --watch src/server.ts",
     "start": "bun run src/server.ts",
-    "test": "bun test src/"
+    "test": "bun test src/",
+    "seed-auth": "bun run scripts/seed-google-auth.ts"
   },
   "dependencies": {
     "playwright-core": "1.49.0"
