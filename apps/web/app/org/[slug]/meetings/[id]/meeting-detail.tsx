@@ -96,12 +96,18 @@ export function MeetingDetail({ meetingId, orgSlug }: { meetingId: string; orgSl
         </div>
       )}
 
-      {/* Two tracks, played separately — they were never mixed, because which
-          track a line came from is what identifies the speaker. */}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <AudioTrack label="Client (call audio)" url={data.tabAudioUrl} />
-        <AudioTrack label="You (microphone)" url={data.micAudioUrl} />
-      </div>
+      {/* The extension records two tracks and keeps them separate, because
+          which track a line came from is what identifies the speaker. The bot
+          hears one mixed stream like any participant, so showing it an empty
+          "microphone" panel just reads as broken. */}
+      {data.recorder === "bot" ? (
+        <AudioTrack label="Call audio" url={data.tabAudioUrl} />
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <AudioTrack label="Client (call audio)" url={data.tabAudioUrl} />
+          <AudioTrack label="You (microphone)" url={data.micAudioUrl} />
+        </div>
+      )}
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
