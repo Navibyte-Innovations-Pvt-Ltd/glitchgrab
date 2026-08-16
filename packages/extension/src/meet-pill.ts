@@ -57,8 +57,8 @@ function styles(): string {
        controls rather than something floating on top of them. */
     #${PILL_ID} {
       display: inline-flex; align-items: center; gap: 8px;
-      height: 40px; padding: 0 14px; border-radius: 9999px;
-      background: #202124; border: 1px solid #3c4043;
+      height: 48px; padding: 0 14px; border-radius: 9999px;
+      background: #3c4043; border: 0;
       font-family: "Google Sans", Roboto, -apple-system, sans-serif;
       color: #e8eaed; font-size: 12px; line-height: 1; white-space: nowrap;
       margin-right: 8px;
@@ -190,28 +190,27 @@ async function sendBot() {
 }
 
 /**
- * Meet's bottom control bar — the row holding mic, camera and hang-up.
+ * The mic control's own slot inside Meet's grey control group.
  *
- * Found via the microphone button's accessible name rather than a class:
- * Google's class names are generated and change without notice, but the
- * screen-reader label has to stay meaningful. From the button we walk up to the
- * row that contains the hang-up control too, which is the actual bar.
+ * Anchoring to the mic specifically — rather than to "the bar" — is what puts
+ * the pill inside the same rounded group as the call controls instead of
+ * floating beside it. Located by the microphone's accessible name, because
+ * Google's class names are generated and change without notice while the
+ * screen-reader label has to stay meaningful.
  */
-function findToolbar(): HTMLElement | null {
+function findMicSlot(): { parent: HTMLElement; before: HTMLElement } | null {
   const mic = document.querySelector<HTMLElement>(
     '[aria-label*="microphone" i], [aria-label*="Turn off mic" i], [aria-label*="Turn on mic" i]'
   );
   if (!mic) return null;
 
-  // Climb until we reach a node holding several controls — the bar itself,
-  // not the button's own wrapper.
-  let node: HTMLElement | null = mic.parentElement;
-  for (let depth = 0; node && depth < 5; depth++) {
-    const buttons = node.querySelectorAll("button, [role='button']");
-    if (buttons.length >= 3) return node;
-    node = node.parentElement;
-  }
-  return null;
+  // Meet wraps each control in a positioning div; we want to sit beside that
+  // wrapper, not inside the button itself.
+  const slot = mic.closest<HTMLElement>("div[jscontroller], div[data-tooltip-id]") ?? mic.parentElement;
+  const parent = slot?.parentElement;
+  if (!slot || !parent) return null;
+
+  return { parent, before: slot };
 }
 
 /**
@@ -222,12 +221,12 @@ function findToolbar(): HTMLElement | null {
  */
 function ensureMounted() {
   const existing = document.getElementById(PILL_ID);
-  const toolbar = findToolbar();
+  const slot = findMicSlot();
 
-  // Already docked in the current toolbar — nothing to do.
-  if (existing && toolbar && toolbar.contains(existing)) return;
-  // Floating fallback is up and the toolbar still isn't there — leave it be.
-  if (existing && !toolbar) return;
+  // Already sitting next to the mic — nothing to do.
+  if (existing && slot && existing.nextElementSibling === slot.before) return;
+  // Floating fallback is up and the controls still aren't there — leave it be.
+  if (existing && !slot) return;
 
   existing?.remove();
 
@@ -241,10 +240,10 @@ function ensureMounted() {
   root = document.createElement("div");
   root.id = PILL_ID;
 
-  if (toolbar) {
-    // First child puts it left of the mic, where tl;dv sits and where the eye
-    // already goes for call controls.
-    toolbar.insertBefore(root, toolbar.firstChild);
+  if (slot) {
+    // Directly before the mic's slot — inside the same grey group, immediately
+    // to its left.
+    slot.parent.insertBefore(root, slot.before);
   } else {
     root.classList.add("gg-floating");
     document.body.appendChild(root);
