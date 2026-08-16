@@ -177,3 +177,42 @@ kbd {
 }
 .btn-report:hover { opacity: 0.85; }
 .btn-report:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Meeting recording (#311) ──────────────────────────────── */
+.meeting-box {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 10px; border: 1px solid #262626; border-radius: 8px;
+  background: #141414;
+}
+.meeting-head { display: flex; align-items: center; justify-content: space-between; }
+.meeting-title { font-size: 11px; font-weight: 700; color: #fff; letter-spacing: -0.2px; }
+.meeting-timer { font-size: 10px; color: #f87171; font-variant-numeric: tabular-nums; }
+
+.meeting-select, .meeting-input {
+  width: 100%; padding: 6px 8px; margin-bottom: 6px;
+  background: #0f0f0f; border: 1px solid #2a2a2a; border-radius: 6px;
+  color: #e5e5e5; font-size: 11px; font-family: inherit;
+}
+.meeting-select:focus, .meeting-input:focus { outline: none; border-color: #3b82f6; }
+
+.meeting-btn {
+  width: 100%; padding: 8px; border: 0; border-radius: 6px; cursor: pointer;
+  background: #7f1d1d; color: #fecaca; font-size: 11px; font-weight: 700;
+}
+.meeting-btn:hover:not(:disabled) { background: #991b1b; }
+.meeting-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.meeting-btn-stop { background: #1e293b; color: #cbd5e1; }
+.meeting-btn-stop:hover:not(:disabled) { background: #334155; }
+
+.meeting-mic {
+  width: 100%; padding: 7px; margin-bottom: 6px; cursor: pointer;
+  background: #2a1f00; color: #fbbf24; border: 0; border-radius: 6px;
+  font-size: 11px; font-weight: 700;
+}
+.meeting-hint { font-size: 10px; color: #666; line-height: 1.4; margin-top: 6px; }
+.meeting-live-row { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #f87171; }
+.meeting-label {
+  display: block; font-size: 9px; color: #777;
+  text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 3px;
+}
+.meeting-live-repo { font-size: 10px; color: #888; margin: 4px 0 8px; }

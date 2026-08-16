@@ -18,6 +18,8 @@ import {
   UserCog,
   SearchCheck,
   FlaskConical,
+  Brain,
+  Radio,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -28,6 +30,8 @@ const OWNER_NAV = [
   { href: "/chat", label: "Chat", icon: MessageSquare },
   { href: "/repos", label: "Repos", icon: GitFork },
   { href: "/reports", label: "Reports", icon: ClipboardList },
+  { href: "/meetings", label: "Calls", icon: Radio },
+  { href: "/context", label: "Context", icon: Brain },
   { href: "/feedback", label: "Feedback", icon: MessageSquareHeart },
   { href: "/tester-activity", label: "Tester Activity", icon: FlaskConical },
   { href: "/analytics", label: "Analytics", icon: Activity },
@@ -44,6 +48,11 @@ const OWNER_CONFIG = [
 const MEMBER_NAV = [
   { href: "/chat", label: "Chat", icon: MessageSquare },
   { href: "/repos", label: "Repos", icon: GitFork },
+  // Visible to members too, but both show only the projects they hold an
+  // explicit RepoMember grant on — usually nothing. Being in the org is not
+  // access; see lib/repo-access.ts.
+  { href: "/meetings", label: "Calls", icon: Radio },
+  { href: "/context", label: "Context", icon: Brain },
 ];
 
 export function OrgSidebar({ ctx }: { ctx: OrgContext }) {

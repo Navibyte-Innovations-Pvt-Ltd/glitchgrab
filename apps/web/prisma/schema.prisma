@@ -34,20 +34,22 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts           Account[]
-  sessions           Session[]
-  repos              Repo[]
-  aiConfig           AiConfig?
-  subscription       Subscription?
-  webhooks           Webhook[]
-  gscProperties      GscProperty[]
-  gscConnectSessions GscConnectSession[]
-  ownedOrgs          Organization[]
-  orgMemberships     OrgMember[]
-  glitchRecordTokens GlitchRecordToken[]
-  aiEnhanceLogs      AiEnhanceLog[]
-  whatsappOtps       WhatsappOtp[]
-  extensionSessions  ExtensionSession[]
+  accounts            Account[]
+  sessions            Session[]
+  repos               Repo[]
+  aiConfig            AiConfig?
+  subscription        Subscription?
+  webhooks            Webhook[]
+  gscProperties       GscProperty[]
+  gscConnectSessions  GscConnectSession[]
+  ownedOrgs           Organization[]
+  orgMemberships      OrgMember[]
+  glitchRecordTokens  GlitchRecordToken[]
+  aiEnhanceLogs       AiEnhanceLog[]
+  whatsappOtps        WhatsappOtp[]
+  extensionSessions   ExtensionSession[]
+  repoMemberships     RepoMember[]
+  calendarConnections CalendarConnection[]
 }
 
 model WhatsappOtp {
@@ -125,17 +127,20 @@ model Repo {
   isPrivate      Boolean  @default(false)
   createdAt      DateTime @default(now())
 
-  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  org           Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
-  installation  Installation? @relation(fields: [installationId], references: [id], onDelete: SetNull)
-  tokens        ApiToken[]
-  reports       Report[]
-  feedback      Feedback[]
-  issues        Issue[]
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org               Organization?        @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  installation      Installation?        @relation(fields: [installationId], references: [id], onDelete: SetNull)
+  tokens            ApiToken[]
+  reports           Report[]
+  feedback          Feedback[]
+  issues            Issue[]
   gscProperties     GscProperty[]
   testerRepos       TesterRepo[]
   qaChecks          QaCheck[]
   extensionSessions ExtensionSession[]
+  members           RepoMember[]
+  contextItems      ProjectContextItem[]
+  meetings          Meeting[]
 
   @@unique([userId, githubId])
   @@index([githubId])
@@ -166,26 +171,26 @@ model ApiToken {
 // end-users leave about the consumer's app. Glitchgrab hosts the storage so
 // the consumer writes zero DB code. Never creates a GitHub issue.
 model Feedback {
-  id     String @id @default(cuid())
-  repoId String
+  id                 String   @id @default(cuid())
+  repoId             String
   /// Always derived from the hashed gg_ token — never client-supplied.
-  tokenId String?
+  tokenId            String?
   /// 1–5 stars.
-  rating  Int
-  message String?
-  pageUrl String?
-  userAgent String?
-  metadata  Json?
+  rating             Int
+  message            String?
+  pageUrl            String?
+  userAgent          String?
+  metadata           Json?
   /// Owner moderation flag. Off by default — the consumer opts each entry in
   /// before it can be served as a public testimonial via ?approved=true.
-  approved Boolean @default(false)
+  approved           Boolean  @default(false)
   /// Primary key of the end-user in the host app's database
   reporterPrimaryKey String
   reporterName       String
   reporterEmail      String?
   reporterPhone      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   repo  Repo      @relation(fields: [repoId], references: [id], onDelete: Cascade)
   token ApiToken? @relation(fields: [tokenId], references: [id], onDelete: SetNull)
@@ -278,6 +283,10 @@ model Report {
   reporterName       String
   reporterEmail      String?
   reporterPhone      String?
+  /// When this report was run through project-context distillation (#311).
+  /// Stamped even when the run produced nothing, so a report is never re-sent
+  /// to the model — "no items" is an answer, not a retry.
+  contextDistilledAt DateTime?
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
 
@@ -286,6 +295,7 @@ model Report {
   issue Issue?
 
   @@index([repoId, signature, createdAt])
+  @@index([repoId, contextDistilledAt])
 }
 
 model Issue {
@@ -596,26 +606,29 @@ enum QaStatus {
 }
 
 model QaCheck {
-  id                String    @id @default(cuid())
-  testerId          String
-  repoId            String
-  githubNumber      Int
-  githubUrl         String
-  title             String
-  prNumber          Int?
-  prUrl             String?
+  id                 String    @id @default(cuid())
+  testerId           String
+  repoId             String
+  githubNumber       Int
+  githubUrl          String
+  title              String
+  prNumber           Int?
+  prUrl              String?
   /// GitHub login of the developer who merged the PR that closed this issue
-  developerLogin    String?
-  status            QaStatus  @default(PENDING)
-  createdAt         DateTime  @default(now())
-  verifiedAt        DateTime?
+  developerLogin     String?
+  status             QaStatus  @default(PENDING)
+  createdAt          DateTime  @default(now())
+  verifiedAt         DateTime?
   /// Tester's explanation of what's not working, required on FAIL
-  failReason        String?
+  failReason         String?
   /// S3/CDN URL of the screenshot the tester attached on FAIL
-  failScreenshotUrl String?
+  failScreenshotUrl  String?
   /// When the WhatsApp tester-notify was sent. Null = still waiting out the
   /// post-merge deploy delay (see /api/v1/cron/qa-notify).
-  notifiedAt        DateTime?
+  notifiedAt         DateTime?
+  /// When this check was run through project-context distillation (#311). See
+  /// Report.contextDistilledAt — same contract.
+  contextDistilledAt DateTime?
 
   tester Tester @relation(fields: [testerId], references: [id], onDelete: Cascade)
   repo   Repo   @relation(fields: [repoId], references: [id], onDelete: Cascade)
@@ -624,6 +637,71 @@ model QaCheck {
   @@index([testerId, status])
   @@index([repoId, githubNumber])
   @@index([notifiedAt])
+  @@index([repoId, contextDistilledAt])
+}
+
+// ─── Google Calendar → auto-record (#311) ────────────────
+// Replaces the cal.com path entirely: the meetings already live in Google
+// Calendar with a Meet link attached, so that IS the schedule. We read it and
+// send the bot; nothing new for anyone to book through.
+
+model CalendarConnection {
+  id                    String    @id @default(cuid())
+  userId                String
+  /// The Google account whose calendar this is.
+  googleEmail           String
+  encryptedAccessToken  String
+  encryptedRefreshToken String?
+  tokenExpiresAt        DateTime?
+  /// Project used for events with no explicit assignment. Null = never
+  /// auto-record; every event must be assigned by hand first.
+  defaultRepoId         String?
+  /// Master switch — off means we read the calendar but send no bot.
+  autoRecord            Boolean   @default(false)
+  lastSyncAt            DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user     User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookings ScheduledRecording[]
+
+  @@unique([userId, googleEmail])
+}
+
+enum ScheduledRecordingStatus {
+  /// Waiting for its start time.
+  PENDING
+  /// Bot has been sent.
+  DISPATCHED
+  /// Deliberately not recorded.
+  SKIPPED
+  FAILED
+}
+
+/// One upcoming calendar event we intend to record. Keyed on the Google event
+/// id so the sync is idempotent — the poller runs repeatedly and must never
+/// send two bots to the same call.
+model ScheduledRecording {
+  id              String                   @id @default(cuid())
+  connectionId    String
+  calendarEventId String
+  repoId          String?
+  title           String?
+  meetUrl         String
+  startsAt        DateTime
+  endsAt          DateTime?
+  attendees       Json?
+  status          ScheduledRecordingStatus @default(PENDING)
+  /// The Meeting this became, once the bot was actually sent.
+  meetingId       String?
+  error           String?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  connection CalendarConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, calendarEventId])
+  @@index([status, startsAt])
 }
 
 model RateLimit {
@@ -632,4 +710,146 @@ model RateLimit {
   resetAt DateTime
 
   @@index([resetAt])
+}
+
+// ─── Project context (#311 Phase A) ──────────────────────
+
+/// Explicit user ↔ repo grant. Project context (client calls, distilled
+/// decisions) is more sensitive than bug reports, so org membership alone does
+/// NOT grant read access — a row here does. Same shape as TesterRepo.
+/// The repo owner (Repo.userId) is implicit and never needs a row.
+model RepoMember {
+  id        String   @id @default(cuid())
+  repoId    String
+  userId    String
+  /// Who granted access. Kept for audit; null if the row predates the grantor.
+  grantedBy String?
+  createdAt DateTime @default(now())
+
+  repo Repo @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([repoId, userId])
+  @@index([userId])
+}
+
+enum ContextKind {
+  DECISION
+  REQUEST
+  COMPLAINT
+  COMMITMENT
+  FACT
+}
+
+enum ContextSourceType {
+  MEETING
+  REPORT
+  CAPTURE
+  QA
+  MANUAL
+}
+
+/// One distilled fact about a project. The unit of project memory: many of
+/// these on a Repo answer "what did the client ask for, what shipped, what's
+/// still broken, what did we promise in March".
+model ProjectContextItem {
+  id          String            @id @default(cuid())
+  repoId      String
+  kind        ContextKind
+  text        String
+  sourceType  ContextSourceType
+  /// Id of the originating row (Report.id, QaCheck.id, Meeting.id…). Null for
+  /// MANUAL paste — there is no row to point back at.
+  sourceId    String?
+  /// When the thing actually happened (the report's createdAt, the call date),
+  /// NOT when it was distilled. The timeline sorts on this.
+  occurredAt  DateTime
+  /// Model's 0–1 self-rated confidence. Low-confidence items are dropped at
+  /// distillation time rather than stored and filtered later.
+  confidence  Float             @default(1)
+  /// Who ran the distillation. Null for system/cron-created rows.
+  createdById String?
+  createdAt   DateTime          @default(now())
+
+  repo Repo @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  @@index([repoId, occurredAt])
+  @@index([repoId, kind])
+  @@index([sourceType, sourceId])
+}
+
+enum TranscriptStatus {
+  /// Recording exists (or is still uploading); no transcription requested yet.
+  IDLE
+  /// Submitted to Sarvam; the poll cron is watching it.
+  RUNNING
+  DONE
+  FAILED
+}
+
+/// A recorded client call (#311 Phase B/C) — the tldv replacement.
+///
+/// repoId is required on purpose: a meeting with no project is not project
+/// memory, and the org is derived from the repo.
+///
+/// **Audio only, two tracks.** `tabRecordingKey` is the Meet tab's audio (the
+/// client — Meet never plays your own voice back, so that track is them) and
+/// `micRecordingKey` is the operator's microphone. Kept separate rather than
+/// mixed: which file a line came from IS the speaker, which beats anything
+/// diarization can infer, and it stays right when both people talk at once.
+model Meeting {
+  id               String           @id @default(cuid())
+  repoId           String
+  title            String?
+  meetUrl          String?
+  startsAt         DateTime?
+  endsAt           DateTime?
+  durationSec      Int?
+  /// Attendee list as [{ name, email }]. Free-form until Phase E fixes it.
+  participants     Json?
+  status           String?
+  /// S3 keys — private prefix, presigned GET only, never the screenshot CDN.
+  /// These are client conversations.
+  tabRecordingKey  String?
+  micRecordingKey  String?
+  transcript       String?
+  /// Per-track raw Sarvam output, kept so the merged transcript can be rebuilt
+  /// without re-paying for transcription.
+  transcriptRaw    Json?
+  /// `[{ track, fileName, offsetMs }]` in the exact order the files were handed
+  /// to Sarvam. Sarvam names results positionally ("0.json"), so this ordering
+  /// is the ONLY way to attribute a result back to a speaker — without it both
+  /// tracks collapse to one label and separate recording was pointless.
+  /// `offsetMs` is how much later than the first recorder this track started;
+  /// the merge shifts by it instead of assuming a shared time origin.
+  transcriptFiles  Json?
+  /// `[{ speaker, text, t }]` read from Google Meet's own caption panel.
+  /// Used ONLY to attach real names to time ranges — the words come from
+  /// Sarvam, which is far more accurate and handles Marathi/Hindi properly.
+  /// We capture the tab's mixed audio, so without this remote speakers can
+  /// only ever be "Client (0)" / "Client (1)".
+  captions         Json?
+  transcriptStatus TranscriptStatus @default(IDLE)
+  /// Sarvam batch job id. Stored so the poll survives a cold start — without
+  /// it a job submitted before a restart can never be collected.
+  transcriptJobId  String?
+  transcriptError  String?
+  /// Who recorded it.
+  createdById      String?
+  /// "extension" (operator's own Chrome) or "bot" (headless Chromium that
+  /// joined the call). Both feed this same row and the same Sarvam pipeline.
+  recorder         String?
+  /// Live state of a bot recording: JOINING → WAITING_ADMIT → RECORDING →
+  /// DONE/FAILED. Null for extension recordings.
+  botStatus        String?
+  botError         String?
+  /// cal.com booking uid. Enrichment only; a meeting exists without it.
+  calBookingUid    String?          @unique
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  repo Repo @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  @@index([repoId, startsAt])
+  @@index([transcriptStatus])
 }

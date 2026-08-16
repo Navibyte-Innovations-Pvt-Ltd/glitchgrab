@@ -3,7 +3,16 @@
   "name": "Glitchgrab",
   "version": "1.0.0",
   "description": "Capture browser events for screen recording narration. Part of Glitchgrab.",
-  "permissions": ["activeTab", "storage", "scripting", "tabs", "alarms", "windows"],
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting",
+    "tabs",
+    "alarms",
+    "windows",
+    "offscreen",
+    "tabCapture"
+  ],
   "host_permissions": ["*://*/*", "http://localhost/*"],
   "action": {
     "default_popup": "popup/popup.html",

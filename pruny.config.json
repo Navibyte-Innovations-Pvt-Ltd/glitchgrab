@@ -13,8 +13,16 @@
       "/api/v1/glitchrecord/**",
       "/api/v1/extension/session/*/repo",
       "/api/v1/narration-telemetry",
-      "/api/v1/github/app/callback"
+      "/api/v1/github/app/callback",
+      "/api/v1/meetings/*/bot-status"
     ],
-    "files": ["**/db-sync.ts", "**/components/ui/**", "**/components/AppInputFields/**", "**/public/favicon-48x48.png", "apps/glitchrecord/**"]
+    "files": [
+      "**/db-sync.ts",
+      "**/components/ui/**",
+      "**/components/AppInputFields/**",
+      "**/public/favicon-48x48.png",
+      "apps/glitchrecord/**",
+      "packages/meet-bot/**"
+    ]
   }
 }

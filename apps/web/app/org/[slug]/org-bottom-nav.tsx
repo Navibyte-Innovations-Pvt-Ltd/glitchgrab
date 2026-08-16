@@ -9,6 +9,7 @@ import {
   MessageSquareHeart,
   Activity,
   SearchCheck,
+  Brain,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { OrgContext } from "./lib/get-org-context";
@@ -25,6 +26,7 @@ export function OrgBottomNav({ ctx }: { ctx: OrgContext }) {
         { href: "/chat", label: "Chat", icon: MessageSquare },
         { href: "/repos", label: "Repos", icon: GitFork },
         { href: "/reports", label: "Reports", icon: ClipboardList },
+        { href: "/context", label: "Context", icon: Brain },
         { href: "/feedback", label: "Feedback", icon: MessageSquareHeart },
         { href: "/analytics", label: "Analytics", icon: Activity },
         { href: "/seo", label: "SEO", icon: SearchCheck },
@@ -32,6 +34,7 @@ export function OrgBottomNav({ ctx }: { ctx: OrgContext }) {
     : [
         { href: "/chat", label: "Chat", icon: MessageSquare },
         { href: "/repos", label: "Repos", icon: GitFork },
+        { href: "/context", label: "Context", icon: Brain },
       ];
 
   return (

@@ -55,7 +55,13 @@
       ]
     },
     "packages/extension": {
-      "entry": ["src/background.ts", "src/content.ts", "src/popup/popup.ts", "src/report/report.tsx"],
+      "entry": [
+        "src/background.ts",
+        "src/content.ts",
+        "src/popup/popup.ts",
+        "src/report/report.tsx",
+        "src/offscreen/offscreen.ts"
+      ],
       "project": ["src/**/*.{ts,tsx}"]
     },
     "packages/sdk-nextjs": {
