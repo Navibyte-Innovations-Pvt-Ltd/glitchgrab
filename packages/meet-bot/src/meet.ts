@@ -23,6 +23,12 @@ export interface JoinOptions {
   /** Hard ceiling so a forgotten call cannot record forever. */
   maxDurationMs: number;
   /**
+   * PulseAudio sink this call's audio must go to. Without it every concurrent
+   * meeting plays into the shared default and each recording captures all of
+   * them.
+   */
+  sink?: string;
+  /**
    * Fired once the bot is knocking. This is the only state that needs a human:
    * someone has to press Admit inside Meet, and they won't if the dashboard
    * just shows a spinner.
@@ -61,8 +67,13 @@ export const BROWSER_ARGS = [
   "--lang=en-US",
 ];
 
-export async function launchBrowser(): Promise<Browser> {
-  return chromium.launch({ headless: true, args: BROWSER_ARGS });
+export async function launchBrowser(sink?: string): Promise<Browser> {
+  return chromium.launch({
+    headless: true,
+    args: BROWSER_ARGS,
+    // PULSE_SINK is what makes this browser's audio land in its own sink.
+    ...(sink ? { env: { ...process.env, PULSE_SINK: sink } } : {}),
+  });
 }
 
 /**
@@ -154,10 +165,11 @@ export async function joinMeeting(options: JoinOptions): Promise<MeetSession> {
     context = await chromium.launchPersistentContext(PROFILE_DIR, {
       headless: true,
       args: BROWSER_ARGS,
+      ...(options.sink ? { env: { ...process.env, PULSE_SINK: options.sink } } : {}),
       ...contextOptions,
     });
   } else {
-    browser = await launchBrowser();
+    browser = await launchBrowser(options.sink);
     const storageState = (await loadGoogleSession()) ?? undefined;
     context = await browser.newContext({
       ...contextOptions,
