@@ -15,7 +15,7 @@ import { prisma } from "@/lib/db";
  * on every press, forever, while never draining the queue.
  */
 
-export type DistillableSourceType = "REPORT" | "QA" | "MANUAL";
+type DistillableSourceType = "REPORT" | "QA" | "MANUAL";
 
 export interface DistillableSource {
   sourceType: DistillableSourceType;
