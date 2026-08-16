@@ -59,6 +59,38 @@ export async function launchBrowser(): Promise<Browser> {
   });
 }
 
+/**
+ * Dump what the page actually shows.
+ *
+ * This bot drives an app we do not control, so when a step fails the only
+ * useful question is "what was on screen?". Logging the URL, title and every
+ * visible button name turns a blind failure into a fixable one — without it
+ * each break costs a round trip and a real meeting to reproduce.
+ */
+async function describePage(page: Page, label: string): Promise<void> {
+  try {
+    const url = page.url();
+    const title = await page.title().catch(() => "");
+    const buttons = await page
+      .evaluate(() =>
+        Array.from(document.querySelectorAll('button, [role="button"]'))
+          .map((el) => (el.getAttribute("aria-label") || el.textContent || "").trim())
+          .filter((t) => t && t.length <= 60)
+          .slice(0, 40)
+      )
+      .catch(() => [] as string[]);
+    const bodyText = await page
+      .evaluate(() => (document.body.innerText || "").slice(0, 400))
+      .catch(() => "");
+
+    console.error(`[bot] ${label} — url=${url} title=${JSON.stringify(title)}`);
+    console.error(`[bot] ${label} — buttons=${JSON.stringify(buttons)}`);
+    console.error(`[bot] ${label} — text=${JSON.stringify(bodyText)}`);
+  } catch {
+    /* diagnostics must never mask the original failure */
+  }
+}
+
 /** Click the first control that matches any of these accessible names. */
 async function clickAny(page: Page, names: (string | RegExp)[], timeoutMs = 4000): Promise<boolean> {
   for (const name of names) {
@@ -93,6 +125,11 @@ export async function joinMeeting(options: JoinOptions): Promise<MeetSession> {
 
   await page.goto(options.meetUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
 
+  // Meet renders its pre-join screen asynchronously; give it a moment before
+  // looking for anything, or every selector races an empty page.
+  await page.waitForTimeout(5000);
+  await describePage(page, "landed");
+
   // Meet sometimes opens on a "Got it" / cookie / "Continue without microphone"
   // interstitial. None of these are guaranteed to appear.
   await clickAny(page, [/got it/i, /dismiss/i, /continue without/i], 2500);
@@ -122,8 +159,11 @@ export async function joinMeeting(options: JoinOptions): Promise<MeetSession> {
     15_000
   );
   if (!asked) {
+    await describePage(page, "join-button-not-found");
     await browser.close();
-    throw new Error("Could not find Meet's join button — the meeting link may be invalid");
+    throw new Error(
+      "Could not find Meet's join button — the link may be invalid, or Meet is blocking a guest join"
+    );
   }
 
   options.onWaitingAdmit?.();
@@ -183,11 +223,15 @@ async function waitUntilAdmitted(page: Page, timeoutMs: number): Promise<void> {
       .first()
       .isVisible({ timeout: 500 })
       .catch(() => false);
-    if (denied) throw new Error("The host did not admit the bot");
+    if (denied) {
+      await describePage(page, "join-denied");
+      throw new Error("The host did not admit the bot");
+    }
 
     await page.waitForTimeout(3000);
   }
 
+  await describePage(page, "admit-timeout");
   throw new Error("Timed out waiting to be admitted to the meeting");
 }
 
