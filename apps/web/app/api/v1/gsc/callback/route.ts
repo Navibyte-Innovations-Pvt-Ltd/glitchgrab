@@ -2,13 +2,30 @@ export const dynamic = "force-dynamic";
 
 import { createHmac, timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
+import { GSC_STATE_COOKIE } from "@/app/api/v1/gsc/auth/route";
 import { encrypt } from "@/lib/encrypt";
 import { exchangeGscCode, listGscSites } from "@/lib/gsc";
 
 const STATE_MAX_AGE_MS = 10 * 60 * 1000; // 10 minutes
 
-function verifyState(stateParam: string): string | null {
+/**
+ * Verify the state parameter.
+ *
+ * Three things must hold: the signature is ours, the state is fresh, and the
+ * nonce matches the cookie set when the flow began. The cookie is what proves
+ * the browser completing the flow is the one that started it — a signature
+ * alone only proves we minted the state, which an attacker can also obtain for
+ * their OWN account and then have a victim complete.
+ *
+ * NOTE: unlike the calendar flow this does NOT additionally require an active
+ * dashboard session. This flow deliberately supports a logged-out user (see the
+ * GscConnectSession's 30-minute window, sized to let them log in and come
+ * back), so a session check here would break the intended path. The nonce
+ * binding closes the CSRF on its own.
+ */
+function verifyState(stateParam: string, cookieNonce: string | undefined): string | null {
   try {
     const decoded = JSON.parse(Buffer.from(stateParam, "base64url").toString("utf8")) as {
       payload: string;
@@ -23,10 +40,21 @@ function verifyState(stateParam: string): string | null {
       return null;
     }
 
-    const { userId, ts } = JSON.parse(decoded.payload) as { userId: string; ts: number };
+    const { userId, nonce, ts } = JSON.parse(decoded.payload) as {
+      userId: string;
+      nonce?: string;
+      ts: number;
+    };
 
     // Reject if state older than 10 minutes
     if (Date.now() - ts > STATE_MAX_AGE_MS) return null;
+
+    // No nonce means a state minted before this binding existed, or forged
+    // without one — either way it is not usable.
+    if (!nonce || !cookieNonce) return null;
+    const a = Buffer.from(nonce);
+    const b = Buffer.from(cookieNonce);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
 
     return userId;
   } catch {
@@ -44,7 +72,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${appUrl}/dashboard/seo?error=missing_params`);
   }
 
-  const userId = verifyState(stateParam);
+  const jar = await cookies();
+  const userId = verifyState(stateParam, jar.get(GSC_STATE_COOKIE)?.value);
   if (!userId) {
     return NextResponse.redirect(`${appUrl}/dashboard/seo?error=invalid_state`);
   }
@@ -79,7 +108,10 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.redirect(`${appUrl}/connect/gsc?session=${session.id}`);
+    const done = NextResponse.redirect(`${appUrl}/connect/gsc?session=${session.id}`);
+    // Single-use: the nonce must not survive to authorise a second flow.
+    done.cookies.delete(GSC_STATE_COOKIE);
+    return done;
   } catch (error) {
     console.error(`GSC callback error at step=${step}:`, error);
     return NextResponse.redirect(`${appUrl}/dashboard/seo?error=${step}_failed`);
