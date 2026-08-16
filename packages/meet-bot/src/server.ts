@@ -1,4 +1,5 @@
 import { runBotJob } from "./job";
+import { hasProfile, loginStatus, startLogin, stopLogin } from "./login";
 
 /**
  * The Meet bot service (#311).
@@ -28,6 +29,13 @@ const MAX_CONCURRENT = Number(process.env.MEET_BOT_MAX_CONCURRENT ?? 2);
 
 const active = new Set<string>();
 
+/**
+ * Password for the login browser's VNC session. Required before a login can be
+ * started — an unauthenticated remote browser signed into your Google account
+ * is the worst thing this service could expose.
+ */
+const VNC_PASSWORD = process.env.VNC_PASSWORD ?? "";
+
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -43,7 +51,44 @@ Bun.serve({
     const url = new URL(request.url);
 
     if (url.pathname === "/health") {
-      return json({ ok: true, active: active.size, capacity: MAX_CONCURRENT });
+      return json({
+        ok: true,
+        active: active.size,
+        capacity: MAX_CONCURRENT,
+        googleProfile: await hasProfile(),
+      });
+    }
+
+    // ── Google login (see src/login.ts) ────────────────────────
+    // Every route here is secret-gated: starting one spawns a browser that a
+    // human then signs into Google with, and leaving that open to the world
+    // would hand over the account.
+    if (url.pathname.startsWith("/login")) {
+      if (!SECRET || request.headers.get("x-gg-bot") !== SECRET) {
+        return json({ success: false, error: "Unauthorized" }, 401);
+      }
+
+      if (url.pathname === "/login/status") {
+        return json({ success: true, data: { ...loginStatus(), profile: await hasProfile() } });
+      }
+
+      if (url.pathname === "/login/start" && request.method === "POST") {
+        if (active.size > 0) {
+          return json(
+            { success: false, error: "A recording is in progress — try again after it finishes" },
+            409
+          );
+        }
+        const result = await startLogin(VNC_PASSWORD);
+        return json({ success: result.ok, error: result.error, data: loginStatus() }, result.ok ? 200 : 400);
+      }
+
+      if (url.pathname === "/login/stop" && request.method === "POST") {
+        await stopLogin();
+        return json({ success: true, data: { profile: await hasProfile() } });
+      }
+
+      return json({ success: false, error: "Not found" }, 404);
     }
 
     if (url.pathname !== "/join" || request.method !== "POST") {
