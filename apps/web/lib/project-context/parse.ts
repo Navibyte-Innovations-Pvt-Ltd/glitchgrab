@@ -9,7 +9,7 @@ import { CONTEXT_KINDS, MIN_CONFIDENCE, type ContextKindName } from "./prompt";
  * dropped, never coerced into a plausible-looking fact.
  */
 
-export interface ParsedContextItem {
+interface ParsedContextItem {
   kind: ContextKindName;
   text: string;
   confidence: number;
