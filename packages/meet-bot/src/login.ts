@@ -73,8 +73,15 @@ function run(command: string, args: string[], env?: Record<string, string>): Chi
     env: { ...process.env, DISPLAY, ...env },
     stdio: ["ignore", "pipe", "pipe"],
   });
-  proc.stdout?.on("data", (c: Buffer) => console.log(`[${command}]`, c.toString().trim()));
-  proc.stderr?.on("data", (c: Buffer) => console.log(`[${command}]`, c.toString().trim()));
+  const label = command.split("/").pop() ?? command;
+  proc.stdout?.on("data", (c: Buffer) => console.log(`[${label}]`, c.toString().trim()));
+  proc.stderr?.on("data", (c: Buffer) => console.log(`[${label}]`, c.toString().trim()));
+  // A child that dies immediately is the most likely failure here, and without
+  // this it leaves no trace at all.
+  proc.on("exit", (code, signal) =>
+    console.log(`[${label}] exited code=${code} signal=${signal}`)
+  );
+  proc.on("error", (err) => console.error(`[${label}] failed to spawn:`, err.message));
   return proc;
 }
 
@@ -111,7 +118,9 @@ export async function startLogin(vncPassword: string): Promise<{ ok: boolean; er
         "-rfbport", "5900",
         "-passwd", vncPassword,
         "-noxdamage",
-        "-quiet",
+        // NOT -quiet: when this fails it fails silently, and a VNC server that
+        // never bound looks identical to a network problem from the client side.
+        "-verbose",
       ])
     );
 
@@ -152,6 +161,23 @@ export async function startLogin(vncPassword: string): Promise<{ ok: boolean; er
  * The profile directory survives — that is the whole product of this exercise.
  * Only the browser and the remote view go away.
  */
+/**
+ * Bring the login browser up automatically when there is no profile yet.
+ *
+ * Requiring an API call to reach your own login screen is friction for no
+ * benefit: a container with no Google profile cannot record anything, so the
+ * only useful thing it can do IS offer a login. Once a profile exists this
+ * never fires again, and the session still self-terminates on its timer.
+ */
+export async function autoStartLoginIfNeeded(vncPassword: string): Promise<void> {
+  if (!vncPassword) return;
+  if (await hasProfile()) return;
+
+  console.log("[bot] no Google profile yet — starting the login browser automatically");
+  const result = await startLogin(vncPassword);
+  if (!result.ok) console.error("[bot] auto-login could not start:", result.error);
+}
+
 export async function stopLogin(): Promise<{ ok: boolean }> {
   if (!session) return { ok: true };
 
