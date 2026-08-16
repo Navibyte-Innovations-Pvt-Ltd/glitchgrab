@@ -11,6 +11,12 @@ FROM mcr.microsoft.com/playwright:v1.49.0-jammy
 
 # pulseaudio: the virtual sound card Chromium plays the call into.
 # ffmpeg:     records that sink's monitor to Opus/WebM.
+# tzdata ships an interactive timezone prompt, and xvfb/x11vnc pull it in. With
+# no TTY the build hangs at "Geographic area:" forever rather than failing —
+# so this must be set BEFORE any apt-get install.
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Kolkata
+
 # xvfb + x11vnc: a real X display and a remote view, used ONLY for the
 # human-driven Google login (see src/login.ts). Google blocks sign-in from an
 # automated browser, so that one step runs a plain Chrome a person drives.
