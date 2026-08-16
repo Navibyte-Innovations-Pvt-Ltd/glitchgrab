@@ -1,6 +1,6 @@
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright-core";
 import { isSignInWall, loadGoogleSession, saveGoogleSession } from "./auth";
-import { hasProfile, PROFILE_DIR } from "./login";
+import { clearProfileLocks, hasProfile, PROFILE_DIR } from "./login";
 
 /**
  * Driving Google Meet as a guest (#311).
@@ -149,6 +149,8 @@ export async function joinMeeting(options: JoinOptions): Promise<MeetSession> {
   // exported-cookie approach. The env-var session stays as the fallback.
   if (await hasProfile()) {
     console.log(`[bot] using Chrome profile at ${PROFILE_DIR}`);
+    // The join path hits the same stale-lock trap after a redeploy.
+    await clearProfileLocks();
     context = await chromium.launchPersistentContext(PROFILE_DIR, {
       headless: true,
       args: BROWSER_ARGS,
