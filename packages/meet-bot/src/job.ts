@@ -91,7 +91,7 @@ export async function runBotJob(params: JobParams): Promise<void> {
   console.log("[bot] Meet participants (raw):", JSON.stringify(firstRead));
   for (const n of firstRead) participants.add(n);
 
-  let reason: "ended" | "max-duration" = "ended";
+  let reason: "ended" | "max-duration" | "alone" = "ended";
   try {
     reason = await session.waitForEnd();
   } catch (err) {
@@ -107,6 +107,9 @@ export async function runBotJob(params: JobParams): Promise<void> {
 
   if (reason === "max-duration") {
     console.warn("[bot] hit the maximum recording duration");
+  }
+  if (reason === "alone") {
+    console.log("[bot] left because everyone else had gone");
   }
 
   await status("UPLOADING");
