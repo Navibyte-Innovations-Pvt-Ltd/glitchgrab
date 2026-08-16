@@ -25,6 +25,48 @@ Opus in WebM — the same format the browser extension produces, so the server
 needs no branch for bot vs extension recordings, and Sarvam takes it directly
 with no conversion step.
 
+## The bot needs a Google account
+
+Google Meet **refuses anonymous participants** on Workspace-hosted meetings —
+not "ask to join", a flat *"You can't join this video call"*. So the bot has to
+be somebody. Give it a dedicated account, ideally a user inside your own
+Workspace (`notetaker@yourdomain.com`), so it joins as an org member instead of
+a stranger and you never have to loosen access for every meeting.
+
+**The bot never logs in.** Automating a Google sign-in is precisely what bot
+detection is built to catch, and it breaks unpredictably. Instead a human signs
+in once, in a real browser, and the bot replays that session:
+
+```bash
+cd packages/meet-bot
+bun run seed-auth          # opens Chrome — sign in as the bot account
+```
+
+Press Enter when done and it prints a base64 blob. Set it on the Railway
+service:
+
+```
+GOOGLE_STORAGE_STATE=<the base64 blob>
+```
+
+That blob is a **live credential** — it signs in as that account. Never commit
+it (`google-state.json` is gitignored), and use a dedicated account.
+
+### Keeping the session alive
+
+Google rotates cookies as a session is used. Mount a Railway volume and set:
+
+```
+GOOGLE_STATE_PATH=/data/google-state.json
+```
+
+The bot then writes the refreshed session back after every call, which is the
+difference between a login that dies in weeks and one that lasts. Without a
+volume it still works — the env var is just frozen at seed time.
+
+When the session finally expires, the failure says so explicitly
+("re-run `bun run seed-auth`") rather than looking like a broken selector.
+
 ## Run it
 
 ```bash
