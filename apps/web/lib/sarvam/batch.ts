@@ -22,7 +22,7 @@
 const SARVAM_BASE = "https://api.sarvam.ai/speech-to-text/job/v1";
 
 /** Sarvam requires a language_code; "unknown" is the auto-detect value. */
-export const AUTO_DETECT_LANGUAGE = "unknown";
+const AUTO_DETECT_LANGUAGE = "unknown";
 
 /**
  * Label for the operator's own microphone track. Diarization must never split
@@ -30,9 +30,9 @@ export const AUTO_DETECT_LANGUAGE = "unknown";
  */
 export const SELF_LABEL = "You";
 
-export type SarvamJobState = "Accepted" | "Pending" | "Running" | "Completed" | "Failed";
+type SarvamJobState = "Accepted" | "Pending" | "Running" | "Completed" | "Failed";
 
-export interface SarvamUploadTarget {
+interface SarvamUploadTarget {
   /** The filename as Sarvam knows it — also the key into the results. */
   fileName: string;
   /** Azure SAS url. PUT the bytes here with `x-ms-blob-type: BlockBlob`. */
@@ -151,7 +151,7 @@ export async function startBatchJob(jobId: string): Promise<void> {
   await sarvamFetch(`/${jobId}/start`, { method: "POST" });
 }
 
-export interface SarvamJobStatus {
+interface SarvamJobStatus {
   state: SarvamJobState;
   /** Output file names to pass to {@link downloadResults}, e.g. ["0.json"]. */
   outputFiles: string[];
