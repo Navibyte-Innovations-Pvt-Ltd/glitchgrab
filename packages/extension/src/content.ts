@@ -1,5 +1,6 @@
 import { Capture, type CaptureEvent } from "./capture";
 import { debugParticipants, readParticipants, watchCaptions } from "./meet";
+import { mountMeetPill } from "./meet-pill";
 
 let stopped = false; // set on context invalidation — all callbacks bail immediately
 
@@ -179,11 +180,22 @@ const GG_PING = "__gg_ping__";
   };
   keepBgAlive();
 
+  // The in-Meet pill (#311). Meet is a single-page app, so the call page is
+  // often reached by client-side navigation rather than a load — mount on both.
+  if (location.hostname === "meet.google.com") {
+    void mountMeetPill();
+    window.addEventListener("popstate", () => void mountMeetPill());
+  }
+
   // History-API navigation hooks → SPA navigations
   const onNavigate = () => capture.onNavigate(document.title);
   const origPushState = history.pushState.bind(history);
   const origReplaceState = history.replaceState.bind(history);
-  history.pushState = (...args) => { origPushState(...args); onNavigate(); };
+  history.pushState = (...args) => {
+    origPushState(...args);
+    onNavigate();
+    if (location.hostname === "meet.google.com") void mountMeetPill();
+  };
   history.replaceState = (...args) => { origReplaceState(...args); onNavigate(); };
   window.addEventListener("popstate", onNavigate);
 })();
