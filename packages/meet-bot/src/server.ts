@@ -1,5 +1,5 @@
 import { runBotJob } from "./job";
-import { hasProfile, loginStatus, startLogin, stopLogin } from "./login";
+import { autoStartLoginIfNeeded, hasProfile, loginStatus, startLogin, stopLogin } from "./login";
 
 /**
  * The Meet bot service (#311).
@@ -149,3 +149,7 @@ Bun.serve({
 });
 
 console.log(`[bot] listening on :${PORT} (capacity ${MAX_CONCURRENT})`);
+
+// A bot with no Google profile can't join anything, so put the login browser up
+// on its own rather than making someone curl for it.
+void autoStartLoginIfNeeded(VNC_PASSWORD);
