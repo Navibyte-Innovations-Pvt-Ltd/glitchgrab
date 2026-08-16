@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdir, stat } from "node:fs/promises";
+import { mkdir, stat, writeFile } from "node:fs/promises";
 import { chromium } from "playwright-core";
 
 /**
@@ -58,11 +58,21 @@ export function loginStatus() {
   };
 }
 
-/** True once a Chrome profile exists on disk — i.e. someone has logged in. */
+/**
+ * Marker written when a human finishes a login session.
+ *
+ * Deliberately NOT "does the profile directory exist": starting the login
+ * browser creates that directory immediately, so an empty signed-OUT profile
+ * would read as success — suppressing auto-login and sending the bot into
+ * meetings signed out. Only a human ending the session proves anything.
+ */
+const LOGGED_IN_MARKER = `${PROFILE_DIR}/.glitchgrab-logged-in`;
+
+/** True once someone has completed a login session. */
 export async function hasProfile(): Promise<boolean> {
   try {
-    const info = await stat(PROFILE_DIR);
-    return info.isDirectory();
+    await stat(LOGGED_IN_MARKER);
+    return true;
   } catch {
     return false;
   }
@@ -196,7 +206,15 @@ export async function stopLogin(): Promise<{ ok: boolean }> {
     if (proc.exitCode === null) proc.kill("SIGKILL");
   }
 
+  // Ending the session is the human saying "I'm signed in". Nothing else in
+  // this flow can know that, so it is what marks the profile usable.
+  try {
+    await writeFile(LOGGED_IN_MARKER, new Date().toISOString(), "utf8");
+  } catch (err) {
+    console.warn("[bot] could not mark the profile as logged in:", err);
+  }
+
   session = null;
-  console.log("[bot] login session stopped — profile kept");
+  console.log("[bot] login session stopped — profile kept and marked ready");
   return { ok: true };
 }
