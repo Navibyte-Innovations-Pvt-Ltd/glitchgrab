@@ -158,6 +158,18 @@ Electron main/preload changes need a full quit + relaunch to take effect reliabl
 - **WebView GPU fix**: Mobile app injects `webview` class on `<html>`. Global CSS disables `backdrop-filter`, `animation-duration`, and `transition-duration` for `.webview *` to prevent MediaTek GPU crashes.
 - **Navigation in WebView**: Sheet menu uses `window.location.href` (full page nav) instead of `router.push` (client nav) in WebView to prevent GPU freeze during portal teardown. Detected via `document.documentElement.classList.contains("webview")`.
 
+## Client call recording (#311)
+
+Records client calls, transcribes them, and files them against a project. Replaces tldv. **Two recorders, one pipeline** — a bot recording and an extension recording are indistinguishable downstream (same `Meeting` row, same Sarvam job, same Calls page).
+
+- **Bot** (`packages/meet-bot`) — headless Chromium joins the Meet as a guest, records, uploads. Needs a real browser + sound server, so it **cannot run on Vercel**; ship the Docker image to a container host. PulseAudio null sink → ffmpeg → Opus/WebM. Env: `MEET_BOT_URL`, `MEET_BOT_SECRET` (web side), `MEET_BOT_SECRET`/`MEET_BOT_NAME`/`MEET_BOT_MAX_CONCURRENT` (bot side).
+- **Extension** (`packages/extension`) — the operator's own Chrome. Two tracks (tab audio = client, mic = operator), recorded in an **offscreen document** (an MV3 worker cannot hold a MediaStream). Tab capture **mutes the tab** unless the stream is routed back through an `AudioContext` — that passthrough is not optional.
+- **Storage** — `lib/recordings.ts`, private S3 prefix, presigned PUT/GET only. Never the screenshot CDN. Do NOT sign `ServerSideEncryption` into the URL: it becomes a signed header the uploader must reproduce, and every PUT 403s.
+- **Transcription** — `lib/sarvam/batch.ts`, the **batch** API (the sync route in `sdk/stt` can't do meeting-length audio and can't diarize). Settings go inside a `job_parameters` wrapper; `with_timestamps` defaults to false and must be set. `language_code: "unknown"` = auto-detect. Results are named **positionally** (`0.json`), so `Meeting.transcriptFiles` records submission order — it's the only link from a result back to a speaker.
+- **Speaker names** — the tab track is every remote participant mixed together, so diarization separates voices but can't name them. Names come from Meet's participant list (1-on-1 → that name replaces "Client") and Meet's captions (`lib/sarvam/speakers.ts`). Captions supply names only; words always come from Sarvam.
+- **Google Calendar** (`lib/calendar.ts`) — replaces cal.com. Reads upcoming events with a Meet link into `ScheduledRecording`, and `cron/meeting-dispatch` sends the bot ~6 min before start. The cron **claims a row before dispatching**, or two overlapping runs send two bots to the same call.
+- **Access** — `lib/repo-access.ts`: repo owner OR explicit `RepoMember`. Org membership grants nothing; recordings are the most sensitive thing in the product.
+
 ## GlitchRecord ↔ extension capture pipeline
 
 Turns a screen recording into a narrated tutorial + auto-created GitHub issue. The Chrome extension captures *what the user did on the page*; GlitchRecord records the *screen* and owns the session, AI script, and issue creation.
