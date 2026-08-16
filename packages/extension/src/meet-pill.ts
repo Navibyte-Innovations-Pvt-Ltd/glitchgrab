@@ -53,14 +53,20 @@ function send<T>(message: Record<string, unknown>): Promise<T> {
 
 function styles(): string {
   return `
+    /* Docked into Meet's own control bar, so it reads as part of the call
+       controls rather than something floating on top of them. */
     #${PILL_ID} {
+      display: inline-flex; align-items: center; gap: 8px;
+      height: 40px; padding: 0 14px; border-radius: 9999px;
+      background: #202124; border: 1px solid #3c4043;
+      font-family: "Google Sans", Roboto, -apple-system, sans-serif;
+      color: #e8eaed; font-size: 12px; line-height: 1; white-space: nowrap;
+      margin-right: 8px;
+    }
+    /* Fallback when the toolbar can't be found — better floating than absent. */
+    #${PILL_ID}.gg-floating {
       position: fixed; bottom: 96px; left: 24px; z-index: 2147483000;
-      display: flex; align-items: center; gap: 10px;
-      padding: 10px 14px; border-radius: 9999px;
-      background: #101010; border: 1px solid #2a2a2a;
       box-shadow: 0 6px 24px rgba(0,0,0,.45);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      color: #e5e5e5; font-size: 12px; line-height: 1;
     }
     #${PILL_ID} .gg-dot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; }
     #${PILL_ID} .gg-dot.busy { background: #fbbf24; }
@@ -74,8 +80,9 @@ function styles(): string {
       border-radius: 9999px; padding: 6px 12px; font-size: 11px; font-weight: 700;
     }
     #${PILL_ID} button:disabled { opacity: .55; cursor: not-allowed; }
-    #${PILL_ID} .gg-msg { color: #8a8a8a; max-width: 220px; }
-    #${PILL_ID} .gg-src { color: #6b7280; font-size: 10px; }
+    #${PILL_ID} .gg-msg { color: #9aa0a6; max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+    #${PILL_ID} .gg-src { color: #80868b; font-size: 10px; }
+    #${PILL_ID} strong { font-weight: 500; }
   `;
 }
 
@@ -182,17 +189,67 @@ async function sendBot() {
   render();
 }
 
-/** Meet re-renders aggressively; make sure the pill survives. */
-function ensureMounted() {
-  if (document.getElementById(PILL_ID)) return;
+/**
+ * Meet's bottom control bar — the row holding mic, camera and hang-up.
+ *
+ * Found via the microphone button's accessible name rather than a class:
+ * Google's class names are generated and change without notice, but the
+ * screen-reader label has to stay meaningful. From the button we walk up to the
+ * row that contains the hang-up control too, which is the actual bar.
+ */
+function findToolbar(): HTMLElement | null {
+  const mic = document.querySelector<HTMLElement>(
+    '[aria-label*="microphone" i], [aria-label*="Turn off mic" i], [aria-label*="Turn on mic" i]'
+  );
+  if (!mic) return null;
 
-  const style = document.createElement("style");
-  style.textContent = styles();
-  document.head.appendChild(style);
+  // Climb until we reach a node holding several controls — the bar itself,
+  // not the button's own wrapper.
+  let node: HTMLElement | null = mic.parentElement;
+  for (let depth = 0; node && depth < 5; depth++) {
+    const buttons = node.querySelectorAll("button, [role='button']");
+    if (buttons.length >= 3) return node;
+    node = node.parentElement;
+  }
+  return null;
+}
+
+/**
+ * Keep the pill on screen.
+ *
+ * Meet swaps its DOM between lobby and call and re-renders the control bar, so
+ * this runs on a timer and re-docks whenever the pill has been torn out.
+ */
+function ensureMounted() {
+  const existing = document.getElementById(PILL_ID);
+  const toolbar = findToolbar();
+
+  // Already docked in the current toolbar — nothing to do.
+  if (existing && toolbar && toolbar.contains(existing)) return;
+  // Floating fallback is up and the toolbar still isn't there — leave it be.
+  if (existing && !toolbar) return;
+
+  existing?.remove();
+
+  if (!document.getElementById(`${PILL_ID}-style`)) {
+    const style = document.createElement("style");
+    style.id = `${PILL_ID}-style`;
+    style.textContent = styles();
+    document.head.appendChild(style);
+  }
 
   root = document.createElement("div");
   root.id = PILL_ID;
-  document.body.appendChild(root);
+
+  if (toolbar) {
+    // First child puts it left of the mic, where tl;dv sits and where the eye
+    // already goes for call controls.
+    toolbar.insertBefore(root, toolbar.firstChild);
+  } else {
+    root.classList.add("gg-floating");
+    document.body.appendChild(root);
+  }
+
   render();
 }
 
