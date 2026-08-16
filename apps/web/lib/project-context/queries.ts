@@ -10,7 +10,7 @@ import { countUndistilledSourcesByRepo } from "./sources";
  * gate, so a route and a server component can't drift apart on who sees what.
  */
 
-export interface ContextItemView {
+interface ContextItemView {
   id: string;
   repoId: string;
   repoFullName: string;
@@ -23,7 +23,7 @@ export interface ContextItemView {
   createdAt: string;
 }
 
-export interface ContextRepoView extends AccessibleRepo {
+interface ContextRepoView extends AccessibleRepo {
   itemCount: number;
   /** Sources on this repo not yet distilled — drives the backfill button label. */
   pendingSources: number;
