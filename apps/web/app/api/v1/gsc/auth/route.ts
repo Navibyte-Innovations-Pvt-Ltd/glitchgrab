@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 
-import { createHmac } from "crypto";
+import { createHmac, randomBytes } from "crypto";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 
@@ -9,11 +9,25 @@ function signState(payload: string): string {
   return createHmac("sha256", secret).update(payload).digest("hex");
 }
 
-export function buildGscAuthUrl(userId: string): string {
+/** Cookie carrying the nonce that ties an OAuth state to THIS browser. */
+export const GSC_STATE_COOKIE = "gg_gsc_oauth";
+
+/**
+ * Begin the Search Console connect flow.
+ *
+ * Returns the nonce alongside the URL — the caller MUST set it as an httpOnly
+ * cookie. A signed state only proves we minted it, not that the browser
+ * finishing the flow is the one that started it. Without that binding an
+ * attacker can mint a state for their own account, send the victim the consent
+ * link, and have the victim's Google tokens stored against the attacker's user
+ * — handing them the victim's Search Console data and URL-indexing rights.
+ */
+export function buildGscAuthUrl(userId: string): { url: string; nonce: string } {
   const clientId = process.env.GOOGLE_CLIENT_ID ?? "";
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
 
-  const payload = JSON.stringify({ userId, ts: Date.now() });
+  const nonce = randomBytes(32).toString("base64url");
+  const payload = JSON.stringify({ userId, nonce, ts: Date.now() });
   const sig = signState(payload);
   const state = Buffer.from(JSON.stringify({ payload, sig })).toString("base64url");
 
@@ -30,7 +44,20 @@ export function buildGscAuthUrl(userId: string): string {
     state,
   });
 
-  return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+  return { url: `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`, nonce };
+}
+
+/** Shared by both entry points so the cookie can never drift out of sync. */
+export function setGscStateCookie(response: NextResponse, nonce: string): NextResponse {
+  response.cookies.set(GSC_STATE_COOKIE, nonce, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    // Lax, not Strict: the cookie has to survive Google redirecting back to us.
+    sameSite: "lax",
+    path: "/",
+    maxAge: 15 * 60,
+  });
+  return response;
 }
 
 export async function GET() {
@@ -48,5 +75,6 @@ export async function GET() {
     );
   }
 
-  return NextResponse.redirect(buildGscAuthUrl(session.user.id));
+  const { url, nonce } = buildGscAuthUrl(session.user.id);
+  return setGscStateCookie(NextResponse.redirect(url), nonce);
 }
