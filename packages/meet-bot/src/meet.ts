@@ -1,4 +1,5 @@
-import { chromium, type Browser, type Page } from "playwright-core";
+import { chromium, type Browser, type BrowserContext, type Page } from "playwright-core";
+import { isSignInWall, loadGoogleSession, saveGoogleSession } from "./auth";
 
 /**
  * Driving Google Meet as a guest (#311).
@@ -31,6 +32,7 @@ export interface JoinOptions {
 export interface MeetSession {
   page: Page;
   browser: Browser;
+  context: BrowserContext;
   /** Resolves when the call ends (everyone left, we were removed, or the cap). */
   waitForEnd: () => Promise<"ended" | "max-duration">;
   leave: () => Promise<void>;
@@ -54,10 +56,23 @@ export async function launchBrowser(): Promise<Browser> {
       // Publish a synthetic (silent) camera and microphone.
       "--use-fake-device-for-media-stream",
       "--autoplay-policy=no-user-gesture-required",
+      // Google checks for automation signals before it checks anything else.
       "--disable-blink-features=AutomationControlled",
+      "--disable-features=IsolateOrigins,site-per-process",
+      "--lang=en-US",
     ],
   });
 }
+
+/**
+ * A normal Chrome user agent.
+ *
+ * Playwright's default advertises "HeadlessChrome", which Google treats as an
+ * automation signal — on a sign-in-gated flow that is the difference between
+ * being let through and being challenged.
+ */
+const USER_AGENT =
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
 /**
  * Dump what the page actually shows.
@@ -115,11 +130,23 @@ async function clickAny(page: Page, names: (string | RegExp)[], timeoutMs = 4000
  */
 export async function joinMeeting(options: JoinOptions): Promise<MeetSession> {
   const browser = await launchBrowser();
+
+  // The bot signs in as a real Google account. Meet refuses anonymous
+  // participants on Workspace meetings outright, so identity is not optional —
+  // see src/auth.ts for why the session is seeded by a human rather than
+  // logged in here.
+  const storageState = (await loadGoogleSession()) ?? undefined;
+
   const context = await browser.newContext({
     permissions: ["microphone", "camera"],
     // A desktop viewport keeps Meet on its full UI; the mobile layout has
     // different controls entirely.
     viewport: { width: 1280, height: 720 },
+    userAgent: USER_AGENT,
+    locale: "en-US",
+    timezoneId: process.env.MEET_BOT_TIMEZONE ?? "Asia/Kolkata",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...(storageState ? { storageState: storageState as any } : {}),
   });
   const page = await context.newPage();
 
@@ -160,10 +187,29 @@ export async function joinMeeting(options: JoinOptions): Promise<MeetSession> {
   );
   if (!asked) {
     await describePage(page, "join-button-not-found");
+
+    // Distinguish the three failures that look identical from the outside.
+    // "Selector broke" sends you hunting through meet.ts; "session expired"
+    // means re-run seed-auth; "anonymous refused" means the account isn't in
+    // the meeting's allowed set. Naming them is the difference between a
+    // five-minute fix and an afternoon.
+    const pageText = await page.evaluate(() => document.body.innerText || "").catch(() => "");
+    const signedOut = isSignInWall(page.url(), pageText);
+    const refused = /can't join this video call|you can't join/i.test(pageText);
+
     await browser.close();
-    throw new Error(
-      "Could not find Meet's join button — the link may be invalid, or Meet is blocking a guest join"
-    );
+
+    if (signedOut) {
+      throw new Error(
+        "The bot's Google session has expired — re-run `bun run seed-auth` and update GOOGLE_STORAGE_STATE"
+      );
+    }
+    if (refused) {
+      throw new Error(
+        "Google Meet refused this account. Either GOOGLE_STORAGE_STATE is unset (bot is anonymous), or the bot's account is outside the meeting's allowed domain."
+      );
+    }
+    throw new Error("Could not find Meet's join button — the link may be invalid");
   }
 
   options.onWaitingAdmit?.();
@@ -181,10 +227,16 @@ export async function joinMeeting(options: JoinOptions): Promise<MeetSession> {
 
   const leave = async () => {
     await clickAny(page, [/leave call/i, /^leave$/i], 3000);
+    // Google rotates cookies as the session is used; persisting the refreshed
+    // state is what keeps the login alive across calls.
+    await context
+      .storageState()
+      .then((s) => saveGoogleSession(s as Record<string, unknown>))
+      .catch(() => {});
     await browser.close().catch(() => {});
   };
 
-  return { page, browser, waitForEnd, leave };
+  return { page, browser, context, waitForEnd, leave };
 }
 
 /**
