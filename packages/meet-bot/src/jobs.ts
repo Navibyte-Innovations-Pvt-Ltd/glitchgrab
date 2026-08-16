@@ -82,7 +82,7 @@ export function finishJob(meetingId: string, phase: "DONE" | "FAILED", error?: s
   if (history.length > MAX_HISTORY) history.pop();
 }
 
-export function isLive(meetingId: string): boolean {
+function isLive(meetingId: string): boolean {
   return live.has(meetingId);
 }
 
