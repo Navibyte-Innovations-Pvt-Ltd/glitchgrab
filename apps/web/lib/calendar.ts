@@ -146,7 +146,7 @@ export async function fetchGoogleEmail(accessToken: string): Promise<string> {
  * A usable access token, refreshing it first if it is expired or close to it.
  * Tokens are stored encrypted (AES-256-GCM), same as the Search Console ones.
  */
-export async function getAccessToken(connectionId: string): Promise<string | null> {
+async function getAccessToken(connectionId: string): Promise<string | null> {
   const connection = await prisma.calendarConnection.findUnique({
     where: { id: connectionId },
     select: {
@@ -200,7 +200,7 @@ export async function getAccessToken(connectionId: string): Promise<string | nul
   }
 }
 
-export interface CalendarEvent {
+interface CalendarEvent {
   id: string;
   title: string | null;
   meetUrl: string;
@@ -236,7 +236,7 @@ function meetLinkOf(event: GoogleEvent): string | null {
  * Everything else is noise for this feature: an event with no Meet link is not
  * a call the bot can join, and an all-day event has no start time to fire on.
  */
-export async function listUpcomingMeetings(
+async function listUpcomingMeetings(
   connectionId: string,
   windowHours = 24
 ): Promise<CalendarEvent[]> {
