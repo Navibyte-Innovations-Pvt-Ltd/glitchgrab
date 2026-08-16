@@ -1,5 +1,6 @@
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright-core";
 import { isSignInWall, loadGoogleSession, saveGoogleSession } from "./auth";
+import { hasProfile, PROFILE_DIR } from "./login";
 
 /**
  * Driving Google Meet as a guest (#311).
@@ -31,7 +32,8 @@ export interface JoinOptions {
 
 export interface MeetSession {
   page: Page;
-  browser: Browser;
+  /** Null when running from a persistent profile — the context owns the process. */
+  browser: Browser | null;
   context: BrowserContext;
   /** Resolves when the call ends (everyone left, we were removed, or the cap). */
   waitForEnd: () => Promise<"ended" | "max-duration">;
@@ -45,23 +47,22 @@ export interface MeetSession {
  * microphone permission prompt that nobody is there to answer. The bot has no
  * real devices and publishes silence — it is there to listen, not to speak.
  */
+export const BROWSER_ARGS = [
+  "--no-sandbox",
+  "--disable-dev-shm-usage",
+  // Auto-accept the camera/mic permission prompt.
+  "--use-fake-ui-for-media-stream",
+  // Publish a synthetic (silent) camera and microphone.
+  "--use-fake-device-for-media-stream",
+  "--autoplay-policy=no-user-gesture-required",
+  // Google checks for automation signals before it checks anything else.
+  "--disable-blink-features=AutomationControlled",
+  "--disable-features=IsolateOrigins,site-per-process",
+  "--lang=en-US",
+];
+
 export async function launchBrowser(): Promise<Browser> {
-  return chromium.launch({
-    headless: true,
-    args: [
-      "--no-sandbox",
-      "--disable-dev-shm-usage",
-      // Auto-accept the camera/mic permission prompt.
-      "--use-fake-ui-for-media-stream",
-      // Publish a synthetic (silent) camera and microphone.
-      "--use-fake-device-for-media-stream",
-      "--autoplay-policy=no-user-gesture-required",
-      // Google checks for automation signals before it checks anything else.
-      "--disable-blink-features=AutomationControlled",
-      "--disable-features=IsolateOrigins,site-per-process",
-      "--lang=en-US",
-    ],
-  });
+  return chromium.launch({ headless: true, args: BROWSER_ARGS });
 }
 
 /**
@@ -129,26 +130,41 @@ async function clickAny(page: Page, names: (string | RegExp)[], timeoutMs = 4000
  * of silence at the head of every recording.
  */
 export async function joinMeeting(options: JoinOptions): Promise<MeetSession> {
-  const browser = await launchBrowser();
-
-  // The bot signs in as a real Google account. Meet refuses anonymous
-  // participants on Workspace meetings outright, so identity is not optional —
-  // see src/auth.ts for why the session is seeded by a human rather than
-  // logged in here.
-  const storageState = (await loadGoogleSession()) ?? undefined;
-
-  const context = await browser.newContext({
-    permissions: ["microphone", "camera"],
+  const contextOptions = {
+    permissions: ["microphone", "camera"] as string[],
     // A desktop viewport keeps Meet on its full UI; the mobile layout has
     // different controls entirely.
     viewport: { width: 1280, height: 720 },
     userAgent: USER_AGENT,
     locale: "en-US",
     timezoneId: process.env.MEET_BOT_TIMEZONE ?? "Asia/Kolkata",
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ...(storageState ? { storageState: storageState as any } : {}),
-  });
-  const page = await context.newPage();
+  };
+
+  let browser: Browser | null = null;
+  let context: BrowserContext;
+
+  // Prefer the on-disk Chrome profile created by the in-container login. It is
+  // a real browser session established by a human on THIS machine, so it has
+  // the complete cookie set and no location mismatch — both of which broke the
+  // exported-cookie approach. The env-var session stays as the fallback.
+  if (await hasProfile()) {
+    console.log(`[bot] using Chrome profile at ${PROFILE_DIR}`);
+    context = await chromium.launchPersistentContext(PROFILE_DIR, {
+      headless: true,
+      args: BROWSER_ARGS,
+      ...contextOptions,
+    });
+  } else {
+    browser = await launchBrowser();
+    const storageState = (await loadGoogleSession()) ?? undefined;
+    context = await browser.newContext({
+      ...contextOptions,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ...(storageState ? { storageState: storageState as any } : {}),
+    });
+  }
+
+  const page = context.pages()[0] ?? (await context.newPage());
 
   await page.goto(options.meetUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
 
@@ -185,6 +201,13 @@ export async function joinMeeting(options: JoinOptions): Promise<MeetSession> {
     [/ask to join/i, /^join now$/i, /join meeting/i, /^join$/i],
     15_000
   );
+  const shutdown = async () => {
+    // In persistent-profile mode there is no separate Browser object; the
+    // context owns the process.
+    if (browser) await browser.close().catch(() => {});
+    else await context.close().catch(() => {});
+  };
+
   if (!asked) {
     await describePage(page, "join-button-not-found");
 
@@ -197,11 +220,11 @@ export async function joinMeeting(options: JoinOptions): Promise<MeetSession> {
     const signedOut = isSignInWall(page.url(), pageText);
     const refused = /can't join this video call|you can't join/i.test(pageText);
 
-    await browser.close();
+    await shutdown();
 
     if (signedOut) {
       throw new Error(
-        "The bot's Google session has expired — re-run `bun run seed-auth` and update GOOGLE_STORAGE_STATE"
+        "The bot is signed out of Google — open the bot's /login session and sign in again"
       );
     }
     if (refused) {
@@ -227,13 +250,15 @@ export async function joinMeeting(options: JoinOptions): Promise<MeetSession> {
 
   const leave = async () => {
     await clickAny(page, [/leave call/i, /^leave$/i], 3000);
-    // Google rotates cookies as the session is used; persisting the refreshed
-    // state is what keeps the login alive across calls.
-    await context
-      .storageState()
-      .then((s) => saveGoogleSession(s as Record<string, unknown>))
-      .catch(() => {});
-    await browser.close().catch(() => {});
+    // Only meaningful for the env-var path. A persistent profile writes its own
+    // cookies to disk, which is why it ages so much better.
+    if (browser) {
+      await context
+        .storageState()
+        .then((s) => saveGoogleSession(s as Record<string, unknown>))
+        .catch(() => {});
+    }
+    await shutdown();
   };
 
   return { page, browser, context, waitForEnd, leave };
