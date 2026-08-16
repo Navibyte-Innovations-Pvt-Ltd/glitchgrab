@@ -1,12 +1,3 @@
-import {
-  addCaption,
-  addParticipants,
-  getMeetingState,
-  isMeetingUrl,
-  startMeetingRecording,
-  stopMeetingRecording,
-} from "./meeting";
-
 // Session state
 interface CaptureState {
   active: boolean;
@@ -584,110 +575,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
     void testerAutoLogin(msg.sessionId, msg.name, msg.email, resolveApiBase(msg.apiBase));
     return false;
   }
-  if (msg.type === "OPEN_REPORT_WINDOW") {
-    openReportWindow().then(reply);
-    return true;
-  }
-  if (msg.type === "RECAPTURE_TAB") {
-    captureTab(msg.windowId).then((dataUrl) => reply({ dataUrl }));
-    return true;
-  }
-
-  // ── Meeting recording (#311 Phase B) ──────────────────────
-  if (msg.type === "GET_MEETING_STATE") {
-    getMeetingContext().then(reply);
-    return true;
-  }
-  if (msg.type === "MEETING_START") {
-    startMeeting(msg.repoId, msg.title).then(reply);
-    return true;
-  }
-  if (msg.type === "MEETING_STOP") {
-    stopMeeting().then(reply);
-    return true;
-  }
-  if (msg.type === "MEET_CAPTION") {
-    addCaption(msg.caption);
-    return false;
-  }
-  if (msg.type === "MEET_PARTICIPANTS") {
-    addParticipants(msg.names);
-    return false;
-  }
-
-  // ── In-Meet pill (#311) ───────────────────────────────────
-  if (msg.type === "MEET_RESOLVE_PROJECT") {
-    resolveMeetProject(msg.meetUrl).then(reply);
-    return true;
-  }
-  if (msg.type === "MEET_SEND_BOT") {
-    sendBotToMeeting(msg.repoId, msg.meetUrl, msg.title).then(reply);
-    return true;
-  }
-  if (msg.type === "MEET_REMEMBER_REPO") {
-    void chrome.storage.local.set({ gg_meeting_repo: msg.repoId });
-    return false;
-  }
 
   return false;
 });
-
-// ── Meeting recording (#311 Phase B) ─────────────────────────
-// The developer records; the client installs nothing and just joins the call.
-// Login is required here (unlike event capture) because a recording has to be
-// stored against a project the server can verify the operator may write to.
-
-/** Repos this session may record against — server-derived, never guessed. */
-async function fetchMeetingRepos(): Promise<{ id: string; fullName: string }[]> {
-  if (!tester) return [];
-  try {
-    // Same route the Report Bug picker uses — sessionId is a query param there.
-    const res = await fetch(
-      `${tester.apiBase}/api/v1/extension/repos?sessionId=${encodeURIComponent(tester.sessionId)}`,
-      { headers: authHeaders() }
-    );
-    if (!res.ok) return [];
-    const json = (await res.json()) as { data?: { id: string; fullName: string }[] };
-    return json.data ?? [];
-  } catch {
-    return [];
-  }
-}
-
-async function getMeetingContext() {
-  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-  const state = getMeetingState();
-  return {
-    ...state,
-    loggedIn: !!tester,
-    onMeetingPage: isMeetingUrl(tab?.url),
-    tabTitle: tab?.title ?? null,
-    tabUrl: tab?.url ?? null,
-    repos: tester && !state.active ? await fetchMeetingRepos() : [],
-  };
-}
-
-async function startMeeting(repoId: string, title: string | null) {
-  if (!tester) return { ok: false, error: "Log in first — open a QA link or the dashboard." };
-
-  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-  if (!tab?.id) return { ok: false, error: "No active tab to record" };
-
-  return startMeetingRecording({
-    tabId: tab.id,
-    repoId,
-    title: title?.trim() || tab.title || null,
-    meetUrl: tab.url ?? null,
-    apiBase: tester.apiBase,
-    sessionId: tester.sessionId,
-    withMic: true,
-  });
-}
-
-async function stopMeeting() {
-  if (!tester) return { ok: false, error: "Not logged in" };
-  return stopMeetingRecording({ apiBase: tester.apiBase, sessionId: tester.sessionId });
-}
 
 /**
  * Which project this Meet belongs to, for the in-page pill.
@@ -743,45 +633,5 @@ async function sendBotToMeeting(repoId: string, meetUrl: string, title: string |
     return { ok: true };
   } catch {
     return { ok: false, error: "Could not reach Glitchgrab" };
-  }
-}
-
-// ── "Report Bug" from the extension itself (#297) ────────────
-// Popups unload on blur (would kill an in-progress voice recording), so the
-// report dialog lives in its own persistent window, not the popup.
-async function captureTab(windowId: number): Promise<string | null> {
-  try {
-    // q70 left visible artifacts on UI text (#302). captureVisibleTab already
-    // returns the tab at device pixel density, so quality is the only knob.
-    return await chrome.tabs.captureVisibleTab(windowId, { format: "jpeg", quality: 92 });
-  } catch {
-    return null;
-  }
-}
-
-async function openReportWindow(): Promise<{ ok: boolean; error?: string }> {
-  if (!tester) return { ok: false, error: "Log in first — open a QA link or the dashboard." };
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-    const screenshotDataUrl = tab?.windowId != null ? await captureTab(tab.windowId) : null;
-    await chrome.storage.local.set({
-      gg_pending_report: {
-        sessionId: tester.sessionId,
-        apiBase: tester.apiBase,
-        screenshotDataUrl,
-        pageUrl: tab?.url ?? null,
-        pageTitle: tab?.title ?? null,
-        targetWindowId: tab?.windowId ?? null,
-      },
-    });
-    await chrome.windows.create({
-      url: chrome.runtime.getURL("report/report.html"),
-      type: "popup",
-      width: 480,
-      height: 760,
-    });
-    return { ok: true };
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Failed to open report window" };
   }
 }
