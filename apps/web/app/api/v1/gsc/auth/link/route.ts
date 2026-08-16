@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { buildGscAuthUrl } from "@/app/api/v1/gsc/auth/route";
+import { buildGscAuthUrl, setGscStateCookie } from "@/app/api/v1/gsc/auth/route";
 
 export async function GET() {
   const session = await auth();
@@ -19,5 +19,8 @@ export async function GET() {
     );
   }
 
-  return NextResponse.json({ success: true, data: { url: buildGscAuthUrl(session.user.id) } });
+  // The client navigates to this url itself, so the nonce cookie has to ride
+  // back on THIS response — otherwise the callback has nothing to compare to.
+  const { url, nonce } = buildGscAuthUrl(session.user.id);
+  return setGscStateCookie(NextResponse.json({ success: true, data: { url } }), nonce);
 }
