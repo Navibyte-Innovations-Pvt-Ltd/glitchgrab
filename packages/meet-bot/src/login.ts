@@ -43,7 +43,7 @@ interface LoginSession {
 
 let session: LoginSession | null = null;
 
-export function isLoginActive(): boolean {
+function isLoginActive(): boolean {
   return session !== null;
 }
 
