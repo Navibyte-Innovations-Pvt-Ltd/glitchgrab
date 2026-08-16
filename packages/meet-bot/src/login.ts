@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdir, stat, writeFile } from "node:fs/promises";
+import { mkdir, rm, stat, writeFile } from "node:fs/promises";
 import { chromium } from "playwright-core";
 
 /**
@@ -68,6 +68,24 @@ export function loginStatus() {
  */
 const LOGGED_IN_MARKER = `${PROFILE_DIR}/.glitchgrab-logged-in`;
 
+/**
+ * Delete Chrome's singleton lock files.
+ *
+ * Chrome writes these to say "this profile is open". They name the pid and
+ * HOST that opened it — so on a mounted volume they outlive the container and
+ * the next boot inherits a lock from a machine that no longer exists. Chrome
+ * then refuses to start (exit 21) and the X display just sits there black,
+ * which looks like a VNC problem and is not.
+ *
+ * Safe to remove unconditionally here: only one Chrome ever touches this
+ * profile, and if one is genuinely running we refuse earlier on `session`.
+ */
+export async function clearProfileLocks(): Promise<void> {
+  for (const name of ["SingletonLock", "SingletonCookie", "SingletonSocket"]) {
+    await rm(`${PROFILE_DIR}/${name}`, { force: true }).catch(() => {});
+  }
+}
+
 /** True once someone has completed a login session. */
 export async function hasProfile(): Promise<boolean> {
   try {
@@ -109,6 +127,7 @@ export async function startLogin(vncPassword: string): Promise<{ ok: boolean; er
   }
 
   await mkdir(PROFILE_DIR, { recursive: true }).catch(() => {});
+  await clearProfileLocks();
 
   const procs: ChildProcess[] = [];
 
