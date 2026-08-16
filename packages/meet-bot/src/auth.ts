@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 
 /**
@@ -25,6 +26,10 @@ const ENV_KEY = "GOOGLE_STORAGE_STATE";
  */
 const PATH_KEY = "GOOGLE_STATE_PATH";
 
+function sha256(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
+}
+
 /** Shape Playwright expects — kept loose on purpose, we only pass it through. */
 export type StorageState = Record<string, unknown>;
 
@@ -37,20 +42,35 @@ export type StorageState = Record<string, unknown>;
  */
 export async function loadGoogleSession(): Promise<StorageState | null> {
   const path = process.env[PATH_KEY];
+  const encoded = process.env[ENV_KEY];
+
+  // Which seed the volume file was grown from. Without this, a re-seeded env
+  // var would be silently ignored forever: the volume copy always wins, so the
+  // fix for an expired session ("re-run seed-auth, update the variable") would
+  // appear to do nothing and you'd be debugging the wrong thing.
+  const stampPath = path ? `${path}.seed` : null;
+  const seedStamp = encoded ? sha256(encoded) : "";
+
   if (path) {
     try {
-      const raw = await readFile(path, "utf8");
-      const state = JSON.parse(raw) as StorageState;
-      console.log(`[bot] Google session loaded from ${path}`);
-      return state;
+      const [raw, stamp] = await Promise.all([
+        readFile(path, "utf8"),
+        stampPath ? readFile(stampPath, "utf8").catch(() => "") : Promise.resolve(""),
+      ]);
+
+      if (encoded && stamp.trim() !== seedStamp) {
+        console.log(`[bot] ${ENV_KEY} changed since ${path} was written — using the new value`);
+      } else {
+        const state = JSON.parse(raw) as StorageState;
+        console.log(`[bot] Google session loaded from ${path}`);
+        return state;
+      }
     } catch {
-      // Fall through to the env var — a missing volume file on first boot is
-      // normal, not a failure.
+      // A missing volume file on first boot is normal, not a failure.
       console.warn(`[bot] no Google session at ${path}, trying ${ENV_KEY}`);
     }
   }
 
-  const encoded = process.env[ENV_KEY];
   if (!encoded) {
     console.warn(
       `[bot] ${ENV_KEY} is not set — joining anonymously. Google Workspace meetings will refuse this.`
@@ -61,6 +81,16 @@ export async function loadGoogleSession(): Promise<StorageState | null> {
   try {
     const state = JSON.parse(Buffer.from(encoded, "base64").toString("utf8")) as StorageState;
     console.log(`[bot] Google session loaded from ${ENV_KEY}`);
+
+    // Record which seed this volume copy came from, so the next boot can tell
+    // whether the env var has since been replaced.
+    if (path && stampPath) {
+      await Promise.all([
+        writeFile(path, JSON.stringify(state), "utf8"),
+        writeFile(stampPath, seedStamp, "utf8"),
+      ]).catch(() => {});
+    }
+
     return state;
   } catch (err) {
     console.error(`[bot] ${ENV_KEY} is not valid base64 JSON:`, err);
