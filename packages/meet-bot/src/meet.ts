@@ -36,7 +36,7 @@ export interface MeetSession {
   browser: Browser | null;
   context: BrowserContext;
   /** Resolves when the call ends (everyone left, we were removed, or the cap). */
-  waitForEnd: () => Promise<"ended" | "max-duration">;
+  waitForEnd: () => Promise<"ended" | "max-duration" | "alone">;
   leave: () => Promise<void>;
 }
 
@@ -242,9 +242,27 @@ export async function joinMeeting(options: JoinOptions): Promise<MeetSession> {
 
   const startedAt = Date.now();
 
-  const waitForEnd = async (): Promise<"ended" | "max-duration"> => {
+  const waitForEnd = async (): Promise<"ended" | "max-duration" | "alone"> => {
+    let aloneSince: number | null = null;
+
     while (Date.now() - startedAt < options.maxDurationMs) {
       if (!(await inCall(page))) return "ended";
+
+      // Leaving a Meet as host does NOT end the call — everyone else stays in,
+      // including us. Without this the bot sits alone in an empty room until
+      // the 3-hour cap, recording silence and holding a slot.
+      if (await isAloneInCall(page)) {
+        aloneSince ??= Date.now();
+        if (Date.now() - aloneSince >= ALONE_GRACE_MS) {
+          console.log("[bot] everyone else left — ending the recording");
+          return "alone";
+        }
+      } else {
+        // Someone came back, or Meet was mid-render. Only a sustained empty
+        // room counts, so a momentary blip doesn't cut a live call short.
+        aloneSince = null;
+      }
+
       await page.waitForTimeout(5000);
     }
     return "max-duration";
@@ -264,6 +282,27 @@ export async function joinMeeting(options: JoinOptions): Promise<MeetSession> {
   };
 
   return { page, browser, context, waitForEnd, leave };
+}
+
+/** How long the bot tolerates being the only participant before leaving. */
+const ALONE_GRACE_MS = 60_000;
+
+/**
+ * True when Meet says nobody else is in the call.
+ *
+ * Read from Meet's own on-screen message rather than a participant count: the
+ * participant DOM is obfuscated and currently yields nothing, whereas this
+ * banner is user-facing text Google keeps stable for the people reading it.
+ */
+async function isAloneInCall(page: Page): Promise<boolean> {
+  try {
+    return await page.evaluate(() => {
+      const text = document.body.innerText || "";
+      return /you'?re the only one here|no one else is here|you are the only one/i.test(text);
+    });
+  } catch {
+    return false;
+  }
 }
 
 /**
