@@ -8,7 +8,7 @@ import { prisma } from "@/lib/db";
  * This module is the only thing that talks to it.
  */
 
-export interface DispatchResult {
+interface DispatchResult {
   ok: boolean;
   error?: string;
 }
@@ -24,7 +24,7 @@ export function isMeetUrl(url: string): boolean {
  * Returns rather than throws: a bot that cannot be reached must leave a legible
  * error on the Meeting row, not a 500 with nothing recorded and nothing said.
  */
-export async function dispatchBot(params: {
+async function dispatchBot(params: {
   meetingId: string;
   meetUrl: string;
 }): Promise<DispatchResult> {
