@@ -37,6 +37,17 @@ const state: PillState = {
 };
 
 let root: HTMLElement | null = null;
+let mounting = false;
+
+const MOUNT_ATTEMPTS = 12;
+const RETRY_MS = 5000;
+
+/** Visible in the Meet tab's console — the only place to debug an injected UI. */
+function log(message: string) {
+  console.log("[Glitchgrab]", message);
+}
+
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function send<T>(message: Record<string, unknown>): Promise<T> {
   return new Promise((resolve) => {
@@ -259,35 +270,66 @@ function ensureMounted() {
  * which would otherwise take the pill with it.
  */
 export async function mountMeetPill(): Promise<void> {
-  if (!/^https:\/\/meet\.google\.com\/[a-z]{3}-[a-z]{4}-[a-z]{3}/i.test(location.href)) {
+  if (mounting) return;
+  mounting = true;
+
+  // Retry rather than give up: at document_idle the operator may not be logged
+  // in yet, the service worker may be asleep, and Meet's control bar may not
+  // exist. A single silent attempt is why this looked like "the pill is just
+  // missing" with nothing to debug.
+  for (let attempt = 1; attempt <= MOUNT_ATTEMPTS; attempt++) {
+    if (!/^https:\/\/meet\.google\.com\/[a-z]{3}-[a-z]{4}-[a-z]{3}/i.test(location.href)) {
+      log(`not a call URL (${location.href}) — waiting`);
+      await wait(RETRY_MS);
+      continue;
+    }
+
+    const resolved = await send<{
+      ok: boolean;
+      repos?: Repo[];
+      suggested?: { repoId: string; repoFullName: string; source: string } | null;
+      lastRepoId?: string | null;
+      error?: string;
+    }>({ type: "MEET_RESOLVE_PROJECT", meetUrl: location.href.split("?")[0] });
+
+    if (!resolved) {
+      log(`attempt ${attempt}: no reply from the extension background`);
+      await wait(RETRY_MS);
+      continue;
+    }
+    if (!resolved.ok) {
+      log(`attempt ${attempt}: ${resolved.error ?? "could not resolve project"}`);
+      await wait(RETRY_MS);
+      continue;
+    }
+    if (!resolved.repos?.length) {
+      log("no projects available for this login — nothing to record against");
+      mounting = false;
+      return;
+    }
+
+    state.repos = resolved.repos;
+
+    if (resolved.suggested) {
+      state.repoId = resolved.suggested.repoId;
+      state.source = "calendar";
+    } else if (resolved.lastRepoId && resolved.repos.some((r) => r.id === resolved.lastRepoId)) {
+      state.repoId = resolved.lastRepoId;
+      state.source = "remembered";
+    } else {
+      state.repoId = resolved.repos[0].id;
+      state.source = "default";
+    }
+
+    ensureMounted();
+    log(`mounted (${state.repos.length} projects, source: ${state.source})`);
+
+    // Meet rebuilds its control bar constantly; keep re-docking.
+    setInterval(ensureMounted, 5000);
+    mounting = false;
     return;
   }
 
-  const resolved = await send<{
-    ok: boolean;
-    repos?: Repo[];
-    suggested?: { repoId: string; repoFullName: string; source: string } | null;
-    lastRepoId?: string | null;
-    error?: string;
-  }>({ type: "MEET_RESOLVE_PROJECT", meetUrl: location.href.split("?")[0] });
-
-  // Not logged in, or the backend is unreachable: show nothing rather than a
-  // broken control on top of someone's meeting.
-  if (!resolved?.ok || !resolved.repos?.length) return;
-
-  state.repos = resolved.repos;
-
-  if (resolved.suggested) {
-    state.repoId = resolved.suggested.repoId;
-    state.source = "calendar";
-  } else if (resolved.lastRepoId && resolved.repos.some((r) => r.id === resolved.lastRepoId)) {
-    state.repoId = resolved.lastRepoId;
-    state.source = "remembered";
-  } else {
-    state.repoId = resolved.repos[0].id;
-    state.source = "default";
-  }
-
-  ensureMounted();
-  setInterval(ensureMounted, 5000);
+  log("gave up after retries — open the extension popup and check you're logged in");
+  mounting = false;
 }
