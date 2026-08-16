@@ -1,5 +1,6 @@
 import { runBotJob } from "./job";
 import { autoStartLoginIfNeeded, hasProfile, loginStatus, startLogin, stopLogin } from "./login";
+import { liveCount, statusReport } from "./jobs";
 
 /**
  * The Meet bot service (#311).
@@ -64,6 +65,26 @@ Bun.serve({
         active: active.size,
         capacity: MAX_CONCURRENT,
         googleProfile: await hasProfile(),
+      });
+    }
+
+    /**
+     * GET /status — what the bot is doing right now.
+     *
+     * Secret-gated: it lists meeting URLs, which are join links. Health stays
+     * open for Railway's probe; this does not.
+     */
+    if (url.pathname === "/status") {
+      if (!SECRET || request.headers.get("x-gg-bot") !== SECRET) {
+        return json({ success: false, error: "Unauthorized" }, 401);
+      }
+      return json({
+        success: true,
+        data: {
+          ...statusReport(MAX_CONCURRENT),
+          googleProfile: await hasProfile(),
+          login: loginStatus(),
+        },
       });
     }
 
