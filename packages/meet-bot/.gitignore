@@ -1,1 +1,5 @@
+# Live Google session credentials — never commit these.
 google-state.json
+google-state.b64
+cookie*.json
+cookies*.json
