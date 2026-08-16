@@ -26,6 +26,10 @@
     {
       "path": "/api/v1/cron/resolved-notify",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/v1/cron/meeting-dispatch",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

@@ -1,3 +1,12 @@
+import {
+  addCaption,
+  addParticipants,
+  getMeetingState,
+  isMeetingUrl,
+  startMeetingRecording,
+  stopMeetingRecording,
+} from "./meeting";
+
 // Session state
 interface CaptureState {
   active: boolean;
@@ -583,8 +592,88 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
     captureTab(msg.windowId).then((dataUrl) => reply({ dataUrl }));
     return true;
   }
+
+  // ── Meeting recording (#311 Phase B) ──────────────────────
+  if (msg.type === "GET_MEETING_STATE") {
+    getMeetingContext().then(reply);
+    return true;
+  }
+  if (msg.type === "MEETING_START") {
+    startMeeting(msg.repoId, msg.title).then(reply);
+    return true;
+  }
+  if (msg.type === "MEETING_STOP") {
+    stopMeeting().then(reply);
+    return true;
+  }
+  if (msg.type === "MEET_CAPTION") {
+    addCaption(msg.caption);
+    return false;
+  }
+  if (msg.type === "MEET_PARTICIPANTS") {
+    addParticipants(msg.names);
+    return false;
+  }
+
   return false;
 });
+
+// ── Meeting recording (#311 Phase B) ─────────────────────────
+// The developer records; the client installs nothing and just joins the call.
+// Login is required here (unlike event capture) because a recording has to be
+// stored against a project the server can verify the operator may write to.
+
+/** Repos this session may record against — server-derived, never guessed. */
+async function fetchMeetingRepos(): Promise<{ id: string; fullName: string }[]> {
+  if (!tester) return [];
+  try {
+    // Same route the Report Bug picker uses — sessionId is a query param there.
+    const res = await fetch(
+      `${tester.apiBase}/api/v1/extension/repos?sessionId=${encodeURIComponent(tester.sessionId)}`,
+      { headers: authHeaders() }
+    );
+    if (!res.ok) return [];
+    const json = (await res.json()) as { data?: { id: string; fullName: string }[] };
+    return json.data ?? [];
+  } catch {
+    return [];
+  }
+}
+
+async function getMeetingContext() {
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  const state = getMeetingState();
+  return {
+    ...state,
+    loggedIn: !!tester,
+    onMeetingPage: isMeetingUrl(tab?.url),
+    tabTitle: tab?.title ?? null,
+    tabUrl: tab?.url ?? null,
+    repos: tester && !state.active ? await fetchMeetingRepos() : [],
+  };
+}
+
+async function startMeeting(repoId: string, title: string | null) {
+  if (!tester) return { ok: false, error: "Log in first — open a QA link or the dashboard." };
+
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  if (!tab?.id) return { ok: false, error: "No active tab to record" };
+
+  return startMeetingRecording({
+    tabId: tab.id,
+    repoId,
+    title: title?.trim() || tab.title || null,
+    meetUrl: tab.url ?? null,
+    apiBase: tester.apiBase,
+    sessionId: tester.sessionId,
+    withMic: true,
+  });
+}
+
+async function stopMeeting() {
+  if (!tester) return { ok: false, error: "Not logged in" };
+  return stopMeetingRecording({ apiBase: tester.apiBase, sessionId: tester.sessionId });
+}
 
 // ── "Report Bug" from the extension itself (#297) ────────────
 // Popups unload on blur (would kill an in-progress voice recording), so the

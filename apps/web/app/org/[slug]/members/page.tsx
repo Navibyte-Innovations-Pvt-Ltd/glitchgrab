@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { getOrgContext } from "../lib/get-org-context";
 import { MembersManager } from "./members-manager";
 import { TestersManager } from "./testers-manager";
+import { ContextAccessManager } from "./context-access-manager";
 import { prisma } from "@/lib/db";
 import { qaLink } from "@/lib/qa";
 
@@ -50,6 +51,20 @@ export default async function MembersPage({ params }: { params: Promise<{ slug: 
   return (
     <div className="space-y-10">
       <MembersManager members={members} orgSlug={slug} />
+      <ContextAccessManager
+        repos={repos}
+        // The owner is implicit — they always read their own repos' context, so
+        // listing them here would only offer a toggle that does nothing.
+        users={members
+          .filter((m) => m.user.id !== ctx.userId)
+          .map((m) => ({
+            id: m.user.id,
+            name: m.user.name,
+            email: m.user.email,
+            image: m.user.image,
+            role: m.role,
+          }))}
+      />
       <TestersManager orgSlug={slug} initialTesters={testerData} repos={repos} />
     </div>
   );

@@ -1,0 +1,11 @@
+-- Speaker names for recorded calls (#311).
+--
+-- We capture the meeting TAB's audio, which is every remote participant mixed
+-- into one stream — diarization can separate those voices but cannot name them
+-- ("Client (0)", "Client (1)"). Google Meet's own caption panel prints the
+-- speaker's real name next to each line, so we read it off the page and use it
+-- to attach names to time ranges. The words still come from Sarvam.
+--
+-- `participants` already exists on this table and now carries the names seen in
+-- the call; a single remote name is enough to replace "Client" outright.
+ALTER TABLE "Meeting" ADD COLUMN "captions" JSONB;
