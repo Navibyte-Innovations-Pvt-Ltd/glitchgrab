@@ -61,6 +61,11 @@ export async function GET(request: Request, { params }: RouteParams) {
         endsAt: meeting.endsAt?.toISOString() ?? null,
         durationSec: meeting.durationSec,
         status: meeting.status,
+        // Without these a failed bot shows a red badge and nothing else — the
+        // reason it failed is the whole point of recording it.
+        recorder: meeting.recorder,
+        botStatus: meeting.botStatus,
+        botError: meeting.botError,
         transcript: meeting.transcript,
         transcriptStatus: meeting.transcriptStatus,
         transcriptError: meeting.transcriptError,

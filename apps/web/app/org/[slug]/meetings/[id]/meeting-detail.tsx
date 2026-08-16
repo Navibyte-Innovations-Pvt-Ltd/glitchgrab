@@ -16,6 +16,9 @@ interface MeetingDetail {
   transcript: string | null;
   transcriptStatus: "IDLE" | "RUNNING" | "DONE" | "FAILED";
   transcriptError: string | null;
+  recorder: string | null;
+  botStatus: string | null;
+  botError: string | null;
   tabAudioUrl: string | null;
   micAudioUrl: string | null;
 }
@@ -74,6 +77,24 @@ export function MeetingDetail({ meetingId, orgSlug }: { meetingId: string; orgSl
           {data.meetUrl && <span className="truncate max-w-xs">{data.meetUrl}</span>}
         </div>
       </div>
+
+      {/* A bot that never got into the call is the most common failure, and
+          the reason is the only thing that makes it fixable. Show it loudly. */}
+      {data.botStatus === "FAILED" && (
+        <div className="border border-red-500/30 bg-red-500/5 rounded p-4 space-y-1">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-400/70" />
+            <span className="font-mono text-[11px] text-red-400">The bot could not record this call.</span>
+          </div>
+          <p className="font-mono text-[11px] text-foreground">
+            {data.botError ?? "No reason was reported."}
+          </p>
+          <p className="font-mono text-[10px] text-muted-foreground">
+            Common causes: nobody pressed Admit within 10 minutes, the meeting
+            link was wrong, or Google changed Meet&apos;s UI.
+          </p>
+        </div>
+      )}
 
       {/* Two tracks, played separately — they were never mixed, because which
           track a line came from is what identifies the speaker. */}

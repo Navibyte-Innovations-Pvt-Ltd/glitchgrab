@@ -198,6 +198,11 @@ export function MeetingsList({ orgSlug }: { orgSlug: string }) {
                     </span>
                   )}
                 </div>
+                {m.botStatus === "FAILED" && m.botError && (
+                  <div className="font-mono text-[10px] text-red-400/90 mt-1">
+                    {m.botError}
+                  </div>
+                )}
               </div>
 
               {botLabel(m) && (
