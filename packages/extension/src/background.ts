@@ -615,6 +615,20 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
     return false;
   }
 
+  // ── In-Meet pill (#311) ───────────────────────────────────
+  if (msg.type === "MEET_RESOLVE_PROJECT") {
+    resolveMeetProject(msg.meetUrl).then(reply);
+    return true;
+  }
+  if (msg.type === "MEET_SEND_BOT") {
+    sendBotToMeeting(msg.repoId, msg.meetUrl, msg.title).then(reply);
+    return true;
+  }
+  if (msg.type === "MEET_REMEMBER_REPO") {
+    void chrome.storage.local.set({ gg_meeting_repo: msg.repoId });
+    return false;
+  }
+
   return false;
 });
 
@@ -673,6 +687,63 @@ async function startMeeting(repoId: string, title: string | null) {
 async function stopMeeting() {
   if (!tester) return { ok: false, error: "Not logged in" };
   return stopMeetingRecording({ apiBase: tester.apiBase, sessionId: tester.sessionId });
+}
+
+/**
+ * Which project this Meet belongs to, for the in-page pill.
+ *
+ * The server answers from the connected Google Calendar; the last-used repo is
+ * local, so it is merged in here rather than round-tripped.
+ */
+async function resolveMeetProject(meetUrl: string) {
+  if (!tester) return { ok: false, error: "Not logged in" };
+
+  try {
+    const res = await fetch(
+      `${tester.apiBase}/api/v1/meetings/resolve?meetUrl=${encodeURIComponent(meetUrl)}`,
+      { headers: { ...authHeaders(), "x-gg-session": tester.sessionId } }
+    );
+    if (!res.ok) return { ok: false, error: `Server said ${res.status}` };
+
+    const json = (await res.json()) as {
+      data?: { repos: { id: string; fullName: string }[]; suggested: unknown };
+    };
+    const { gg_meeting_repo } = await chrome.storage.local.get("gg_meeting_repo");
+
+    return {
+      ok: true,
+      repos: json.data?.repos ?? [],
+      suggested: json.data?.suggested ?? null,
+      lastRepoId: (gg_meeting_repo as string | undefined) ?? null,
+    };
+  } catch {
+    return { ok: false, error: "Could not reach Glitchgrab" };
+  }
+}
+
+/** Dispatch the recording bot to this call. */
+async function sendBotToMeeting(repoId: string, meetUrl: string, title: string | null) {
+  if (!tester) return { ok: false, error: "Not logged in" };
+
+  try {
+    const res = await fetch(`${tester.apiBase}/api/v1/meetings/bot`, {
+      method: "POST",
+      headers: {
+        ...authHeaders(),
+        "Content-Type": "application/json",
+        "x-gg-session": tester.sessionId,
+      },
+      body: JSON.stringify({ repoId, meetUrl, title }),
+    });
+
+    const json = (await res.json().catch(() => ({}))) as { error?: string };
+    if (!res.ok) return { ok: false, error: json.error ?? `Server said ${res.status}` };
+
+    void chrome.storage.local.set({ gg_meeting_repo: repoId });
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Could not reach Glitchgrab" };
+  }
 }
 
 // ── "Report Bug" from the extension itself (#297) ────────────
