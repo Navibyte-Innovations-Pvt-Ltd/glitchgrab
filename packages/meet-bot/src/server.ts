@@ -12,7 +12,15 @@ import { hasProfile, loginStatus, startLogin, stopLogin } from "./login";
  * Docker image on a container host.
  */
 
-const PORT = Number(process.env.PORT ?? 8080);
+/**
+ * HTTP port — deliberately NOT `process.env.PORT`.
+ *
+ * Adding a TCP proxy for the VNC login makes Railway set PORT to that proxy's
+ * target (5900), so honouring it moves the API onto the VNC port: the domain
+ * 502s and VNC clients get an HTTP server. This service owns two ports and has
+ * to name them explicitly.
+ */
+const PORT = Number(process.env.MEET_BOT_HTTP_PORT ?? 8080);
 
 /** Shared secret. The bot is infrastructure, not a user — no session involved. */
 const SECRET = process.env.MEET_BOT_SECRET ?? "";
