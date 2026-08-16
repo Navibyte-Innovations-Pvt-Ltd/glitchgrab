@@ -13,7 +13,7 @@ import { getAccessibleRepos } from "@/lib/repo-access";
  * from a list the server built, never trusted on its own.
  */
 
-export interface MeetingCaller {
+interface MeetingCaller {
   /** Null for a QA-tester extension session — they have no dashboard user. */
   userId: string | null;
   repos: { id: string; fullName: string }[];
