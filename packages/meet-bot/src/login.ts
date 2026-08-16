@@ -99,8 +99,10 @@ export async function startLogin(vncPassword: string): Promise<{ ok: boolean; er
     procs.push(run("Xvfb", [DISPLAY, "-screen", "0", "1280x800x24", "-nolisten", "tcp"]));
     await new Promise((r) => setTimeout(r, 2000));
 
-    // -localhost keeps the VNC server off the public interface; reaching it
-    // requires Railway's TCP proxy, which is a deliberate, revocable exposure.
+    // Binds all interfaces on purpose — Railway's TCP proxy has to reach it.
+    // The exposure is gated by the VNC password, by the session only existing
+    // while you are logging in, and by the proxy being one you added and can
+    // delete.
     procs.push(
       run("x11vnc", [
         "-display", DISPLAY,
