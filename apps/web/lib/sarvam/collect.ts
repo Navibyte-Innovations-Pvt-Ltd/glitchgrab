@@ -32,7 +32,7 @@ interface TrackFile {
   offsetMs?: number;
 }
 
-export interface CollectOutcome {
+interface CollectOutcome {
   status: "RUNNING" | "DONE" | "FAILED";
   message?: string;
 }
