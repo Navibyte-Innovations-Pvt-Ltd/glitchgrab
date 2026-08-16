@@ -18,7 +18,7 @@ import { markSourceDistilled, type DistillableSource } from "./sources";
  * volume we don't control.
  */
 
-export interface DistillResult {
+interface DistillResult {
   /** Sources that produced at least one item. */
   sourcesDistilled: number;
   /** Sources attempted, including ones that yielded nothing. */
