@@ -67,7 +67,6 @@
         "src/**/*.{ts,tsx}"
       ],
       "ignoreDependencies": [
-        "react",
         "react-dom"
       ]
     },
@@ -106,7 +105,8 @@
   "ignoreBinaries": [
     "prisma",
     "semantic-release",
-    "wait"
+    "wait",
+    "ngrok"
   ],
   "ignore": [
     "apps/glitchrecord/**"
