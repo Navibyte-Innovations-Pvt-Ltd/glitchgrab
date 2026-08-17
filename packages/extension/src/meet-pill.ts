@@ -54,10 +54,15 @@ function send<T>(message: Record<string, unknown>): Promise<T> {
   return new Promise((resolve) => {
     try {
       chrome.runtime.sendMessage(message, (response) => {
-        void chrome.runtime.lastError;
+        // Chrome reports a dead/sleeping worker here rather than throwing.
+        // Swallowing it produced "extension not responding" for every cause,
+        // which is useless — surface what Chrome actually said.
+        const err = chrome.runtime.lastError;
+        if (err) log(`background error: ${err.message}`);
         resolve(response as T);
       });
-    } catch {
+    } catch (err) {
+      log(`sendMessage threw: ${err instanceof Error ? err.message : String(err)}`);
       resolve(undefined as T);
     }
   });
@@ -65,118 +70,72 @@ function send<T>(message: Record<string, unknown>): Promise<T> {
 
 function styles(): string {
   return `
-    /* Docked into Meet's own control bar, so it reads as part of the call
-       controls rather than something floating on top of them. */
+    /* Sized and coloured to match Meet's own round controls, so it reads as
+       one of them rather than an add-on sitting next to them. */
     #${PILL_ID} {
-      display: inline-flex; align-items: center; gap: 8px;
-      height: 40px; padding: 0 12px; border-radius: 9999px;
-      background: #1f1f1f; border: 1px solid #3c4043;
-      /* Never grow the row it sits in — Meet's bar has no slack. */
-      flex: 0 0 auto; max-width: 320px; overflow: hidden;
-      font-family: "Google Sans", Roboto, -apple-system, sans-serif;
-      color: #e8eaed; font-size: 12px; line-height: 1; white-space: nowrap;
-      margin-right: 8px;
+      width: 48px; height: 48px; border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: #333537; border: 0; cursor: pointer; padding: 0;
+      margin-right: 8px; flex: 0 0 auto;
+      transition: background .15s ease;
     }
-    /* Fallback when the toolbar can't be found — better floating than absent. */
-    #${PILL_ID}.gg-floating {
-      position: fixed; bottom: 96px; left: 24px; z-index: 2147483000;
-      box-shadow: 0 6px 24px rgba(0,0,0,.45);
+    #${PILL_ID}:hover { background: #3f4143; }
+    #${PILL_ID}:disabled { opacity: .5; cursor: default; }
+    #${PILL_ID} .gg-dot {
+      width: 14px; height: 14px; border-radius: 50%;
+      background: #34a853; transition: background .15s ease;
     }
-    #${PILL_ID} .gg-dot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; }
-    #${PILL_ID} .gg-dot.busy { background: #fbbf24; }
-    #${PILL_ID} .gg-dot.bad { background: #f87171; }
-    #${PILL_ID} select {
-      background: #171717; color: #e5e5e5; border: 1px solid #2a2a2a;
-      border-radius: 6px; padding: 4px 6px; font-size: 11px; max-width: 190px;
-    }
-    #${PILL_ID} button {
-      background: #7f1d1d; color: #fecaca; border: 0; cursor: pointer;
-      border-radius: 9999px; padding: 6px 12px; font-size: 11px; font-weight: 700;
-    }
-    #${PILL_ID} button:disabled { opacity: .55; cursor: not-allowed; }
-    #${PILL_ID} .gg-msg { color: #9aa0a6; max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
-    #${PILL_ID} .gg-src { color: #80868b; font-size: 10px; }
-    #${PILL_ID} strong { font-weight: 500; }
+    /* Amber while working, red when it needs attention — the same language
+       Meet uses for its own control states. */
+    #${PILL_ID} .gg-dot.busy { background: #fbbc04; }
+    #${PILL_ID} .gg-dot.bad  { background: #ea4335; }
+    #${PILL_ID} .gg-dot.live { background: #ea4335; animation: gg-pulse 1.4s infinite; }
+    @keyframes gg-pulse { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
   `;
 }
 
 /**
- * Build the pill with DOM APIs rather than innerHTML.
+ * One round button, built with DOM APIs rather than innerHTML.
  *
- * Repo names and error strings come from the server, and this runs inside
- * Google Meet — one crafted string in an innerHTML template would be script
- * execution on a page holding a live meeting session.
+ * Repo names and server error strings land in the tooltip, and this runs inside
+ * Google Meet — an innerHTML template here would be script execution on a page
+ * holding a live meeting session.
+ *
+ * Deliberately not a dropdown: the project is resolved automatically, and a
+ * wide control pushed Meet's own buttons out of their container. The tooltip
+ * carries the detail so the control stays the size of everything around it.
  */
 function render() {
   if (!root) return;
 
-  root.textContent = "";
-
-  const busy = state.phase === "sending";
+  const button = root as HTMLButtonElement;
+  button.textContent = "";
+  button.disabled = state.phase !== "idle";
 
   const dot = document.createElement("span");
   dot.className =
     "gg-dot" +
-    (state.phase === "error" ? " bad" : state.phase === "sending" ? " busy" : "");
-  root.appendChild(dot);
+    (state.phase === "error"
+      ? " bad"
+      : state.phase === "sending" || state.phase === "loading"
+        ? " busy"
+        : state.phase === "sent"
+          ? " live"
+          : "");
+  button.appendChild(dot);
 
-  const brand = document.createElement("strong");
-  brand.textContent = "Glitchgrab";
-  root.appendChild(brand);
+  const project = state.repos.find((r) => r.id === state.repoId)?.fullName;
+  const detail =
+    state.phase === "sent"
+      ? "Bot is joining — admit it when it knocks"
+      : state.phase === "error" || state.phase === "loading"
+        ? state.message
+        : project
+          ? `Record this call → ${project}${state.source === "calendar" ? " (from calendar)" : ""}`
+          : "Glitchgrab";
 
-  if (state.phase === "sent" || state.phase === "loading" || !state.repos.length) {
-    const note = document.createElement("span");
-    note.className = "gg-msg";
-    note.textContent = state.message;
-    root.appendChild(note);
-    return;
-  }
-
-  const select = document.createElement("select");
-  select.id = "gg-repo";
-  select.disabled = busy;
-  for (const repo of state.repos) {
-    const option = document.createElement("option");
-    option.value = repo.id;
-    option.textContent = repo.fullName;
-    option.selected = repo.id === state.repoId;
-    select.appendChild(option);
-  }
-  select.addEventListener("change", () => {
-    state.repoId = select.value;
-    // Remember the override so the next unscheduled call starts here.
-    void send({ type: "MEET_REMEMBER_REPO", repoId: state.repoId });
-    state.source = "remembered";
-    render();
-  });
-  root.appendChild(select);
-
-  const sourceLabel =
-    state.source === "calendar"
-      ? "from calendar"
-      : state.source === "remembered"
-        ? "last used"
-        : "";
-  if (sourceLabel) {
-    const src = document.createElement("span");
-    src.className = "gg-src";
-    src.textContent = sourceLabel;
-    root.appendChild(src);
-  }
-
-  const button = document.createElement("button");
-  button.id = "gg-send";
-  button.disabled = busy || !state.repoId;
-  button.textContent = busy ? "Sending…" : "● Record";
-  button.addEventListener("click", () => void sendBot());
-  root.appendChild(button);
-
-  if (state.message) {
-    const msg = document.createElement("span");
-    msg.className = "gg-msg";
-    msg.textContent = state.message;
-    root.appendChild(msg);
-  }
+  button.title = `Glitchgrab · ${detail}`;
+  button.setAttribute("aria-label", button.title);
 }
 
 async function sendBot() {
@@ -257,8 +216,9 @@ function ensureMounted() {
     document.head.appendChild(style);
   }
 
-  root = document.createElement("div");
+  root = document.createElement("button");
   root.id = PILL_ID;
+  root.addEventListener("click", () => void sendBot());
 
   if (slot) {
     // Directly before the mic's slot — inside the same grey group, immediately
