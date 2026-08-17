@@ -22,9 +22,18 @@ interface Repo {
 
 interface PillState {
   repos: Repo[];
+  /**
+   * Never pre-filled, not even from the calendar or the last call.
+   *
+   * A pre-selected project turns "start recording" into one click that files a
+   * client conversation wherever the previous one went. Deciding is the point:
+   * the operator picks, every time, and picking is what starts the recording.
+   */
   repoId: string | null;
-  /** Where the project came from — shown so the operator can trust it or not. */
-  source: "calendar" | "remembered" | "default" | null;
+  /** Which meeting the bot is working on — the handle for status and re-filing. */
+  meetingId: string | null;
+  /** The bot's own phase, straight from the server. Null before dispatch. */
+  botStatus: string | null;
   phase: "loading" | "idle" | "sending" | "sent" | "error";
   message: string;
 }
@@ -32,7 +41,8 @@ interface PillState {
 const state: PillState = {
   repos: [],
   repoId: null,
-  source: null,
+  meetingId: null,
+  botStatus: null,
   phase: "loading",
   message: "connecting…",
 };
@@ -141,12 +151,19 @@ function styles(): string {
       display: inline-flex !important;
       align-items: center !important;
       justify-content: center !important;
+      gap: 8px !important;
       background: #333537 !important;
+      color: #e3e3e3 !important;
+      font-family: "Google Sans", Roboto, -apple-system, sans-serif !important;
+      font-size: 14px !important; font-weight: 500 !important;
+      line-height: 1 !important; white-space: nowrap !important;
       border: 0 !important; outline: 0 !important; box-shadow: none !important;
-      cursor: pointer !important; padding: 0 !important;
+      cursor: pointer !important;
       transition: background .15s ease;
     }
     button#${PILL_ID}:hover { background: #3f4143 !important; }
+
+    button#${PILL_ID} .gg-label { display: block !important; }
     button#${PILL_ID}:disabled { opacity: .6 !important; cursor: default !important; }
     button#${PILL_ID} .gg-dot {
       width: 14px !important; height: 14px !important;
@@ -155,6 +172,12 @@ function styles(): string {
       transition: background .15s ease;
     }
     button#${PILL_ID} .gg-dot.busy { background: #fbbc04; }
+    /* Nothing chosen yet. Hollow grey says "waiting on you" — a green dot here
+       would read as "recording is handled" when nothing is being recorded. */
+    button#${PILL_ID} .gg-dot.idle {
+      background: transparent; border: 2px solid #9aa0a6;
+    }
+    button#${PILL_ID} .gg-dot.done { background: #9aa0a6; }
     /* Hollow, not solid. Error and recording were both flat red, which in a
        glance (or a screenshot) are the same thing — so a failed dispatch read
        as "the bot is recording" and the call went unrecorded. */
@@ -300,38 +323,128 @@ function render() {
   // reload, which is a poor thing to ask for thirty seconds before a call.
   button.disabled = state.phase === "loading" || state.phase === "sending";
 
-  if (button.disabled) {
+  // The ring means "something is happening that you are waiting on" — which
+  // includes the bot travelling to the call, not just our own request.
+  const working =
+    button.disabled ||
+    (state.phase === "sent" &&
+      ["DISPATCHING", "JOINING", "WAITING_ADMIT", "UPLOADING"].includes(state.botStatus ?? ""));
+
+  if (working) {
     const ring = document.createElement("span");
     ring.className = "gg-ring";
     button.appendChild(ring);
   }
 
   const dot = document.createElement("span");
-  dot.className =
-    "gg-dot" +
-    (state.phase === "error"
-      ? " bad"
-      : state.phase === "sending" || state.phase === "loading"
-        ? " busy"
-        : state.phase === "sent"
-          ? " live"
-          : "");
+  dot.className = "gg-dot" + dotClass();
   button.appendChild(dot);
 
-  const project = state.repos.find((r) => r.id === state.repoId)?.fullName;
-  const detail =
-    state.phase === "sent"
-      ? `Recording to ${project ?? "your project"} — admit the bot when it knocks`
-      : state.phase === "sending"
-        ? `Sending the bot to ${project ?? "your project"}…`
-        : state.phase === "error" || state.phase === "loading"
-          ? state.message
-          : project
-            ? `Record this call → ${project}${state.source === "calendar" ? " (from calendar)" : ""}`
-            : "Glitchgrab";
+  // A word beside the dot, because a coloured circle is not an affordance —
+  // there was no way to know it was the thing that starts a recording.
+  const text = buttonLabel();
+  if (text) {
+    const label = document.createElement("span");
+    label.className = "gg-label";
+    label.textContent = text;
+    button.appendChild(label);
+  }
 
-  button.title = `Glitchgrab · ${detail}`;
+  button.title = `Glitchgrab · ${statusLine()}`;
   button.setAttribute("aria-label", button.title);
+}
+
+/**
+ * The word on the button.
+ *
+ * Empty once recording is under way and a project is settled: the call is the
+ * thing to look at, and a permanent banner over Meet's controls is noise. The
+ * dot and the tooltip carry it from there.
+ */
+function buttonLabel(): string | null {
+  const project = state.repos.find((r) => r.id === state.repoId)?.fullName.split("/").pop();
+
+  if (state.phase === "loading") return null;
+  if (state.phase === "error") return "Recording failed";
+  if (state.phase === "sending") return "Starting…";
+
+  if (state.phase === "sent") {
+    switch (state.botStatus) {
+      case "WAITING_ADMIT":
+        return "Admit the bot";
+      case "RECORDING":
+        return project ?? "Recording";
+      case "UPLOADING":
+        return "Saving…";
+      case "FAILED":
+        return "Bot failed";
+      case "DONE":
+        return null;
+      default:
+        return "Bot joining…";
+    }
+  }
+
+  // Idle: naming the action is the whole point of the button existing.
+  return state.repoId ? (project ?? "Record") : "Record this call";
+}
+
+/**
+ * The bot's phase, in the operator's words.
+ *
+ * "Waiting to be let in" is the whole reason this is worth polling: it is the
+ * only state that needs a human to do something, and it is indistinguishable
+ * from "recording" if all we report is what we asked for.
+ */
+function botPhaseLabel(): string | null {
+  const project = state.repos.find((r) => r.id === state.repoId)?.fullName ?? "your project";
+
+  switch (state.botStatus) {
+    case "DISPATCHING":
+      return "Sending the bot…";
+    case "JOINING":
+      return "Bot is joining the call…";
+    case "WAITING_ADMIT":
+      return "Bot is knocking — admit it in Meet";
+    case "RECORDING":
+      return `Recording · ${project}`;
+    case "UPLOADING":
+      return "Finishing up — uploading the recording";
+    case "DONE":
+      return `Recorded · ${project}`;
+    case "FAILED":
+      return `Bot failed: ${state.message || "unknown error"}`;
+    default:
+      return null;
+  }
+}
+
+function statusLine(): string {
+  const project = state.repos.find((r) => r.id === state.repoId)?.fullName;
+
+  if (state.phase === "error") return state.message;
+  if (state.phase === "loading") return state.message;
+  if (state.phase === "sending") return `Sending the bot to ${project ?? "your project"}…`;
+  if (state.phase === "sent") return botPhaseLabel() ?? "Bot is on its way…";
+  return "Pick a project to start recording";
+}
+
+function dotClass(): string {
+  if (state.phase === "error") return " bad";
+  if (state.phase === "loading" || state.phase === "sending") return " busy";
+
+  if (state.phase === "sent") {
+    // Amber until the bot is actually in the room. Going red on dispatch is
+    // what made a bot stuck outside the call look like a bot recording it.
+    if (state.botStatus === "RECORDING") return " live";
+    if (state.botStatus === "FAILED") return " bad";
+    if (state.botStatus === "DONE" || state.botStatus === "UPLOADING") return " done";
+    return " busy";
+  }
+
+  // Idle with nothing chosen: neutral, not green. Green reads as "handled",
+  // and nothing is being recorded until a project is picked.
+  return state.repoId ? "" : " idle";
 }
 
 let popoverTimer: ReturnType<typeof setTimeout> | null = null;
@@ -384,47 +497,54 @@ function openPopover() {
   list.setAttribute("aria-label", "Record this call to");
   panel.appendChild(list);
 
-  if (state.phase === "sending" || state.phase === "sent") panel.classList.add("gg-locked");
+  // Only a dispatch in flight locks the list. Once the bot is recording the
+  // list stays live, because picking again re-files the recording.
+  if (state.phase === "sending") panel.classList.add("gg-locked");
 
   const foot = document.createElement("div");
   foot.className = "gg-foot";
-  // Say what a click will do, since it now dispatches the bot immediately.
-  // The error text is the only thing that says WHY nothing is recording, and a
-  // tooltip on a 20px dot is not where anyone will find it. Put it in the panel.
+  // Say what a click will do. The error text in particular is the only thing
+  // that explains why nothing is recording, and a tooltip on a 20px dot is not
+  // where anyone will find it — so it lives in the panel.
   if (state.phase === "error") foot.classList.add("gg-error");
   foot.textContent =
     state.phase === "sending"
       ? "Sending the bot…"
       : state.phase === "sent"
-        ? "Bot already sent for this call"
+        ? `${botPhaseLabel() ?? "Bot is on its way"} · pick another project to re-file it`
         : state.phase === "error"
           ? `Failed: ${state.message} · click a project to try again`
-          : state.source === "calendar"
-            ? "Picked from your calendar · click to start recording"
-            : "Click a project to start recording";
+          : "Click a project and the bot joins to record it";
   panel.appendChild(foot);
 
   let matches: Repo[] = [];
   let active = 0;
 
   /**
-   * Picking a project sends the bot.
+   * Picking a project is what starts — or re-files — the recording.
    *
-   * The two steps were always one intention — nobody opens this list except to
-   * record — and splitting them left the operator having picked a project with
+   * The two steps were always one intention: nobody opens this list except to
+   * record. Splitting them left the operator having picked a project with
    * nothing visibly happening, unsure whether the bot was coming.
    *
-   * Refused once the bot is already on its way: a second pick would dispatch a
-   * second bot into the same call, and the recording is already bound to the
-   * repo the first one carried.
+   * Once a bot is already on the call, a second pick does NOT send a second bot
+   * (the client would watch two notetakers arrive). It re-files the recording
+   * in progress, so a wrong pick is fixable without losing the first minutes.
    */
   function choose(repo: Repo) {
-    if (state.phase === "sending" || state.phase === "sent") return;
+    if (state.phase === "sending") return;
 
+    const previous = state.repoId;
     state.repoId = repo.id;
-    state.source = "remembered";
     void send({ type: "MEET_REMEMBER_REPO", repoId: repo.id });
     closePopover();
+
+    if (state.phase === "sent" && state.meetingId) {
+      if (previous === repo.id) return;
+      void refileMeeting(repo);
+      return;
+    }
+
     void sendBot();
   }
 
@@ -552,12 +672,19 @@ function openPopover() {
   document.body.appendChild(panel);
   paint();
 
-  // Anchor above the button, clamped to the viewport so it never runs off.
+  // Above the button by default — it sits on the bottom bar — and below only
+  // when there is no room above.
   const anchor = root.getBoundingClientRect();
   const box = panel.getBoundingClientRect();
   const left = Math.max(8, Math.min(anchor.left, window.innerWidth - box.width - 8));
+  const above = anchor.top - box.height - 12;
+  const below = anchor.bottom + 12;
+  const openDownward = above < 8;
+  // Clamped both ways so a tall list slides rather than overflowing offscreen.
+  const top = Math.max(8, Math.min(openDownward ? below : above, window.innerHeight - box.height - 8));
+
   panel.style.left = `${left}px`;
-  panel.style.top = `${Math.max(8, anchor.top - box.height - 12)}px`;
+  panel.style.top = `${top}px`;
 
   search.focus({ preventScroll: true });
 }
@@ -582,7 +709,7 @@ async function sendBot() {
   state.message = "";
   render();
 
-  const result = await send<{ ok: boolean; error?: string }>({
+  const result = await send<{ ok: boolean; error?: string; meetingId?: string | null }>({
     type: "MEET_SEND_BOT",
     repoId: state.repoId,
     meetUrl: location.href.split("?")[0],
@@ -591,12 +718,84 @@ async function sendBot() {
 
   if (result?.ok) {
     state.phase = "sent";
-    state.message = "Bot is joining — admit it when it knocks.";
+    state.meetingId = result.meetingId ?? null;
+    state.botStatus = "DISPATCHING";
+    state.message = "";
+    startStatusPoll();
   } else {
     state.phase = "error";
     state.message = result?.error ?? "Could not send the bot";
   }
   render();
+}
+
+/** Move an in-progress recording to another project. The bot is not disturbed. */
+async function refileMeeting(repo: Repo) {
+  if (!state.meetingId) return;
+  log(`re-filing this recording under ${repo.fullName}`);
+
+  const result = await send<{ ok: boolean; error?: string }>({
+    type: "MEET_RETARGET",
+    meetingId: state.meetingId,
+    repoId: repo.id,
+  });
+
+  if (!result?.ok) {
+    state.phase = "error";
+    state.message = result?.error ?? "Could not move the recording";
+  }
+  render();
+}
+
+let statusTimer: ReturnType<typeof setInterval> | null = null;
+
+/**
+ * Follow the bot's real progress.
+ *
+ * Everything before this reported what we had *asked* for. A bot that was
+ * dispatched but never admitted looked exactly like one that was recording, so
+ * the operator's only signal that a client call went unrecorded was finding no
+ * transcript afterwards. The server knows; ask it.
+ */
+function startStatusPoll() {
+  if (statusTimer) clearInterval(statusTimer);
+  if (!state.meetingId) return;
+
+  const tick = async () => {
+    if (!state.meetingId) return;
+
+    const result = await send<{
+      ok: boolean;
+      botStatus?: string | null;
+      botError?: string | null;
+      error?: string;
+    }>({ type: "MEET_MEETING_STATUS", meetingId: state.meetingId });
+
+    // A failed poll says nothing about the recording — the bot may be fine and
+    // the network briefly not. Leave the last known phase alone and try again.
+    if (!result?.ok) return;
+
+    const next = result.botStatus ?? null;
+    if (next !== state.botStatus) {
+      state.botStatus = next;
+      state.message = result.botError ?? "";
+      log(`bot status → ${next ?? "unknown"}${result.botError ? ` (${result.botError})` : ""}`);
+      render();
+      // Keep an open picker's footer honest about the phase it is describing.
+      if (document.getElementById(POPOVER_ID)) openPopover();
+    }
+
+    // Nothing more will change once it has finished either way.
+    if (next === "DONE" || next === "FAILED") stopStatusPoll();
+  };
+
+  void tick();
+  statusTimer = setInterval(() => void tick(), 5000);
+}
+
+function stopStatusPoll() {
+  if (statusTimer) clearInterval(statusTimer);
+  statusTimer = null;
 }
 
 /**
@@ -623,6 +822,12 @@ async function sendBot() {
  * There is nothing to record before joining anyway, so this is also just
  * correct behaviour rather than only a layout fix.
  */
+function findJoinButton(): HTMLElement | null {
+  return document.querySelector<HTMLElement>(
+    '[aria-label*="join now" i], [aria-label*="ask to join" i], [jsname="Qx7uuf"]'
+  );
+}
+
 let lastInCall: boolean | null = null;
 
 function isInCall(): boolean {
@@ -638,9 +843,7 @@ function isInCall(): boolean {
   // Fallback: a lobby always offers a way IN. If there's a mic control and no
   // join affordance, we are already inside the call whatever the button is
   // called this week.
-  const joining = document.querySelector(
-    '[aria-label*="join now" i], [aria-label*="ask to join" i], [jsname="Qx7uuf"]'
-  );
+  const joining = findJoinButton();
   const inCall = Boolean(leave) || (Boolean(findMicButton()) && !joining);
 
   if (inCall !== lastInCall) {
@@ -674,6 +877,9 @@ function findLeaveButton(): HTMLElement | null {
  * wrong element entirely. There is only ever one way to leave a call.
  */
 function findControlGroup(): HTMLElement | null {
+  // In-call only. Asking in the lobby put the question in front of someone who
+  // is still deciding whether to join at all, next to Google's own Join button
+  // — the one control on that screen that must never be competed with.
   if (!isInCall()) return null;
 
   const anchor = findLeaveButton() ?? findMicButton();
@@ -697,6 +903,9 @@ function findControlGroup(): HTMLElement | null {
  */
 /** Last thing ensureMounted logged, so a 4-per-second check doesn't spam. */
 let lastMountLog = "";
+
+/** The picker opens by itself once per call, never again — nagging is not a nudge. */
+let promptedInCall = false;
 
 function mountLog(message: string) {
   if (message === lastMountLog) return;
@@ -754,6 +963,12 @@ function ensureMounted() {
     button = document.createElement("button");
     button.id = PILL_ID;
     button.addEventListener("click", () => {
+      // Nothing chosen yet, so there is nothing to start — show the choice
+      // instead of swallowing the click.
+      if (!state.repoId) {
+        openPopover();
+        return;
+      }
       closePopover();
       void sendBot();
     });
@@ -770,6 +985,17 @@ function ensureMounted() {
     // If the project lookup is still sleeping off an earlier failure, this is
     // the moment to retry it.
     if (state.phase === "loading") pokeRetry();
+
+    // Ask once, just after joining — the button mounts the moment "Leave call"
+    // exists, which is exactly when recording becomes a live decision. A
+    // control nobody notices is the same as no control at all, and this is the
+    // one question that has to be answered early or not at all.
+    if (!promptedInCall) {
+      promptedInCall = true;
+      setTimeout(() => {
+        if (isInCall() && state.phase === "idle" && !state.repoId) openPopover();
+      }, 1200);
+    }
   } else if (root !== button) {
     // Same node, new script state (or vice versa) — keep the two in step.
     root = button;
@@ -778,23 +1004,31 @@ function ensureMounted() {
     mountLog("mounted and in place");
   }
 
-  // Size from a control inside the bar, so we track Meet's own scaling.
+  const labelled = Boolean(buttonLabel());
+  // Size from a control Meet itself rendered, so we track its scaling.
   const gauge = findLeaveButton() ?? findMicButton();
-  const size = Math.round(gauge?.getBoundingClientRect().height || 0) || 48;
+  const height = Math.round(gauge?.getBoundingClientRect().height || 0) || 48;
 
-  button.style.setProperty("width", `${size}px`, "important");
-  button.style.setProperty("height", `${size}px`, "important");
-  button.style.setProperty("border-radius", "50%", "important");
+  button.style.setProperty("height", `${height}px`, "important");
+  button.style.setProperty("border-radius", labelled ? "999px" : "50%", "important");
+  button.style.setProperty("padding", labelled ? `0 ${Math.round(height / 3)}px` : "0", "important");
+  if (labelled) {
+    button.style.removeProperty("width");
+  } else {
+    button.style.setProperty("width", `${height}px`, "important");
+  }
 
-  // Right of the bar, not left: tl;dv parks its own pill on the left and the
-  // two overlapped. The gap to the right of the bar is empty in every layout.
-  // `left`/`top` are viewport coordinates — what getBoundingClientRect returns
-  // and what position:fixed expects, so no scroll maths.
-  const left = Math.min(rect.right + 12, window.innerWidth - size - 8);
+  // Measured after the sizing above, since a labelled pill is as wide as its
+  // text and there is no way to know that in advance.
+  const width = Math.round(button.getBoundingClientRect().width) || height;
+
+  // In call: right of the bar. tl;dv parks its own pill on the left and the two
+  // overlapped; the gap on the right is empty in every layout.
+  const left = Math.min(rect.right + 12, window.innerWidth - width - 8);
   button.style.setProperty("left", `${Math.round(left)}px`, "important");
   button.style.setProperty(
     "top",
-    `${Math.round(rect.top + (rect.height - size) / 2)}px`,
+    `${Math.round(rect.top + (rect.height - height) / 2)}px`,
     "important"
   );
 }
@@ -938,21 +1172,17 @@ export async function mountMeetPill(): Promise<void> {
 
     state.repos = resolved.repos;
 
-    if (resolved.suggested) {
-      state.repoId = resolved.suggested.repoId;
-      state.source = "calendar";
-    } else if (resolved.lastRepoId && resolved.repos.some((r) => r.id === resolved.lastRepoId)) {
-      state.repoId = resolved.lastRepoId;
-      state.source = "remembered";
-    } else {
-      state.repoId = resolved.repos[0].id;
-      state.source = "default";
-    }
+    // Nothing is pre-selected — not the calendar match, not the last project
+    // used. A pre-filled choice makes "start recording" a single click that
+    // files a client conversation wherever the previous one went, and the
+    // operator only finds out when they go looking for the transcript.
+    // Deciding is the point.
+    state.repoId = null;
 
     state.phase = "idle";
     state.message = "";
     render();
-    log(`ready (${state.repos.length} projects, source: ${state.source})`);
+    log(`ready (${state.repos.length} projects, none pre-selected)`);
     mounting = false;
     return;
   }
