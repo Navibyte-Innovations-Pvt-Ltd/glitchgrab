@@ -125,6 +125,10 @@ model Repo {
   owner          String
   name           String
   isPrivate      Boolean  @default(false)
+  /// Last push to the default branch, per GitHub. Refreshed hourly by
+  /// `cron/repo-activity`, never read live: the in-Meet project picker orders
+  /// by it, and that list is built while someone is seconds from a client call.
+  pushedAt       DateTime?
   createdAt      DateTime @default(now())
 
   user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
