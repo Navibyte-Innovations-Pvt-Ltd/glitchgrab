@@ -45,9 +45,20 @@ export async function POST(request: Request) {
 
     // Two bots joining one call is visible to the client — refuse rather than
     // quietly duplicate.
-    if (await botAlreadyOnCall(meetUrl)) {
+    const running = await botAlreadyOnCall(meetUrl);
+    if (running) {
+      // Name the project it is filed under. "A bot is already on that call" on
+      // a call you sent nothing to is unactionable — the useful question is
+      // always "which recording is this, then?".
+      const where = caller.repos.find((r) => r.id === running.repoId)?.fullName;
       return NextResponse.json(
-        { success: false, error: "A bot is already on that call" },
+        {
+          success: false,
+          error: where
+            ? `Already recording this call to ${where}`
+            : "A bot is already on that call",
+          data: { meetingId: running.id, repoId: running.repoId },
+        },
         { status: 409 }
       );
     }
