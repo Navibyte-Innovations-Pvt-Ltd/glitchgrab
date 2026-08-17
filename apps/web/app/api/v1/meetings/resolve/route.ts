@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { resolveMeetingCaller } from "@/lib/meetings";
+import { findActiveBotMeeting } from "@/lib/meet-bot";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -44,6 +45,40 @@ export async function GET(request: Request) {
 
     let suggested: { repoId: string; repoFullName: string; source: string } | null = null;
 
+    /**
+     * A recording already running on this call.
+     *
+     * The in-Meet button keeps its state in the page, so reloading the tab —
+     * or opening the call in a second tab — used to forget that a bot was
+     * already in the room and ask again from scratch. Worse than noise: the
+     * obvious response is to pick a project, which is a request for a SECOND
+     * bot in front of the client.
+     */
+    let active: {
+      meetingId: string;
+      repoId: string;
+      repoFullName: string;
+      botStatus: string | null;
+    } | null = null;
+
+    if (meetUrl) {
+      // Same definition the duplicate check uses, so the button can never show
+      // "nothing running" while the server refuses to start anything.
+      const running = await findActiveBotMeeting(
+        meetUrl,
+        repos.map((r) => r.id)
+      );
+
+      if (running) {
+        active = {
+          meetingId: running.id,
+          repoId: running.repoId,
+          repoFullName: repos.find((r) => r.id === running.repoId)?.fullName ?? "",
+          botStatus: running.botStatus,
+        };
+      }
+    }
+
     if (meetUrl && caller.userId) {
       const scheduled = await prisma.scheduledRecording.findFirst({
         where: {
@@ -71,7 +106,7 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json(
-      { success: true, data: { repos, suggested } },
+      { success: true, data: { repos, suggested, active } },
       { headers: CORS_HEADERS }
     );
   } catch (error) {
