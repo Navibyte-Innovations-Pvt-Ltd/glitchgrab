@@ -1,0 +1,15 @@
+-- Recordings that don't belong to a project yet (#311).
+--
+-- The first call about a prospect, or an idea with no repo behind it, still
+-- needs recording — and forcing a project at that moment means either not
+-- recording it or filing it somewhere wrong and hoping to remember. Both lose
+-- the conversation.
+--
+-- Nullable rather than a magic "Unfiled" repo: a placeholder row would inherit
+-- real repo semantics (access grants, issue creation, the project picker) for
+-- something that is explicitly not a project.
+--
+-- An unfiled meeting is visible only to whoever created it. Repo membership is
+-- the only access control here, so a meeting with no repo has no scope to
+-- check — `createdById` is the whole rule until it is filed.
+ALTER TABLE "Meeting" ALTER COLUMN "repoId" DROP NOT NULL;
