@@ -188,7 +188,8 @@ export async function botAlreadyOnCall(meetUrl: string) {
  * arrives still leaves a visible, explainable record instead of silence.
  */
 export async function startBotRecording(params: {
-  repoId: string;
+  /** Null for an unfiled recording — file it later with PATCH /meetings/:id/repo. */
+  repoId: string | null;
   meetUrl: string;
   title: string | null;
   userId: string | null;
