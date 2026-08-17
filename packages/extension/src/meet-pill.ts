@@ -69,27 +69,40 @@ function send<T>(message: Record<string, unknown>): Promise<T> {
 }
 
 function styles(): string {
+  // `button#id` + !important on the structural properties: Meet ships global
+  // button resets that otherwise strip the background and sizing, which left
+  // just a floating dot. Specificity here is not laziness — we are a guest in
+  // someone else's stylesheet and cannot rename their rules.
   return `
-    /* Sized and coloured to match Meet's own round controls, so it reads as
-       one of them rather than an add-on sitting next to them. */
-    #${PILL_ID} {
-      width: 48px; height: 48px; border-radius: 50%;
-      display: inline-flex; align-items: center; justify-content: center;
-      background: #333537; border: 0; cursor: pointer; padding: 0;
-      margin-right: 8px; flex: 0 0 auto;
+    button#${PILL_ID} {
+      width: 48px !important; height: 48px !important;
+      min-width: 48px !important; min-height: 48px !important;
+      border-radius: 50% !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      /* Centre against Meet's other controls regardless of the row's
+         align-items, which changes between layouts. */
+      align-self: center !important;
+      vertical-align: middle !important;
+      background: #333537 !important;
+      border: 0 !important; outline: 0 !important; box-shadow: none !important;
+      cursor: pointer !important; padding: 0 !important;
+      margin: 0 8px 0 0 !important;
+      flex: 0 0 auto !important;
       transition: background .15s ease;
     }
-    #${PILL_ID}:hover { background: #3f4143; }
-    #${PILL_ID}:disabled { opacity: .5; cursor: default; }
-    #${PILL_ID} .gg-dot {
-      width: 14px; height: 14px; border-radius: 50%;
-      background: #34a853; transition: background .15s ease;
+    button#${PILL_ID}:hover { background: #3f4143 !important; }
+    button#${PILL_ID}:disabled { opacity: .6 !important; cursor: default !important; }
+    button#${PILL_ID} .gg-dot {
+      width: 14px !important; height: 14px !important;
+      border-radius: 50% !important; display: block !important;
+      background: #34a853;
+      transition: background .15s ease;
     }
-    /* Amber while working, red when it needs attention — the same language
-       Meet uses for its own control states. */
-    #${PILL_ID} .gg-dot.busy { background: #fbbc04; }
-    #${PILL_ID} .gg-dot.bad  { background: #ea4335; }
-    #${PILL_ID} .gg-dot.live { background: #ea4335; animation: gg-pulse 1.4s infinite; }
+    button#${PILL_ID} .gg-dot.busy { background: #fbbc04; }
+    button#${PILL_ID} .gg-dot.bad  { background: #ea4335; }
+    button#${PILL_ID} .gg-dot.live { background: #ea4335; animation: gg-pulse 1.4s infinite; }
     @keyframes gg-pulse { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
   `;
 }
@@ -209,6 +222,8 @@ function ensureMounted() {
 
   existing?.remove();
 
+  // Re-checked on every re-dock: Meet's re-renders can take our <style> too,
+  // which would leave the button unstyled rather than missing — harder to spot.
   if (!document.getElementById(`${PILL_ID}-style`)) {
     const style = document.createElement("style");
     style.id = `${PILL_ID}-style`;
