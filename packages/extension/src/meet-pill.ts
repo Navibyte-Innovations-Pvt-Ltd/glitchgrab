@@ -67,12 +67,27 @@ const RETRY_MAX_MS = 30000;
  * calls `reply`, the promise simply never settles. That left the button stuck
  * on "connecting…" forever with no error and nothing in the log — the failure
  * mode that looks exactly like "it is just slow".
+ *
+ * Generous on purpose. A local Next.js dev server compiles the route on first
+ * hit — measured at 14.7s — and an 8s limit turned that into a false "not
+ * responding", a backoff, and a retry that raced the request that was about to
+ * succeed. The timeout is a backstop against a dead worker, not a latency
+ * budget; the latency budget lives in the background worker, which falls back
+ * to its cache at 2.5s.
  */
-const REPLY_TIMEOUT_MS = 8000;
+const REPLY_TIMEOUT_MS = 30000;
 
-/** Visible in the Meet tab's console — the only place to debug an injected UI. */
+const startedAt = Date.now();
+
+/**
+ * Visible in the Meet tab's console — the only place to debug an injected UI.
+ *
+ * Timestamped relative to page load: every problem this UI has had so far was a
+ * question of ordering and latency (worker asleep, route compiling, backoff
+ * still running), and a bare message can't answer "how long was it stuck?".
+ */
 function log(message: string) {
-  console.log("[Glitchgrab]", message);
+  console.log(`[Glitchgrab +${((Date.now() - startedAt) / 1000).toFixed(1)}s]`, message);
 }
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -144,7 +159,14 @@ function styles(): string {
       transition: background .15s ease;
     }
     button#${PILL_ID} .gg-dot.busy { background: #fbbc04; }
-    button#${PILL_ID} .gg-dot.bad  { background: #ea4335; }
+    /* Hollow, not solid. Error and recording were both flat red, which in a
+       glance (or a screenshot) are the same thing — so a failed dispatch read
+       as "the bot is recording" and the call went unrecorded. */
+    button#${PILL_ID} .gg-dot.bad {
+      background: transparent; border: 3px solid #ea4335;
+      animation: gg-blink 1s steps(1) infinite;
+    }
+    @keyframes gg-blink { 50% { border-color: #fdd663 } }
     button#${PILL_ID} .gg-dot.live { background: #ea4335; animation: gg-pulse 1.4s infinite; }
     @keyframes gg-pulse { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
 
@@ -598,10 +620,31 @@ async function sendBot() {
  * There is nothing to record before joining anyway, so this is also just
  * correct behaviour rather than only a layout fix.
  */
+let lastInCall: boolean | null = null;
+
 function isInCall(): boolean {
-  return Boolean(
-    document.querySelector('[aria-label*="Leave call" i], [aria-label*="leave the call" i]')
+  // Several spellings, because Meet's label for the hang-up control varies by
+  // layout and locale ("Leave call", "Leave the call", "End call"). Matching a
+  // single exact string meant one redesign silently removed the button, with
+  // the removal looking identical to "the extension broke".
+  const leave = document.querySelector(
+    '[aria-label*="leave call" i], [aria-label*="leave the call" i],' +
+      '[aria-label*="end call" i], [aria-label*="hang up" i]'
   );
+
+  // Fallback: a lobby always offers a way IN. If there's a mic control and no
+  // join affordance, we are already inside the call whatever the button is
+  // called this week.
+  const joining = document.querySelector(
+    '[aria-label*="join now" i], [aria-label*="ask to join" i], [jsname="Qx7uuf"]'
+  );
+  const inCall = Boolean(leave) || (Boolean(findMicButton()) && !joining);
+
+  if (inCall !== lastInCall) {
+    lastInCall = inCall;
+    log(`in-call = ${inCall} (leaveButton=${Boolean(leave)}, joinButton=${Boolean(joining)})`);
+  }
+  return inCall;
 }
 
 /**
@@ -659,6 +702,15 @@ function findControlGroup(): HTMLElement | null {
  * Meet swaps its DOM between lobby and call and re-renders the control bar, so
  * this runs on a timer and re-docks whenever the pill has been torn out.
  */
+/** Last thing ensureMounted logged, so a 4-per-second check doesn't spam. */
+let lastMountLog = "";
+
+function mountLog(message: string) {
+  if (message === lastMountLog) return;
+  lastMountLog = message;
+  log(message);
+}
+
 function ensureMounted() {
   const existing = document.getElementById(PILL_ID);
   const group = findControlGroup();
@@ -668,6 +720,10 @@ function ensureMounted() {
 
   // Not in the call (or Meet's controls aren't rendered): show nothing.
   if (!group) {
+    mountLog(
+      `no control group — inCall=${isInCall()} mic=${Boolean(findMicButton())}` +
+        (existing ? " (removing the button)" : "")
+    );
     existing?.remove();
     closePopover();
     root = null;
@@ -680,9 +736,22 @@ function ensureMounted() {
   // against `group.firstElementChild`, which becomes the button ITSELF once
   // mounted, so the check never matched: it removed and re-inserted on every
   // tick, the observer saw its own mutation, and the button strobed.
-  if (existing && existing.parentElement === group && group.firstElementChild === existing) {
+  // Anywhere inside the group is good enough.
+  //
+  // Insisting on being the FIRST child meant that every time Meet inserted one
+  // of its own controls ahead of ours — which it does when a side panel opens
+  // and the bar re-flows — we tore the button out and re-inserted it, feeding
+  // the observer our own mutation. Position is cosmetic; presence is not.
+  if (existing && existing.parentElement === group) {
+    mountLog("mounted and in place");
     return;
   }
+
+  mountLog(
+    existing
+      ? "button is outside the control group (Meet rebuilt the bar) — re-docking"
+      : "button missing — docking into the control group"
+  );
 
   existing?.remove();
 
@@ -709,6 +778,16 @@ function ensureMounted() {
 
   group.insertBefore(root, group.firstElementChild);
   matchNeighbourStyle(root, findMicButton());
+
+  // Meet animates the bar when a side panel opens, so the mic can measure 0×0
+  // at the instant we re-dock — which leaves the button sized to nothing and
+  // looking like it vanished. Measure again once the layout has settled.
+  requestAnimationFrame(() => {
+    if (root?.isConnected) matchNeighbourStyle(root, findMicButton());
+  });
+  setTimeout(() => {
+    if (root?.isConnected) matchNeighbourStyle(root, findMicButton());
+  }, 400);
 
   render();
 
@@ -811,13 +890,27 @@ export async function mountMeetPill(): Promise<void> {
       continue;
     }
 
+    const askedAt = Date.now();
+    log("asking the background for this call's project…");
+
     const resolved = await send<{
       ok: boolean;
       repos?: Repo[];
       suggested?: { repoId: string; repoFullName: string; source: string } | null;
       lastRepoId?: string | null;
+      /** True when the repo list came from cache because the server was slow. */
+      stale?: boolean;
       error?: string;
     }>({ type: "MEET_RESOLVE_PROJECT", meetUrl: location.href.split("?")[0] });
+
+    log(
+      `background replied in ${Date.now() - askedAt}ms: ` +
+        (resolved
+          ? `ok=${resolved.ok} repos=${resolved.repos?.length ?? 0}` +
+            (resolved.stale ? " (cached)" : "") +
+            (resolved.error ? ` error=${resolved.error}` : "")
+          : "no reply")
+    );
 
     if (!resolved) {
       await retry("extension not responding");
