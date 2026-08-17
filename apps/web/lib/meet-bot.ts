@@ -35,9 +35,28 @@ async function dispatchBot(params: {
     return { ok: false, error: "The meeting bot is not configured (MEET_BOT_URL / MEET_BOT_SECRET)" };
   }
 
-  // The bot calls us back on this to upload — it must be an address the bot's
-  // container can actually reach, which is NOT localhost when it runs remotely.
-  const apiBase = process.env.NEXTAUTH_URL ?? "https://glitchgrab.dev";
+  // The bot calls us back on this to report progress and upload the audio, so
+  // it must be an address the BOT can reach — not one that merely works here.
+  const apiBase =
+    process.env.MEET_BOT_CALLBACK_URL ?? process.env.NEXTAUTH_URL ?? "https://glitchgrab.dev";
+
+  const botIsLocal = /localhost|127\.0\.0\.1/.test(botUrl);
+  const callbackIsLocal = /localhost|127\.0\.0\.1/.test(apiBase);
+
+  // A remote bot told to call back to localhost resolves that to its OWN
+  // container. It joins the call, records for the full hour, and posts every
+  // status update and the finished audio into nothing — so the meeting looks
+  // like it is being recorded, the badge sits waiting forever, and the file
+  // never arrives. Refusing up front is worth far more than a bot that appears
+  // to work: the failure is otherwise invisible until someone goes looking for
+  // a transcript that was never coming.
+  if (!botIsLocal && callbackIsLocal) {
+    return {
+      ok: false,
+      error:
+        "The bot runs remotely and cannot call back to localhost — set MEET_BOT_CALLBACK_URL to a public URL (or sign in to glitchgrab.dev instead of your dev server)",
+    };
+  }
 
   try {
     const res = await fetch(`${botUrl.replace(/\/$/, "")}/join`, {
@@ -81,6 +100,43 @@ export const BOT_IN_FLIGHT = [
   "RECORDING",
   "UPLOADING",
 ];
+
+/**
+ * Ask the bot service what it is doing with a meeting, right now.
+ *
+ * The bot reports its progress by calling us, which is the wrong direction to
+ * depend on: any network where the bot cannot reach us produces a bot that
+ * joins the call and records while the dashboard shows it as still joining,
+ * forever. Asking the other way round works whenever the bot service is
+ * reachable from here — which it must be anyway, or we could not have
+ * dispatched it in the first place.
+ *
+ * Returns null on any problem: this is a better answer than the stored one,
+ * never a required one.
+ */
+export async function fetchLiveBotPhase(meetingId: string): Promise<string | null> {
+  const botUrl = process.env.MEET_BOT_URL;
+  const secret = process.env.MEET_BOT_SECRET;
+  if (!botUrl || !secret) return null;
+
+  try {
+    const res = await fetch(`${botUrl.replace(/\/$/, "")}/status`, {
+      headers: { "x-gg-bot": secret },
+      // A status read must never hold up the caller — the stored value is
+      // right behind it.
+      signal: AbortSignal.timeout(2500),
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+
+    const json = (await res.json()) as {
+      data?: { jobs?: Array<{ meetingId?: string; phase?: string }> };
+    };
+    return json.data?.jobs?.find((j) => j.meetingId === meetingId)?.phase ?? null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Before a bot is in the room, it is only ever a few seconds from either
