@@ -37,7 +37,7 @@ export async function getExtensionSessionRepos(
     const rows = await prisma.testerRepo.findMany({
       where: { testerId: identity.testerId, repo: { name: { not: { startsWith: "." } } } },
       include: { repo: { select: { id: true, fullName: true } } },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ repo: { pushedAt: { sort: "desc", nulls: "last" } } }, { createdAt: "desc" }],
     });
     return rows.map((r) => r.repo);
   }
@@ -45,7 +45,12 @@ export async function getExtensionSessionRepos(
     return prisma.repo.findMany({
       where: { userId: identity.userId, name: { not: { startsWith: "." } } },
       select: { id: true, fullName: true },
-      orderBy: { createdAt: "desc" },
+      // Most recently pushed first — the project someone is about to demo is
+      // almost always the one they have been committing to, and this list is
+      // read in the seconds before a client call. Nulls last, so a repo the
+      // hourly refresh has not seen yet falls back to newest-connected instead
+      // of jumping to the top.
+      orderBy: [{ pushedAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
     });
   }
   return [];
