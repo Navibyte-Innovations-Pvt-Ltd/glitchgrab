@@ -38,6 +38,7 @@ const state: PillState = {
 
 let root: HTMLElement | null = null;
 let mounting = false;
+let observer: MutationObserver | null = null;
 
 const MOUNT_ATTEMPTS = 12;
 const RETRY_MS = 5000;
@@ -264,6 +265,40 @@ function ensureMounted() {
 }
 
 /**
+ * Re-dock the pill the instant Meet tears it out.
+ *
+ * Meet rebuilds its control bar constantly — on layout changes, participants
+ * joining, the tile view switching — and takes any injected node with it. A
+ * timer alone makes the pill visibly flicker in and out; an observer puts it
+ * back in the same frame, so it simply looks like part of the bar.
+ *
+ * The interval stays as a backstop for rebuilds that don't touch body's
+ * subtree in a way the observer sees.
+ */
+function watchToolbar() {
+  if (observer) return;
+
+  let queued = false;
+  observer = new MutationObserver(() => {
+    if (queued) return;
+    // Coalesce: Meet emits mutations in bursts, and re-docking per mutation
+    // would run this hundreds of times a second during a layout change.
+    queued = true;
+    requestAnimationFrame(() => {
+      queued = false;
+      try {
+        ensureMounted();
+      } catch {
+        /* never let our repair break the page */
+      }
+    });
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
+  setInterval(ensureMounted, 5000);
+}
+
+/**
  * Show the pill on a Meet call page.
  *
  * Safe to call repeatedly — Meet swaps its DOM between the lobby and the call,
@@ -282,7 +317,7 @@ export async function mountMeetPill(): Promise<void> {
   // lookup failed", and previously the two were indistinguishable because
   // nothing rendered until everything had succeeded.
   ensureMounted();
-  setInterval(ensureMounted, 5000);
+  watchToolbar();
 
   for (let attempt = 1; attempt <= MOUNT_ATTEMPTS; attempt++) {
     if (!/^https:\/\/meet\.google\.com\/[a-z]{3}-[a-z]{4}-[a-z]{3}/i.test(location.href)) {
