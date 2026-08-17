@@ -13,6 +13,7 @@
  */
 
 const PILL_ID = "glitchgrab-meet-pill";
+const POPOVER_ID = "glitchgrab-meet-popover";
 
 interface Repo {
   id: string;
@@ -103,6 +104,31 @@ function styles(): string {
     button#${PILL_ID} .gg-dot.bad  { background: #ea4335; }
     button#${PILL_ID} .gg-dot.live { background: #ea4335; animation: gg-pulse 1.4s infinite; }
     @keyframes gg-pulse { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
+
+    /* Project picker, opened on hover — the same shape Meet uses for its own
+       camera and microphone menus, so it reads as native. */
+    #${POPOVER_ID} {
+      position: fixed; z-index: 2147483000;
+      background: #202124; color: #e8eaed;
+      border-radius: 12px; padding: 8px;
+      box-shadow: 0 8px 28px rgba(0,0,0,.55);
+      font-family: "Google Sans", Roboto, -apple-system, sans-serif;
+      font-size: 13px; min-width: 260px; max-width: 380px;
+      max-height: 320px; overflow-y: auto;
+    }
+    #${POPOVER_ID} .gg-head {
+      color: #9aa0a6; font-size: 11px; text-transform: uppercase;
+      letter-spacing: .8px; padding: 6px 10px 8px;
+    }
+    #${POPOVER_ID} .gg-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 10px; border-radius: 8px; cursor: pointer;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    #${POPOVER_ID} .gg-item:hover { background: #303134; }
+    #${POPOVER_ID} .gg-item.sel { background: #303134; }
+    #${POPOVER_ID} .gg-item .gg-tick { width: 16px; color: #8ab4f8; flex: 0 0 16px; }
+    #${POPOVER_ID} .gg-foot { color: #9aa0a6; font-size: 11px; padding: 8px 10px 4px; }
   `;
 }
 
@@ -148,6 +174,84 @@ function render() {
 
   button.title = `Glitchgrab · ${detail}`;
   button.setAttribute("aria-label", button.title);
+}
+
+let popoverTimer: ReturnType<typeof setTimeout> | null = null;
+
+function closePopover() {
+  document.getElementById(POPOVER_ID)?.remove();
+}
+
+/**
+ * Show the project list above the button.
+ *
+ * Hover rather than click, because the button's click is "record now" — the
+ * common action shouldn't require going through a menu, but the project still
+ * has to be inspectable and changeable before a client call.
+ */
+function openPopover() {
+  if (!root || state.repos.length === 0) return;
+  closePopover();
+
+  const panel = document.createElement("div");
+  panel.id = POPOVER_ID;
+
+  const head = document.createElement("div");
+  head.className = "gg-head";
+  head.textContent = "Record this call to";
+  panel.appendChild(head);
+
+  for (const repo of state.repos) {
+    const item = document.createElement("div");
+    item.className = "gg-item" + (repo.id === state.repoId ? " sel" : "");
+
+    const tick = document.createElement("span");
+    tick.className = "gg-tick";
+    tick.textContent = repo.id === state.repoId ? "✓" : "";
+    item.appendChild(tick);
+
+    const name = document.createElement("span");
+    name.textContent = repo.fullName;
+    item.appendChild(name);
+
+    item.addEventListener("click", (e) => {
+      e.stopPropagation();
+      state.repoId = repo.id;
+      state.source = "remembered";
+      void send({ type: "MEET_REMEMBER_REPO", repoId: repo.id });
+      render();
+      closePopover();
+    });
+
+    panel.appendChild(item);
+  }
+
+  const foot = document.createElement("div");
+  foot.className = "gg-foot";
+  foot.textContent =
+    state.source === "calendar" ? "Chosen from your calendar" : "Click the dot to send the bot";
+  panel.appendChild(foot);
+
+  // Keep it open while the pointer is inside it.
+  panel.addEventListener("mouseenter", () => {
+    if (popoverTimer) clearTimeout(popoverTimer);
+  });
+  panel.addEventListener("mouseleave", scheduleClosePopover);
+
+  document.body.appendChild(panel);
+
+  // Anchor above the button, clamped to the viewport so it never runs off.
+  const anchor = root.getBoundingClientRect();
+  const box = panel.getBoundingClientRect();
+  const left = Math.max(8, Math.min(anchor.left, window.innerWidth - box.width - 8));
+  panel.style.left = `${left}px`;
+  panel.style.top = `${Math.max(8, anchor.top - box.height - 12)}px`;
+}
+
+function scheduleClosePopover() {
+  if (popoverTimer) clearTimeout(popoverTimer);
+  // Small grace so moving the pointer from button to panel doesn't close it.
+  popoverTimer = setTimeout(closePopover, 250);
 }
 
 async function sendBot() {
@@ -263,9 +367,13 @@ function ensureMounted() {
   const existing = document.getElementById(PILL_ID);
   const group = findControlGroup();
 
+  // Our own popover lives on body and must never be mistaken for Meet's DOM
+  // churn — it is removed with the button when we leave the call.
+
   // Not in the call (or Meet's controls aren't rendered): show nothing.
   if (!group) {
     existing?.remove();
+    closePopover();
     root = null;
     return;
   }
@@ -293,7 +401,15 @@ function ensureMounted() {
 
   root = document.createElement("button");
   root.id = PILL_ID;
-  root.addEventListener("click", () => void sendBot());
+  root.addEventListener("click", () => {
+    closePopover();
+    void sendBot();
+  });
+  root.addEventListener("mouseenter", () => {
+    if (popoverTimer) clearTimeout(popoverTimer);
+    openPopover();
+  });
+  root.addEventListener("mouseleave", scheduleClosePopover);
 
   group.insertBefore(root, group.firstElementChild);
   matchNeighbourStyle(root, findMicButton());
