@@ -270,10 +270,92 @@ authReady = restoreTesterAuth();
 // just adopts it locally. No token involved.
 async function testerAutoLogin(sessionId: string, name: string, email: string | undefined, apiBase: string) {
   tester = { name, email, sessionId, loginAt: Date.now(), apiBase };
-  await chrome.storage.local.set({ gg_tester: tester });
+  await chrome.storage.local.set({ gg_tester: tester, gg_api_base: apiBase });
   startHeartbeat();
   sendTesterIdentityToBridge();
   log("[GG] Tester auto-logged in via", apiBase, ":", name);
+}
+
+/**
+ * Forget a session the server has stopped recognising.
+ *
+ * A stored id that no longer resolves — dev database reset, session ended
+ * elsewhere — fails every feature separately: repos won't load, reports 401,
+ * the Meet pill says "not logged in". None of those say the one thing that
+ * fixes it. Clearing it means the next visit to the dashboard silently mints a
+ * fresh one.
+ */
+async function forgetDeadSession(reason: string) {
+  log(`[GG] session no longer valid (${reason}) — clearing it`);
+  tester = null;
+  stopHeartbeat();
+  await chrome.storage.local.remove("gg_tester");
+}
+
+
+/**
+ * Get a session without needing a dashboard tab to be open and freshly loaded.
+ *
+ * Until now the only way in was the page handshake: the dashboard posts its
+ * session id, a content script relays it. That breaks in the ordinary case —
+ * reload the extension and every existing content script is orphaned, so the
+ * relay is dead until the user happens to reload the dashboard too. The result
+ * was a browser that is signed in to Glitchgrab, an extension that says "not
+ * logged in", and nothing on screen connecting the two.
+ *
+ * The worker can just ask for itself: `/extension/auto-auth` authenticates
+ * from the NextAuth cookie, and host permissions mean this request carries it.
+ * Same credential the page uses, one fewer moving part.
+ */
+const AUTO_AUTH_RETRY_MS = 30_000;
+let lastAutoAuthAttempt = 0;
+
+async function ensureSession(): Promise<boolean> {
+  await authReady;
+  if (tester) return true;
+
+  // Don't hammer it: every failure is a request per feature per poll.
+  if (Date.now() - lastAutoAuthAttempt < AUTO_AUTH_RETRY_MS) return false;
+  lastAutoAuthAttempt = Date.now();
+
+  const { gg_api_base } = await chrome.storage.local.get("gg_api_base");
+  // Whichever backend last worked, then production, then a local dev server —
+  // deduped so a stored base isn't tried twice.
+  const candidates = [...new Set([gg_api_base as string | undefined, DEFAULT_API_BASE, "http://localhost:3000"].filter(Boolean))] as string[];
+
+  for (const apiBase of candidates) {
+    try {
+      const res = await fetch(`${apiBase}/api/v1/extension/auto-auth`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) continue;
+
+      const json = (await res.json()) as {
+        success?: boolean;
+        data?: { sessionId?: string; testerName?: string; testerEmail?: string };
+      };
+      if (!json.success || !json.data?.sessionId) continue;
+
+      tester = {
+        name: json.data.testerName ?? "Glitchgrab user",
+        email: json.data.testerEmail,
+        sessionId: json.data.sessionId,
+        loginAt: Date.now(),
+        apiBase,
+      };
+      await chrome.storage.local.set({ gg_tester: tester, gg_api_base: apiBase });
+      startHeartbeat();
+      sendTesterIdentityToBridge();
+      log(`[GG] signed in from the browser's own session via ${apiBase}`);
+      return true;
+    } catch {
+      // Not reachable (dev server down, offline) — try the next one.
+    }
+  }
+
+  log("[GG] no Glitchgrab session — sign in at glitchgrab.dev in this browser");
+  return false;
 }
 
 async function testerLogout() {
@@ -339,6 +421,122 @@ setInterval(() => {
     })
     .catch(() => {});
 }, 600);
+
+
+// ── Report a bug from any page (⌘⇧G) ─────────────────────────
+//
+// The SDK gives this shortcut to apps that embed it. The extension gives it to
+// every other page — someone else's dashboard, a staging site, Google Meet —
+// where there is no SDK to embed and, until now, no way to file the bug
+// without leaving the page and describing it from memory.
+//
+
+/**
+ * Shrink a tab screenshot until the report dialog will actually accept it.
+ *
+ * `captureVisibleTab` returns a full-resolution PNG — on a retina display that
+ * is several megabytes, and the dialog drops anything over ~1.8 MB. The result
+ * was a report window that opened with no screenshot and no explanation, which
+ * looked like capture had failed when it had in fact succeeded and been thrown
+ * away downstream.
+ *
+ * JPEG rather than PNG: this is a photograph of a screen, not line art, and the
+ * difference is an order of magnitude in size for no visible loss.
+ */
+const MAX_SCREENSHOT_CHARS = 1_700_000;
+const MAX_SCREENSHOT_WIDTH = 1600;
+
+async function shrinkScreenshot(dataUrl: string): Promise<string> {
+  if (dataUrl.length <= MAX_SCREENSHOT_CHARS) return dataUrl;
+
+  try {
+    const bitmap = await createImageBitmap(await (await fetch(dataUrl)).blob());
+
+    // Two rounds: at a sane width, then half that if quality alone wasn't enough.
+    for (const widthCap of [MAX_SCREENSHOT_WIDTH, MAX_SCREENSHOT_WIDTH / 2]) {
+      const scale = Math.min(1, widthCap / bitmap.width);
+      const canvas = new OffscreenCanvas(
+        Math.round(bitmap.width * scale),
+        Math.round(bitmap.height * scale)
+      );
+      const ctx = canvas.getContext("2d");
+      if (!ctx) break;
+      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
+      for (const quality of [0.85, 0.75, 0.6]) {
+        const blob = await canvas.convertToBlob({ type: "image/jpeg", quality });
+        const encoded = await blobToDataUrl(blob);
+        if (encoded.length <= MAX_SCREENSHOT_CHARS) {
+          log(`[GG] report: screenshot ${Math.round(dataUrl.length / 1024)}KB → ${Math.round(encoded.length / 1024)}KB`);
+          return encoded;
+        }
+      }
+    }
+  } catch (err) {
+    log(`[GG] report: could not re-encode the screenshot — ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  return dataUrl;
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
+// The dialog renders in an IFRAME overlaid on the page, not a separate window.
+// A window drags you out of the thing you are reporting; an iframe pointing at
+// an extension page keeps the bug on screen behind it while still giving the
+// React UI its own document, so it cannot collide with the host's styles and
+// the host cannot read it.
+//
+// This only PREPARES the report: the screenshot must be taken from the
+// background (`chrome.tabs.captureVisibleTab` cannot run in a page) and before
+// the overlay mounts, or the screenshot is of our own dialog.
+async function prepareReport(tab: chrome.tabs.Tab, context: {
+  consoleErrors?: string[];
+  client?: { userAgent?: string; platform?: string; viewport?: string };
+}) {
+  await ensureSession();
+
+  if (!tester) {
+    log("[GG] report: not logged in — nothing to report against");
+    return { ok: false, error: "Sign in to Glitchgrab in this browser, then try again" };
+  }
+
+  // Captured BEFORE the report window opens and steals focus, or the
+  // screenshot is of our own empty window instead of the bug.
+  let screenshotDataUrl: string | null = null;
+  try {
+    const raw = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" });
+    log(`[GG] report: captured ${raw ? Math.round(raw.length / 1024) + "KB" : "nothing"}`);
+    screenshotDataUrl = raw ? await shrinkScreenshot(raw) : null;
+  } catch (err) {
+    // chrome:// pages, the web store, and PDFs refuse capture. Worth reporting
+    // without a screenshot rather than not at all.
+    log(`[GG] report: screenshot unavailable — ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  await chrome.storage.local.set({
+    gg_pending_report: {
+      sessionId: tester.sessionId,
+      apiBase: tester.apiBase,
+      screenshotDataUrl,
+      pageUrl: tab.url ?? null,
+      pageTitle: tab.title ?? null,
+      targetWindowId: tab.windowId ?? null,
+      consoleErrors: context.consoleErrors ?? [],
+      client: context.client ?? {},
+    },
+  });
+
+  log(`[GG] report: prepared for ${tab.url ?? "unknown page"}`);
+  return { ok: true, url: chrome.runtime.getURL("report/report.html") };
+}
 
 // Toggle capture on hotkey
 chrome.commands.onCommand.addListener((command) => {
@@ -628,6 +826,29 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     retargetMeeting(msg.meetingId, msg.repoId).then(reply);
     return true;
   }
+  if (msg.type === "OPEN_REPORT") {
+    // The tab is the sender's own — never a tab id supplied by the page.
+    const tab = sender.tab;
+    if (!tab) {
+      reply({ ok: false, error: "No tab" });
+      return true;
+    }
+    prepareReport(tab, { consoleErrors: msg.consoleErrors, client: msg.client }).then(reply);
+    return true;
+  }
+  if (msg.type === "SESSION_DEAD") {
+    // The report UI got a 401/404 for our session id — believe it.
+    void forgetDeadSession(String(msg.reason ?? "rejected by the server"));
+    return false;
+  }
+  if (msg.type === "RECAPTURE_TAB") {
+    chrome.tabs
+      .captureVisibleTab(msg.windowId, { format: "png" })
+      .then((dataUrl) => (dataUrl ? shrinkScreenshot(dataUrl) : null))
+      .then((dataUrl) => reply({ dataUrl }))
+      .catch(() => reply({ dataUrl: null }));
+    return true;
+  }
   if (msg.type === "MEET_REMEMBER_REPO") {
     void chrome.storage.local.set({ gg_meeting_repo: msg.repoId });
     return false;
@@ -672,8 +893,8 @@ async function resolveMeetProject(meetUrl: string) {
   const started = Date.now();
   const trace = (message: string) => log(`[GG] resolve#${id} +${Date.now() - started}ms ${message}`);
 
-  // Wait for the stored session before deciding we're logged out.
-  await authReady;
+  // Wait for the stored session — and mint one if there isn't a live one.
+  await ensureSession();
 
   if (!tester) {
     trace("no tester session — extension is not logged in");
@@ -787,8 +1008,8 @@ async function readCachedRepos(): Promise<CachedRepos | null> {
 }
 
 /** Dispatch the recording bot to this call. */
-async function sendBotToMeeting(repoId: string, meetUrl: string, title: string | null) {
-  await authReady;
+async function sendBotToMeeting(repoId: string | null, meetUrl: string, title: string | null) {
+  await ensureSession();
   if (!tester) return { ok: false, error: "Not logged in" };
 
   try {
@@ -810,14 +1031,19 @@ async function sendBotToMeeting(repoId: string, meetUrl: string, title: string |
       return {
         ok: false,
         error: json.error ?? `Server said ${res.status}`,
-        // A 409 carries the recording that is ALREADY running here, so the
-        // button can adopt it instead of showing a failure for a call that is
-        // in fact being recorded.
         meetingId: json.data?.meetingId ?? null,
+        // ONLY a 409 means "this call is already being recorded". Other
+        // failures return a meeting id too — the row is created before the bot
+        // is dispatched, so a refusal is still a visible record — and treating
+        // that as an existing recording turned a hard failure into a hopeful
+        // amber badge polling a meeting that would never move.
+        conflict: res.status === 409,
       };
     }
 
-    void chrome.storage.local.set({ gg_meeting_repo: repoId });
+    // Only remember a real choice — "no project" is a decision about one call,
+    // not a default to carry into the next one.
+    if (repoId) void chrome.storage.local.set({ gg_meeting_repo: repoId });
     // The meeting id is what lets the button follow the bot's real progress
     // instead of assuming the dispatch worked.
     return { ok: true, meetingId: json.data?.meetingId ?? null };
@@ -828,7 +1054,7 @@ async function sendBotToMeeting(repoId: string, meetUrl: string, title: string |
 
 /** Live phase of a bot recording, for the in-Meet button. */
 async function meetingStatus(meetingId: string) {
-  await authReady;
+  await ensureSession();
   if (!tester) return { ok: false, error: "Not logged in" };
 
   try {
@@ -858,7 +1084,7 @@ async function meetingStatus(meetingId: string) {
  * Nothing is said to the bot — it keeps recording. Only the filing changes.
  */
 async function retargetMeeting(meetingId: string, repoId: string) {
-  await authReady;
+  await ensureSession();
   if (!tester) return { ok: false, error: "Not logged in" };
 
   try {

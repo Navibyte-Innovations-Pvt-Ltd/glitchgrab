@@ -1,15 +1,75 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import Link from "next/link";
 import { Loader2, Mic, Radio, FileText, AlertTriangle, Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+
+interface ContextRepo {
+  id: string;
+  fullName: string;
+}
+
+/**
+ * File a recording that was made before it had a project.
+ *
+ * The counterpart to "Record without a project": a first call about a prospect
+ * is worth recording and has nothing correct to file it under yet. Filing is
+ * the same move the in-call badge makes — it only changes where the recording
+ * lands, never the audio or the transcript.
+ */
+function FileToProject({ meetingId }: { meetingId: string }) {
+  const queryClient = useQueryClient();
+
+  const { data: repos = [] } = useQuery<ContextRepo[]>({
+    queryKey: ["project-context", "repos"],
+    queryFn: async () => {
+      const { data } = await axios.get("/api/v1/project-context?repos=1");
+      return data.data ?? [];
+    },
+  });
+
+  const mutation = useMutation({
+    mutationFn: async (repoId: string) => {
+      const { data } = await axios.patch(`/api/v1/meetings/${meetingId}/repo`, { repoId });
+      return data;
+    },
+    onSuccess: () => {
+      // The row moves out of "no project yet" and into a project — both the
+      // list and any per-project view of it are now stale.
+      queryClient.invalidateQueries({ queryKey: ["meetings"] });
+    },
+  });
+
+  return (
+    <select
+      // Inside a Link — without this, choosing a project navigates instead.
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+      onChange={(e) => {
+        e.preventDefault();
+        if (e.target.value) mutation.mutate(e.target.value);
+      }}
+      disabled={mutation.isPending || repos.length === 0}
+      defaultValue=""
+      className="bg-transparent border border-amber-500/40 text-amber-400 rounded px-1 py-0.5 font-mono text-[10px]"
+    >
+      <option value="">{mutation.isPending ? "filing…" : "no project yet — file it"}</option>
+      {repos.map((r) => (
+        <option key={r.id} value={r.id} className="bg-background text-foreground">
+          {r.fullName}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 interface MeetingRow {
   id: string;
-  repoId: string;
+  /** Null while the call is unfiled — recorded before it had a project. */
+  repoId: string | null;
   repoFullName: string;
   title: string | null;
   startsAt: string | null;
@@ -183,7 +243,11 @@ export function MeetingsList({ orgSlug }: { orgSlug: string }) {
                   {m.title || "Untitled call"}
                 </div>
                 <div className="flex flex-wrap items-center gap-3 mt-1 font-mono text-[10px] text-muted-foreground/70">
-                  <span>{m.repoFullName}</span>
+                  {m.repoId ? (
+                    <span>{m.repoFullName}</span>
+                  ) : (
+                    <FileToProject meetingId={m.id} />
+                  )}
                   <span>
                     {m.startsAt ? new Date(m.startsAt).toLocaleString() : "—"}
                   </span>

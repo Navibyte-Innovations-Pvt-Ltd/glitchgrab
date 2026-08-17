@@ -85,7 +85,10 @@ export async function GET(request: Request) {
       );
     }
 
-    if (caller.repos.length === 0) {
+    // No repos is not the same as nothing to show: unfiled recordings belong
+    // to a person, not a project, so someone with no repos at all can still
+    // have calls waiting to be filed.
+    if (caller.repos.length === 0 && !caller.userId) {
       return NextResponse.json({ success: true, data: [] }, { headers: CORS_HEADERS });
     }
 
@@ -98,7 +101,7 @@ export async function GET(request: Request) {
         : []
       : caller.repos.map((r) => r.id);
 
-    if (repoIds.length === 0) {
+    if (repoIdParam && repoIds.length === 0) {
       return NextResponse.json({ success: true, data: [] }, { headers: CORS_HEADERS });
     }
 
@@ -109,7 +112,13 @@ export async function GET(request: Request) {
     // finish if someone happened to open the detail page. Capped: a Sarvam
     // status check per running meeting, and only a handful are ever in flight.
     const running = await prisma.meeting.findMany({
-      where: { repoId: { in: repoIds }, transcriptStatus: "RUNNING" },
+      where: {
+        transcriptStatus: "RUNNING",
+        OR: [
+          { repoId: { in: repoIds } },
+          ...(caller.userId ? [{ repoId: null, createdById: caller.userId }] : []),
+        ],
+      },
       select: { id: true },
       take: 5,
     });
@@ -120,7 +129,17 @@ export async function GET(request: Request) {
     }
 
     const meetings = await prisma.meeting.findMany({
-      where: { repoId: { in: repoIds } },
+      // Plus this caller's own unfiled recordings, which have no repo to scope
+      // by — they would otherwise be invisible the moment the call ended, with
+      // no way to file them.
+      where: repoIdParam
+        ? { repoId: { in: repoIds } }
+        : {
+            OR: [
+              { repoId: { in: repoIds } },
+              ...(caller.userId ? [{ repoId: null, createdById: caller.userId }] : []),
+            ],
+          },
       select: {
         id: true,
         repoId: true,
@@ -146,7 +165,8 @@ export async function GET(request: Request) {
         success: true,
         data: meetings.map((m) => ({
           ...m,
-          repoFullName: names.get(m.repoId) ?? "",
+          // Unfiled recordings show as such rather than as a blank project.
+          repoFullName: m.repoId ? (names.get(m.repoId) ?? "") : "No project yet",
           hasRecording: Boolean(m.tabRecordingKey || m.micRecordingKey),
           startsAt: m.startsAt?.toISOString() ?? null,
           endsAt: m.endsAt?.toISOString() ?? null,

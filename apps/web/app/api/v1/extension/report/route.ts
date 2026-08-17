@@ -28,7 +28,21 @@ interface ExtensionReportBody {
   repoId?: string;
   type?: string;
   description?: string;
-  metadata?: { screenshots?: string; severity?: string };
+  metadata?: {
+    screenshots?: string;
+    severity?: string;
+    /**
+     * Where the bug was seen. Sent when the report comes from the extension's
+     * global shortcut rather than an SDK-embedded app: the reporter is looking
+     * at someone else's page and cannot be expected to type any of this.
+     */
+    pageUrl?: string;
+    pageTitle?: string;
+    userAgent?: string;
+    platform?: string;
+    viewport?: string;
+    consoleErrors?: string;
+  };
 }
 
 export async function POST(request: Request) {
@@ -97,6 +111,31 @@ export async function POST(request: Request) {
       if (refs.length > 0) {
         issueBody += `\n\n## Screenshot${refs.length > 1 ? "s" : ""}\n\n${refs.join("\n\n")}`;
       }
+    }
+
+    // Context block before the footer: everything the reporter would have had
+    // to transcribe by hand, and the part that usually decides whether a bug is
+    // reproducible.
+    const context: string[] = [];
+    if (body.metadata?.pageUrl) {
+      const label = body.metadata.pageTitle?.trim();
+      context.push(`- **Page:** ${label ? `[${label}](${body.metadata.pageUrl})` : body.metadata.pageUrl}`);
+    }
+    if (body.metadata?.platform || body.metadata?.userAgent) {
+      context.push(`- **Browser:** ${body.metadata.userAgent ?? body.metadata.platform}`);
+    }
+    if (body.metadata?.viewport) context.push(`- **Viewport:** ${body.metadata.viewport}`);
+
+    if (context.length > 0) {
+      issueBody += `\n\n## Context\n\n${context.join("\n")}`;
+    }
+
+    if (body.metadata?.consoleErrors?.trim()) {
+      // Collapsed: useful when it is useful, and not in the way when a page
+      // logs errors that have nothing to do with the report.
+      issueBody +=
+        `\n\n<details>\n<summary>Console errors (${body.metadata.consoleErrors.trim().split("\n").length})</summary>\n\n` +
+        `\`\`\`\n${body.metadata.consoleErrors.trim().slice(0, 4000)}\n\`\`\`\n\n</details>`;
     }
 
     issueBody += `\n\n---\n> **Reported by:** ${identity.testerName}${identity.testerEmail ? ` (${identity.testerEmail})` : ""} • **Created:** ${report.createdAt.toISOString()}\n\n*Reported via [Glitchgrab](https://glitchgrab.dev) extension*`;

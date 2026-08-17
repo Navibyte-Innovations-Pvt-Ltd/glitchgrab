@@ -397,6 +397,24 @@ interface ReportDialogProps {
    * "you're signed in", which is the failure worth preventing.
    */
   reporter?: ReportReporter | null;
+  /**
+   * Called when the dialog closes itself (the × or Escape).
+   *
+   * Hosts that mount this inside something of their own — the extension puts it
+   * in a full-page iframe — otherwise have no way to know it is gone, and are
+   * left with an invisible overlay still swallowing every click on the page.
+   */
+  onClose?: () => void;
+  /**
+   * Rendered at the top of step 1, inside the dialog.
+   *
+   * For hosts that must ask something the dialog itself knows nothing about —
+   * the Chrome extension has to pick WHICH project a bug belongs to, because
+   * unlike an SDK embedded in one app it could be reporting on anything. Left
+   * outside, that question needed its own panel wrapped around this one, and
+   * two stacked cards read as a bug in the bug reporter.
+   */
+  headerSlot?: ReactNode;
 }
 
 async function captureViaHtml2Canvas(): Promise<string | null> {
@@ -436,6 +454,8 @@ export function ReportDialog({
   showSeverity = true,
   captureScreenshot = captureViaHtml2Canvas,
   reporter,
+  onClose,
+  headerSlot,
 }: ReportDialogProps) {
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [isEnhanced, setIsEnhanced] = useState(false);
@@ -890,6 +910,7 @@ export function ReportDialog({
   const handleClose = () => {
     stopVoice();
     setIsOpen(false);
+    onClose?.();
     // The preview and annotation overlays are full-viewport portals at the top of
     // the stacking order. Leaving their indices set on close leaves one of them
     // mounted over a dialog that is no longer there — the page stops accepting
@@ -1411,6 +1432,10 @@ export function ReportDialog({
                         a bug, so it gets its own row instead of hiding as the
                         8th identical tile. Clicking a star both sets it and
                         advances, turning a 3-click flow into 1. */}
+                    {step === 1 && headerSlot ? (
+                      <div style={{ marginBottom: "14px" }}>{headerSlot}</div>
+                    ) : null}
+
                     {step === 1 && sendFeedback && (
                       <div
                         style={{

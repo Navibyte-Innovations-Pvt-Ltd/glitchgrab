@@ -496,6 +496,54 @@ function GlitchgrabProviderInner({
     }
   }, []);
 
+  /**
+   * Tell the Chrome extension this page already has a report dialog.
+   *
+   * The extension binds the same shortcut on every page that ISN'T running the
+   * SDK — someone else's dashboard, a staging site, a video call — so a bug can
+   * be filed anywhere. Without a marker it cannot tell those apart, and a host
+   * app that embeds the SDK would open two dialogs on one keystroke.
+   *
+   * An attribute rather than a global: content scripts run in an isolated
+   * world and cannot see page JavaScript, but they do share the DOM.
+   */
+  useEffect(() => {
+    try {
+      if (typeof document === "undefined") return;
+      document.documentElement.setAttribute("data-glitchgrab-sdk", "1");
+      return () => document.documentElement.removeAttribute("data-glitchgrab-sdk");
+    } catch {
+      // Never crash
+    }
+  }, []);
+
+  /**
+   * Which project this app's reports go to.
+   *
+   * Fixed for the SDK — one token, one repo — but until now invisible, and
+   * invisible is indistinguishable from wrong to whoever is about to press
+   * send. Shown read-only for the same reason it is not a dropdown: an end
+   * user of the host app has no business choosing, or even seeing, which other
+   * projects exist.
+   */
+  const [projectName, setProjectName] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${baseUrl}/api/v1/sdk/project`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        if (cancelled || !json?.success || !json.data?.name) return;
+        setProjectName(json.data.name as string);
+      })
+      .catch(() => {
+        // The dialog simply omits the line — never block reporting on it.
+      });
+    return () => { cancelled = true; };
+  }, [baseUrl, token]);
+
   // Global keyboard shortcut: Cmd+Shift+G (Mac) / Ctrl+Shift+G (Windows/Linux)
   useEffect(() => {
     try {
@@ -561,7 +609,22 @@ function GlitchgrabProviderInner({
       >
         {children}
       </GlitchgrabErrorBoundary>
-      <ReportDialog report={report} sendFeedback={feedback} enhanceText={enhance} transcribeAudio={transcribe} types={types} showSeverity={showSeverity} reporter={reporter} />
+      <ReportDialog
+        report={report}
+        sendFeedback={feedback}
+        enhanceText={enhance}
+        transcribeAudio={transcribe}
+        types={types}
+        showSeverity={showSeverity}
+        reporter={reporter}
+        headerSlot={
+          projectName ? (
+            <div style={{ fontSize: 11, color: "#9aa0a6" }}>
+              Reporting to <strong style={{ color: "#e5e5e5" }}>{projectName}</strong>
+            </div>
+          ) : null
+        }
+      />
     </GlitchgrabContext.Provider>
   );
 }

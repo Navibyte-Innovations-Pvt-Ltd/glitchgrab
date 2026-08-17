@@ -100,6 +100,14 @@ export async function findScopedMeeting(caller: MeetingCaller, meetingId: string
   // The bot was sent to this specific meeting by a scoped user, so the id it
   // holds IS its authorisation for that one row.
   if (caller.isBot) return meeting;
+
+  // Unfiled: no repo means no repo scope to check, so the only rule left is
+  // who recorded it. Deliberately narrow — an unfiled call is often a prospect
+  // conversation the recorder has not decided anything about yet.
+  if (!meeting.repoId) {
+    return caller.userId && meeting.createdById === caller.userId ? meeting : null;
+  }
+
   if (!caller.repos.some((r) => r.id === meeting.repoId)) return null;
   return meeting;
 }

@@ -60,10 +60,14 @@
       "entry": [
         "src/background.ts",
         "src/content.ts",
-        "src/popup/popup.ts"
+        "src/popup/popup.ts",
+        "src/report/report.tsx"
       ],
       "project": [
         "src/**/*.{ts,tsx}"
+      ],
+      "ignoreDependencies": [
+        "react-dom"
       ]
     },
     "packages/sdk-nextjs": {
@@ -101,7 +105,8 @@
   "ignoreBinaries": [
     "prisma",
     "semantic-release",
-    "wait"
+    "wait",
+    "ngrok"
   ],
   "ignore": [
     "apps/glitchrecord/**"

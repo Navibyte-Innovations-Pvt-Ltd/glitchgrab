@@ -24,6 +24,12 @@ function headers(secret: string): Record<string, string> {
     "Content-Type": "application/json",
     // Shared-secret auth: the bot is server-side infrastructure, not a user.
     "x-gg-bot": secret,
+    // Only meaningful when a developer has pointed the callback at an ngrok
+    // tunnel to run the bot against their laptop. ngrok answers unrecognised
+    // clients with an HTML interstitial instead of proxying, which would
+    // surface here as an unparseable response rather than as "you are behind a
+    // tunnel". Ignored by every other host.
+    "ngrok-skip-browser-warning": "true",
   };
 }
 

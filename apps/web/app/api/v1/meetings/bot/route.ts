@@ -27,10 +27,22 @@ export async function POST(request: Request) {
       title?: string;
     };
 
-    const repo = scopeRepo(caller, body.repoId);
-    if (!repo) {
+    // No repoId means "record it, I'll file it later" — the first call about a
+    // prospect, or an idea with no repo behind it. An unfiled meeting is owned
+    // by its creator alone, so it needs a real user: a QA tester session has no
+    // dashboard user and would create a row nobody could ever see again.
+    const unfiled = !body.repoId;
+    const repo = unfiled ? null : scopeRepo(caller, body.repoId);
+
+    if (!unfiled && !repo) {
       return NextResponse.json(
         { success: false, error: "Pick a project you have access to" },
+        { status: 403 }
+      );
+    }
+    if (unfiled && !caller.userId) {
+      return NextResponse.json(
+        { success: false, error: "Pick a project — unfiled recordings need a signed-in account" },
         { status: 403 }
       );
     }
@@ -50,7 +62,9 @@ export async function POST(request: Request) {
       // Name the project it is filed under. "A bot is already on that call" on
       // a call you sent nothing to is unactionable — the useful question is
       // always "which recording is this, then?".
-      const where = caller.repos.find((r) => r.id === running.repoId)?.fullName;
+      const where = running.repoId
+        ? caller.repos.find((r) => r.id === running.repoId)?.fullName
+        : "no project yet";
       return NextResponse.json(
         {
           success: false,
@@ -64,7 +78,7 @@ export async function POST(request: Request) {
     }
 
     const { meetingId, dispatch } = await startBotRecording({
-      repoId: repo.id,
+      repoId: repo?.id ?? null,
       meetUrl,
       title: body.title?.trim() || null,
       userId: caller.userId,

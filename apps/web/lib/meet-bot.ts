@@ -54,7 +54,9 @@ async function dispatchBot(params: {
     return {
       ok: false,
       error:
-        "The bot runs remotely and cannot call back to localhost — set MEET_BOT_CALLBACK_URL to a public URL (or sign in to glitchgrab.dev instead of your dev server)",
+        "The bot runs remotely and cannot reach localhost. Run `bun run tunnel`, " +
+        "put the https URL in MEET_BOT_CALLBACK_URL, and restart the dev server — " +
+        "or use glitchgrab.dev instead.",
     };
   }
 
@@ -188,7 +190,8 @@ export async function botAlreadyOnCall(meetUrl: string) {
  * arrives still leaves a visible, explainable record instead of silence.
  */
 export async function startBotRecording(params: {
-  repoId: string;
+  /** Null for an unfiled recording — file it later with PATCH /meetings/:id/repo. */
+  repoId: string | null;
   meetUrl: string;
   title: string | null;
   userId: string | null;

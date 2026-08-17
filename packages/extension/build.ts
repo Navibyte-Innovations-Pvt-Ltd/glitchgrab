@@ -8,6 +8,7 @@ const OUT = "dist";
 const WATCH = process.argv.includes("--watch");
 
 mkdirSync(`${OUT}/popup`, { recursive: true });
+mkdirSync(`${OUT}/report`, { recursive: true });
 
 // @glitchgrab/report-ui is built with react/react-dom EXTERNAL (correct for
 // its other consumer, the SDK, whose host app supplies its own React peer).
@@ -31,12 +32,17 @@ const options = {
     background: "src/background.ts",
     content: "src/content.ts",
     "popup/popup": "src/popup/popup.ts",
+    "report/report": "src/report/report.tsx",
   },
   bundle: true,
   outdir: OUT,
   format: "esm" as const,
   target: "chrome120",
-  minify: false,
+  // The report dialog bundles React; unminified that is 1.2 MB, and it is
+  // loaded in an iframe at the moment someone is trying to file a bug — the
+  // parse cost showed up as a visibly slow dialog. Watch builds stay readable
+  // for debugging; shipped builds are minified.
+  minify: !WATCH,
   jsx: "automatic" as const,
   alias: reactAlias,
   // React's DEV build uses new Function() for component stack traces — MV3's
@@ -51,6 +57,7 @@ function copyStatic() {
   copyFileSync("src/manifest.json", `${OUT}/manifest.json`);
   copyFileSync("src/popup/popup.html", `${OUT}/popup/popup.html`);
   copyFileSync("src/popup/popup.css", `${OUT}/popup/popup.css`);
+  copyFileSync("src/report/report.html", `${OUT}/report/report.html`);
   for (const s of [16, 32, 48, 128]) {
     copyFileSync(`src/icons/icon${s}.png`, `${OUT}/icon${s}.png`);
   }
