@@ -803,7 +803,12 @@ enum TranscriptStatus {
 /// diarization can infer, and it stays right when both people talk at once.
 model Meeting {
   id               String           @id @default(cuid())
-  repoId           String
+  /// Null while a recording is unfiled — a first call about a prospect or an
+  /// idea that has no repo yet. Filing it later is `PATCH /meetings/:id/repo`.
+  /// Until then only its creator can see it: repo membership is the only
+  /// access control this product has, and a meeting with no repo sits outside
+  /// it entirely.
+  repoId           String?
   title            String?
   meetUrl          String?
   startsAt         DateTime?
@@ -852,7 +857,7 @@ model Meeting {
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
-  repo Repo @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  repo Repo? @relation(fields: [repoId], references: [id], onDelete: Cascade)
 
   @@index([repoId, startsAt])
   @@index([transcriptStatus])
