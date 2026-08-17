@@ -11,8 +11,7 @@
     "alarms"
   ],
   "host_permissions": [
-    "*://*/*",
-    "http://localhost/*"
+    "<all_urls>"
   ],
   "action": {
     "default_popup": "popup/popup.html",
@@ -47,10 +46,21 @@
   "commands": {
     "toggle-capture": {
       "suggested_key": {
-        "default": "Ctrl+Shift+G",
-        "mac": "MacCtrl+Shift+G"
+        "default": "Ctrl+Shift+Y",
+        "mac": "MacCtrl+Shift+Y"
       },
       "description": "Start / stop click capture session"
     }
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "report/report.html",
+        "report/report.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ]
 }
