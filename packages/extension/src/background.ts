@@ -601,6 +601,20 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     testerLogout().then(() => reply({ ok: true }));
     return true;
   }
+  // ── In-Meet pill (#311) ───────────────────────────────────
+  if (msg.type === "MEET_RESOLVE_PROJECT") {
+    resolveMeetProject(msg.meetUrl).then(reply);
+    return true;
+  }
+  if (msg.type === "MEET_SEND_BOT") {
+    sendBotToMeeting(msg.repoId, msg.meetUrl, msg.title).then(reply);
+    return true;
+  }
+  if (msg.type === "MEET_REMEMBER_REPO") {
+    void chrome.storage.local.set({ gg_meeting_repo: msg.repoId });
+    return false;
+  }
+
   if (msg.type === "TESTER_AUTO_LOGIN") {
     // Sender is the content script relaying a QA-page postMessage, not the
     // popup — no reply expected.
