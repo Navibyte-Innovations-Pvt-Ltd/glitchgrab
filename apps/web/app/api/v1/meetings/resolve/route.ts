@@ -56,7 +56,8 @@ export async function GET(request: Request) {
      */
     let active: {
       meetingId: string;
-      repoId: string;
+      /** Null when the recording is unfiled — recorded first, filed later. */
+      repoId: string | null;
       repoFullName: string;
       botStatus: string | null;
     } | null = null;
@@ -73,7 +74,8 @@ export async function GET(request: Request) {
         active = {
           meetingId: running.id,
           repoId: running.repoId,
-          repoFullName: repos.find((r) => r.id === running.repoId)?.fullName ?? "",
+          repoFullName:
+            repos.find((r) => r.id === running.repoId)?.fullName ?? "No project yet",
           botStatus: running.botStatus,
         };
       }
