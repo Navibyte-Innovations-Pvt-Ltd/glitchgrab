@@ -38,7 +38,12 @@ export async function getAccessibleRepos(userId: string): Promise<AccessibleRepo
     prisma.repo.findMany({
       where: { userId },
       select: { id: true, fullName: true, owner: true, name: true },
-      orderBy: { createdAt: "desc" },
+      // Most recently pushed first: the project someone is about to demo is
+      // almost always the one they have been committing to. `pushedAt` is null
+      // until the hourly refresh has seen the repo, and nulls sort last so a
+      // never-refreshed repo falls back to newest-connected rather than
+      // jumping to the top of the picker.
+      orderBy: [{ pushedAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
     }),
     prisma.repoMember.findMany({
       where: { userId },
