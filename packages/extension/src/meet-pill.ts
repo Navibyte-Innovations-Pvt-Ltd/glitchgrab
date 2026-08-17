@@ -24,7 +24,7 @@ interface PillState {
   repoId: string | null;
   /** Where the project came from — shown so the operator can trust it or not. */
   source: "calendar" | "remembered" | "default" | null;
-  phase: "idle" | "sending" | "sent" | "error";
+  phase: "loading" | "idle" | "sending" | "sent" | "error";
   message: string;
 }
 
@@ -32,8 +32,8 @@ const state: PillState = {
   repos: [],
   repoId: null,
   source: null,
-  phase: "idle",
-  message: "",
+  phase: "loading",
+  message: "connecting…",
 };
 
 let root: HTMLElement | null = null;
@@ -121,11 +121,11 @@ function render() {
   brand.textContent = "Glitchgrab";
   root.appendChild(brand);
 
-  if (state.phase === "sent") {
-    const done = document.createElement("span");
-    done.className = "gg-msg";
-    done.textContent = state.message;
-    root.appendChild(done);
+  if (state.phase === "sent" || state.phase === "loading" || !state.repos.length) {
+    const note = document.createElement("span");
+    note.className = "gg-msg";
+    note.textContent = state.message;
+    root.appendChild(note);
     return;
   }
 
@@ -277,6 +277,13 @@ export async function mountMeetPill(): Promise<void> {
   // in yet, the service worker may be asleep, and Meet's control bar may not
   // exist. A single silent attempt is why this looked like "the pill is just
   // missing" with nothing to debug.
+  // Mount the shell FIRST. If the control never appears at all, the content
+  // script isn't running — a completely different problem from "the project
+  // lookup failed", and previously the two were indistinguishable because
+  // nothing rendered until everything had succeeded.
+  ensureMounted();
+  setInterval(ensureMounted, 5000);
+
   for (let attempt = 1; attempt <= MOUNT_ATTEMPTS; attempt++) {
     if (!/^https:\/\/meet\.google\.com\/[a-z]{3}-[a-z]{4}-[a-z]{3}/i.test(location.href)) {
       log(`not a call URL (${location.href}) — waiting`);
@@ -294,16 +301,22 @@ export async function mountMeetPill(): Promise<void> {
 
     if (!resolved) {
       log(`attempt ${attempt}: no reply from the extension background`);
+      state.message = "extension not responding";
+      render();
       await wait(RETRY_MS);
       continue;
     }
     if (!resolved.ok) {
       log(`attempt ${attempt}: ${resolved.error ?? "could not resolve project"}`);
+      state.message = resolved.error ?? "not logged in";
+      render();
       await wait(RETRY_MS);
       continue;
     }
     if (!resolved.repos?.length) {
       log("no projects available for this login — nothing to record against");
+      state.message = "no projects";
+      render();
       mounting = false;
       return;
     }
@@ -321,15 +334,16 @@ export async function mountMeetPill(): Promise<void> {
       state.source = "default";
     }
 
-    ensureMounted();
-    log(`mounted (${state.repos.length} projects, source: ${state.source})`);
-
-    // Meet rebuilds its control bar constantly; keep re-docking.
-    setInterval(ensureMounted, 5000);
+    state.phase = "idle";
+    state.message = "";
+    render();
+    log(`ready (${state.repos.length} projects, source: ${state.source})`);
     mounting = false;
     return;
   }
 
   log("gave up after retries — open the extension popup and check you're logged in");
+  state.message = "not logged in";
+  render();
   mounting = false;
 }
