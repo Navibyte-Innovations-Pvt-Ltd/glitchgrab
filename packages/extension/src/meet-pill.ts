@@ -35,6 +35,8 @@ interface PillState {
   meetingId: string | null;
   /** The bot's own phase, straight from the server. Null before dispatch. */
   botStatus: string | null;
+  /** The bot is visible in the participant list, whatever the server says. */
+  inRoom: boolean;
   phase: "loading" | "idle" | "sending" | "sent" | "error";
   message: string;
 }
@@ -44,6 +46,7 @@ const state: PillState = {
   repoId: null,
   meetingId: null,
   botStatus: null,
+  inRoom: false,
   phase: "loading",
   message: "connecting…",
 };
@@ -371,6 +374,8 @@ function render() {
   const working =
     button.disabled ||
     (state.phase === "sent" &&
+      // Once the bot is visibly in the call there is nothing left to wait for.
+      !state.inRoom &&
       ["DISPATCHING", "JOINING", "WAITING_ADMIT", "UPLOADING"].includes(state.botStatus ?? ""));
 
   if (working) {
@@ -396,6 +401,11 @@ function render() {
  */
 function botPhaseLabel(): string | null {
   const project = state.repos.find((r) => r.id === state.repoId)?.fullName ?? "your project";
+
+  // Seen in the call — that outranks a status that has not arrived yet.
+  if (state.inRoom && state.botStatus !== "UPLOADING" && state.botStatus !== "DONE") {
+    return `Recording · ${project}`;
+  }
 
   switch (state.botStatus) {
     case "DISPATCHING":
@@ -434,7 +444,7 @@ function dotClass(): string {
   if (state.phase === "sent") {
     // Amber until the bot is actually in the room. Going red on dispatch is
     // what made a bot stuck outside the call look like a bot recording it.
-    if (state.botStatus === "RECORDING") return " live";
+    if (state.botStatus === "RECORDING" || state.inRoom) return " live";
     if (state.botStatus === "FAILED") return " bad";
     if (state.botStatus === "DONE" || state.botStatus === "UPLOADING") return " done";
     return " busy";
@@ -927,7 +937,48 @@ async function refileMeeting(repo: Repo) {
   render();
 }
 
+/**
+ * Is our bot visibly in this call?
+ *
+ * Read straight from Meet's own DOM, because it is the one signal that cannot
+ * fail: the operator can see the bot in the participant list, so the badge has
+ * no business claiming otherwise while it waits for a status callback that may
+ * never arrive (a bot on a network that cannot reach Glitchgrab still joins,
+ * and still shows up here).
+ *
+ * Matched loosely on purpose — the deployed bot's display name comes from
+ * MEET_BOT_NAME and has already been both "Notetaker" and "NoteMaker".
+ */
+function botInRoom(): boolean {
+  const nodes = document.querySelectorAll<HTMLElement>(
+    "[data-participant-id], [data-self-name], [aria-label], div, span"
+  );
+
+  for (const node of nodes) {
+    // Leaf nodes only: a container's textContent includes every name in the
+    // call, which would match as soon as anyone at all was present.
+    if (node.childElementCount > 0) continue;
+    const text = node.textContent?.trim();
+    if (!text || text.length > 40) continue;
+    if (/glitchgrab/i.test(text)) return true;
+  }
+  return false;
+}
+
 let statusTimer: ReturnType<typeof setInterval> | null = null;
+/** When the bot's current phase was first seen — the basis for calling it stuck. */
+let phaseSince = 0;
+
+/**
+ * How long a bot may stay in a pre-admission phase before we stop implying
+ * progress.
+ *
+ * Joining a call takes seconds. A bot still "joining" three minutes later is
+ * not slow, it is not coming — and a spinner that never stops spinning is
+ * worse than an error, because it reads as "handled" right up until someone
+ * goes looking for a recording that was never made.
+ */
+const PHASE_STUCK_MS = 3 * 60 * 1000;
 
 /**
  * Follow the bot's real progress.
@@ -940,6 +991,7 @@ let statusTimer: ReturnType<typeof setInterval> | null = null;
 function startStatusPoll() {
   if (statusTimer) clearInterval(statusTimer);
   if (!state.meetingId) return;
+  phaseSince = Date.now();
 
   const tick = async () => {
     if (!state.meetingId) return;
@@ -956,9 +1008,45 @@ function startStatusPoll() {
     if (!result?.ok) return;
 
     const next = result.botStatus ?? null;
+
+    // Nothing has moved for too long. The usual cause is a bot that cannot
+    // reach us at all — it is in the call, recording into nothing, and no
+    // status it posts will ever arrive.
+    const preAdmit = ["DISPATCHING", "JOINING", "WAITING_ADMIT"].includes(next ?? "");
+
+    // The bot is in the room but its status has not caught up. Believe the
+    // room: it is recording, whatever the callback managed to deliver.
+    if (preAdmit && botInRoom()) {
+      if (!state.inRoom) {
+        state.inRoom = true;
+        state.phase = "sent";
+        state.message = "";
+        log("bot is visible in the participant list — showing it as recording");
+        render();
+      }
+      return;
+    }
+    state.inRoom = false;
+
+    if (next === state.botStatus && preAdmit && Date.now() - phaseSince > PHASE_STUCK_MS) {
+      if (state.phase !== "error") {
+        state.phase = "error";
+        state.message =
+          next === "WAITING_ADMIT"
+            ? "Bot is still waiting to be admitted"
+            : "Bot never reported in — it may not be able to reach Glitchgrab";
+        log(`bot stuck in ${next} for over ${PHASE_STUCK_MS / 1000}s`);
+        render();
+      }
+      return;
+    }
+
     if (next !== state.botStatus) {
       state.botStatus = next;
       state.message = result.botError ?? "";
+      phaseSince = Date.now();
+      // Recovered on its own after we had given up on it.
+      if (state.phase === "error") state.phase = "sent";
       log(`bot status → ${next ?? "unknown"}${result.botError ? ` (${result.botError})` : ""}`);
       render();
       // Keep an open picker's footer honest about the phase it is describing.
