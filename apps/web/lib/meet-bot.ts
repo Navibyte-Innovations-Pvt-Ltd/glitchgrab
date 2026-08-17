@@ -74,7 +74,60 @@ async function dispatchBot(params: {
  * arrives still leaves a visible, explainable record instead of silence.
  */
 /** States in which a bot is still on (or heading to) the call. */
-const BOT_IN_FLIGHT = ["DISPATCHING", "JOINING", "WAITING_ADMIT", "RECORDING", "UPLOADING"];
+export const BOT_IN_FLIGHT = [
+  "DISPATCHING",
+  "JOINING",
+  "WAITING_ADMIT",
+  "RECORDING",
+  "UPLOADING",
+];
+
+/**
+ * Before a bot is in the room, it is only ever a few seconds from either
+ * getting in or failing. A row still claiming DISPATCHING or JOINING ten
+ * minutes later is not a bot on a call — it is the wreckage of one that died,
+ * was redeployed mid-join, or was never admitted.
+ *
+ * Those rows used to keep their claim for the full four hours, so a single
+ * crashed dispatch locked that Meet link out of recording for the rest of the
+ * afternoon: every later attempt got "A bot is already on that call" naming a
+ * bot nobody could see, on a call nobody had sent one to.
+ */
+const PRE_ADMIT_STATES = ["DISPATCHING", "JOINING", "WAITING_ADMIT"];
+const PRE_ADMIT_STALE_MS = 10 * 60 * 1000;
+/** Recording and uploading legitimately last a long time; only cap the runaway. */
+const IN_CALL_STALE_MS = 4 * 60 * 60 * 1000;
+
+/**
+ * The bot genuinely working on this Meet link, if there is one.
+ *
+ * One definition, used both to refuse a duplicate and to let a reloaded tab
+ * adopt the recording — if those two disagreed, the button would show nothing
+ * running while the server refused to start anything.
+ */
+export async function findActiveBotMeeting(meetUrl: string, repoIds?: string[]) {
+  const now = Date.now();
+
+  return prisma.meeting.findFirst({
+    where: {
+      meetUrl,
+      recorder: "bot",
+      ...(repoIds ? { repoId: { in: repoIds } } : {}),
+      OR: [
+        {
+          botStatus: { in: PRE_ADMIT_STATES },
+          updatedAt: { gte: new Date(now - PRE_ADMIT_STALE_MS) },
+        },
+        {
+          botStatus: { in: ["RECORDING", "UPLOADING"] },
+          createdAt: { gte: new Date(now - IN_CALL_STALE_MS) },
+        },
+      ],
+    },
+    select: { id: true, repoId: true, botStatus: true, updatedAt: true },
+    orderBy: { createdAt: "desc" },
+  });
+}
 
 /**
  * Is a bot already handling this Meet link?
@@ -83,18 +136,8 @@ const BOT_IN_FLIGHT = ["DISPATCHING", "JOINING", "WAITING_ADMIT", "RECORDING", "
  * notetakers arrive. Easy to cause: paste a link twice, or paste one for a call
  * that is also in the calendar with auto-record on.
  */
-export async function botAlreadyOnCall(meetUrl: string): Promise<boolean> {
-  const existing = await prisma.meeting.findFirst({
-    where: {
-      meetUrl,
-      recorder: "bot",
-      botStatus: { in: BOT_IN_FLIGHT },
-      // Bounded so a row wedged by a crashed bot doesn't block that link forever.
-      createdAt: { gte: new Date(Date.now() - 4 * 60 * 60 * 1000) },
-    },
-    select: { id: true },
-  });
-  return Boolean(existing);
+export async function botAlreadyOnCall(meetUrl: string) {
+  return findActiveBotMeeting(meetUrl);
 }
 
 export async function startBotRecording(params: {
