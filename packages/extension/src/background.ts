@@ -698,7 +698,7 @@ async function resolveMeetProject(meetUrl: string) {
     if (!res.ok) throw new Error(`Server said ${res.status}`);
 
     const json = (await res.json()) as {
-      data?: { repos: { id: string; fullName: string }[]; suggested: unknown };
+      data?: { repos: { id: string; fullName: string }[]; suggested: unknown; active?: unknown };
     };
     const repos = json.data?.repos ?? [];
     trace(`server returned ${repos.length} projects`);
@@ -707,7 +707,12 @@ async function resolveMeetProject(meetUrl: string) {
     void chrome.storage.local.set({
       gg_meeting_repos: { repos, at: Date.now() } satisfies CachedRepos,
     });
-    return { repos, suggested: json.data?.suggested ?? null };
+    return {
+      repos,
+      suggested: json.data?.suggested ?? null,
+      // A bot already on this call, so a reloaded tab doesn't ask again.
+      active: json.data?.active ?? null,
+    };
   })();
   // The fallback below may answer first; without this the unhandled rejection
   // would surface as a service-worker error.
@@ -723,7 +728,13 @@ async function resolveMeetProject(meetUrl: string) {
     const lastRepoId = (gg_meeting_repo as string | undefined) ?? null;
 
     if (fresh) {
-      return { ok: true, repos: fresh.repos, suggested: fresh.suggested, lastRepoId };
+      return {
+        ok: true,
+        repos: fresh.repos,
+        suggested: fresh.suggested,
+        active: fresh.active,
+        lastRepoId,
+      };
     }
 
     // Server too slow — serve what we know. The in-flight request keeps going
@@ -736,7 +747,13 @@ async function resolveMeetProject(meetUrl: string) {
 
     // Nothing cached: wait it out rather than report a failure we don't have.
     const eventual = await live;
-    return { ok: true, repos: eventual.repos, suggested: eventual.suggested, lastRepoId };
+    return {
+      ok: true,
+      repos: eventual.repos,
+      suggested: eventual.suggested,
+      active: eventual.active,
+      lastRepoId,
+    };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     trace(`failed: ${message}`);
@@ -789,7 +806,16 @@ async function sendBotToMeeting(repoId: string, meetUrl: string, title: string |
       error?: string;
       data?: { meetingId?: string };
     };
-    if (!res.ok) return { ok: false, error: json.error ?? `Server said ${res.status}` };
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: json.error ?? `Server said ${res.status}`,
+        // A 409 carries the recording that is ALREADY running here, so the
+        // button can adopt it instead of showing a failure for a call that is
+        // in fact being recorded.
+        meetingId: json.data?.meetingId ?? null,
+      };
+    }
 
     void chrome.storage.local.set({ gg_meeting_repo: repoId });
     // The meeting id is what lets the button follow the bot's real progress
