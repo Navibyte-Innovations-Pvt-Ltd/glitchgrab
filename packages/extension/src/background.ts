@@ -641,6 +641,21 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
  * The server answers from the connected Google Calendar; the last-used repo is
  * local, so it is merged in here rather than round-tripped.
  */
+/**
+ * How long to wait for the live answer before falling back to the cached repo
+ * list. The repo list barely changes; the calendar suggestion does, so the
+ * network answer is still preferred — but not at the cost of the operator
+ * staring at a spinner while a cold serverless function boots.
+ */
+const RESOLVE_FRESH_BUDGET_MS = 2500;
+/** Cached repo lists older than this are treated as gone. */
+const RESOLVE_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+interface CachedRepos {
+  repos: { id: string; fullName: string }[];
+  at: number;
+}
+
 async function resolveMeetProject(meetUrl: string) {
   // Wait for the stored session before deciding we're logged out.
   await authReady;
@@ -651,31 +666,85 @@ async function resolveMeetProject(meetUrl: string) {
   }
   log(`[GG] resolve: session=${tester.sessionId.slice(0, 8)}… apiBase=${tester.apiBase}`);
 
-  try {
+  const started = Date.now();
+  const session = tester;
+
+  const live = (async () => {
     const res = await fetch(
-      `${tester.apiBase}/api/v1/meetings/resolve?meetUrl=${encodeURIComponent(meetUrl)}`,
-      { headers: { ...authHeaders(), "x-gg-session": tester.sessionId } }
+      `${session.apiBase}/api/v1/meetings/resolve?meetUrl=${encodeURIComponent(meetUrl)}`,
+      { headers: { ...authHeaders(), "x-gg-session": session.sessionId } }
     );
-    if (!res.ok) {
-      log(`[GG] resolve: server said ${res.status}`);
-      return { ok: false, error: `Server said ${res.status}` };
-    }
+    if (!res.ok) throw new Error(`Server said ${res.status}`);
 
     const json = (await res.json()) as {
       data?: { repos: { id: string; fullName: string }[]; suggested: unknown };
     };
-    log(`[GG] resolve: ${json.data?.repos?.length ?? 0} projects returned`);
-    const { gg_meeting_repo } = await chrome.storage.local.get("gg_meeting_repo");
+    const repos = json.data?.repos ?? [];
+    log(`[GG] resolve: ${repos.length} projects in ${Date.now() - started}ms`);
+    // Cache on every success so a slow or offline start still has something to
+    // show instead of an indefinite spinner.
+    void chrome.storage.local.set({
+      gg_meeting_repos: { repos, at: Date.now() } satisfies CachedRepos,
+    });
+    return { repos, suggested: json.data?.suggested ?? null };
+  })();
+  // The fallback below may answer first; without this the unhandled rejection
+  // would surface as a service-worker error.
+  live.catch(() => {});
 
-    return {
-      ok: true,
-      repos: json.data?.repos ?? [],
-      suggested: json.data?.suggested ?? null,
-      lastRepoId: (gg_meeting_repo as string | undefined) ?? null,
-    };
+  const timeout = new Promise<null>((resolve) =>
+    setTimeout(() => resolve(null), RESOLVE_FRESH_BUDGET_MS)
+  );
+
+  try {
+    const fresh = await Promise.race([live, timeout]);
+    const { gg_meeting_repo } = await chrome.storage.local.get("gg_meeting_repo");
+    const lastRepoId = (gg_meeting_repo as string | undefined) ?? null;
+
+    if (fresh) {
+      return { ok: true, repos: fresh.repos, suggested: fresh.suggested, lastRepoId };
+    }
+
+    // Server too slow — serve what we know. The in-flight request keeps going
+    // and refreshes the cache for next time.
+    const cached = await readCachedRepos();
+    if (cached) {
+      log(`[GG] resolve: server slow (>${RESOLVE_FRESH_BUDGET_MS}ms) — serving cache`);
+      return { ok: true, repos: cached.repos, suggested: null, lastRepoId, stale: true };
+    }
+
+    // Nothing cached: wait it out rather than report a failure we don't have.
+    const eventual = await live;
+    return { ok: true, repos: eventual.repos, suggested: eventual.suggested, lastRepoId };
   } catch (err) {
-    log(`[GG] resolve failed: ${err instanceof Error ? err.message : String(err)}`);
-    return { ok: false, error: "Could not reach Glitchgrab" };
+    const message = err instanceof Error ? err.message : String(err);
+    log(`[GG] resolve failed after ${Date.now() - started}ms: ${message}`);
+
+    const cached = await readCachedRepos();
+    if (cached) {
+      const { gg_meeting_repo } = await chrome.storage.local.get("gg_meeting_repo");
+      log("[GG] resolve: falling back to cached projects");
+      return {
+        ok: true,
+        repos: cached.repos,
+        suggested: null,
+        lastRepoId: (gg_meeting_repo as string | undefined) ?? null,
+        stale: true,
+      };
+    }
+    return { ok: false, error: message.startsWith("Server said") ? message : "Could not reach Glitchgrab" };
+  }
+}
+
+async function readCachedRepos(): Promise<CachedRepos | null> {
+  try {
+    const { gg_meeting_repos } = await chrome.storage.local.get("gg_meeting_repos");
+    const cached = gg_meeting_repos as CachedRepos | undefined;
+    if (!cached?.repos?.length) return null;
+    if (Date.now() - cached.at > RESOLVE_CACHE_TTL_MS) return null;
+    return cached;
+  } catch {
+    return null;
   }
 }
 
