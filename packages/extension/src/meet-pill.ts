@@ -88,7 +88,7 @@ function styles(): string {
       background: #333537 !important;
       border: 0 !important; outline: 0 !important; box-shadow: none !important;
       cursor: pointer !important; padding: 0 !important;
-      margin: 0 8px 0 0 !important;
+      margin: 0 4px !important;
       flex: 0 0 auto !important;
       transition: background .15s ease;
     }
@@ -176,17 +176,17 @@ async function sendBot() {
 }
 
 /**
- * Where to sit relative to Meet's grey control group.
+ * Where to sit inside Meet's grey control group.
  *
- * NOT inside it. That group is a fixed flex row sized for Google's own buttons,
- * and inserting a wide element pushes the mic and camera controls out of it —
- * breaking the call UI, which is far worse than the pill being a few pixels
- * further left. So we land immediately BEFORE the group, which is exactly
- * where tl;dv puts itself and why it never disturbs the layout.
+ * Inside, as the first child — the button is now exactly the size of Meet's own
+ * controls (48px round), so it fits the row instead of stretching it. An
+ * earlier wide version had to sit outside to avoid pushing the mic out, but
+ * outside means sitting on the near-black page background where a dark circle
+ * is invisible and looks detached from the controls.
  *
- * The group is located from the microphone's accessible name: Google's class
- * names are generated and rotate constantly, but the screen-reader label has to
- * stay meaningful.
+ * The group is found from the microphone's accessible name: Google's class
+ * names are generated and rotate constantly, while the screen-reader label has
+ * to stay meaningful.
  */
 function findMicSlot(): { parent: HTMLElement; before: HTMLElement } | null {
   const mic = document.querySelector<HTMLElement>(
@@ -200,9 +200,10 @@ function findMicSlot(): { parent: HTMLElement; before: HTMLElement } | null {
     if (group.querySelectorAll("button, [role='button']").length >= 3) break;
     group = group.parentElement;
   }
-  if (!group?.parentElement) return null;
+  if (!group?.firstElementChild) return null;
 
-  return { parent: group.parentElement, before: group };
+  // First child = leftmost control in the row.
+  return { parent: group, before: group.firstElementChild as HTMLElement };
 }
 
 /**
