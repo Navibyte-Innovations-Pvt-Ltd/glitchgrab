@@ -69,8 +69,10 @@ function styles(): string {
        controls rather than something floating on top of them. */
     #${PILL_ID} {
       display: inline-flex; align-items: center; gap: 8px;
-      height: 48px; padding: 0 14px; border-radius: 9999px;
-      background: #3c4043; border: 0;
+      height: 40px; padding: 0 12px; border-radius: 9999px;
+      background: #1f1f1f; border: 1px solid #3c4043;
+      /* Never grow the row it sits in — Meet's bar has no slack. */
+      flex: 0 0 auto; max-width: 320px; overflow: hidden;
       font-family: "Google Sans", Roboto, -apple-system, sans-serif;
       color: #e8eaed; font-size: 12px; line-height: 1; white-space: nowrap;
       margin-right: 8px;
@@ -202,13 +204,17 @@ async function sendBot() {
 }
 
 /**
- * The mic control's own slot inside Meet's grey control group.
+ * Where to sit relative to Meet's grey control group.
  *
- * Anchoring to the mic specifically — rather than to "the bar" — is what puts
- * the pill inside the same rounded group as the call controls instead of
- * floating beside it. Located by the microphone's accessible name, because
- * Google's class names are generated and change without notice while the
- * screen-reader label has to stay meaningful.
+ * NOT inside it. That group is a fixed flex row sized for Google's own buttons,
+ * and inserting a wide element pushes the mic and camera controls out of it —
+ * breaking the call UI, which is far worse than the pill being a few pixels
+ * further left. So we land immediately BEFORE the group, which is exactly
+ * where tl;dv puts itself and why it never disturbs the layout.
+ *
+ * The group is located from the microphone's accessible name: Google's class
+ * names are generated and rotate constantly, but the screen-reader label has to
+ * stay meaningful.
  */
 function findMicSlot(): { parent: HTMLElement; before: HTMLElement } | null {
   const mic = document.querySelector<HTMLElement>(
@@ -216,13 +222,15 @@ function findMicSlot(): { parent: HTMLElement; before: HTMLElement } | null {
   );
   if (!mic) return null;
 
-  // Meet wraps each control in a positioning div; we want to sit beside that
-  // wrapper, not inside the button itself.
-  const slot = mic.closest<HTMLElement>("div[jscontroller], div[data-tooltip-id]") ?? mic.parentElement;
-  const parent = slot?.parentElement;
-  if (!slot || !parent) return null;
+  // Climb to the container holding several controls — that's the grey group.
+  let group: HTMLElement | null = mic.parentElement;
+  for (let depth = 0; group && depth < 6; depth++) {
+    if (group.querySelectorAll("button, [role='button']").length >= 3) break;
+    group = group.parentElement;
+  }
+  if (!group?.parentElement) return null;
 
-  return { parent, before: slot };
+  return { parent: group.parentElement, before: group };
 }
 
 /**
