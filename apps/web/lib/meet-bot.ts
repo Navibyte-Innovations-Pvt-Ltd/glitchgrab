@@ -87,21 +87,6 @@ async function dispatchBot(params: {
 }
 
 /**
- * Create the Meeting row and send the bot to it.
- *
- * The row exists before the bot is asked to do anything, so a bot that never
- * arrives still leaves a visible, explainable record instead of silence.
- */
-/** States in which a bot is still on (or heading to) the call. */
-export const BOT_IN_FLIGHT = [
-  "DISPATCHING",
-  "JOINING",
-  "WAITING_ADMIT",
-  "RECORDING",
-  "UPLOADING",
-];
-
-/**
  * Ask the bot service what it is doing with a meeting, right now.
  *
  * The bot reports its progress by calling us, which is the wrong direction to
@@ -196,6 +181,12 @@ export async function botAlreadyOnCall(meetUrl: string) {
   return findActiveBotMeeting(meetUrl);
 }
 
+/**
+ * Create the Meeting row and send the bot to it.
+ *
+ * The row exists before the bot is asked to do anything, so a bot that never
+ * arrives still leaves a visible, explainable record instead of silence.
+ */
 export async function startBotRecording(params: {
   repoId: string;
   meetUrl: string;
