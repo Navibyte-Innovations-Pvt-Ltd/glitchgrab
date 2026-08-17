@@ -41,6 +41,22 @@ let root: HTMLElement | null = null;
 let mounting = false;
 let observer: MutationObserver | null = null;
 
+/**
+ * Cut the retry loop's wait short.
+ *
+ * The loop backs off up to 30s, which is right while nothing is happening and
+ * wrong the instant something is: the operator joins the call, and the button
+ * would sit amber for the remainder of a wait that started while they were
+ * still in the lobby. Joining is exactly the moment to try again.
+ */
+let wakeRetry: (() => void) | null = null;
+
+function pokeRetry() {
+  const wake = wakeRetry;
+  wakeRetry = null;
+  wake?.();
+}
+
 const RETRY_MS = 5000;
 const RETRY_MAX_MS = 30000;
 /**
@@ -624,6 +640,10 @@ function ensureMounted() {
   matchNeighbourStyle(root, findMicButton());
 
   render();
+
+  // The button only mounts once in the call. If the project lookup is still
+  // sleeping off an earlier failure, this is the moment to retry it.
+  if (state.phase === "loading") pokeRetry();
 }
 
 /**
@@ -693,8 +713,22 @@ export async function mountMeetPill(): Promise<void> {
     log(reason);
     state.message = reason;
     render();
-    await wait(backoff);
-    backoff = Math.min(backoff * 1.5, RETRY_MAX_MS);
+
+    let woken = false;
+    await Promise.race([
+      wait(backoff),
+      new Promise<void>((resolve) => {
+        wakeRetry = () => {
+          woken = true;
+          resolve();
+        };
+      }),
+    ]);
+    wakeRetry = null;
+
+    // A wake means the situation changed (the call was joined), so start the
+    // backoff over rather than punishing the new attempt for the old failures.
+    backoff = woken ? RETRY_MS : Math.min(backoff * 1.5, RETRY_MAX_MS);
   };
 
   for (;;) {
