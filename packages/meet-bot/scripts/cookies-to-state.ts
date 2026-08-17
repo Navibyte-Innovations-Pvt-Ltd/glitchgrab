@@ -114,20 +114,13 @@ async function main() {
     process.exit(1);
   }
 
-  // Google runs two generations of sign-in cookies side by side: the classic
-  // SID/SAPISID pair and the newer __Secure-*PSID ones. A session is valid with
-  // either, so require one from each ROLE rather than a fixed list — checking
-  // for the old names alone would cry wolf on a perfectly good modern session.
+  // Verified the hard way: a set of only `__Secure-*` cookies is NOT enough.
+  // Google redirects straight back to the sign-in page without the classic
+  // trio, which are httpOnly and are exactly the ones a cookie exporter is
+  // likely to omit. Requiring them turns a silent "you're signed out" on a
+  // real call into a warning here, where it costs nothing to fix.
   const names = new Set(cookies.map((c) => c.name));
-  const hasAny = (candidates: string[]) => candidates.some((n) => names.has(n));
-
-  const hasSession = hasAny(["SID", "__Secure-1PSID", "__Secure-3PSID"]);
-  const hasAuth = hasAny(["SAPISID", "__Secure-1PAPISID", "__Secure-3PAPISID"]);
-
-  const missing = [
-    ...(hasSession ? [] : ["a session cookie (SID / __Secure-1PSID)"]),
-    ...(hasAuth ? [] : ["an auth cookie (SAPISID / __Secure-1PAPISID)"]),
-  ];
+  const missing = ["SID", "HSID", "SSID"].filter((n) => !names.has(n));
 
   const state = { cookies, origins: [] as unknown[] };
   const json = JSON.stringify(state);
@@ -136,11 +129,12 @@ async function main() {
   console.log(`\nConverted ${cookies.length} Google cookies → ${OUT_FILE}`);
 
   if (missing.length > 0) {
-    console.warn(`\n⚠  Missing ${missing.join(" and ")}`);
-    console.warn(
-      "   The export probably excluded httpOnly cookies, or was taken while signed out."
-    );
-    console.warn("   Re-export from a signed-in Google tab with httpOnly included.\n");
+    console.warn(`\n⚠  Missing required sign-in cookies: ${missing.join(", ")}`);
+    console.warn("   Without these the bot lands on Google's sign-in page and cannot join.\n");
+    console.warn("   Fix: open https://mail.google.com as the bot account and confirm the");
+    console.warn("   inbox loads, then export the cookies from THAT tab. If the exporter");
+    console.warn("   has an 'include httpOnly' option, turn it on.\n");
+    process.exitCode = 1;
   } else {
     console.log("Sign-in cookies look complete.\n");
   }

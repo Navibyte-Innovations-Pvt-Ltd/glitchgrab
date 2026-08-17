@@ -3,8 +3,13 @@
   "ui": "stream",
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
-      "outputs": [".next/**", "dist/**"],
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        ".next/**",
+        "dist/**"
+      ],
       "env": [
         "NEXT_POSTGRES_URL",
         "NEXTAUTH_URL",
@@ -31,7 +36,23 @@
         "META_WA_PHONE_NUMBER_ID",
         "META_WA_ACCESS_TOKEN",
         "META_WA_APP_SECRET",
-        "META_WA_VERIFY_TOKEN"
+        "META_WA_VERIFY_TOKEN",
+        "MEET_BOT_URL",
+        "MEET_BOT_SECRET",
+        "NEXT_AWS_ACCESS_KEY_ID",
+        "NEXT_AWS_SECRET_ACCESS_KEY",
+        "NEXT_AWS_BUCKET_NAME",
+        "NEXT_AWS_S3_REGION",
+        "GITHUB_APP_ID",
+        "GITHUB_APP_PRIVATE_KEY",
+        "GITHUB_APP_SLUG",
+        "GITHUB_APP_WEBHOOK_SECRET",
+        "CRON_SECRET",
+        "NEXT_DIRECT_URL",
+        "NEXT_PUBLIC_GLITCHGRAB_TOKEN",
+        "RAZORPAY_PLAN_PLATFORM",
+        "KIMI_API_KEY",
+        "MEET_BOT_CALLBACK_URL"
       ]
     },
     "dev": {
@@ -63,7 +84,23 @@
         "META_WA_PHONE_NUMBER_ID",
         "META_WA_ACCESS_TOKEN",
         "META_WA_APP_SECRET",
-        "META_WA_VERIFY_TOKEN"
+        "META_WA_VERIFY_TOKEN",
+        "MEET_BOT_URL",
+        "MEET_BOT_SECRET",
+        "NEXT_AWS_ACCESS_KEY_ID",
+        "NEXT_AWS_SECRET_ACCESS_KEY",
+        "NEXT_AWS_BUCKET_NAME",
+        "NEXT_AWS_S3_REGION",
+        "GITHUB_APP_ID",
+        "GITHUB_APP_PRIVATE_KEY",
+        "GITHUB_APP_SLUG",
+        "GITHUB_APP_WEBHOOK_SECRET",
+        "CRON_SECRET",
+        "NEXT_DIRECT_URL",
+        "NEXT_PUBLIC_GLITCHGRAB_TOKEN",
+        "RAZORPAY_PLAN_PLATFORM",
+        "KIMI_API_KEY",
+        "MEET_BOT_CALLBACK_URL"
       ]
     },
     "lint": {
@@ -73,7 +110,9 @@
       "cache": false
     },
     "validate": {
-      "dependsOn": ["^build"],
+      "dependsOn": [
+        "^build"
+      ],
       "cache": false
     }
   }

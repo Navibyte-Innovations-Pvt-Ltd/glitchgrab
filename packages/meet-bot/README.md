@@ -25,7 +25,51 @@ Opus in WebM — the same format the browser extension produces, so the server
 needs no branch for bot vs extension recordings, and Sarvam takes it directly
 with no conversion step.
 
-## The bot needs a Google account
+## Signing the bot in (do this once)
+
+Google blocks sign-in from any automated browser, and cookies exported from
+your laptop lose their httpOnly entries and look suspicious when replayed from
+a datacenter in another country. So the login happens **inside the container**,
+driven by you, in an ordinary Chrome:
+
+**1. Mount a volume** at `/data` (Railway → Settings → Volumes). Without it the
+profile dies on the next deploy.
+
+**2. Add a TCP proxy** on port **5900** (Railway → Settings → Networking →
+TCP Proxy). Railway gives you a host and port.
+
+**3. Set a VNC password:**
+
+```
+VNC_PASSWORD=<something long>
+```
+
+**4. Start the login browser:**
+
+```bash
+curl -X POST https://bot.glitchgrab.dev/login/start -H "x-gg-bot: $MEET_BOT_SECRET"
+```
+
+**5. Connect and sign in.** On macOS, Finder → Go → Connect to Server →
+`vnc://<tcp-proxy-host>:<port>`. You get a real Chrome on accounts.google.com.
+Sign in as the bot's account, finish any 2FA, then open `meet.google.com` once.
+
+**6. Stop it:**
+
+```bash
+curl -X POST https://bot.glitchgrab.dev/login/stop -H "x-gg-bot: $MEET_BOT_SECRET"
+```
+
+The browser goes away; the profile stays on the volume and every later join
+reuses it. `GET /health` reports `googleProfile: true` once it exists.
+
+The session self-terminates after 20 minutes, and a login cannot start while a
+recording is running.
+
+⚠️ The VNC port is a remote browser signed into your Google account. Keep the
+password strong, and remove the TCP proxy when you are not using it.
+
+## Fallback: exported cookies
 
 Google Meet **refuses anonymous participants** on Workspace-hosted meetings —
 not "ask to join", a flat *"You can't join this video call"*. So the bot has to

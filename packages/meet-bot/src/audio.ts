@@ -1,4 +1,7 @@
-import { spawn, type ChildProcess } from "node:child_process";
+import { execFile, spawn, type ChildProcess } from "node:child_process";
+import { promisify } from "node:util";
+
+const run = promisify(execFile);
 
 /**
  * Audio capture for the Meet bot.
@@ -13,8 +16,55 @@ import { spawn, type ChildProcess } from "node:child_process";
  * needs a long-lived process, a sound server, and a real browser.
  */
 
-/** Must match the sink created in docker-entrypoint.sh. */
-const SINK_NAME = "glitchgrab_sink";
+/** Fallback sink from docker-entrypoint.sh, used when no per-job sink exists. */
+const DEFAULT_SINK = "glitchgrab_sink";
+
+/**
+ * Create a sound card that belongs to ONE meeting.
+ *
+ * Every concurrent recording needs its own: PulseAudio mixes everything played
+ * into a sink, so two calls sharing one would each capture both conversations.
+ * That is a confidentiality failure, not a glitch — client A's recording would
+ * contain client B's call.
+ *
+ * Returns the sink name, or the shared default if creation fails (a single
+ * recording still works correctly on it).
+ */
+export async function createSink(meetingId: string): Promise<string> {
+  // PulseAudio sink names allow a narrow character set; a cuid does not qualify.
+  const name = `gg_${meetingId.replace(/[^a-zA-Z0-9]/g, "").slice(-16)}`;
+  try {
+    await run("pactl", [
+      "load-module",
+      "module-null-sink",
+      `sink_name=${name}`,
+      `sink_properties=device.description=${name}`,
+    ]);
+    console.log(`[bot] created audio sink ${name}`);
+    return name;
+  } catch (err) {
+    console.error(`[bot] could not create sink ${name}, falling back to shared:`, err);
+    return DEFAULT_SINK;
+  }
+}
+
+/** Tear the per-job sink down. Leaking these exhausts PulseAudio over time. */
+export async function destroySink(sink: string): Promise<void> {
+  if (!sink || sink === DEFAULT_SINK) return;
+  try {
+    // Unloading by module NAME would remove every null sink, including other
+    // live recordings' — find this sink's own module id and unload only that.
+    const { stdout } = await run("pactl", ["list", "short", "modules"]);
+    for (const line of stdout.split("\n")) {
+      if (line.includes(`sink_name=${sink}`)) {
+        const id = line.split(/\s+/)[0];
+        if (id) await run("pactl", ["unload-module", id]).catch(() => {});
+      }
+    }
+  } catch {
+    /* best effort — a stale sink costs memory, not correctness */
+  }
+}
 
 export interface Recording {
   /** Where the audio is being written. */
@@ -30,7 +80,7 @@ export interface Recording {
  * means the server side needs no branch for bot vs extension recordings, and
  * Sarvam accepts it directly with no conversion step.
  */
-export function startRecording(outPath: string): Recording {
+export function startRecording(outPath: string, sink = DEFAULT_SINK): Recording {
   const ffmpeg: ChildProcess = spawn(
     "ffmpeg",
     [
@@ -40,7 +90,7 @@ export function startRecording(outPath: string): Recording {
       "-f",
       "pulse",
       "-i",
-      `${SINK_NAME}.monitor`,
+      `${sink}.monitor`,
       "-ac",
       "1",
       // Sarvam is optimal at 16 kHz, and speech gains nothing above it.

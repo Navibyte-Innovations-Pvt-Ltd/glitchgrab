@@ -14,7 +14,12 @@
       "/api/v1/extension/session/*/repo",
       "/api/v1/narration-telemetry",
       "/api/v1/github/app/callback",
-      "/api/v1/meetings/*/bot-status"
+      "/api/v1/meetings/*/bot-status",
+      "/api/v1/meetings/*/speakers",
+      "/api/v1/meetings/*/complete",
+      "/api/v1/meetings/*/upload-urls",
+      "/api/v1/extension/report",
+      "/api/v1/extension/repos"
     ],
     "files": [
       "**/db-sync.ts",

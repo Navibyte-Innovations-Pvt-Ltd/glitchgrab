@@ -11,8 +11,18 @@ FROM mcr.microsoft.com/playwright:v1.49.0-jammy
 
 # pulseaudio: the virtual sound card Chromium plays the call into.
 # ffmpeg:     records that sink's monitor to Opus/WebM.
+# tzdata ships an interactive timezone prompt, and xvfb/x11vnc pull it in. With
+# no TTY the build hangs at "Geographic area:" forever rather than failing —
+# so this must be set BEFORE any apt-get install.
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Kolkata
+
+# xvfb + x11vnc: a real X display and a remote view, used ONLY for the
+# human-driven Google login (see src/login.ts). Google blocks sign-in from an
+# automated browser, so that one step runs a plain Chrome a person drives.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends pulseaudio pulseaudio-utils ffmpeg curl unzip \
+  && apt-get install -y --no-install-recommends \
+     pulseaudio pulseaudio-utils ffmpeg curl unzip xvfb x11vnc \
   && rm -rf /var/lib/apt/lists/*
 
 # Bun runs the service (same runtime as the rest of the monorepo).
@@ -33,6 +43,9 @@ ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 ENV PORT=8080
 
 EXPOSE 8080
+# VNC for the login session. Reachable only via a Railway TCP proxy you add
+# deliberately, and only while a login session is running.
+EXPOSE 5900
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
   CMD curl -fsS http://localhost:8080/health || exit 1

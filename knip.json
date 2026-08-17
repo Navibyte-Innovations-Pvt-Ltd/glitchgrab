@@ -17,7 +17,9 @@
         "app/**/*.test.ts"
       ],
       "next": {
-        "entry": ["next.config.{js,ts,cjs,mjs}"]
+        "entry": [
+          "next.config.{js,ts,cjs,mjs}"
+        ]
       },
       "ignore": [
         "components/AppInputFields/**"
@@ -58,14 +60,16 @@
       "entry": [
         "src/background.ts",
         "src/content.ts",
-        "src/popup/popup.ts",
-        "src/report/report.tsx",
-        "src/offscreen/offscreen.ts"
+        "src/popup/popup.ts"
       ],
-      "project": ["src/**/*.{ts,tsx}"]
+      "project": [
+        "src/**/*.{ts,tsx}"
+      ]
     },
     "packages/sdk-nextjs": {
-      "project": ["src/**/*.{ts,tsx}"],
+      "project": [
+        "src/**/*.{ts,tsx}"
+      ],
       "ignoreDependencies": [
         "@semantic-release/commit-analyzer",
         "@semantic-release/github",
@@ -76,7 +80,9 @@
       ]
     },
     "packages/sdk-expo": {
-      "project": ["src/**/*.{ts,tsx}"],
+      "project": [
+        "src/**/*.{ts,tsx}"
+      ],
       "ignoreDependencies": [
         "@types/react-native"
       ]
@@ -92,7 +98,13 @@
     "tw-animate-css",
     "axios"
   ],
-  "ignoreBinaries": ["prisma", "semantic-release", "wait"],
-  "ignore": ["apps/glitchrecord/**"],
+  "ignoreBinaries": [
+    "prisma",
+    "semantic-release",
+    "wait"
+  ],
+  "ignore": [
+    "apps/glitchrecord/**"
+  ],
   "ignoreExportsUsedInFile": true
 }

@@ -1,0 +1,15 @@
+-- Order the in-Meet project picker by real repository activity (#311).
+--
+-- The project someone is about to demo is almost always the one they have been
+-- committing to, but the picker was ordered by when the repo was connected —
+-- so a repo added months ago and untouched since sat above the one with this
+-- morning's commits, in a list read in the seconds before a client call.
+--
+-- Cached rather than fetched at pick time: asking GitHub while the menu is
+-- opening would cost a request per repo and put a network round trip in front
+-- of the operator. `cron/repo-activity` refreshes this hourly.
+--
+-- Nullable on purpose. Existing rows stay null until the first refresh sees
+-- them, and the ordering sorts nulls last, so an unrefreshed repo falls back
+-- to newest-connected instead of jumping to the top of the list.
+ALTER TABLE "Repo" ADD COLUMN "pushedAt" TIMESTAMP(3);

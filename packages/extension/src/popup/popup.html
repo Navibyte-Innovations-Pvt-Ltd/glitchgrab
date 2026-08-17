@@ -31,47 +31,12 @@
         <span class="tester-name" id="tester-name"></span>
         <button class="tester-logout-btn" id="tester-logout-btn" title="Log out">⏻</button>
       </div>
-      <button class="btn-report" id="btn-report">🐞 Report Bug</button>
-    </div>
-
-    <!-- meeting recording (#311) — the developer records, the client installs
-         nothing. Hidden until logged in, since a recording must be stored
-         against a project the server can verify. -->
-    <div class="meeting-box" id="meeting-box" style="display:none">
-      <div class="meeting-head">
-        <span class="meeting-title">Record call</span>
-        <span class="meeting-timer" id="meeting-timer"></span>
-      </div>
-
-      <div id="meeting-setup">
-        <label class="meeting-label" for="meeting-repo">Project</label>
-        <select class="meeting-select" id="meeting-repo"></select>
-        <label class="meeting-label" for="meeting-name">Call name</label>
-        <input class="meeting-input" id="meeting-name" type="text" placeholder="Call name (optional)" />
-        <button class="meeting-mic" id="meeting-mic" style="display:none">
-          Allow microphone first
-        </button>
-        <button class="meeting-btn" id="meeting-start">● Record this call</button>
-        <div class="meeting-hint" id="meeting-hint"></div>
-      </div>
-
-      <div id="meeting-live" style="display:none">
-        <div class="meeting-live-row">
-          <span class="dot"></span>
-          <span id="meeting-live-label">Recording audio</span>
-        </div>
-        <!-- Which project this call is being recorded against. Shown while
-             live so a mis-picked project is caught during the call, not after. -->
-        <div class="meeting-live-repo" id="meeting-live-repo"></div>
-        <button class="meeting-btn meeting-btn-stop" id="meeting-stop">■ Stop &amp; save</button>
-        <div class="meeting-hint">Announce to everyone that the call is being recorded.</div>
-      </div>
     </div>
 
     <!-- idle state -->
     <div class="panel" id="panel-idle">
       <div class="status">
-        Press Record in <strong>GlitchRecord</strong> to start capturing. This panel is just a status indicator.
+        Open a Google Meet and use the Glitchgrab control next to the mic to send the recording bot.
       </div>
     </div>
 

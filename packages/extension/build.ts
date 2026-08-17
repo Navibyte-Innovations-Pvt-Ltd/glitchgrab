@@ -8,8 +8,6 @@ const OUT = "dist";
 const WATCH = process.argv.includes("--watch");
 
 mkdirSync(`${OUT}/popup`, { recursive: true });
-mkdirSync(`${OUT}/report`, { recursive: true });
-mkdirSync(`${OUT}/offscreen`, { recursive: true });
 
 // @glitchgrab/report-ui is built with react/react-dom EXTERNAL (correct for
 // its other consumer, the SDK, whose host app supplies its own React peer).
@@ -33,9 +31,6 @@ const options = {
     background: "src/background.ts",
     content: "src/content.ts",
     "popup/popup": "src/popup/popup.ts",
-    "report/report": "src/report/report.tsx",
-    // Meeting audio recorder (#311) — an MV3 worker can't hold a MediaStream.
-    "offscreen/offscreen": "src/offscreen/offscreen.ts",
   },
   bundle: true,
   outdir: OUT,
@@ -56,8 +51,6 @@ function copyStatic() {
   copyFileSync("src/manifest.json", `${OUT}/manifest.json`);
   copyFileSync("src/popup/popup.html", `${OUT}/popup/popup.html`);
   copyFileSync("src/popup/popup.css", `${OUT}/popup/popup.css`);
-  copyFileSync("src/report/report.html", `${OUT}/report/report.html`);
-  copyFileSync("src/offscreen/offscreen.html", `${OUT}/offscreen/offscreen.html`);
   for (const s of [16, 32, 48, 128]) {
     copyFileSync(`src/icons/icon${s}.png`, `${OUT}/icon${s}.png`);
   }

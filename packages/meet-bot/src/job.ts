@@ -1,9 +1,10 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { startRecording } from "./audio";
+import { createSink, destroySink, startRecording } from "./audio";
 import { enableCaptions, joinMeeting, readParticipants, watchCaptions } from "./meet";
 import { reportStatus, uploadRecording } from "./upload";
+import { finishJob, setPhase, setSink, startJob } from "./jobs";
 
 /**
  * One bot recording, start to finish (#311).
@@ -32,14 +33,22 @@ export async function runBotJob(params: JobParams): Promise<void> {
   const workDir = await mkdtemp(join(tmpdir(), "gg-meet-"));
   const audioPath = join(workDir, "tab.webm");
 
-  const status = (botStatus: string, botError?: string) =>
-    reportStatus({
+  startJob(params.meetingId, params.meetUrl);
+
+  // One sound card per meeting — see createSink for why sharing is unsafe.
+  const sink = await createSink(params.meetingId);
+  setSink(params.meetingId, sink);
+
+  const status = (botStatus: string, botError?: string) => {
+    setPhase(params.meetingId, botStatus as never, botError);
+    return reportStatus({
       apiBase: params.apiBase,
       secret: params.secret,
       meetingId: params.meetingId,
       botStatus,
       botError,
     });
+  };
 
   await status("JOINING");
 
@@ -51,11 +60,14 @@ export async function runBotJob(params: JobParams): Promise<void> {
       admitTimeoutMs: ADMIT_TIMEOUT_MS,
       maxDurationMs: MAX_DURATION_MS,
       onWaitingAdmit: () => void status("WAITING_ADMIT"),
+      sink,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Could not join the meeting";
     console.error("[bot] join failed:", message);
     await status("FAILED", message);
+    finishJob(params.meetingId, "FAILED", message);
+    await destroySink(sink);
     await rm(workDir, { recursive: true, force: true });
     return;
   }
@@ -65,7 +77,7 @@ export async function runBotJob(params: JobParams): Promise<void> {
   // Recording starts only AFTER admission, so a long wait in the lobby doesn't
   // become minutes of silence at the head of every file.
   const startedAt = Date.now();
-  const recording = startRecording(audioPath);
+  const recording = startRecording(audioPath, sink);
 
   // Captions are the only way to attach real names to voices on a group call —
   // the bot hears one mixed stream exactly like a human participant does.
@@ -91,7 +103,7 @@ export async function runBotJob(params: JobParams): Promise<void> {
   console.log("[bot] Meet participants (raw):", JSON.stringify(firstRead));
   for (const n of firstRead) participants.add(n);
 
-  let reason: "ended" | "max-duration" = "ended";
+  let reason: "ended" | "max-duration" | "alone" = "ended";
   try {
     reason = await session.waitForEnd();
   } catch (err) {
@@ -108,6 +120,9 @@ export async function runBotJob(params: JobParams): Promise<void> {
   if (reason === "max-duration") {
     console.warn("[bot] hit the maximum recording duration");
   }
+  if (reason === "alone") {
+    console.log("[bot] left because everyone else had gone");
+  }
 
   await status("UPLOADING");
 
@@ -122,5 +137,7 @@ export async function runBotJob(params: JobParams): Promise<void> {
   });
 
   await status(result.ok ? "DONE" : "FAILED", result.error);
+  finishJob(params.meetingId, result.ok ? "DONE" : "FAILED", result.error);
+  await destroySink(sink);
   await rm(workDir, { recursive: true, force: true });
 }

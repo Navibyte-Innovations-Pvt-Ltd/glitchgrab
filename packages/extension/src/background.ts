@@ -1,12 +1,3 @@
-import {
-  addCaption,
-  addParticipants,
-  getMeetingState,
-  isMeetingUrl,
-  startMeetingRecording,
-  stopMeetingRecording,
-} from "./meeting";
-
 // Session state
 interface CaptureState {
   active: boolean;
@@ -110,6 +101,28 @@ const BRIDGE_WS = "ws://localhost:7337?role=chrome";
 let ws: WebSocket | null = null;
 let wsReconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
+/**
+ * Reconnect delay, doubling on each failure.
+ *
+ * GlitchRecord is usually NOT running — most people only use the extension for
+ * meeting recording. A fixed 3s retry then means ~1200 failed WebSocket
+ * attempts an hour, each one a red error in chrome://extensions. That noise
+ * buries real errors, which is worse than the reconnect being a few seconds
+ * slower when GlitchRecord does start.
+ */
+const BRIDGE_RETRY_MIN_MS = 3000;
+const BRIDGE_RETRY_MAX_MS = 60_000;
+let bridgeRetryMs = BRIDGE_RETRY_MIN_MS;
+
+function scheduleBridgeRetry() {
+  if (wsReconnectTimer) return; // a retry is already pending
+  wsReconnectTimer = setTimeout(() => {
+    wsReconnectTimer = null;
+    connectBridge();
+  }, bridgeRetryMs);
+  bridgeRetryMs = Math.min(bridgeRetryMs * 2, BRIDGE_RETRY_MAX_MS);
+}
+
 function connectBridge() {
   if (ws && ws.readyState < 2) return; // already open/connecting
   try {
@@ -118,6 +131,8 @@ function connectBridge() {
     ws.onopen = () => {
       log("[GG] Bridge connected");
       if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
+      // GlitchRecord is up — go back to reconnecting promptly if it drops.
+      bridgeRetryMs = BRIDGE_RETRY_MIN_MS;
       sendTesterIdentityToBridge();
     };
 
@@ -140,19 +155,19 @@ function connectBridge() {
     };
 
     ws.onclose = () => {
-      log("[GG] Bridge disconnected — retry in 3s");
+      log(`[GG] Bridge disconnected — retry in ${Math.round(bridgeRetryMs / 1000)}s`);
       ws = null;
       // GlitchRecord quit mid-recording — stop capture so extension doesn't record forever
       if (state.active && state.fromBridge) {
         log("[GG] Bridge closed while recording — stopping capture");
         stopCapture();
       }
-      wsReconnectTimer = setTimeout(connectBridge, 3000);
+      scheduleBridgeRetry();
     };
 
     ws.onerror = () => { ws?.close(); };
   } catch {
-    wsReconnectTimer = setTimeout(connectBridge, 3000);
+    scheduleBridgeRetry();
   }
 }
 
@@ -226,9 +241,20 @@ function sendTesterIdentityToBridge() {
   }));
 }
 
+/**
+ * Resolves once the stored session has been read.
+ *
+ * The MV3 worker is killed constantly, and restoring auth is async. Anything
+ * that arrives during that window sees `tester === null` and reports "not
+ * logged in" — which is why the pill worked intermittently rather than never.
+ * Handlers await this instead of racing it.
+ */
+let authReady: Promise<void>;
+
 async function restoreTesterAuth() {
   try {
     const { gg_tester } = await chrome.storage.local.get("gg_tester");
+    log(`[GG] restoreTesterAuth: stored session ${gg_tester ? "found" : "MISSING — not logged in"}`);
     if (gg_tester && typeof gg_tester === "object" && (gg_tester as TesterAuth).sessionId) {
       const stored = gg_tester as TesterAuth;
       tester = { ...stored, apiBase: resolveApiBase(stored.apiBase) };
@@ -237,7 +263,7 @@ async function restoreTesterAuth() {
     }
   } catch { /* ignore */ }
 }
-restoreTesterAuth();
+authReady = restoreTesterAuth();
 
 // Silent login from the QA magic-link handshake (#297) — the ExtensionSession
 // already exists server-side (created by /api/v1/qa/extension-auth), so this
@@ -276,7 +302,9 @@ async function testerLogout() {
 try {
   chrome.alarms.create("gg-keepalive", { periodInMinutes: 0.5 });
   chrome.alarms.onAlarm.addListener((a) => {
-    if (a.name === "gg-keepalive") connectBridge();
+    // Don't call connectBridge here unconditionally: that would bypass the
+    // backoff and restore the every-30s error spam.
+    if (a.name === "gg-keepalive" && !wsReconnectTimer) connectBridge();
   });
 } catch { /* alarms unavailable */ }
 
@@ -541,7 +569,12 @@ function broadcastState() {
 }
 
 // Expose state to popup
-chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
+chrome.runtime.onMessage.addListener((msg, sender, reply) => {
+  // Every message, with where it came from. Without this a content script that
+  // never reaches the worker is indistinguishable from one whose handler failed
+  // — and those need completely different fixes.
+  log(`[GG] msg ${msg?.type ?? "?"} from ${sender?.tab?.url ?? sender?.url ?? "unknown"}`);
+
   if (msg.type === "GET_STATE") {
     reply({
       active: state.active,
@@ -578,139 +611,272 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
     testerLogout().then(() => reply({ ok: true }));
     return true;
   }
+  // ── In-Meet pill (#311) ───────────────────────────────────
+  if (msg.type === "MEET_RESOLVE_PROJECT") {
+    resolveMeetProject(msg.meetUrl).then(reply);
+    return true;
+  }
+  if (msg.type === "MEET_SEND_BOT") {
+    sendBotToMeeting(msg.repoId, msg.meetUrl, msg.title).then(reply);
+    return true;
+  }
+  if (msg.type === "MEET_MEETING_STATUS") {
+    meetingStatus(msg.meetingId).then(reply);
+    return true;
+  }
+  if (msg.type === "MEET_RETARGET") {
+    retargetMeeting(msg.meetingId, msg.repoId).then(reply);
+    return true;
+  }
+  if (msg.type === "MEET_REMEMBER_REPO") {
+    void chrome.storage.local.set({ gg_meeting_repo: msg.repoId });
+    return false;
+  }
+
   if (msg.type === "TESTER_AUTO_LOGIN") {
     // Sender is the content script relaying a QA-page postMessage, not the
     // popup — no reply expected.
     void testerAutoLogin(msg.sessionId, msg.name, msg.email, resolveApiBase(msg.apiBase));
     return false;
   }
-  if (msg.type === "OPEN_REPORT_WINDOW") {
-    openReportWindow().then(reply);
-    return true;
-  }
-  if (msg.type === "RECAPTURE_TAB") {
-    captureTab(msg.windowId).then((dataUrl) => reply({ dataUrl }));
-    return true;
-  }
-
-  // ── Meeting recording (#311 Phase B) ──────────────────────
-  if (msg.type === "GET_MEETING_STATE") {
-    getMeetingContext().then(reply);
-    return true;
-  }
-  if (msg.type === "MEETING_START") {
-    startMeeting(msg.repoId, msg.title).then(reply);
-    return true;
-  }
-  if (msg.type === "MEETING_STOP") {
-    stopMeeting().then(reply);
-    return true;
-  }
-  if (msg.type === "MEET_CAPTION") {
-    addCaption(msg.caption);
-    return false;
-  }
-  if (msg.type === "MEET_PARTICIPANTS") {
-    addParticipants(msg.names);
-    return false;
-  }
 
   return false;
 });
 
-// ── Meeting recording (#311 Phase B) ─────────────────────────
-// The developer records; the client installs nothing and just joins the call.
-// Login is required here (unlike event capture) because a recording has to be
-// stored against a project the server can verify the operator may write to.
+/**
+ * Which project this Meet belongs to, for the in-page pill.
+ *
+ * The server answers from the connected Google Calendar; the last-used repo is
+ * local, so it is merged in here rather than round-tripped.
+ */
+/**
+ * How long to wait for the live answer before falling back to the cached repo
+ * list. The repo list barely changes; the calendar suggestion does, so the
+ * network answer is still preferred — but not at the cost of the operator
+ * staring at a spinner while a cold serverless function boots.
+ */
+const RESOLVE_FRESH_BUDGET_MS = 2500;
+/** Cached repo lists older than this are treated as gone. */
+const RESOLVE_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-/** Repos this session may record against — server-derived, never guessed. */
-async function fetchMeetingRepos(): Promise<{ id: string; fullName: string }[]> {
-  if (!tester) return [];
-  try {
-    // Same route the Report Bug picker uses — sessionId is a query param there.
+interface CachedRepos {
+  repos: { id: string; fullName: string }[];
+  at: number;
+}
+
+/** Retries overlap, so every log line carries which attempt it belongs to. */
+let resolveSeq = 0;
+
+async function resolveMeetProject(meetUrl: string) {
+  const id = ++resolveSeq;
+  const started = Date.now();
+  const trace = (message: string) => log(`[GG] resolve#${id} +${Date.now() - started}ms ${message}`);
+
+  // Wait for the stored session before deciding we're logged out.
+  await authReady;
+
+  if (!tester) {
+    trace("no tester session — extension is not logged in");
+    return { ok: false, error: "Not logged in" };
+  }
+  trace(`session=${tester.sessionId.slice(0, 8)}… apiBase=${tester.apiBase}`);
+  if (/localhost|127\.0\.0\.1/.test(tester.apiBase)) {
+    // Worth shouting about: a session minted on the dev dashboard points every
+    // call at a local Next.js server, whose first request compiles the route
+    // (measured at ~15s) and which is unreachable from anywhere else. It looks
+    // exactly like "the extension is slow".
+    trace("WARNING: signed in against a LOCAL dev server, not glitchgrab.dev");
+  }
+
+  const session = tester;
+
+  const live = (async () => {
     const res = await fetch(
-      `${tester.apiBase}/api/v1/extension/repos?sessionId=${encodeURIComponent(tester.sessionId)}`,
-      { headers: authHeaders() }
+      `${session.apiBase}/api/v1/meetings/resolve?meetUrl=${encodeURIComponent(meetUrl)}`,
+      { headers: { ...authHeaders(), "x-gg-session": session.sessionId } }
     );
-    if (!res.ok) return [];
-    const json = (await res.json()) as { data?: { id: string; fullName: string }[] };
-    return json.data ?? [];
-  } catch {
-    return [];
+    if (!res.ok) throw new Error(`Server said ${res.status}`);
+
+    const json = (await res.json()) as {
+      data?: { repos: { id: string; fullName: string }[]; suggested: unknown; active?: unknown };
+    };
+    const repos = json.data?.repos ?? [];
+    trace(`server returned ${repos.length} projects`);
+    // Cache on every success so a slow or offline start still has something to
+    // show instead of an indefinite spinner.
+    void chrome.storage.local.set({
+      gg_meeting_repos: { repos, at: Date.now() } satisfies CachedRepos,
+    });
+    return {
+      repos,
+      suggested: json.data?.suggested ?? null,
+      // A bot already on this call, so a reloaded tab doesn't ask again.
+      active: json.data?.active ?? null,
+    };
+  })();
+  // The fallback below may answer first; without this the unhandled rejection
+  // would surface as a service-worker error.
+  live.catch(() => {});
+
+  const timeout = new Promise<null>((resolve) =>
+    setTimeout(() => resolve(null), RESOLVE_FRESH_BUDGET_MS)
+  );
+
+  try {
+    const fresh = await Promise.race([live, timeout]);
+    const { gg_meeting_repo } = await chrome.storage.local.get("gg_meeting_repo");
+    const lastRepoId = (gg_meeting_repo as string | undefined) ?? null;
+
+    if (fresh) {
+      return {
+        ok: true,
+        repos: fresh.repos,
+        suggested: fresh.suggested,
+        active: fresh.active,
+        lastRepoId,
+      };
+    }
+
+    // Server too slow — serve what we know. The in-flight request keeps going
+    // and refreshes the cache for next time.
+    const cached = await readCachedRepos();
+    if (cached) {
+      trace(`server slower than ${RESOLVE_FRESH_BUDGET_MS}ms — serving ${cached.repos.length} cached projects`);
+      return { ok: true, repos: cached.repos, suggested: null, lastRepoId, stale: true };
+    }
+
+    // Nothing cached: wait it out rather than report a failure we don't have.
+    const eventual = await live;
+    return {
+      ok: true,
+      repos: eventual.repos,
+      suggested: eventual.suggested,
+      active: eventual.active,
+      lastRepoId,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    trace(`failed: ${message}`);
+
+    const cached = await readCachedRepos();
+    if (cached) {
+      const { gg_meeting_repo } = await chrome.storage.local.get("gg_meeting_repo");
+      trace(`falling back to ${cached.repos.length} cached projects`);
+      return {
+        ok: true,
+        repos: cached.repos,
+        suggested: null,
+        lastRepoId: (gg_meeting_repo as string | undefined) ?? null,
+        stale: true,
+      };
+    }
+    return { ok: false, error: message.startsWith("Server said") ? message : "Could not reach Glitchgrab" };
   }
 }
 
-async function getMeetingContext() {
-  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-  const state = getMeetingState();
-  return {
-    ...state,
-    loggedIn: !!tester,
-    onMeetingPage: isMeetingUrl(tab?.url),
-    tabTitle: tab?.title ?? null,
-    tabUrl: tab?.url ?? null,
-    repos: tester && !state.active ? await fetchMeetingRepos() : [],
-  };
-}
-
-async function startMeeting(repoId: string, title: string | null) {
-  if (!tester) return { ok: false, error: "Log in first — open a QA link or the dashboard." };
-
-  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-  if (!tab?.id) return { ok: false, error: "No active tab to record" };
-
-  return startMeetingRecording({
-    tabId: tab.id,
-    repoId,
-    title: title?.trim() || tab.title || null,
-    meetUrl: tab.url ?? null,
-    apiBase: tester.apiBase,
-    sessionId: tester.sessionId,
-    withMic: true,
-  });
-}
-
-async function stopMeeting() {
-  if (!tester) return { ok: false, error: "Not logged in" };
-  return stopMeetingRecording({ apiBase: tester.apiBase, sessionId: tester.sessionId });
-}
-
-// ── "Report Bug" from the extension itself (#297) ────────────
-// Popups unload on blur (would kill an in-progress voice recording), so the
-// report dialog lives in its own persistent window, not the popup.
-async function captureTab(windowId: number): Promise<string | null> {
+async function readCachedRepos(): Promise<CachedRepos | null> {
   try {
-    // q70 left visible artifacts on UI text (#302). captureVisibleTab already
-    // returns the tab at device pixel density, so quality is the only knob.
-    return await chrome.tabs.captureVisibleTab(windowId, { format: "jpeg", quality: 92 });
+    const { gg_meeting_repos } = await chrome.storage.local.get("gg_meeting_repos");
+    const cached = gg_meeting_repos as CachedRepos | undefined;
+    if (!cached?.repos?.length) return null;
+    if (Date.now() - cached.at > RESOLVE_CACHE_TTL_MS) return null;
+    return cached;
   } catch {
     return null;
   }
 }
 
-async function openReportWindow(): Promise<{ ok: boolean; error?: string }> {
-  if (!tester) return { ok: false, error: "Log in first — open a QA link or the dashboard." };
+/** Dispatch the recording bot to this call. */
+async function sendBotToMeeting(repoId: string, meetUrl: string, title: string | null) {
+  await authReady;
+  if (!tester) return { ok: false, error: "Not logged in" };
+
   try {
-    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-    const screenshotDataUrl = tab?.windowId != null ? await captureTab(tab.windowId) : null;
-    await chrome.storage.local.set({
-      gg_pending_report: {
-        sessionId: tester.sessionId,
-        apiBase: tester.apiBase,
-        screenshotDataUrl,
-        pageUrl: tab?.url ?? null,
-        pageTitle: tab?.title ?? null,
-        targetWindowId: tab?.windowId ?? null,
+    const res = await fetch(`${tester.apiBase}/api/v1/meetings/bot`, {
+      method: "POST",
+      headers: {
+        ...authHeaders(),
+        "Content-Type": "application/json",
+        "x-gg-session": tester.sessionId,
       },
+      body: JSON.stringify({ repoId, meetUrl, title }),
     });
-    await chrome.windows.create({
-      url: chrome.runtime.getURL("report/report.html"),
-      type: "popup",
-      width: 480,
-      height: 760,
+
+    const json = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      data?: { meetingId?: string };
+    };
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: json.error ?? `Server said ${res.status}`,
+        // A 409 carries the recording that is ALREADY running here, so the
+        // button can adopt it instead of showing a failure for a call that is
+        // in fact being recorded.
+        meetingId: json.data?.meetingId ?? null,
+      };
+    }
+
+    void chrome.storage.local.set({ gg_meeting_repo: repoId });
+    // The meeting id is what lets the button follow the bot's real progress
+    // instead of assuming the dispatch worked.
+    return { ok: true, meetingId: json.data?.meetingId ?? null };
+  } catch {
+    return { ok: false, error: "Could not reach Glitchgrab" };
+  }
+}
+
+/** Live phase of a bot recording, for the in-Meet button. */
+async function meetingStatus(meetingId: string) {
+  await authReady;
+  if (!tester) return { ok: false, error: "Not logged in" };
+
+  try {
+    const res = await fetch(`${tester.apiBase}/api/v1/meetings/${meetingId}/bot-status`, {
+      headers: { ...authHeaders(), "x-gg-session": tester.sessionId },
     });
+    const json = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      data?: { botStatus?: string | null; botError?: string | null; repoId?: string };
+    };
+    if (!res.ok) return { ok: false, error: json.error ?? `Server said ${res.status}` };
+
+    return {
+      ok: true,
+      botStatus: json.data?.botStatus ?? null,
+      botError: json.data?.botError ?? null,
+      repoId: json.data?.repoId ?? null,
+    };
+  } catch {
+    return { ok: false, error: "Could not reach Glitchgrab" };
+  }
+}
+
+/**
+ * Move an in-progress recording to a different project.
+ *
+ * Nothing is said to the bot — it keeps recording. Only the filing changes.
+ */
+async function retargetMeeting(meetingId: string, repoId: string) {
+  await authReady;
+  if (!tester) return { ok: false, error: "Not logged in" };
+
+  try {
+    const res = await fetch(`${tester.apiBase}/api/v1/meetings/${meetingId}/repo`, {
+      method: "PATCH",
+      headers: {
+        ...authHeaders(),
+        "Content-Type": "application/json",
+        "x-gg-session": tester.sessionId,
+      },
+      body: JSON.stringify({ repoId }),
+    });
+    const json = (await res.json().catch(() => ({}))) as { error?: string };
+    if (!res.ok) return { ok: false, error: json.error ?? `Server said ${res.status}` };
+
+    void chrome.storage.local.set({ gg_meeting_repo: repoId });
     return { ok: true };
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Failed to open report window" };
+  } catch {
+    return { ok: false, error: "Could not reach Glitchgrab" };
   }
 }

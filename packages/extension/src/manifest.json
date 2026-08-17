@@ -8,12 +8,12 @@
     "storage",
     "scripting",
     "tabs",
-    "alarms",
-    "windows",
-    "offscreen",
-    "tabCapture"
+    "alarms"
   ],
-  "host_permissions": ["*://*/*", "http://localhost/*"],
+  "host_permissions": [
+    "*://*/*",
+    "http://localhost/*"
+  ],
   "action": {
     "default_popup": "popup/popup.html",
     "default_icon": {
@@ -35,8 +35,12 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_idle"
     }
   ],

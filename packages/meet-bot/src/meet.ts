@@ -1,5 +1,6 @@
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright-core";
 import { isSignInWall, loadGoogleSession, saveGoogleSession } from "./auth";
+import { clearProfileLocks, hasProfile, PROFILE_DIR } from "./login";
 
 /**
  * Driving Google Meet as a guest (#311).
@@ -22,6 +23,12 @@ export interface JoinOptions {
   /** Hard ceiling so a forgotten call cannot record forever. */
   maxDurationMs: number;
   /**
+   * PulseAudio sink this call's audio must go to. Without it every concurrent
+   * meeting plays into the shared default and each recording captures all of
+   * them.
+   */
+  sink?: string;
+  /**
    * Fired once the bot is knocking. This is the only state that needs a human:
    * someone has to press Admit inside Meet, and they won't if the dashboard
    * just shows a spinner.
@@ -31,10 +38,11 @@ export interface JoinOptions {
 
 export interface MeetSession {
   page: Page;
-  browser: Browser;
+  /** Null when running from a persistent profile — the context owns the process. */
+  browser: Browser | null;
   context: BrowserContext;
   /** Resolves when the call ends (everyone left, we were removed, or the cap). */
-  waitForEnd: () => Promise<"ended" | "max-duration">;
+  waitForEnd: () => Promise<"ended" | "max-duration" | "alone">;
   leave: () => Promise<void>;
 }
 
@@ -45,22 +53,26 @@ export interface MeetSession {
  * microphone permission prompt that nobody is there to answer. The bot has no
  * real devices and publishes silence — it is there to listen, not to speak.
  */
-export async function launchBrowser(): Promise<Browser> {
+export const BROWSER_ARGS = [
+  "--no-sandbox",
+  "--disable-dev-shm-usage",
+  // Auto-accept the camera/mic permission prompt.
+  "--use-fake-ui-for-media-stream",
+  // Publish a synthetic (silent) camera and microphone.
+  "--use-fake-device-for-media-stream",
+  "--autoplay-policy=no-user-gesture-required",
+  // Google checks for automation signals before it checks anything else.
+  "--disable-blink-features=AutomationControlled",
+  "--disable-features=IsolateOrigins,site-per-process",
+  "--lang=en-US",
+];
+
+export async function launchBrowser(sink?: string): Promise<Browser> {
   return chromium.launch({
     headless: true,
-    args: [
-      "--no-sandbox",
-      "--disable-dev-shm-usage",
-      // Auto-accept the camera/mic permission prompt.
-      "--use-fake-ui-for-media-stream",
-      // Publish a synthetic (silent) camera and microphone.
-      "--use-fake-device-for-media-stream",
-      "--autoplay-policy=no-user-gesture-required",
-      // Google checks for automation signals before it checks anything else.
-      "--disable-blink-features=AutomationControlled",
-      "--disable-features=IsolateOrigins,site-per-process",
-      "--lang=en-US",
-    ],
+    args: BROWSER_ARGS,
+    // PULSE_SINK is what makes this browser's audio land in its own sink.
+    ...(sink ? { env: { ...process.env, PULSE_SINK: sink } } : {}),
   });
 }
 
@@ -129,26 +141,44 @@ async function clickAny(page: Page, names: (string | RegExp)[], timeoutMs = 4000
  * of silence at the head of every recording.
  */
 export async function joinMeeting(options: JoinOptions): Promise<MeetSession> {
-  const browser = await launchBrowser();
-
-  // The bot signs in as a real Google account. Meet refuses anonymous
-  // participants on Workspace meetings outright, so identity is not optional —
-  // see src/auth.ts for why the session is seeded by a human rather than
-  // logged in here.
-  const storageState = (await loadGoogleSession()) ?? undefined;
-
-  const context = await browser.newContext({
-    permissions: ["microphone", "camera"],
+  const contextOptions = {
+    permissions: ["microphone", "camera"] as string[],
     // A desktop viewport keeps Meet on its full UI; the mobile layout has
     // different controls entirely.
     viewport: { width: 1280, height: 720 },
     userAgent: USER_AGENT,
     locale: "en-US",
     timezoneId: process.env.MEET_BOT_TIMEZONE ?? "Asia/Kolkata",
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ...(storageState ? { storageState: storageState as any } : {}),
-  });
-  const page = await context.newPage();
+  };
+
+  let browser: Browser | null = null;
+  let context: BrowserContext;
+
+  // Prefer the on-disk Chrome profile created by the in-container login. It is
+  // a real browser session established by a human on THIS machine, so it has
+  // the complete cookie set and no location mismatch — both of which broke the
+  // exported-cookie approach. The env-var session stays as the fallback.
+  if (await hasProfile()) {
+    console.log(`[bot] using Chrome profile at ${PROFILE_DIR}`);
+    // The join path hits the same stale-lock trap after a redeploy.
+    await clearProfileLocks();
+    context = await chromium.launchPersistentContext(PROFILE_DIR, {
+      headless: true,
+      args: BROWSER_ARGS,
+      ...(options.sink ? { env: { ...process.env, PULSE_SINK: options.sink } } : {}),
+      ...contextOptions,
+    });
+  } else {
+    browser = await launchBrowser(options.sink);
+    const storageState = (await loadGoogleSession()) ?? undefined;
+    context = await browser.newContext({
+      ...contextOptions,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ...(storageState ? { storageState: storageState as any } : {}),
+    });
+  }
+
+  const page = context.pages()[0] ?? (await context.newPage());
 
   await page.goto(options.meetUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
 
@@ -185,6 +215,13 @@ export async function joinMeeting(options: JoinOptions): Promise<MeetSession> {
     [/ask to join/i, /^join now$/i, /join meeting/i, /^join$/i],
     15_000
   );
+  const shutdown = async () => {
+    // In persistent-profile mode there is no separate Browser object; the
+    // context owns the process.
+    if (browser) await browser.close().catch(() => {});
+    else await context.close().catch(() => {});
+  };
+
   if (!asked) {
     await describePage(page, "join-button-not-found");
 
@@ -197,11 +234,11 @@ export async function joinMeeting(options: JoinOptions): Promise<MeetSession> {
     const signedOut = isSignInWall(page.url(), pageText);
     const refused = /can't join this video call|you can't join/i.test(pageText);
 
-    await browser.close();
+    await shutdown();
 
     if (signedOut) {
       throw new Error(
-        "The bot's Google session has expired — re-run `bun run seed-auth` and update GOOGLE_STORAGE_STATE"
+        "The bot is signed out of Google — open the bot's /login session and sign in again"
       );
     }
     if (refused) {
@@ -217,9 +254,27 @@ export async function joinMeeting(options: JoinOptions): Promise<MeetSession> {
 
   const startedAt = Date.now();
 
-  const waitForEnd = async (): Promise<"ended" | "max-duration"> => {
+  const waitForEnd = async (): Promise<"ended" | "max-duration" | "alone"> => {
+    let aloneSince: number | null = null;
+
     while (Date.now() - startedAt < options.maxDurationMs) {
       if (!(await inCall(page))) return "ended";
+
+      // Leaving a Meet as host does NOT end the call — everyone else stays in,
+      // including us. Without this the bot sits alone in an empty room until
+      // the 3-hour cap, recording silence and holding a slot.
+      if (await isAloneInCall(page)) {
+        aloneSince ??= Date.now();
+        if (Date.now() - aloneSince >= ALONE_GRACE_MS) {
+          console.log("[bot] everyone else left — ending the recording");
+          return "alone";
+        }
+      } else {
+        // Someone came back, or Meet was mid-render. Only a sustained empty
+        // room counts, so a momentary blip doesn't cut a live call short.
+        aloneSince = null;
+      }
+
       await page.waitForTimeout(5000);
     }
     return "max-duration";
@@ -227,16 +282,39 @@ export async function joinMeeting(options: JoinOptions): Promise<MeetSession> {
 
   const leave = async () => {
     await clickAny(page, [/leave call/i, /^leave$/i], 3000);
-    // Google rotates cookies as the session is used; persisting the refreshed
-    // state is what keeps the login alive across calls.
-    await context
-      .storageState()
-      .then((s) => saveGoogleSession(s as Record<string, unknown>))
-      .catch(() => {});
-    await browser.close().catch(() => {});
+    // Only meaningful for the env-var path. A persistent profile writes its own
+    // cookies to disk, which is why it ages so much better.
+    if (browser) {
+      await context
+        .storageState()
+        .then((s) => saveGoogleSession(s as Record<string, unknown>))
+        .catch(() => {});
+    }
+    await shutdown();
   };
 
   return { page, browser, context, waitForEnd, leave };
+}
+
+/** How long the bot tolerates being the only participant before leaving. */
+const ALONE_GRACE_MS = 60_000;
+
+/**
+ * True when Meet says nobody else is in the call.
+ *
+ * Read from Meet's own on-screen message rather than a participant count: the
+ * participant DOM is obfuscated and currently yields nothing, whereas this
+ * banner is user-facing text Google keeps stable for the people reading it.
+ */
+async function isAloneInCall(page: Page): Promise<boolean> {
+  try {
+    return await page.evaluate(() => {
+      const text = document.body.innerText || "";
+      return /you'?re the only one here|no one else is here|you are the only one/i.test(text);
+    });
+  } catch {
+    return false;
+  }
 }
 
 /**

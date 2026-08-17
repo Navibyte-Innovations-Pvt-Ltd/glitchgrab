@@ -1,5 +1,5 @@
 import { Capture, type CaptureEvent } from "./capture";
-import { debugParticipants, readParticipants, watchCaptions } from "./meet";
+import { mountMeetPill } from "./meet-pill";
 
 let stopped = false; // set on context invalidation — all callbacks bail immediately
 
@@ -24,50 +24,10 @@ function sendEvent(event: CaptureEvent) {
 
 const capture = new Capture(sendEvent);
 
-// ── Meeting name-capture (#311) ───────────────────────────────
-// Only runs while a call is being recorded, and only on the meeting tab.
-let stopCaptionWatch: (() => void) | null = null;
-let participantTimer: ReturnType<typeof setInterval> | null = null;
-
-function sendToBackground(message: Record<string, unknown>) {
-  if (!isContextAlive()) return;
-  try {
-    const p = chrome.runtime.sendMessage(message);
-    p?.catch?.(() => {});
-  } catch { /* context invalidated */ }
-}
-
-function startMeetWatch(startedAt: number) {
-  if (stopCaptionWatch) return;
-
-  stopCaptionWatch = watchCaptions(startedAt, (caption) => {
-    sendToBackground({ type: "MEET_CAPTION", caption });
-  });
-
-  // People join and leave mid-call, so poll rather than reading once. Cheap:
-  // a handful of DOM queries every 15s for the duration of the call.
-  const pushParticipants = () => {
-    const names = readParticipants();
-    if (names.length > 0) sendToBackground({ type: "MEET_PARTICIPANTS", names });
-  };
-  // Print what the scraper actually sees on this call — Meet's DOM is
-  // undocumented, so the name filter has to be written against real strings.
-  debugParticipants();
-  pushParticipants();
-  participantTimer = setInterval(pushParticipants, 15_000);
-}
-
-function stopMeetWatch() {
-  stopCaptionWatch?.();
-  stopCaptionWatch = null;
-  if (participantTimer) { clearInterval(participantTimer); participantTimer = null; }
-}
-
 function cleanup() {
   if (stopped) return;
   stopped = true;
   capture.stop();
-  stopMeetWatch();
 }
 
 // ── Single-instance guard ─────────────────────────────────────
@@ -113,11 +73,6 @@ const GG_PING = "__gg_ping__";
       if (msg.type === "CAPTURE_START") capture.start();
       else if (msg.type === "CAPTURE_STOP") capture.stop();
       else if (msg.type === "GG_LOG") console.log("[GG-bg]", msg.text);
-      // Meeting recording (#311): read participant names and Meet's own
-      // captions so remote speakers get REAL names instead of "Client (0)".
-      // Names only — the words still come from Sarvam.
-      else if (msg.type === "MEET_WATCH_START") startMeetWatch(msg.startedAt as number);
-      else if (msg.type === "MEET_WATCH_STOP") stopMeetWatch();
     });
   } catch { /* context invalidated at load */ }
 
@@ -179,11 +134,22 @@ const GG_PING = "__gg_ping__";
   };
   keepBgAlive();
 
+  // The in-Meet pill (#311). Meet is a single-page app, so the call page is
+  // often reached by client-side navigation rather than a load — mount on both.
+  if (location.hostname === "meet.google.com") {
+    void mountMeetPill();
+    window.addEventListener("popstate", () => void mountMeetPill());
+  }
+
   // History-API navigation hooks → SPA navigations
   const onNavigate = () => capture.onNavigate(document.title);
   const origPushState = history.pushState.bind(history);
   const origReplaceState = history.replaceState.bind(history);
-  history.pushState = (...args) => { origPushState(...args); onNavigate(); };
+  history.pushState = (...args) => {
+    origPushState(...args);
+    onNavigate();
+    if (location.hostname === "meet.google.com") void mountMeetPill();
+  };
   history.replaceState = (...args) => { origReplaceState(...args); onNavigate(); };
   window.addEventListener("popstate", onNavigate);
 })();
