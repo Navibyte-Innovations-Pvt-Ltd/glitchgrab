@@ -238,24 +238,19 @@ function findMicButton(): HTMLElement | null {
   );
 }
 
-function findMicSlot(): { parent: HTMLElement; before: HTMLElement } | null {
+/** The grey control group that holds mic, camera and the rest. */
+function findControlGroup(): HTMLElement | null {
   if (!isInCall()) return null;
 
-  const mic = document.querySelector<HTMLElement>(
-    '[aria-label*="microphone" i], [aria-label*="Turn off mic" i], [aria-label*="Turn on mic" i]'
-  );
+  const mic = findMicButton();
   if (!mic) return null;
 
-  // Climb to the container holding several controls — that's the grey group.
   let group: HTMLElement | null = mic.parentElement;
   for (let depth = 0; group && depth < 6; depth++) {
-    if (group.querySelectorAll("button, [role='button']").length >= 3) break;
+    if (group.querySelectorAll("button, [role='button']").length >= 3) return group;
     group = group.parentElement;
   }
-  if (!group?.firstElementChild) return null;
-
-  // First child = leftmost control in the row.
-  return { parent: group, before: group.firstElementChild as HTMLElement };
+  return null;
 }
 
 /**
@@ -266,20 +261,24 @@ function findMicSlot(): { parent: HTMLElement; before: HTMLElement } | null {
  */
 function ensureMounted() {
   const existing = document.getElementById(PILL_ID);
+  const group = findControlGroup();
 
-  // Not in the call yet (or already left): show nothing at all. Leaving a
-  // stale button on the lobby screen is worse than none.
-  if (!isInCall()) {
+  // Not in the call (or Meet's controls aren't rendered): show nothing.
+  if (!group) {
     existing?.remove();
+    root = null;
     return;
   }
 
-  const slot = findMicSlot();
-
-  // Already sitting in the control group — nothing to do.
-  if (existing && slot && existing.nextElementSibling === slot.before) return;
-  // Controls not found this frame — keep what we have rather than flickering.
-  if (existing && !slot) return;
+  // Already the leftmost control in this group — do NOTHING.
+  //
+  // This early return is what stops the flicker. An earlier version compared
+  // against `group.firstElementChild`, which becomes the button ITSELF once
+  // mounted, so the check never matched: it removed and re-inserted on every
+  // tick, the observer saw its own mutation, and the button strobed.
+  if (existing && existing.parentElement === group && group.firstElementChild === existing) {
+    return;
+  }
 
   existing?.remove();
 
@@ -296,16 +295,8 @@ function ensureMounted() {
   root.id = PILL_ID;
   root.addEventListener("click", () => void sendBot());
 
-  if (slot) {
-    // Leftmost control inside the grey group.
-    slot.parent.insertBefore(root, slot.before);
-    matchNeighbourStyle(root, findMicButton());
-  } else {
-    // No control group found while in a call — skip rather than floating the
-    // button somewhere arbitrary over Meet's UI.
-    root = null;
-    return;
-  }
+  group.insertBefore(root, group.firstElementChild);
+  matchNeighbourStyle(root, findMicButton());
 
   render();
 }
