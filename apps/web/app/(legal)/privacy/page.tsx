@@ -160,7 +160,46 @@ export default function PrivacyPolicyPage() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-xl font-semibold">7. Changes to This Policy</h2>
+        <h2 className="text-xl font-semibold">7. Chrome Extension</h2>
+        <p className="text-muted-foreground leading-relaxed">
+          The Glitchgrab Chrome extension collects data only in response to a
+          deliberate action. It does not read, log, or transmit anything from the
+          pages you browse in the background.
+        </p>
+        <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
+          <li>
+            <strong className="text-foreground">When you file a report</strong> —
+            pressing the report shortcut captures a screenshot of the visible tab,
+            the page URL and title, your browser and screen size, and any
+            JavaScript errors that page had already logged. This is attached to
+            the GitHub issue created in the project you choose. Nothing is
+            captured until you press the shortcut, and nothing is sent until you
+            press send.
+          </li>
+          <li>
+            <strong className="text-foreground">When you record a call</strong> —
+            a notetaker bot joins the Google Meet call as a visible participant
+            and records the audio for transcription. It is dispatched only when
+            you start it, appears in the participant list for everyone present,
+            and records no video.
+          </li>
+          <li>
+            <strong className="text-foreground">Stored on your device</strong> —
+            your signed-in session and the last project you chose, so you are not
+            asked again. Removing the extension removes them.
+          </li>
+        </ul>
+        <p className="text-muted-foreground leading-relaxed">
+          Screenshots and call recordings are stored privately and are readable
+          only by you and the people you have granted access to that project. We
+          do not sell or transfer this data to third parties, do not use it for
+          anything unrelated to creating your issues and call notes, and never use
+          it for creditworthiness or lending.
+        </p>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-xl font-semibold">8. Changes to This Policy</h2>
         <p className="text-muted-foreground leading-relaxed">
           We may update this Privacy Policy from time to time. We will notify you
           of any significant changes by posting a notice on our website.
@@ -168,7 +207,7 @@ export default function PrivacyPolicyPage() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-xl font-semibold">8. Contact</h2>
+        <h2 className="text-xl font-semibold">9. Contact</h2>
         <p className="text-muted-foreground leading-relaxed">
           If you have questions about this Privacy Policy, contact us at{" "}
           <a
