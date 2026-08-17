@@ -332,15 +332,21 @@ function styles(): string {
     #${DIALOG_ID} .gg-list { max-height: 236px; overflow-y: auto; margin: 0 -8px; }
     #${DIALOG_ID} .gg-actions {
       display: flex; justify-content: flex-end; align-items: center;
-      gap: 8px; margin-top: 20px;
+      gap: 4px; margin-top: 20px; flex-wrap: wrap;
     }
     #${DIALOG_ID} .gg-btn {
       border: 0; border-radius: 999px; cursor: pointer;
       font-family: inherit; font-size: 14px; font-weight: 500;
-      padding: 10px 24px; background: transparent; color: #a8c7fa;
+      padding: 10px 16px; background: transparent; color: #a8c7fa;
+      /* Three actions in one row is tight at this width — Material text
+         buttons are single-line by definition, and letting them wrap mid-label
+         turned every one into a two-line block. */
+      white-space: nowrap;
     }
     #${DIALOG_ID} .gg-btn:hover { background: rgba(168,199,250,.08); }
-    #${DIALOG_ID} .gg-btn.gg-primary { background: #a8c7fa; color: #062e6f; }
+    #${DIALOG_ID} .gg-btn.gg-primary {
+      background: #a8c7fa; color: #062e6f; padding: 10px 24px; margin-left: 4px;
+    }
     #${DIALOG_ID} .gg-btn.gg-primary:hover { background: #c2ddff; }
     #${DIALOG_ID} .gg-btn.gg-primary:disabled {
       background: #3c4043; color: #80868b; cursor: default;
@@ -400,7 +406,8 @@ function render() {
  * from "recording" if all we report is what we asked for.
  */
 function botPhaseLabel(): string | null {
-  const project = state.repos.find((r) => r.id === state.repoId)?.fullName ?? "your project";
+  const project =
+    state.repos.find((r) => r.id === state.repoId)?.fullName ?? "no project yet";
 
   // Seen in the call — that outranks a status that has not arrived yet.
   if (state.inRoom && state.botStatus !== "UPLOADING" && state.botStatus !== "DONE") {
@@ -561,7 +568,7 @@ function openPopover() {
     state.phase === "sending"
       ? "Sending the bot…"
       : state.phase === "sent"
-        ? `${botPhaseLabel() ?? "Bot is on its way"} · pick another project to re-file it`
+        ? `${botPhaseLabel() ?? "Bot is on its way"} · pick a project to file it`
         : state.phase === "error"
           ? `Failed: ${state.message} · click a project to try again`
           : "Click a project and the bot joins to record it";
@@ -758,13 +765,26 @@ function openRecordDialog() {
   dismiss.className = "gg-btn";
   dismiss.textContent = "Don't record";
 
+  /**
+   * Record with no project attached.
+   *
+   * A first call about a prospect, or an idea with no repo behind it, is
+   * exactly when this is worth recording and exactly when there is nothing
+   * correct to file it under. Forcing a choice here means either not recording
+   * it or filing it somewhere wrong and hoping to remember — both lose the
+   * conversation. It can be filed later from the badge or the Calls page.
+   */
+  const unfiled = document.createElement("button");
+  unfiled.className = "gg-btn";
+  unfiled.textContent = "No project yet";
+
   const start = document.createElement("button");
   start.className = "gg-btn gg-primary";
   start.textContent = "Start recording";
   // Nothing is pre-selected, so there is nothing to start until they choose.
   start.disabled = true;
 
-  actions.append(dismiss, start);
+  actions.append(dismiss, unfiled, start);
   dialog.appendChild(actions);
 
   let picked: Repo | null = null;
@@ -854,6 +874,11 @@ function openRecordDialog() {
     paint();
   });
   dismiss.addEventListener("click", close);
+  unfiled.addEventListener("click", () => {
+    close();
+    state.repoId = null;
+    void sendBot({ unfiled: true });
+  });
   start.addEventListener("click", confirm);
   // Clicking the backdrop dismisses; clicking inside must not.
   scrim.addEventListener("click", (e) => {
@@ -884,8 +909,10 @@ function scheduleClosePopover() {
   }, 250);
 }
 
-async function sendBot() {
-  if (!state.repoId) return;
+async function sendBot(options?: { unfiled?: boolean }) {
+  // Unfiled is a deliberate choice, not a missing one — everything else still
+  // needs a project before it can start.
+  if (!state.repoId && !options?.unfiled) return;
 
   state.phase = "sending";
   state.message = "";
@@ -893,7 +920,7 @@ async function sendBot() {
 
   const result = await send<{ ok: boolean; error?: string; meetingId?: string | null }>({
     type: "MEET_SEND_BOT",
-    repoId: state.repoId,
+    repoId: options?.unfiled ? null : state.repoId,
     meetUrl: location.href.split("?")[0],
     title: document.title === "Meet" ? null : document.title,
   });
