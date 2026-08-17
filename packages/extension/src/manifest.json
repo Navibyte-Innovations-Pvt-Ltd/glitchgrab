@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Glitchgrab",
+  "name": "Glitchgrab \u2014 bug reports & call notes",
   "version": "1.0.0",
-  "description": "Capture browser events for screen recording narration. Part of Glitchgrab.",
+  "description": "File a bug from any page with one shortcut, and record client calls straight into your GitHub project.",
   "permissions": [
     "activeTab",
     "storage",
