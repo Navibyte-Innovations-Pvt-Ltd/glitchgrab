@@ -241,6 +241,16 @@ function sendTesterIdentityToBridge() {
   }));
 }
 
+/**
+ * Resolves once the stored session has been read.
+ *
+ * The MV3 worker is killed constantly, and restoring auth is async. Anything
+ * that arrives during that window sees `tester === null` and reports "not
+ * logged in" — which is why the pill worked intermittently rather than never.
+ * Handlers await this instead of racing it.
+ */
+let authReady: Promise<void>;
+
 async function restoreTesterAuth() {
   try {
     const { gg_tester } = await chrome.storage.local.get("gg_tester");
@@ -253,7 +263,7 @@ async function restoreTesterAuth() {
     }
   } catch { /* ignore */ }
 }
-restoreTesterAuth();
+authReady = restoreTesterAuth();
 
 // Silent login from the QA magic-link handshake (#297) — the ExtensionSession
 // already exists server-side (created by /api/v1/qa/extension-auth), so this
@@ -632,6 +642,9 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
  * local, so it is merged in here rather than round-tripped.
  */
 async function resolveMeetProject(meetUrl: string) {
+  // Wait for the stored session before deciding we're logged out.
+  await authReady;
+
   if (!tester) {
     log("[GG] resolve: no tester session — extension is not logged in");
     return { ok: false, error: "Not logged in" };
@@ -668,6 +681,7 @@ async function resolveMeetProject(meetUrl: string) {
 
 /** Dispatch the recording bot to this call. */
 async function sendBotToMeeting(repoId: string, meetUrl: string, title: string | null) {
+  await authReady;
   if (!tester) return { ok: false, error: "Not logged in" };
 
   try {
