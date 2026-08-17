@@ -60,10 +60,15 @@
       "entry": [
         "src/background.ts",
         "src/content.ts",
-        "src/popup/popup.ts"
+        "src/popup/popup.ts",
+        "src/report/report.tsx"
       ],
       "project": [
         "src/**/*.{ts,tsx}"
+      ],
+      "ignoreDependencies": [
+        "react",
+        "react-dom"
       ]
     },
     "packages/sdk-nextjs": {
