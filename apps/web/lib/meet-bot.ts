@@ -54,7 +54,9 @@ async function dispatchBot(params: {
     return {
       ok: false,
       error:
-        "The bot runs remotely and cannot call back to localhost — set MEET_BOT_CALLBACK_URL to a public URL (or sign in to glitchgrab.dev instead of your dev server)",
+        "The bot runs remotely and cannot reach localhost. Run `bun run tunnel`, " +
+        "put the https URL in MEET_BOT_CALLBACK_URL, and restart the dev server — " +
+        "or use glitchgrab.dev instead.",
     };
   }
 
