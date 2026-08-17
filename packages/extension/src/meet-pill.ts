@@ -132,22 +132,18 @@ function styles(): string {
   // someone else's stylesheet and cannot rename their rules.
   return `
     button#${PILL_ID} {
-      /* Size, radius, margin and colour are measured from Meet's own control
-         at mount time — see matchNeighbourStyle. Only layout lives here. */
+      /* Lives on <body>, not in Meet's control group — ensureMounted keeps it
+         glued to the bar. Size and coordinates are set inline from the live
+         measurements; only appearance lives here. */
+      position: fixed !important;
+      z-index: 2147482999 !important;
       box-sizing: border-box !important;
       display: inline-flex !important;
       align-items: center !important;
       justify-content: center !important;
-      /* The progress ring is absolutely positioned against this. */
-      position: relative !important;
-      /* Centre against Meet's other controls regardless of the row's
-         align-items, which changes between layouts. */
-      align-self: center !important;
-      vertical-align: middle !important;
       background: #333537 !important;
       border: 0 !important; outline: 0 !important; box-shadow: none !important;
       cursor: pointer !important; padding: 0 !important;
-      flex: 0 0 auto !important;
       transition: background .15s ease;
     }
     button#${PILL_ID}:hover { background: #3f4143 !important; }
@@ -274,7 +270,9 @@ function styles(): string {
     #${POPOVER_ID} .gg-foot {
       color: #9aa0a6; font-size: 12px; padding: 10px 12px 4px;
       border-top: 1px solid #444746; margin-top: 4px;
+      white-space: normal; line-height: 1.4;
     }
+    #${POPOVER_ID} .gg-foot.gg-error { color: #f28b82; }
     /* Once the bot is on its way the list is no longer a choice. */
     #${POPOVER_ID}.gg-locked .gg-item { cursor: default; opacity: .6; }
     #${POPOVER_ID}.gg-locked .gg-item:hover { background: transparent; }
@@ -391,14 +389,19 @@ function openPopover() {
   const foot = document.createElement("div");
   foot.className = "gg-foot";
   // Say what a click will do, since it now dispatches the bot immediately.
+  // The error text is the only thing that says WHY nothing is recording, and a
+  // tooltip on a 20px dot is not where anyone will find it. Put it in the panel.
+  if (state.phase === "error") foot.classList.add("gg-error");
   foot.textContent =
     state.phase === "sending"
       ? "Sending the bot…"
       : state.phase === "sent"
         ? "Bot already sent for this call"
-        : state.source === "calendar"
-          ? "Picked from your calendar · click to start recording"
-          : "Click a project to start recording";
+        : state.phase === "error"
+          ? `Failed: ${state.message} · click a project to try again`
+          : state.source === "calendar"
+            ? "Picked from your calendar · click to start recording"
+            : "Click a project to start recording";
   panel.appendChild(foot);
 
   let matches: Repo[] = [];
@@ -647,50 +650,40 @@ function isInCall(): boolean {
   return inCall;
 }
 
-/**
- * Copy the size and colour of one of Meet's own controls.
- *
- * Hard-coding 48px and a grey was guesswork that either stretched the row or
- * rendered a circle that didn't match its neighbours — and both change with
- * Meet's redesigns and window size. Measuring the real mic button means the
- * button matches whatever Meet is currently doing, without tracking it.
- */
-function matchNeighbourStyle(button: HTMLElement, neighbour: HTMLElement | null) {
-  if (!neighbour) return;
-
-  const s = getComputedStyle(neighbour);
-  const size = neighbour.getBoundingClientRect();
-  if (!size.width || !size.height) return;
-
-  button.style.setProperty("width", `${Math.round(size.width)}px`, "important");
-  button.style.setProperty("height", `${Math.round(size.height)}px`, "important");
-  button.style.setProperty("min-width", `${Math.round(size.width)}px`, "important");
-  button.style.setProperty("min-height", `${Math.round(size.height)}px`, "important");
-  button.style.setProperty("border-radius", s.borderRadius, "important");
-  button.style.setProperty("margin", s.margin, "important");
-  // Meet's controls are often translucent white over the bar; copying the
-  // computed value keeps us identical in both light and dark.
-  if (s.backgroundColor && s.backgroundColor !== "rgba(0, 0, 0, 0)") {
-    button.style.setProperty("background-color", s.backgroundColor, "important");
-  }
-}
-
 function findMicButton(): HTMLElement | null {
   return document.querySelector<HTMLElement>(
     '[aria-label*="microphone" i], [aria-label*="Turn off mic" i], [aria-label*="Turn on mic" i]'
   );
 }
 
-/** The grey control group that holds mic, camera and the rest. */
+/** The red hang-up button. Unlike the mic, it exists exactly once, in the bar. */
+function findLeaveButton(): HTMLElement | null {
+  return document.querySelector<HTMLElement>(
+    '[aria-label*="leave call" i], [aria-label*="leave the call" i],' +
+      '[aria-label*="end call" i], [aria-label*="hang up" i]'
+  );
+}
+
+/**
+ * The grey control group that holds mic, camera and the rest.
+ *
+ * Anchored on the hang-up button, NOT the microphone. Opening the People panel
+ * puts a per-participant mic indicator into the sidebar, and those come first
+ * in DOM order — so `querySelector` returned the sidebar's mic, the climb found
+ * the sidebar instead of the toolbar, and the button was positioned against the
+ * wrong element entirely. There is only ever one way to leave a call.
+ */
 function findControlGroup(): HTMLElement | null {
   if (!isInCall()) return null;
 
-  const mic = findMicButton();
-  if (!mic) return null;
+  const anchor = findLeaveButton() ?? findMicButton();
+  if (!anchor) return null;
 
-  let group: HTMLElement | null = mic.parentElement;
+  let group: HTMLElement | null = anchor.parentElement;
   for (let depth = 0; group && depth < 6; depth++) {
-    if (group.querySelectorAll("button, [role='button']").length >= 3) return group;
+    // 5, not 3: the hang-up button sits in a small wrapper of its own, and a
+    // threshold of 3 stopped the climb there instead of at the real bar.
+    if (group.querySelectorAll("button, [role='button']").length >= 5) return group;
     group = group.parentElement;
   }
   return null;
@@ -711,52 +704,42 @@ function mountLog(message: string) {
   log(message);
 }
 
+/**
+ * Put the button on `body` and follow the control bar, rather than living
+ * inside it.
+ *
+ * Injecting into Meet's own control group kept losing: Meet rebuilds that
+ * subtree on every layout change — opening the People panel, a participant
+ * joining, the window resizing — and each rebuild took our button with it.
+ * Re-docking after the fact turned into a race we kept losing in new ways
+ * (first-child churn, 0×0 measurements mid-animation, the observer reacting to
+ * our own repair). Every other extension that survives here, tl;dv included,
+ * does the same thing: a fixed-position element of its own, positioned next to
+ * the bar. Meet cannot tear out what it doesn't own.
+ *
+ * The cost is that the button sits just outside the grey card instead of
+ * inside it. Being reliably present beats being perfectly inline.
+ */
 function ensureMounted() {
-  const existing = document.getElementById(PILL_ID);
-  const group = findControlGroup();
-
-  // Our own popover lives on body and must never be mistaken for Meet's DOM
-  // churn — it is removed with the button when we leave the call.
+  const bar = findControlGroup();
 
   // Not in the call (or Meet's controls aren't rendered): show nothing.
-  if (!group) {
+  if (!bar) {
     mountLog(
-      `no control group — inCall=${isInCall()} mic=${Boolean(findMicButton())}` +
-        (existing ? " (removing the button)" : "")
+      `no control bar — inCall=${isInCall()} mic=${Boolean(findMicButton())}` +
+        (root ? " (hiding the button)" : "")
     );
-    existing?.remove();
+    document.getElementById(PILL_ID)?.remove();
     closePopover();
     root = null;
     return;
   }
 
-  // Already the leftmost control in this group — do NOTHING.
-  //
-  // This early return is what stops the flicker. An earlier version compared
-  // against `group.firstElementChild`, which becomes the button ITSELF once
-  // mounted, so the check never matched: it removed and re-inserted on every
-  // tick, the observer saw its own mutation, and the button strobed.
-  // Anywhere inside the group is good enough.
-  //
-  // Insisting on being the FIRST child meant that every time Meet inserted one
-  // of its own controls ahead of ours — which it does when a side panel opens
-  // and the bar re-flows — we tore the button out and re-inserted it, feeding
-  // the observer our own mutation. Position is cosmetic; presence is not.
-  if (existing && existing.parentElement === group) {
-    mountLog("mounted and in place");
-    return;
-  }
+  const rect = bar.getBoundingClientRect();
+  // Mid-animation the bar can measure zero; skip this frame rather than park
+  // the button at 0,0.
+  if (!rect.width || !rect.height) return;
 
-  mountLog(
-    existing
-      ? "button is outside the control group (Meet rebuilt the bar) — re-docking"
-      : "button missing — docking into the control group"
-  );
-
-  existing?.remove();
-
-  // Re-checked on every re-dock: Meet's re-renders can take our <style> too,
-  // which would leave the button unstyled rather than missing — harder to spot.
   if (!document.getElementById(`${PILL_ID}-style`)) {
     const style = document.createElement("style");
     style.id = `${PILL_ID}-style`;
@@ -764,36 +747,56 @@ function ensureMounted() {
     document.head.appendChild(style);
   }
 
-  root = document.createElement("button");
-  root.id = PILL_ID;
-  root.addEventListener("click", () => {
-    closePopover();
-    void sendBot();
-  });
-  root.addEventListener("mouseenter", () => {
-    if (popoverTimer) clearTimeout(popoverTimer);
-    openPopover();
-  });
-  root.addEventListener("mouseleave", scheduleClosePopover);
+  let button = document.getElementById(PILL_ID) as HTMLButtonElement | null;
+  if (!button) {
+    mountLog("creating the button on the page body");
 
-  group.insertBefore(root, group.firstElementChild);
-  matchNeighbourStyle(root, findMicButton());
+    button = document.createElement("button");
+    button.id = PILL_ID;
+    button.addEventListener("click", () => {
+      closePopover();
+      void sendBot();
+    });
+    button.addEventListener("mouseenter", () => {
+      if (popoverTimer) clearTimeout(popoverTimer);
+      openPopover();
+    });
+    button.addEventListener("mouseleave", scheduleClosePopover);
 
-  // Meet animates the bar when a side panel opens, so the mic can measure 0×0
-  // at the instant we re-dock — which leaves the button sized to nothing and
-  // looking like it vanished. Measure again once the layout has settled.
-  requestAnimationFrame(() => {
-    if (root?.isConnected) matchNeighbourStyle(root, findMicButton());
-  });
-  setTimeout(() => {
-    if (root?.isConnected) matchNeighbourStyle(root, findMicButton());
-  }, 400);
+    document.body.appendChild(button);
+    root = button;
+    render();
 
-  render();
+    // If the project lookup is still sleeping off an earlier failure, this is
+    // the moment to retry it.
+    if (state.phase === "loading") pokeRetry();
+  } else if (root !== button) {
+    // Same node, new script state (or vice versa) — keep the two in step.
+    root = button;
+    render();
+  } else {
+    mountLog("mounted and in place");
+  }
 
-  // The button only mounts once in the call. If the project lookup is still
-  // sleeping off an earlier failure, this is the moment to retry it.
-  if (state.phase === "loading") pokeRetry();
+  // Size from a control inside the bar, so we track Meet's own scaling.
+  const gauge = findLeaveButton() ?? findMicButton();
+  const size = Math.round(gauge?.getBoundingClientRect().height || 0) || 48;
+
+  button.style.setProperty("width", `${size}px`, "important");
+  button.style.setProperty("height", `${size}px`, "important");
+  button.style.setProperty("border-radius", "50%", "important");
+
+  // Right of the bar, not left: tl;dv parks its own pill on the left and the
+  // two overlapped. The gap to the right of the bar is empty in every layout.
+  // `left`/`top` are viewport coordinates — what getBoundingClientRect returns
+  // and what position:fixed expects, so no scroll maths.
+  const left = Math.min(rect.right + 12, window.innerWidth - size - 8);
+  button.style.setProperty("left", `${Math.round(left)}px`, "important");
+  button.style.setProperty(
+    "top",
+    `${Math.round(rect.top + (rect.height - size) / 2)}px`,
+    "important"
+  );
 }
 
 /**
@@ -827,7 +830,13 @@ function watchToolbar() {
   });
 
   observer.observe(document.body, { childList: true, subtree: true });
-  setInterval(ensureMounted, 5000);
+
+  // The bar moves without any DOM change at all when the window resizes or a
+  // side panel animates open, so geometry needs its own triggers.
+  window.addEventListener("resize", () => {
+    try { ensureMounted(); } catch { /* never break the page */ }
+  });
+  setInterval(ensureMounted, 1000);
 }
 
 /**
