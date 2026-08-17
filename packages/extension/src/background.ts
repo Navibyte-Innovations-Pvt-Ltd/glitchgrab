@@ -244,6 +244,7 @@ function sendTesterIdentityToBridge() {
 async function restoreTesterAuth() {
   try {
     const { gg_tester } = await chrome.storage.local.get("gg_tester");
+    log(`[GG] restoreTesterAuth: stored session ${gg_tester ? "found" : "MISSING — not logged in"}`);
     if (gg_tester && typeof gg_tester === "object" && (gg_tester as TesterAuth).sessionId) {
       const stored = gg_tester as TesterAuth;
       tester = { ...stored, apiBase: resolveApiBase(stored.apiBase) };
@@ -558,7 +559,12 @@ function broadcastState() {
 }
 
 // Expose state to popup
-chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
+chrome.runtime.onMessage.addListener((msg, sender, reply) => {
+  // Every message, with where it came from. Without this a content script that
+  // never reaches the worker is indistinguishable from one whose handler failed
+  // — and those need completely different fixes.
+  log(`[GG] msg ${msg?.type ?? "?"} from ${sender?.tab?.url ?? sender?.url ?? "unknown"}`);
+
   if (msg.type === "GET_STATE") {
     reply({
       active: state.active,
@@ -612,18 +618,26 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
  * local, so it is merged in here rather than round-tripped.
  */
 async function resolveMeetProject(meetUrl: string) {
-  if (!tester) return { ok: false, error: "Not logged in" };
+  if (!tester) {
+    log("[GG] resolve: no tester session — extension is not logged in");
+    return { ok: false, error: "Not logged in" };
+  }
+  log(`[GG] resolve: session=${tester.sessionId.slice(0, 8)}… apiBase=${tester.apiBase}`);
 
   try {
     const res = await fetch(
       `${tester.apiBase}/api/v1/meetings/resolve?meetUrl=${encodeURIComponent(meetUrl)}`,
       { headers: { ...authHeaders(), "x-gg-session": tester.sessionId } }
     );
-    if (!res.ok) return { ok: false, error: `Server said ${res.status}` };
+    if (!res.ok) {
+      log(`[GG] resolve: server said ${res.status}`);
+      return { ok: false, error: `Server said ${res.status}` };
+    }
 
     const json = (await res.json()) as {
       data?: { repos: { id: string; fullName: string }[]; suggested: unknown };
     };
+    log(`[GG] resolve: ${json.data?.repos?.length ?? 0} projects returned`);
     const { gg_meeting_repo } = await chrome.storage.local.get("gg_meeting_repo");
 
     return {
@@ -632,7 +646,8 @@ async function resolveMeetProject(meetUrl: string) {
       suggested: json.data?.suggested ?? null,
       lastRepoId: (gg_meeting_repo as string | undefined) ?? null,
     };
-  } catch {
+  } catch (err) {
+    log(`[GG] resolve failed: ${err instanceof Error ? err.message : String(err)}`);
     return { ok: false, error: "Could not reach Glitchgrab" };
   }
 }
