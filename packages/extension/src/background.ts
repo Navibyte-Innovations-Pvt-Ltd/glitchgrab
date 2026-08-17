@@ -1031,10 +1031,13 @@ async function sendBotToMeeting(repoId: string | null, meetUrl: string, title: s
       return {
         ok: false,
         error: json.error ?? `Server said ${res.status}`,
-        // A 409 carries the recording that is ALREADY running here, so the
-        // button can adopt it instead of showing a failure for a call that is
-        // in fact being recorded.
         meetingId: json.data?.meetingId ?? null,
+        // ONLY a 409 means "this call is already being recorded". Other
+        // failures return a meeting id too — the row is created before the bot
+        // is dispatched, so a refusal is still a visible record — and treating
+        // that as an existing recording turned a hard failure into a hopeful
+        // amber badge polling a meeting that would never move.
+        conflict: res.status === 409,
       };
     }
 
