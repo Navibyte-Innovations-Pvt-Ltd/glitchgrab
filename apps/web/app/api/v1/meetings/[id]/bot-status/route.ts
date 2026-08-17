@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { findScopedMeeting, resolveMeetingCaller } from "@/lib/meetings";
+import { fetchLiveBotPhase } from "@/lib/meet-bot";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -13,6 +14,9 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, x-gg-session, x-gg-bot",
   "Access-Control-Max-Age": "86400",
 };
+
+/** Phases where the bot is not yet known to be in the call. */
+const PRE_ADMIT = ["DISPATCHING", "JOINING", "WAITING_ADMIT"];
 
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
@@ -49,6 +53,15 @@ export async function GET(request: Request, { params }: RouteParams) {
       );
     }
 
+    // The stored value only moves when the bot manages to call us. If it has
+    // not reached "recording" yet, ask the bot service directly rather than
+    // reporting a stall that may only exist in one direction of the network.
+    let botStatus = meeting.botStatus;
+    if (!botStatus || PRE_ADMIT.includes(botStatus)) {
+      const live = await fetchLiveBotPhase(meeting.id);
+      if (live) botStatus = live;
+    }
+
     return NextResponse.json(
       {
         success: true,
@@ -56,7 +69,7 @@ export async function GET(request: Request, { params }: RouteParams) {
           id: meeting.id,
           repoId: meeting.repoId,
           repoFullName: caller.repos.find((r) => r.id === meeting.repoId)?.fullName ?? "",
-          botStatus: meeting.botStatus,
+          botStatus,
           botError: meeting.botError,
           status: meeting.status,
         },
