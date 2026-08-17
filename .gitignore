@@ -36,3 +36,8 @@ coverage/
 # AIDesigner artifacts (keep folder structure, ignore generated runs)
 .aidesigner/*
 !.aidesigner/.gitkeep
+
+# Chrome Web Store upload artifacts — built from dist/ on demand, and a zip in
+# git is a binary nobody can review or diff.
+*.zip
+packages/extension/releases/
