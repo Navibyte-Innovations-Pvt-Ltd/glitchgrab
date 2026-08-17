@@ -656,17 +656,30 @@ interface CachedRepos {
   at: number;
 }
 
+/** Retries overlap, so every log line carries which attempt it belongs to. */
+let resolveSeq = 0;
+
 async function resolveMeetProject(meetUrl: string) {
+  const id = ++resolveSeq;
+  const started = Date.now();
+  const trace = (message: string) => log(`[GG] resolve#${id} +${Date.now() - started}ms ${message}`);
+
   // Wait for the stored session before deciding we're logged out.
   await authReady;
 
   if (!tester) {
-    log("[GG] resolve: no tester session — extension is not logged in");
+    trace("no tester session — extension is not logged in");
     return { ok: false, error: "Not logged in" };
   }
-  log(`[GG] resolve: session=${tester.sessionId.slice(0, 8)}… apiBase=${tester.apiBase}`);
+  trace(`session=${tester.sessionId.slice(0, 8)}… apiBase=${tester.apiBase}`);
+  if (/localhost|127\.0\.0\.1/.test(tester.apiBase)) {
+    // Worth shouting about: a session minted on the dev dashboard points every
+    // call at a local Next.js server, whose first request compiles the route
+    // (measured at ~15s) and which is unreachable from anywhere else. It looks
+    // exactly like "the extension is slow".
+    trace("WARNING: signed in against a LOCAL dev server, not glitchgrab.dev");
+  }
 
-  const started = Date.now();
   const session = tester;
 
   const live = (async () => {
@@ -680,7 +693,7 @@ async function resolveMeetProject(meetUrl: string) {
       data?: { repos: { id: string; fullName: string }[]; suggested: unknown };
     };
     const repos = json.data?.repos ?? [];
-    log(`[GG] resolve: ${repos.length} projects in ${Date.now() - started}ms`);
+    trace(`server returned ${repos.length} projects`);
     // Cache on every success so a slow or offline start still has something to
     // show instead of an indefinite spinner.
     void chrome.storage.local.set({
@@ -709,7 +722,7 @@ async function resolveMeetProject(meetUrl: string) {
     // and refreshes the cache for next time.
     const cached = await readCachedRepos();
     if (cached) {
-      log(`[GG] resolve: server slow (>${RESOLVE_FRESH_BUDGET_MS}ms) — serving cache`);
+      trace(`server slower than ${RESOLVE_FRESH_BUDGET_MS}ms — serving ${cached.repos.length} cached projects`);
       return { ok: true, repos: cached.repos, suggested: null, lastRepoId, stale: true };
     }
 
@@ -718,12 +731,12 @@ async function resolveMeetProject(meetUrl: string) {
     return { ok: true, repos: eventual.repos, suggested: eventual.suggested, lastRepoId };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    log(`[GG] resolve failed after ${Date.now() - started}ms: ${message}`);
+    trace(`failed: ${message}`);
 
     const cached = await readCachedRepos();
     if (cached) {
       const { gg_meeting_repo } = await chrome.storage.local.get("gg_meeting_repo");
-      log("[GG] resolve: falling back to cached projects");
+      trace(`falling back to ${cached.repos.length} cached projects`);
       return {
         ok: true,
         repos: cached.repos,
