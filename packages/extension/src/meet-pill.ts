@@ -75,9 +75,9 @@ function styles(): string {
   // someone else's stylesheet and cannot rename their rules.
   return `
     button#${PILL_ID} {
-      width: 48px !important; height: 48px !important;
-      min-width: 48px !important; min-height: 48px !important;
-      border-radius: 50% !important;
+      /* Size, radius, margin and colour are measured from Meet's own control
+         at mount time — see matchNeighbourStyle. Only layout lives here. */
+      box-sizing: border-box !important;
       display: inline-flex !important;
       align-items: center !important;
       justify-content: center !important;
@@ -88,7 +88,6 @@ function styles(): string {
       background: #333537 !important;
       border: 0 !important; outline: 0 !important; box-shadow: none !important;
       cursor: pointer !important; padding: 0 !important;
-      margin: 0 4px !important;
       flex: 0 0 auto !important;
       transition: background .15s ease;
     }
@@ -188,7 +187,60 @@ async function sendBot() {
  * names are generated and rotate constantly, while the screen-reader label has
  * to stay meaningful.
  */
+/**
+ * True once actually inside the call, not sitting in the pre-join lobby.
+ *
+ * The lobby has its own mic and camera buttons on the video preview, which look
+ * identical to the real controls — so anchoring on the mic alone put the button
+ * on the "Ready to join?" screen, half-cut and useless. "Leave call" only
+ * exists once you are in, which makes it the honest signal.
+ *
+ * There is nothing to record before joining anyway, so this is also just
+ * correct behaviour rather than only a layout fix.
+ */
+function isInCall(): boolean {
+  return Boolean(
+    document.querySelector('[aria-label*="Leave call" i], [aria-label*="leave the call" i]')
+  );
+}
+
+/**
+ * Copy the size and colour of one of Meet's own controls.
+ *
+ * Hard-coding 48px and a grey was guesswork that either stretched the row or
+ * rendered a circle that didn't match its neighbours — and both change with
+ * Meet's redesigns and window size. Measuring the real mic button means the
+ * button matches whatever Meet is currently doing, without tracking it.
+ */
+function matchNeighbourStyle(button: HTMLElement, neighbour: HTMLElement | null) {
+  if (!neighbour) return;
+
+  const s = getComputedStyle(neighbour);
+  const size = neighbour.getBoundingClientRect();
+  if (!size.width || !size.height) return;
+
+  button.style.setProperty("width", `${Math.round(size.width)}px`, "important");
+  button.style.setProperty("height", `${Math.round(size.height)}px`, "important");
+  button.style.setProperty("min-width", `${Math.round(size.width)}px`, "important");
+  button.style.setProperty("min-height", `${Math.round(size.height)}px`, "important");
+  button.style.setProperty("border-radius", s.borderRadius, "important");
+  button.style.setProperty("margin", s.margin, "important");
+  // Meet's controls are often translucent white over the bar; copying the
+  // computed value keeps us identical in both light and dark.
+  if (s.backgroundColor && s.backgroundColor !== "rgba(0, 0, 0, 0)") {
+    button.style.setProperty("background-color", s.backgroundColor, "important");
+  }
+}
+
+function findMicButton(): HTMLElement | null {
+  return document.querySelector<HTMLElement>(
+    '[aria-label*="microphone" i], [aria-label*="Turn off mic" i], [aria-label*="Turn on mic" i]'
+  );
+}
+
 function findMicSlot(): { parent: HTMLElement; before: HTMLElement } | null {
+  if (!isInCall()) return null;
+
   const mic = document.querySelector<HTMLElement>(
     '[aria-label*="microphone" i], [aria-label*="Turn off mic" i], [aria-label*="Turn on mic" i]'
   );
@@ -214,11 +266,19 @@ function findMicSlot(): { parent: HTMLElement; before: HTMLElement } | null {
  */
 function ensureMounted() {
   const existing = document.getElementById(PILL_ID);
+
+  // Not in the call yet (or already left): show nothing at all. Leaving a
+  // stale button on the lobby screen is worse than none.
+  if (!isInCall()) {
+    existing?.remove();
+    return;
+  }
+
   const slot = findMicSlot();
 
-  // Already sitting next to the mic — nothing to do.
+  // Already sitting in the control group — nothing to do.
   if (existing && slot && existing.nextElementSibling === slot.before) return;
-  // Floating fallback is up and the controls still aren't there — leave it be.
+  // Controls not found this frame — keep what we have rather than flickering.
   if (existing && !slot) return;
 
   existing?.remove();
@@ -237,12 +297,14 @@ function ensureMounted() {
   root.addEventListener("click", () => void sendBot());
 
   if (slot) {
-    // Directly before the mic's slot — inside the same grey group, immediately
-    // to its left.
+    // Leftmost control inside the grey group.
     slot.parent.insertBefore(root, slot.before);
+    matchNeighbourStyle(root, findMicButton());
   } else {
-    root.classList.add("gg-floating");
-    document.body.appendChild(root);
+    // No control group found while in a call — skip rather than floating the
+    // button somewhere arbitrary over Meet's UI.
+    root = null;
+    return;
   }
 
   render();
