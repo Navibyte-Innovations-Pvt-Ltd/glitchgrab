@@ -1008,7 +1008,7 @@ async function readCachedRepos(): Promise<CachedRepos | null> {
 }
 
 /** Dispatch the recording bot to this call. */
-async function sendBotToMeeting(repoId: string, meetUrl: string, title: string | null) {
+async function sendBotToMeeting(repoId: string | null, meetUrl: string, title: string | null) {
   await ensureSession();
   if (!tester) return { ok: false, error: "Not logged in" };
 
@@ -1038,7 +1038,9 @@ async function sendBotToMeeting(repoId: string, meetUrl: string, title: string |
       };
     }
 
-    void chrome.storage.local.set({ gg_meeting_repo: repoId });
+    // Only remember a real choice — "no project" is a decision about one call,
+    // not a default to carry into the next one.
+    if (repoId) void chrome.storage.local.set({ gg_meeting_repo: repoId });
     // The meeting id is what lets the button follow the bot's real progress
     // instead of assuming the dispatch worked.
     return { ok: true, meetingId: json.data?.meetingId ?? null };
