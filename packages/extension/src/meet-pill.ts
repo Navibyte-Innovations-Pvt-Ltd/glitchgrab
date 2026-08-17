@@ -41,8 +41,18 @@ let root: HTMLElement | null = null;
 let mounting = false;
 let observer: MutationObserver | null = null;
 
-const MOUNT_ATTEMPTS = 12;
 const RETRY_MS = 5000;
+const RETRY_MAX_MS = 30000;
+/**
+ * How long to wait for the background worker before calling it dead.
+ *
+ * `chrome.runtime.sendMessage`'s callback is not guaranteed to fire: if the MV3
+ * worker is torn down mid-handler, or a handler returns `true` and then never
+ * calls `reply`, the promise simply never settles. That left the button stuck
+ * on "connecting…" forever with no error and nothing in the log — the failure
+ * mode that looks exactly like "it is just slow".
+ */
+const REPLY_TIMEOUT_MS = 8000;
 
 /** Visible in the Meet tab's console — the only place to debug an injected UI. */
 function log(message: string) {
@@ -53,18 +63,33 @@ const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function send<T>(message: Record<string, unknown>): Promise<T> {
   return new Promise((resolve) => {
+    let settled = false;
+    const done = (value: T) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+
+    // A reply that never comes must still end the wait — see REPLY_TIMEOUT_MS.
+    const timer = setTimeout(() => {
+      log(`no reply to ${String(message.type)} within ${REPLY_TIMEOUT_MS}ms`);
+      done(undefined as T);
+    }, REPLY_TIMEOUT_MS);
+
     try {
       chrome.runtime.sendMessage(message, (response) => {
+        clearTimeout(timer);
         // Chrome reports a dead/sleeping worker here rather than throwing.
         // Swallowing it produced "extension not responding" for every cause,
         // which is useless — surface what Chrome actually said.
         const err = chrome.runtime.lastError;
         if (err) log(`background error: ${err.message}`);
-        resolve(response as T);
+        done(response as T);
       });
     } catch (err) {
+      clearTimeout(timer);
       log(`sendMessage threw: ${err instanceof Error ? err.message : String(err)}`);
-      resolve(undefined as T);
+      done(undefined as T);
     }
   });
 }
@@ -82,6 +107,8 @@ function styles(): string {
       display: inline-flex !important;
       align-items: center !important;
       justify-content: center !important;
+      /* The progress ring is absolutely positioned against this. */
+      position: relative !important;
       /* Centre against Meet's other controls regardless of the row's
          align-items, which changes between layouts. */
       align-self: center !important;
@@ -105,6 +132,20 @@ function styles(): string {
     button#${PILL_ID} .gg-dot.live { background: #ea4335; animation: gg-pulse 1.4s infinite; }
     @keyframes gg-pulse { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
 
+    /* Ring that spins around the dot while we're still talking to the server.
+       A static amber dot is indistinguishable from a broken one — the motion is
+       the difference between "working on it" and "give up and reload". */
+    button#${PILL_ID} .gg-ring {
+      position: absolute !important;
+      width: 26px !important; height: 26px !important;
+      border-radius: 50% !important;
+      border: 2px solid rgba(255,255,255,.14) !important;
+      border-top-color: #fbbc04 !important;
+      animation: gg-spin .85s linear infinite;
+      pointer-events: none !important;
+    }
+    @keyframes gg-spin { to { transform: rotate(360deg) } }
+
     /* Project picker, opened on hover — the same shape Meet uses for its own
        camera and microphone menus, so it reads as native. */
     #${POPOVER_ID} {
@@ -120,14 +161,40 @@ function styles(): string {
       color: #9aa0a6; font-size: 11px; text-transform: uppercase;
       letter-spacing: .8px; padding: 6px 10px 8px;
     }
+    /* Search box. With twenty-odd repos the list is longer than the panel, so
+       scanning it by eye during the minute before a call is not realistic. */
+    #${POPOVER_ID} .gg-search {
+      display: block; box-sizing: border-box; width: 100%;
+      margin: 0 0 6px; padding: 8px 10px;
+      background: #303134; color: #e8eaed;
+      border: 1px solid #3c4043; border-radius: 8px;
+      font-family: inherit; font-size: 13px; outline: none;
+    }
+    #${POPOVER_ID} .gg-search:focus { border-color: #8ab4f8; }
+    #${POPOVER_ID} .gg-search::placeholder { color: #9aa0a6; }
+    /* Only the list scrolls — the search box has to stay reachable. */
+    #${POPOVER_ID} .gg-list { max-height: 240px; overflow-y: auto; }
     #${POPOVER_ID} .gg-item {
       display: flex; align-items: center; gap: 8px;
       padding: 8px 10px; border-radius: 8px; cursor: pointer;
+    }
+    #${POPOVER_ID} .gg-item:hover, #${POPOVER_ID} .gg-item.active { background: #303134; }
+    #${POPOVER_ID} .gg-item .gg-tick { width: 16px; color: #8ab4f8; flex: 0 0 16px; }
+    /* Owner above, repo below: every row shared the same owner prefix, which
+       pushed the part that actually differs off the right edge. */
+    #${POPOVER_ID} .gg-name {
+      min-width: 0; display: flex; flex-direction: column; line-height: 1.3;
+    }
+    #${POPOVER_ID} .gg-repo {
+      color: #e8eaed;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    #${POPOVER_ID} .gg-item:hover { background: #303134; }
-    #${POPOVER_ID} .gg-item.sel { background: #303134; }
-    #${POPOVER_ID} .gg-item .gg-tick { width: 16px; color: #8ab4f8; flex: 0 0 16px; }
+    #${POPOVER_ID} .gg-owner {
+      color: #9aa0a6; font-size: 11px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    #${POPOVER_ID} mark { background: transparent; color: #8ab4f8; font-weight: 500; }
+    #${POPOVER_ID} .gg-empty { color: #9aa0a6; padding: 10px; }
     #${POPOVER_ID} .gg-foot { color: #9aa0a6; font-size: 11px; padding: 8px 10px 4px; }
   `;
 }
@@ -148,7 +215,16 @@ function render() {
 
   const button = root as HTMLButtonElement;
   button.textContent = "";
-  button.disabled = state.phase !== "idle";
+  // Only block the click while something is genuinely in flight. Disabling on
+  // "error" too meant a failed send could never be retried without a page
+  // reload, which is a poor thing to ask for thirty seconds before a call.
+  button.disabled = state.phase === "loading" || state.phase === "sending";
+
+  if (button.disabled) {
+    const ring = document.createElement("span");
+    ring.className = "gg-ring";
+    button.appendChild(ring);
+  }
 
   const dot = document.createElement("span");
   dot.className =
@@ -178,8 +254,14 @@ function render() {
 
 let popoverTimer: ReturnType<typeof setTimeout> | null = null;
 
+let onDocumentDown: ((e: MouseEvent) => void) | null = null;
+
 function closePopover() {
   document.getElementById(POPOVER_ID)?.remove();
+  if (onDocumentDown) {
+    document.removeEventListener("mousedown", onDocumentDown, true);
+    onDocumentDown = null;
+  }
 }
 
 /**
@@ -201,30 +283,22 @@ function openPopover() {
   head.textContent = "Record this call to";
   panel.appendChild(head);
 
-  for (const repo of state.repos) {
-    const item = document.createElement("div");
-    item.className = "gg-item" + (repo.id === state.repoId ? " sel" : "");
+  const search = document.createElement("input");
+  search.className = "gg-search";
+  search.type = "text";
+  search.placeholder = "Search projects…";
+  search.spellcheck = false;
+  // Meet listens for bare keystrokes as call shortcuts — `d` toggles the mic,
+  // `e` the camera. Without stopping propagation, typing a project name would
+  // mute the operator mid-sentence.
+  search.addEventListener("keydown", (e) => e.stopPropagation());
+  search.addEventListener("keypress", (e) => e.stopPropagation());
+  search.addEventListener("keyup", (e) => e.stopPropagation());
+  panel.appendChild(search);
 
-    const tick = document.createElement("span");
-    tick.className = "gg-tick";
-    tick.textContent = repo.id === state.repoId ? "✓" : "";
-    item.appendChild(tick);
-
-    const name = document.createElement("span");
-    name.textContent = repo.fullName;
-    item.appendChild(name);
-
-    item.addEventListener("click", (e) => {
-      e.stopPropagation();
-      state.repoId = repo.id;
-      state.source = "remembered";
-      void send({ type: "MEET_REMEMBER_REPO", repoId: repo.id });
-      render();
-      closePopover();
-    });
-
-    panel.appendChild(item);
-  }
+  const list = document.createElement("div");
+  list.className = "gg-list";
+  panel.appendChild(list);
 
   const foot = document.createElement("div");
   foot.className = "gg-foot";
@@ -232,13 +306,139 @@ function openPopover() {
     state.source === "calendar" ? "Chosen from your calendar" : "Click the dot to send the bot";
   panel.appendChild(foot);
 
+  let matches: Repo[] = [];
+  let active = 0;
+
+  function choose(repo: Repo) {
+    state.repoId = repo.id;
+    state.source = "remembered";
+    void send({ type: "MEET_REMEMBER_REPO", repoId: repo.id });
+    render();
+    closePopover();
+  }
+
+  /**
+   * Split "owner/name" and highlight the matched run.
+   *
+   * Built with text nodes rather than innerHTML: repo names come from the
+   * server and this renders inside a live Google Meet session.
+   */
+  function label(repo: Repo, query: string): HTMLElement {
+    const wrap = document.createElement("span");
+    wrap.className = "gg-name";
+
+    const slash = repo.fullName.indexOf("/");
+    const owner = slash >= 0 ? repo.fullName.slice(0, slash) : "";
+    const name = slash >= 0 ? repo.fullName.slice(slash + 1) : repo.fullName;
+
+    const nameEl = document.createElement("span");
+    nameEl.className = "gg-repo";
+    const at = query ? name.toLowerCase().indexOf(query) : -1;
+    if (at >= 0) {
+      nameEl.appendChild(document.createTextNode(name.slice(0, at)));
+      const hit = document.createElement("mark");
+      hit.textContent = name.slice(at, at + query.length);
+      nameEl.appendChild(hit);
+      nameEl.appendChild(document.createTextNode(name.slice(at + query.length)));
+    } else {
+      nameEl.textContent = name;
+    }
+    wrap.appendChild(nameEl);
+
+    if (owner) {
+      const ownerEl = document.createElement("span");
+      ownerEl.className = "gg-owner";
+      ownerEl.textContent = owner;
+      wrap.appendChild(ownerEl);
+    }
+    return wrap;
+  }
+
+  function paint() {
+    const query = search.value.trim().toLowerCase();
+    matches = query
+      ? state.repos.filter((r) => r.fullName.toLowerCase().includes(query))
+      : state.repos;
+
+    // Keep the highlight on a row that still exists after filtering.
+    if (active >= matches.length) active = Math.max(0, matches.length - 1);
+
+    list.textContent = "";
+
+    if (matches.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "gg-empty";
+      empty.textContent = "No projects match";
+      list.appendChild(empty);
+      return;
+    }
+
+    matches.forEach((repo, index) => {
+      const item = document.createElement("div");
+      item.className = "gg-item" + (index === active ? " active" : "");
+
+      const tick = document.createElement("span");
+      tick.className = "gg-tick";
+      tick.textContent = repo.id === state.repoId ? "✓" : "";
+      item.appendChild(tick);
+      item.appendChild(label(repo, query));
+
+      item.addEventListener("mouseenter", () => {
+        active = index;
+        for (const row of list.children) row.classList.remove("active");
+        item.classList.add("active");
+      });
+      item.addEventListener("click", (e) => {
+        e.stopPropagation();
+        choose(repo);
+      });
+
+      list.appendChild(item);
+    });
+
+    list.children[active]?.scrollIntoView({ block: "nearest" });
+  }
+
+  search.addEventListener("input", () => {
+    // A new query invalidates the old cursor position entirely.
+    active = 0;
+    paint();
+  });
+
+  search.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (matches.length === 0) return;
+      active =
+        (active + (e.key === "ArrowDown" ? 1 : -1) + matches.length) % matches.length;
+      paint();
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const repo = matches[active];
+      if (repo) choose(repo);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      closePopover();
+    }
+  });
+
   // Keep it open while the pointer is inside it.
   panel.addEventListener("mouseenter", () => {
     if (popoverTimer) clearTimeout(popoverTimer);
   });
   panel.addEventListener("mouseleave", scheduleClosePopover);
 
+  // Focus keeps the panel alive past hover, so clicking anywhere else is the
+  // way out. Capture phase: Meet stops propagation on its own controls.
+  onDocumentDown = (e: MouseEvent) => {
+    const target = e.target as Node;
+    if (panel.contains(target) || root?.contains(target)) return;
+    closePopover();
+  };
+  document.addEventListener("mousedown", onDocumentDown, true);
+
   document.body.appendChild(panel);
+  paint();
 
   // Anchor above the button, clamped to the viewport so it never runs off.
   const anchor = root.getBoundingClientRect();
@@ -246,12 +446,21 @@ function openPopover() {
   const left = Math.max(8, Math.min(anchor.left, window.innerWidth - box.width - 8));
   panel.style.left = `${left}px`;
   panel.style.top = `${Math.max(8, anchor.top - box.height - 12)}px`;
+
+  search.focus({ preventScroll: true });
 }
 
 function scheduleClosePopover() {
   if (popoverTimer) clearTimeout(popoverTimer);
   // Small grace so moving the pointer from button to panel doesn't close it.
-  popoverTimer = setTimeout(closePopover, 250);
+  popoverTimer = setTimeout(() => {
+    // Never yank the panel out from under someone typing in the search box —
+    // the pointer routinely drifts off the panel while the hands are on the
+    // keyboard, and hover alone would treat that as "done".
+    const panel = document.getElementById(POPOVER_ID);
+    if (panel && document.activeElement && panel.contains(document.activeElement)) return;
+    closePopover();
+  }, 250);
 }
 
 async function sendBot() {
@@ -472,8 +681,26 @@ export async function mountMeetPill(): Promise<void> {
   ensureMounted();
   watchToolbar();
 
-  for (let attempt = 1; attempt <= MOUNT_ATTEMPTS; attempt++) {
+  // Retry for as long as the tab is open, rather than a fixed dozen attempts.
+  //
+  // Everything this depends on can arrive late and in any order: the operator
+  // signs into the dashboard in another tab, the service worker wakes, the
+  // network comes back, the call is joined ten minutes after the page loaded.
+  // Giving up after a minute meant the button sat permanently amber even once
+  // the reason had gone away, and the only fix was reloading Meet mid-call.
+  let backoff = RETRY_MS;
+  const retry = async (reason: string) => {
+    log(reason);
+    state.message = reason;
+    render();
+    await wait(backoff);
+    backoff = Math.min(backoff * 1.5, RETRY_MAX_MS);
+  };
+
+  for (;;) {
     if (!/^https:\/\/meet\.google\.com\/[a-z]{3}-[a-z]{4}-[a-z]{3}/i.test(location.href)) {
+      // Not an error — the operator is on the landing page or a lobby URL, so
+      // hold the initial wording rather than shouting a failure at them.
       log(`not a call URL (${location.href}) — waiting`);
       await wait(RETRY_MS);
       continue;
@@ -488,25 +715,18 @@ export async function mountMeetPill(): Promise<void> {
     }>({ type: "MEET_RESOLVE_PROJECT", meetUrl: location.href.split("?")[0] });
 
     if (!resolved) {
-      log(`attempt ${attempt}: no reply from the extension background`);
-      state.message = "extension not responding";
-      render();
-      await wait(RETRY_MS);
+      await retry("extension not responding");
       continue;
     }
     if (!resolved.ok) {
-      log(`attempt ${attempt}: ${resolved.error ?? "could not resolve project"}`);
-      state.message = resolved.error ?? "not logged in";
-      render();
-      await wait(RETRY_MS);
+      await retry(resolved.error ?? "could not resolve project");
       continue;
     }
     if (!resolved.repos?.length) {
-      log("no projects available for this login — nothing to record against");
-      state.message = "no projects";
-      render();
-      mounting = false;
-      return;
+      // Recoverable too — the operator may connect a repo in the dashboard
+      // while this call is running.
+      await retry("no projects");
+      continue;
     }
 
     state.repos = resolved.repos;
@@ -529,9 +749,4 @@ export async function mountMeetPill(): Promise<void> {
     mounting = false;
     return;
   }
-
-  log("gave up after retries — open the extension popup and check you're logged in");
-  state.message = "not logged in";
-  render();
-  mounting = false;
 }
