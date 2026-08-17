@@ -918,7 +918,13 @@ async function sendBot(options?: { unfiled?: boolean }) {
   state.message = "";
   render();
 
-  const result = await send<{ ok: boolean; error?: string; meetingId?: string | null }>({
+  const result = await send<{
+    ok: boolean;
+    error?: string;
+    meetingId?: string | null;
+    /** True only for a 409 — a bot is genuinely already on this call. */
+    conflict?: boolean;
+  }>({
     type: "MEET_SEND_BOT",
     repoId: options?.unfiled ? null : state.repoId,
     meetUrl: location.href.split("?")[0],
@@ -931,7 +937,7 @@ async function sendBot(options?: { unfiled?: boolean }) {
     state.botStatus = "DISPATCHING";
     state.message = "";
     startStatusPoll();
-  } else if (result?.meetingId) {
+  } else if (result?.conflict && result.meetingId) {
     // Refused because this call is already being recorded. That is not a
     // failure to report — it is the recording we should have been showing.
     state.phase = "sent";
