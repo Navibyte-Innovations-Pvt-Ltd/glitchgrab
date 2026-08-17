@@ -14,6 +14,7 @@
 
 const PILL_ID = "glitchgrab-meet-pill";
 const POPOVER_ID = "glitchgrab-meet-popover";
+const DIALOG_ID = "glitchgrab-meet-dialog";
 
 interface Repo {
   id: string;
@@ -163,7 +164,6 @@ function styles(): string {
     }
     button#${PILL_ID}:hover { background: #3f4143 !important; }
 
-    button#${PILL_ID} .gg-label { display: block !important; }
     button#${PILL_ID}:disabled { opacity: .6 !important; cursor: default !important; }
     button#${PILL_ID} .gg-dot {
       width: 14px !important; height: 14px !important;
@@ -219,15 +219,19 @@ function styles(): string {
     /* Google's scrollbar: thin, no track, thumb inset so it never touches the
        panel edge. The default chunky grey bar is the single most obvious tell
        that a menu isn't native. */
-    #${POPOVER_ID} .gg-list { scrollbar-width: thin; scrollbar-color: #5f6368 transparent; }
-    #${POPOVER_ID} .gg-list::-webkit-scrollbar { width: 12px; }
-    #${POPOVER_ID} .gg-list::-webkit-scrollbar-track { background: transparent; }
-    #${POPOVER_ID} .gg-list::-webkit-scrollbar-thumb {
+    #${POPOVER_ID} .gg-list, #${DIALOG_ID} .gg-list { scrollbar-width: thin; scrollbar-color: #5f6368 transparent; }
+    #${POPOVER_ID} .gg-list::-webkit-scrollbar,
+    #${DIALOG_ID} .gg-list::-webkit-scrollbar { width: 12px; }
+    #${POPOVER_ID} .gg-list::-webkit-scrollbar-track,
+    #${DIALOG_ID} .gg-list::-webkit-scrollbar-track { background: transparent; }
+    #${POPOVER_ID} .gg-list::-webkit-scrollbar-thumb,
+    #${DIALOG_ID} .gg-list::-webkit-scrollbar-thumb {
       background: #5f6368; border-radius: 8px;
       border: 4px solid transparent; background-clip: content-box;
       min-height: 40px;
     }
-    #${POPOVER_ID} .gg-list::-webkit-scrollbar-thumb:hover {
+    #${POPOVER_ID} .gg-list::-webkit-scrollbar-thumb:hover,
+    #${DIALOG_ID} .gg-list::-webkit-scrollbar-thumb:hover {
       background: #80868b; background-clip: content-box;
     }
     #${POPOVER_ID} .gg-head {
@@ -239,56 +243,56 @@ function styles(): string {
        scanning it by eye during the minute before a call is not realistic. */
     /* Material filled text field: no border at rest, tinted surface, and a
        focus ring rather than a colour-shifting outline. */
-    #${POPOVER_ID} .gg-search {
+    #${POPOVER_ID} .gg-search, #${DIALOG_ID} .gg-search {
       display: block; box-sizing: border-box; width: 100%;
       margin: 0 0 4px; padding: 10px 14px;
       background: #1e1f20; color: #e3e3e3;
       border: 1px solid transparent; border-radius: 24px;
       font-family: inherit; font-size: 14px; outline: none;
     }
-    #${POPOVER_ID} .gg-search:focus { border-color: #a8c7fa; background: #1e1f20; }
-    #${POPOVER_ID} .gg-search::placeholder { color: #9aa0a6; }
+    #${POPOVER_ID} .gg-search:focus, #${DIALOG_ID} .gg-search:focus { border-color: #a8c7fa; background: #1e1f20; }
+    #${POPOVER_ID} .gg-search::placeholder, #${DIALOG_ID} .gg-search::placeholder { color: #9aa0a6; }
     /* Only the list scrolls — the search box has to stay reachable. */
-    #${POPOVER_ID} .gg-list { max-height: 264px; overflow-y: auto; padding: 4px 0; }
-    #${POPOVER_ID} .gg-item {
+    #${POPOVER_ID} .gg-list, #${DIALOG_ID} .gg-list { max-height: 264px; overflow-y: auto; padding: 4px 0; }
+    #${POPOVER_ID} .gg-item, #${DIALOG_ID} .gg-item {
       display: flex; align-items: center; gap: 12px;
       padding: 8px 12px; border-radius: 8px; cursor: pointer;
       min-height: 40px; box-sizing: border-box;
       transition: background .12s ease;
     }
-    #${POPOVER_ID} .gg-item:hover, #${POPOVER_ID} .gg-item.active { background: #37393b; }
+    #${POPOVER_ID} .gg-item:hover, #${POPOVER_ID} .gg-item.active, #${DIALOG_ID} .gg-item:hover, #${DIALOG_ID} .gg-item.active { background: #37393b; }
 
     /* Radio, in record red. A tick marks a past choice; a radio says "pick one,
        and this is the one that's picked" — which is what this list is, now that
        picking a project is what starts the recording. */
-    #${POPOVER_ID} .gg-radio {
+    #${POPOVER_ID} .gg-radio, #${DIALOG_ID} .gg-radio {
       flex: 0 0 18px; width: 18px; height: 18px;
       border-radius: 50%; box-sizing: border-box;
       border: 2px solid #9aa0a6;
       display: inline-flex; align-items: center; justify-content: center;
       transition: border-color .12s ease;
     }
-    #${POPOVER_ID} .gg-item:hover .gg-radio { border-color: #c4c7c5; }
-    #${POPOVER_ID} .gg-radio.on { border-color: #ea4335; }
-    #${POPOVER_ID} .gg-radio.on::after {
+    #${POPOVER_ID} .gg-item:hover .gg-radio, #${DIALOG_ID} .gg-item:hover .gg-radio { border-color: #c4c7c5; }
+    #${POPOVER_ID} .gg-radio.on, #${DIALOG_ID} .gg-radio.on { border-color: #ea4335; }
+    #${POPOVER_ID} .gg-radio.on::after, #${DIALOG_ID} .gg-radio.on::after {
       content: ""; width: 10px; height: 10px;
       border-radius: 50%; background: #ea4335;
     }
     /* Owner above, repo below: every row shared the same owner prefix, which
        pushed the part that actually differs off the right edge. */
-    #${POPOVER_ID} .gg-name {
+    #${POPOVER_ID} .gg-name, #${DIALOG_ID} .gg-name {
       min-width: 0; display: flex; flex-direction: column; line-height: 1.35;
     }
-    #${POPOVER_ID} .gg-repo {
+    #${POPOVER_ID} .gg-repo, #${DIALOG_ID} .gg-repo {
       color: #e3e3e3; font-size: 14px;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    #${POPOVER_ID} .gg-owner {
+    #${POPOVER_ID} .gg-owner, #${DIALOG_ID} .gg-owner {
       color: #9aa0a6; font-size: 12px;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    #${POPOVER_ID} mark { background: transparent; color: #a8c7fa; font-weight: 500; }
-    #${POPOVER_ID} .gg-empty { color: #9aa0a6; padding: 12px; }
+    #${POPOVER_ID} mark, #${DIALOG_ID} mark { background: transparent; color: #a8c7fa; font-weight: 500; }
+    #${POPOVER_ID} .gg-empty, #${DIALOG_ID} .gg-empty { color: #9aa0a6; padding: 12px; }
     /* Hairline above the footer, matching Meet's menu dividers. */
     #${POPOVER_ID} .gg-foot {
       color: #9aa0a6; font-size: 12px; padding: 10px 12px 4px;
@@ -299,6 +303,45 @@ function styles(): string {
     /* Once the bot is on its way the list is no longer a choice. */
     #${POPOVER_ID}.gg-locked .gg-item { cursor: default; opacity: .6; }
     #${POPOVER_ID}.gg-locked .gg-item:hover { background: transparent; }
+
+    /* The join dialog.
+       A 20px badge in the corner is the right home for ongoing status and the
+       wrong place to ASK a question — it was missed entirely. This is a real
+       modal, in Meet's own dialog shape, shown once just after joining. */
+    #${DIALOG_ID}-scrim {
+      position: fixed; inset: 0; z-index: 2147483100;
+      background: rgba(0,0,0,.55);
+      display: flex; align-items: center; justify-content: center;
+      font-family: "Google Sans", Roboto, -apple-system, sans-serif;
+    }
+    #${DIALOG_ID} {
+      background: #2d2f31; color: #e3e3e3;
+      border-radius: 28px; padding: 24px;
+      width: min(420px, calc(100vw - 48px));
+      box-shadow: 0 4px 8px 3px rgba(0,0,0,.35), 0 1px 3px rgba(0,0,0,.55);
+    }
+    #${DIALOG_ID} h2 {
+      margin: 0 0 6px; font-size: 22px; font-weight: 400; color: #e3e3e3;
+    }
+    #${DIALOG_ID} .gg-sub {
+      margin: 0 0 16px; font-size: 14px; color: #c4c7c5; line-height: 1.45;
+    }
+    #${DIALOG_ID} .gg-list { max-height: 236px; overflow-y: auto; margin: 0 -8px; }
+    #${DIALOG_ID} .gg-actions {
+      display: flex; justify-content: flex-end; align-items: center;
+      gap: 8px; margin-top: 20px;
+    }
+    #${DIALOG_ID} .gg-btn {
+      border: 0; border-radius: 999px; cursor: pointer;
+      font-family: inherit; font-size: 14px; font-weight: 500;
+      padding: 10px 24px; background: transparent; color: #a8c7fa;
+    }
+    #${DIALOG_ID} .gg-btn:hover { background: rgba(168,199,250,.08); }
+    #${DIALOG_ID} .gg-btn.gg-primary { background: #a8c7fa; color: #062e6f; }
+    #${DIALOG_ID} .gg-btn.gg-primary:hover { background: #c2ddff; }
+    #${DIALOG_ID} .gg-btn.gg-primary:disabled {
+      background: #3c4043; color: #80868b; cursor: default;
+    }
   `;
 }
 
@@ -340,53 +383,8 @@ function render() {
   dot.className = "gg-dot" + dotClass();
   button.appendChild(dot);
 
-  // A word beside the dot, because a coloured circle is not an affordance —
-  // there was no way to know it was the thing that starts a recording.
-  const text = buttonLabel();
-  if (text) {
-    const label = document.createElement("span");
-    label.className = "gg-label";
-    label.textContent = text;
-    button.appendChild(label);
-  }
-
   button.title = `Glitchgrab · ${statusLine()}`;
   button.setAttribute("aria-label", button.title);
-}
-
-/**
- * The word on the button.
- *
- * Empty once recording is under way and a project is settled: the call is the
- * thing to look at, and a permanent banner over Meet's controls is noise. The
- * dot and the tooltip carry it from there.
- */
-function buttonLabel(): string | null {
-  const project = state.repos.find((r) => r.id === state.repoId)?.fullName.split("/").pop();
-
-  if (state.phase === "loading") return null;
-  if (state.phase === "error") return "Recording failed";
-  if (state.phase === "sending") return "Starting…";
-
-  if (state.phase === "sent") {
-    switch (state.botStatus) {
-      case "WAITING_ADMIT":
-        return "Admit the bot";
-      case "RECORDING":
-        return project ?? "Recording";
-      case "UPLOADING":
-        return "Saving…";
-      case "FAILED":
-        return "Bot failed";
-      case "DONE":
-        return null;
-      default:
-        return "Bot joining…";
-    }
-  }
-
-  // Idle: naming the action is the whole point of the button existing.
-  return state.repoId ? (project ?? "Record") : "Record this call";
 }
 
 /**
@@ -447,6 +445,53 @@ function dotClass(): string {
   return state.repoId ? "" : " idle";
 }
 
+/**
+ * Split "owner/name" and highlight the matched run.
+ *
+ * Built with text nodes rather than innerHTML: repo names come from the server
+ * and this renders inside a live Google Meet session.
+ *
+ * Shared by the hover picker and the join dialog so the two can never drift
+ * into showing the same project differently.
+ */
+function repoLabel(repo: Repo, query: string): HTMLElement {
+  const wrap = document.createElement("span");
+  wrap.className = "gg-name";
+
+  const slash = repo.fullName.indexOf("/");
+  const owner = slash >= 0 ? repo.fullName.slice(0, slash) : "";
+  const name = slash >= 0 ? repo.fullName.slice(slash + 1) : repo.fullName;
+
+  const nameEl = document.createElement("span");
+  nameEl.className = "gg-repo";
+  const at = query ? name.toLowerCase().indexOf(query) : -1;
+  if (at >= 0) {
+    nameEl.appendChild(document.createTextNode(name.slice(0, at)));
+    const hit = document.createElement("mark");
+    hit.textContent = name.slice(at, at + query.length);
+    nameEl.appendChild(hit);
+    nameEl.appendChild(document.createTextNode(name.slice(at + query.length)));
+  } else {
+    nameEl.textContent = name;
+  }
+  wrap.appendChild(nameEl);
+
+  if (owner) {
+    const ownerEl = document.createElement("span");
+    ownerEl.className = "gg-owner";
+    ownerEl.textContent = owner;
+    wrap.appendChild(ownerEl);
+  }
+  return wrap;
+}
+
+/** Keystrokes must not reach Meet: bare `d` mutes the mic, `e` the camera. */
+function shieldKeys(input: HTMLInputElement) {
+  input.addEventListener("keydown", (e) => e.stopPropagation());
+  input.addEventListener("keypress", (e) => e.stopPropagation());
+  input.addEventListener("keyup", (e) => e.stopPropagation());
+}
+
 let popoverTimer: ReturnType<typeof setTimeout> | null = null;
 
 let onDocumentDown: ((e: MouseEvent) => void) | null = null;
@@ -483,12 +528,7 @@ function openPopover() {
   search.type = "text";
   search.placeholder = "Search projects…";
   search.spellcheck = false;
-  // Meet listens for bare keystrokes as call shortcuts — `d` toggles the mic,
-  // `e` the camera. Without stopping propagation, typing a project name would
-  // mute the operator mid-sentence.
-  search.addEventListener("keydown", (e) => e.stopPropagation());
-  search.addEventListener("keypress", (e) => e.stopPropagation());
-  search.addEventListener("keyup", (e) => e.stopPropagation());
+  shieldKeys(search);
   panel.appendChild(search);
 
   const list = document.createElement("div");
@@ -548,43 +588,6 @@ function openPopover() {
     void sendBot();
   }
 
-  /**
-   * Split "owner/name" and highlight the matched run.
-   *
-   * Built with text nodes rather than innerHTML: repo names come from the
-   * server and this renders inside a live Google Meet session.
-   */
-  function label(repo: Repo, query: string): HTMLElement {
-    const wrap = document.createElement("span");
-    wrap.className = "gg-name";
-
-    const slash = repo.fullName.indexOf("/");
-    const owner = slash >= 0 ? repo.fullName.slice(0, slash) : "";
-    const name = slash >= 0 ? repo.fullName.slice(slash + 1) : repo.fullName;
-
-    const nameEl = document.createElement("span");
-    nameEl.className = "gg-repo";
-    const at = query ? name.toLowerCase().indexOf(query) : -1;
-    if (at >= 0) {
-      nameEl.appendChild(document.createTextNode(name.slice(0, at)));
-      const hit = document.createElement("mark");
-      hit.textContent = name.slice(at, at + query.length);
-      nameEl.appendChild(hit);
-      nameEl.appendChild(document.createTextNode(name.slice(at + query.length)));
-    } else {
-      nameEl.textContent = name;
-    }
-    wrap.appendChild(nameEl);
-
-    if (owner) {
-      const ownerEl = document.createElement("span");
-      ownerEl.className = "gg-owner";
-      ownerEl.textContent = owner;
-      wrap.appendChild(ownerEl);
-    }
-    return wrap;
-  }
-
   function paint() {
     const query = search.value.trim().toLowerCase();
     matches = query
@@ -613,7 +616,7 @@ function openPopover() {
       const radio = document.createElement("span");
       radio.className = "gg-radio" + (repo.id === state.repoId ? " on" : "");
       item.appendChild(radio);
-      item.appendChild(label(repo, query));
+      item.appendChild(repoLabel(repo, query));
 
       item.addEventListener("mouseenter", () => {
         active = index;
@@ -689,6 +692,175 @@ function openPopover() {
   search.focus({ preventScroll: true });
 }
 
+
+/**
+ * "Record this meeting?" — asked once, just after joining.
+ *
+ * The badge by the control bar is the right home for ongoing status and the
+ * wrong place to ask a question: at 20px in the corner it was simply never
+ * seen, and calls went unrecorded because nobody knew there was a decision to
+ * make. A modal is the honest shape for a question that has to be answered
+ * early or not at all — and it is dismissible, because sometimes you really do
+ * just want to join the call.
+ */
+function openRecordDialog() {
+  if (document.getElementById(`${DIALOG_ID}-scrim`)) return;
+  if (!state.repos.length) return;
+
+  closePopover();
+
+  const scrim = document.createElement("div");
+  scrim.id = `${DIALOG_ID}-scrim`;
+
+  const dialog = document.createElement("div");
+  dialog.id = DIALOG_ID;
+  dialog.setAttribute("role", "dialog");
+  dialog.setAttribute("aria-modal", "true");
+  dialog.setAttribute("aria-label", "Record this meeting?");
+
+  const title = document.createElement("h2");
+  title.textContent = "Record this meeting?";
+  dialog.appendChild(title);
+
+  const sub = document.createElement("p");
+  sub.className = "gg-sub";
+  sub.textContent =
+    "Glitchgrab sends a bot to record and transcribe the call. Pick the project it belongs to.";
+  dialog.appendChild(sub);
+
+  const search = document.createElement("input");
+  search.className = "gg-search";
+  search.type = "text";
+  search.placeholder = "Search projects…";
+  search.spellcheck = false;
+  shieldKeys(search);
+  dialog.appendChild(search);
+
+  const list = document.createElement("div");
+  list.className = "gg-list";
+  list.setAttribute("role", "radiogroup");
+  dialog.appendChild(list);
+
+  const actions = document.createElement("div");
+  actions.className = "gg-actions";
+
+  const dismiss = document.createElement("button");
+  dismiss.className = "gg-btn";
+  dismiss.textContent = "Don't record";
+
+  const start = document.createElement("button");
+  start.className = "gg-btn gg-primary";
+  start.textContent = "Start recording";
+  // Nothing is pre-selected, so there is nothing to start until they choose.
+  start.disabled = true;
+
+  actions.append(dismiss, start);
+  dialog.appendChild(actions);
+
+  let picked: Repo | null = null;
+  let matches: Repo[] = [];
+  let active = 0;
+
+  function close() {
+    scrim.remove();
+    document.removeEventListener("keydown", onKey, true);
+  }
+
+  function onKey(e: KeyboardEvent) {
+    if (e.key === "Escape") {
+      e.stopPropagation();
+      close();
+      return;
+    }
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (!matches.length) return;
+      active = (active + (e.key === "ArrowDown" ? 1 : -1) + matches.length) % matches.length;
+      paint();
+    } else if (e.key === "Enter" && !start.disabled) {
+      e.preventDefault();
+      confirm();
+    }
+  }
+
+  function confirm() {
+    if (!picked) return;
+    const repo = picked;
+    close();
+
+    state.repoId = repo.id;
+    void send({ type: "MEET_REMEMBER_REPO", repoId: repo.id });
+    void sendBot();
+  }
+
+  function paint() {
+    const query = search.value.trim().toLowerCase();
+    matches = query
+      ? state.repos.filter((r) => r.fullName.toLowerCase().includes(query))
+      : state.repos;
+    if (active >= matches.length) active = Math.max(0, matches.length - 1);
+
+    list.textContent = "";
+
+    if (!matches.length) {
+      const empty = document.createElement("div");
+      empty.className = "gg-empty";
+      empty.textContent = "No projects match";
+      list.appendChild(empty);
+      return;
+    }
+
+    matches.forEach((repo, index) => {
+      const item = document.createElement("div");
+      item.className = "gg-item" + (index === active ? " active" : "");
+      item.setAttribute("role", "radio");
+      item.setAttribute("aria-checked", picked?.id === repo.id ? "true" : "false");
+
+      const radio = document.createElement("span");
+      radio.className = "gg-radio" + (picked?.id === repo.id ? " on" : "");
+      item.appendChild(radio);
+      item.appendChild(repoLabel(repo, query));
+
+      item.addEventListener("click", () => {
+        picked = repo;
+        active = index;
+        start.disabled = false;
+        paint();
+      });
+      // Double-click is the impatient path through a two-step dialog.
+      item.addEventListener("dblclick", () => {
+        picked = repo;
+        confirm();
+      });
+
+      list.appendChild(item);
+    });
+
+    list.children[active]?.scrollIntoView({ block: "nearest" });
+  }
+
+  search.addEventListener("input", () => {
+    active = 0;
+    paint();
+  });
+  dismiss.addEventListener("click", close);
+  start.addEventListener("click", confirm);
+  // Clicking the backdrop dismisses; clicking inside must not.
+  scrim.addEventListener("click", (e) => {
+    if (e.target === scrim) close();
+  });
+  dialog.addEventListener("click", (e) => e.stopPropagation());
+
+  document.addEventListener("keydown", onKey, true);
+
+  scrim.appendChild(dialog);
+  document.body.appendChild(scrim);
+  paint();
+  search.focus({ preventScroll: true });
+
+  log("asked whether to record this call");
+}
+
 function scheduleClosePopover() {
   if (popoverTimer) clearTimeout(popoverTimer);
   // Small grace so moving the pointer from button to panel doesn't close it.
@@ -721,6 +893,14 @@ async function sendBot() {
     state.meetingId = result.meetingId ?? null;
     state.botStatus = "DISPATCHING";
     state.message = "";
+    startStatusPoll();
+  } else if (result?.meetingId) {
+    // Refused because this call is already being recorded. That is not a
+    // failure to report — it is the recording we should have been showing.
+    state.phase = "sent";
+    state.meetingId = result.meetingId;
+    state.message = "";
+    log(`this call is already being recorded — following ${result.meetingId}`);
     startStatusPoll();
   } else {
     state.phase = "error";
@@ -963,10 +1143,11 @@ function ensureMounted() {
     button = document.createElement("button");
     button.id = PILL_ID;
     button.addEventListener("click", () => {
-      // Nothing chosen yet, so there is nothing to start — show the choice
+      // Nothing chosen yet, so there is nothing to start — ask properly
       // instead of swallowing the click.
       if (!state.repoId) {
-        openPopover();
+        closePopover();
+        openRecordDialog();
         return;
       }
       closePopover();
@@ -993,7 +1174,7 @@ function ensureMounted() {
     if (!promptedInCall) {
       promptedInCall = true;
       setTimeout(() => {
-        if (isInCall() && state.phase === "idle" && !state.repoId) openPopover();
+        if (isInCall() && state.phase === "idle" && !state.repoId) openRecordDialog();
       }, 1200);
     }
   } else if (root !== button) {
@@ -1004,23 +1185,20 @@ function ensureMounted() {
     mountLog("mounted and in place");
   }
 
-  const labelled = Boolean(buttonLabel());
-  // Size from a control Meet itself rendered, so we track its scaling.
+  // Always a circle the size of one of Meet's own controls.
+  //
+  // An earlier version grew into a labelled pill whose text changed with the
+  // bot's phase — so the control resized under the pointer mid-call, and at
+  // 48px the label wrapped to three lines inside a circle. The badge's job is
+  // status at a glance; the words belong in the dialog and the tooltip.
   const gauge = findLeaveButton() ?? findMicButton();
-  const height = Math.round(gauge?.getBoundingClientRect().height || 0) || 48;
+  const size = Math.round(gauge?.getBoundingClientRect().height || 0) || 48;
+  const width = size;
 
-  button.style.setProperty("height", `${height}px`, "important");
-  button.style.setProperty("border-radius", labelled ? "999px" : "50%", "important");
-  button.style.setProperty("padding", labelled ? `0 ${Math.round(height / 3)}px` : "0", "important");
-  if (labelled) {
-    button.style.removeProperty("width");
-  } else {
-    button.style.setProperty("width", `${height}px`, "important");
-  }
-
-  // Measured after the sizing above, since a labelled pill is as wide as its
-  // text and there is no way to know that in advance.
-  const width = Math.round(button.getBoundingClientRect().width) || height;
+  button.style.setProperty("width", `${size}px`, "important");
+  button.style.setProperty("height", `${size}px`, "important");
+  button.style.setProperty("border-radius", "50%", "important");
+  button.style.setProperty("padding", "0", "important");
 
   // In call: right of the bar. tl;dv parks its own pill on the left and the two
   // overlapped; the gap on the right is empty in every layout.
@@ -1028,7 +1206,7 @@ function ensureMounted() {
   button.style.setProperty("left", `${Math.round(left)}px`, "important");
   button.style.setProperty(
     "top",
-    `${Math.round(rect.top + (rect.height - height) / 2)}px`,
+    `${Math.round(rect.top + (rect.height - size) / 2)}px`,
     "important"
   );
 }
@@ -1140,6 +1318,13 @@ export async function mountMeetPill(): Promise<void> {
       ok: boolean;
       repos?: Repo[];
       suggested?: { repoId: string; repoFullName: string; source: string } | null;
+      /** A bot already recording this call — set when the tab was reloaded. */
+      active?: {
+        meetingId: string;
+        repoId: string;
+        repoFullName: string;
+        botStatus: string | null;
+      } | null;
       lastRepoId?: string | null;
       /** True when the repo list came from cache because the server was slow. */
       stale?: boolean;
@@ -1179,10 +1364,40 @@ export async function mountMeetPill(): Promise<void> {
     // Deciding is the point.
     state.repoId = null;
 
+    // Already recording? Adopt it rather than starting over.
+    //
+    // The button's state lives in the page, so reloading the tab — or opening
+    // the call in a second tab — used to forget the bot was already in the
+    // room and ask again from scratch. The obvious answer to that question is
+    // to pick a project, which is a request for a SECOND bot, in front of the
+    // client.
+    if (resolved.active) {
+      state.repoId = resolved.active.repoId;
+      state.meetingId = resolved.active.meetingId;
+      state.botStatus = resolved.active.botStatus;
+      state.phase = "sent";
+      state.message = "";
+      // Nothing to ask: this call is handled.
+      promptedInCall = true;
+      render();
+      startStatusPoll();
+      log(`adopted the recording already running (${resolved.active.repoFullName})`);
+      mounting = false;
+      return;
+    }
+
     state.phase = "idle";
     state.message = "";
     render();
     log(`ready (${state.repos.length} projects, none pre-selected)`);
+
+    // The projects usually arrive AFTER the button mounts, so the timer that
+    // fires on joining often found nothing to offer yet. Whichever of the two
+    // finishes last does the asking; `promptedInCall` keeps it to once.
+    if (isInCall() && !promptedInCall && !state.repoId) {
+      promptedInCall = true;
+      openRecordDialog();
+    }
     mounting = false;
     return;
   }
