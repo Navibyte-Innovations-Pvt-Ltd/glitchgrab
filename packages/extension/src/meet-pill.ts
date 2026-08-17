@@ -166,52 +166,96 @@ function styles(): string {
        camera and microphone menus, so it reads as native. */
     #${POPOVER_ID} {
       position: fixed; z-index: 2147483000;
-      background: #202124; color: #e8eaed;
+      /* Material 3 surface colours and elevation-3 shadow — the same recipe
+         Meet's own overflow menu uses, so this reads as part of the app. */
+      background: #2d2f31; color: #e3e3e3;
       border-radius: 12px; padding: 8px;
-      box-shadow: 0 8px 28px rgba(0,0,0,.55);
-      font-family: "Google Sans", Roboto, -apple-system, sans-serif;
-      font-size: 13px; min-width: 260px; max-width: 380px;
-      max-height: 320px; overflow-y: auto;
+      box-shadow: 0 1px 3px 1px rgba(0,0,0,.35), 0 1px 2px rgba(0,0,0,.55);
+      font-family: "Google Sans", "Product Sans", Roboto, -apple-system, sans-serif;
+      font-size: 14px; min-width: 288px; max-width: 380px;
+    }
+
+    /* Google's scrollbar: thin, no track, thumb inset so it never touches the
+       panel edge. The default chunky grey bar is the single most obvious tell
+       that a menu isn't native. */
+    #${POPOVER_ID} .gg-list { scrollbar-width: thin; scrollbar-color: #5f6368 transparent; }
+    #${POPOVER_ID} .gg-list::-webkit-scrollbar { width: 12px; }
+    #${POPOVER_ID} .gg-list::-webkit-scrollbar-track { background: transparent; }
+    #${POPOVER_ID} .gg-list::-webkit-scrollbar-thumb {
+      background: #5f6368; border-radius: 8px;
+      border: 4px solid transparent; background-clip: content-box;
+      min-height: 40px;
+    }
+    #${POPOVER_ID} .gg-list::-webkit-scrollbar-thumb:hover {
+      background: #80868b; background-clip: content-box;
     }
     #${POPOVER_ID} .gg-head {
-      color: #9aa0a6; font-size: 11px; text-transform: uppercase;
-      letter-spacing: .8px; padding: 6px 10px 8px;
+      color: #c4c7c5; font-size: 11px; font-weight: 500;
+      text-transform: uppercase; letter-spacing: .8px;
+      padding: 6px 12px 8px;
     }
     /* Search box. With twenty-odd repos the list is longer than the panel, so
        scanning it by eye during the minute before a call is not realistic. */
+    /* Material filled text field: no border at rest, tinted surface, and a
+       focus ring rather than a colour-shifting outline. */
     #${POPOVER_ID} .gg-search {
       display: block; box-sizing: border-box; width: 100%;
-      margin: 0 0 6px; padding: 8px 10px;
-      background: #303134; color: #e8eaed;
-      border: 1px solid #3c4043; border-radius: 8px;
-      font-family: inherit; font-size: 13px; outline: none;
+      margin: 0 0 4px; padding: 10px 14px;
+      background: #1e1f20; color: #e3e3e3;
+      border: 1px solid transparent; border-radius: 24px;
+      font-family: inherit; font-size: 14px; outline: none;
     }
-    #${POPOVER_ID} .gg-search:focus { border-color: #8ab4f8; }
+    #${POPOVER_ID} .gg-search:focus { border-color: #a8c7fa; background: #1e1f20; }
     #${POPOVER_ID} .gg-search::placeholder { color: #9aa0a6; }
     /* Only the list scrolls — the search box has to stay reachable. */
-    #${POPOVER_ID} .gg-list { max-height: 240px; overflow-y: auto; }
+    #${POPOVER_ID} .gg-list { max-height: 264px; overflow-y: auto; padding: 4px 0; }
     #${POPOVER_ID} .gg-item {
-      display: flex; align-items: center; gap: 8px;
-      padding: 8px 10px; border-radius: 8px; cursor: pointer;
+      display: flex; align-items: center; gap: 12px;
+      padding: 8px 12px; border-radius: 8px; cursor: pointer;
+      min-height: 40px; box-sizing: border-box;
+      transition: background .12s ease;
     }
-    #${POPOVER_ID} .gg-item:hover, #${POPOVER_ID} .gg-item.active { background: #303134; }
-    #${POPOVER_ID} .gg-item .gg-tick { width: 16px; color: #8ab4f8; flex: 0 0 16px; }
+    #${POPOVER_ID} .gg-item:hover, #${POPOVER_ID} .gg-item.active { background: #37393b; }
+
+    /* Radio, in record red. A tick marks a past choice; a radio says "pick one,
+       and this is the one that's picked" — which is what this list is, now that
+       picking a project is what starts the recording. */
+    #${POPOVER_ID} .gg-radio {
+      flex: 0 0 18px; width: 18px; height: 18px;
+      border-radius: 50%; box-sizing: border-box;
+      border: 2px solid #9aa0a6;
+      display: inline-flex; align-items: center; justify-content: center;
+      transition: border-color .12s ease;
+    }
+    #${POPOVER_ID} .gg-item:hover .gg-radio { border-color: #c4c7c5; }
+    #${POPOVER_ID} .gg-radio.on { border-color: #ea4335; }
+    #${POPOVER_ID} .gg-radio.on::after {
+      content: ""; width: 10px; height: 10px;
+      border-radius: 50%; background: #ea4335;
+    }
     /* Owner above, repo below: every row shared the same owner prefix, which
        pushed the part that actually differs off the right edge. */
     #${POPOVER_ID} .gg-name {
-      min-width: 0; display: flex; flex-direction: column; line-height: 1.3;
+      min-width: 0; display: flex; flex-direction: column; line-height: 1.35;
     }
     #${POPOVER_ID} .gg-repo {
-      color: #e8eaed;
+      color: #e3e3e3; font-size: 14px;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     #${POPOVER_ID} .gg-owner {
-      color: #9aa0a6; font-size: 11px;
+      color: #9aa0a6; font-size: 12px;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    #${POPOVER_ID} mark { background: transparent; color: #8ab4f8; font-weight: 500; }
-    #${POPOVER_ID} .gg-empty { color: #9aa0a6; padding: 10px; }
-    #${POPOVER_ID} .gg-foot { color: #9aa0a6; font-size: 11px; padding: 8px 10px 4px; }
+    #${POPOVER_ID} mark { background: transparent; color: #a8c7fa; font-weight: 500; }
+    #${POPOVER_ID} .gg-empty { color: #9aa0a6; padding: 12px; }
+    /* Hairline above the footer, matching Meet's menu dividers. */
+    #${POPOVER_ID} .gg-foot {
+      color: #9aa0a6; font-size: 12px; padding: 10px 12px 4px;
+      border-top: 1px solid #444746; margin-top: 4px;
+    }
+    /* Once the bot is on its way the list is no longer a choice. */
+    #${POPOVER_ID}.gg-locked .gg-item { cursor: default; opacity: .6; }
+    #${POPOVER_ID}.gg-locked .gg-item:hover { background: transparent; }
   `;
 }
 
@@ -257,12 +301,14 @@ function render() {
   const project = state.repos.find((r) => r.id === state.repoId)?.fullName;
   const detail =
     state.phase === "sent"
-      ? "Bot is joining — admit it when it knocks"
-      : state.phase === "error" || state.phase === "loading"
-        ? state.message
-        : project
-          ? `Record this call → ${project}${state.source === "calendar" ? " (from calendar)" : ""}`
-          : "Glitchgrab";
+      ? `Recording to ${project ?? "your project"} — admit the bot when it knocks`
+      : state.phase === "sending"
+        ? `Sending the bot to ${project ?? "your project"}…`
+        : state.phase === "error" || state.phase === "loading"
+          ? state.message
+          : project
+            ? `Record this call → ${project}${state.source === "calendar" ? " (from calendar)" : ""}`
+            : "Glitchgrab";
 
   button.title = `Glitchgrab · ${detail}`;
   button.setAttribute("aria-label", button.title);
@@ -314,23 +360,47 @@ function openPopover() {
 
   const list = document.createElement("div");
   list.className = "gg-list";
+  list.setAttribute("role", "radiogroup");
+  list.setAttribute("aria-label", "Record this call to");
   panel.appendChild(list);
+
+  if (state.phase === "sending" || state.phase === "sent") panel.classList.add("gg-locked");
 
   const foot = document.createElement("div");
   foot.className = "gg-foot";
+  // Say what a click will do, since it now dispatches the bot immediately.
   foot.textContent =
-    state.source === "calendar" ? "Chosen from your calendar" : "Click the dot to send the bot";
+    state.phase === "sending"
+      ? "Sending the bot…"
+      : state.phase === "sent"
+        ? "Bot already sent for this call"
+        : state.source === "calendar"
+          ? "Picked from your calendar · click to start recording"
+          : "Click a project to start recording";
   panel.appendChild(foot);
 
   let matches: Repo[] = [];
   let active = 0;
 
+  /**
+   * Picking a project sends the bot.
+   *
+   * The two steps were always one intention — nobody opens this list except to
+   * record — and splitting them left the operator having picked a project with
+   * nothing visibly happening, unsure whether the bot was coming.
+   *
+   * Refused once the bot is already on its way: a second pick would dispatch a
+   * second bot into the same call, and the recording is already bound to the
+   * repo the first one carried.
+   */
   function choose(repo: Repo) {
+    if (state.phase === "sending" || state.phase === "sent") return;
+
     state.repoId = repo.id;
     state.source = "remembered";
     void send({ type: "MEET_REMEMBER_REPO", repoId: repo.id });
-    render();
     closePopover();
+    void sendBot();
   }
 
   /**
@@ -392,11 +462,12 @@ function openPopover() {
     matches.forEach((repo, index) => {
       const item = document.createElement("div");
       item.className = "gg-item" + (index === active ? " active" : "");
+      item.setAttribute("role", "radio");
+      item.setAttribute("aria-checked", repo.id === state.repoId ? "true" : "false");
 
-      const tick = document.createElement("span");
-      tick.className = "gg-tick";
-      tick.textContent = repo.id === state.repoId ? "✓" : "";
-      item.appendChild(tick);
+      const radio = document.createElement("span");
+      radio.className = "gg-radio" + (repo.id === state.repoId ? " on" : "");
+      item.appendChild(radio);
       item.appendChild(label(repo, query));
 
       item.addEventListener("mouseenter", () => {
