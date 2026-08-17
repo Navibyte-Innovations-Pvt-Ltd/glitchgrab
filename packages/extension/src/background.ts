@@ -620,6 +620,14 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     sendBotToMeeting(msg.repoId, msg.meetUrl, msg.title).then(reply);
     return true;
   }
+  if (msg.type === "MEET_MEETING_STATUS") {
+    meetingStatus(msg.meetingId).then(reply);
+    return true;
+  }
+  if (msg.type === "MEET_RETARGET") {
+    retargetMeeting(msg.meetingId, msg.repoId).then(reply);
+    return true;
+  }
   if (msg.type === "MEET_REMEMBER_REPO") {
     void chrome.storage.local.set({ gg_meeting_repo: msg.repoId });
     return false;
@@ -777,6 +785,66 @@ async function sendBotToMeeting(repoId: string, meetUrl: string, title: string |
       body: JSON.stringify({ repoId, meetUrl, title }),
     });
 
+    const json = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      data?: { meetingId?: string };
+    };
+    if (!res.ok) return { ok: false, error: json.error ?? `Server said ${res.status}` };
+
+    void chrome.storage.local.set({ gg_meeting_repo: repoId });
+    // The meeting id is what lets the button follow the bot's real progress
+    // instead of assuming the dispatch worked.
+    return { ok: true, meetingId: json.data?.meetingId ?? null };
+  } catch {
+    return { ok: false, error: "Could not reach Glitchgrab" };
+  }
+}
+
+/** Live phase of a bot recording, for the in-Meet button. */
+async function meetingStatus(meetingId: string) {
+  await authReady;
+  if (!tester) return { ok: false, error: "Not logged in" };
+
+  try {
+    const res = await fetch(`${tester.apiBase}/api/v1/meetings/${meetingId}/bot-status`, {
+      headers: { ...authHeaders(), "x-gg-session": tester.sessionId },
+    });
+    const json = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      data?: { botStatus?: string | null; botError?: string | null; repoId?: string };
+    };
+    if (!res.ok) return { ok: false, error: json.error ?? `Server said ${res.status}` };
+
+    return {
+      ok: true,
+      botStatus: json.data?.botStatus ?? null,
+      botError: json.data?.botError ?? null,
+      repoId: json.data?.repoId ?? null,
+    };
+  } catch {
+    return { ok: false, error: "Could not reach Glitchgrab" };
+  }
+}
+
+/**
+ * Move an in-progress recording to a different project.
+ *
+ * Nothing is said to the bot — it keeps recording. Only the filing changes.
+ */
+async function retargetMeeting(meetingId: string, repoId: string) {
+  await authReady;
+  if (!tester) return { ok: false, error: "Not logged in" };
+
+  try {
+    const res = await fetch(`${tester.apiBase}/api/v1/meetings/${meetingId}/repo`, {
+      method: "PATCH",
+      headers: {
+        ...authHeaders(),
+        "Content-Type": "application/json",
+        "x-gg-session": tester.sessionId,
+      },
+      body: JSON.stringify({ repoId }),
+    });
     const json = (await res.json().catch(() => ({}))) as { error?: string };
     if (!res.ok) return { ok: false, error: json.error ?? `Server said ${res.status}` };
 
