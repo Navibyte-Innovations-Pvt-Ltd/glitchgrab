@@ -101,6 +101,28 @@ const BRIDGE_WS = "ws://localhost:7337?role=chrome";
 let ws: WebSocket | null = null;
 let wsReconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
+/**
+ * Reconnect delay, doubling on each failure.
+ *
+ * GlitchRecord is usually NOT running — most people only use the extension for
+ * meeting recording. A fixed 3s retry then means ~1200 failed WebSocket
+ * attempts an hour, each one a red error in chrome://extensions. That noise
+ * buries real errors, which is worse than the reconnect being a few seconds
+ * slower when GlitchRecord does start.
+ */
+const BRIDGE_RETRY_MIN_MS = 3000;
+const BRIDGE_RETRY_MAX_MS = 60_000;
+let bridgeRetryMs = BRIDGE_RETRY_MIN_MS;
+
+function scheduleBridgeRetry() {
+  if (wsReconnectTimer) return; // a retry is already pending
+  wsReconnectTimer = setTimeout(() => {
+    wsReconnectTimer = null;
+    connectBridge();
+  }, bridgeRetryMs);
+  bridgeRetryMs = Math.min(bridgeRetryMs * 2, BRIDGE_RETRY_MAX_MS);
+}
+
 function connectBridge() {
   if (ws && ws.readyState < 2) return; // already open/connecting
   try {
@@ -109,6 +131,8 @@ function connectBridge() {
     ws.onopen = () => {
       log("[GG] Bridge connected");
       if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
+      // GlitchRecord is up — go back to reconnecting promptly if it drops.
+      bridgeRetryMs = BRIDGE_RETRY_MIN_MS;
       sendTesterIdentityToBridge();
     };
 
@@ -131,19 +155,19 @@ function connectBridge() {
     };
 
     ws.onclose = () => {
-      log("[GG] Bridge disconnected — retry in 3s");
+      log(`[GG] Bridge disconnected — retry in ${Math.round(bridgeRetryMs / 1000)}s`);
       ws = null;
       // GlitchRecord quit mid-recording — stop capture so extension doesn't record forever
       if (state.active && state.fromBridge) {
         log("[GG] Bridge closed while recording — stopping capture");
         stopCapture();
       }
-      wsReconnectTimer = setTimeout(connectBridge, 3000);
+      scheduleBridgeRetry();
     };
 
     ws.onerror = () => { ws?.close(); };
   } catch {
-    wsReconnectTimer = setTimeout(connectBridge, 3000);
+    scheduleBridgeRetry();
   }
 }
 
@@ -267,7 +291,9 @@ async function testerLogout() {
 try {
   chrome.alarms.create("gg-keepalive", { periodInMinutes: 0.5 });
   chrome.alarms.onAlarm.addListener((a) => {
-    if (a.name === "gg-keepalive") connectBridge();
+    // Don't call connectBridge here unconditionally: that would bypass the
+    // backoff and restore the every-30s error spam.
+    if (a.name === "gg-keepalive" && !wsReconnectTimer) connectBridge();
   });
 } catch { /* alarms unavailable */ }
 
