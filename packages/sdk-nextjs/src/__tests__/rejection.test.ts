@@ -99,6 +99,57 @@ describe("describeRejection", () => {
     expect(() => describeRejection({ size: BigInt(9) })).not.toThrow();
   });
 
+  it("names the event type instead of listing isTrusted", () => {
+    // Chrome exposes `isTrusted` as an own key, so the shape fallback used to
+    // produce "Rejected object: isTrusted" — a report naming nothing (#1458).
+    const result = describeRejection(new Event("error"));
+    expect(result.message).toBe('Event ("error")');
+    expect(result.message).not.toContain("isTrusted");
+  });
+
+  it("names the failing element and URL from an event target", () => {
+    const img = document.createElement("img");
+    img.src = "https://cdn.example.com/logo.png";
+    document.body.appendChild(img);
+    const event = new ErrorEvent("error");
+    Object.defineProperty(event, "target", { value: img });
+
+    const result = describeRejection(event);
+    expect(result.message).toContain('ErrorEvent ("error")');
+    expect(result.message).toContain("from <img>");
+    expect(result.message).toContain("https://cdn.example.com/logo.png");
+
+    img.remove();
+  });
+
+  it("strips the query and hash so repeats share a dedup signature", () => {
+    const img = document.createElement("img");
+    img.src = "https://cdn.example.com/logo.png?v=1";
+    const first = new Event("error");
+    Object.defineProperty(first, "target", { value: img });
+
+    const other = document.createElement("img");
+    other.src = "https://cdn.example.com/logo.png?v=2";
+    const second = new Event("error");
+    Object.defineProperty(second, "target", { value: other });
+
+    expect(describeRejection(first).message).toBe(describeRejection(second).message);
+    expect(describeRejection(first).message).not.toContain("?v=");
+  });
+
+  it("prefers a real ErrorEvent message over the event description", () => {
+    const event = new ErrorEvent("error", { message: "script parse failed" });
+    expect(describeRejection(event).message).toBe("script parse failed");
+  });
+
+  it("describes a cross-realm event that fails instanceof Event", () => {
+    // Events from an iframe or extension realm fail `instanceof` but still
+    // carry `type` and `isTrusted`.
+    const foreign = { type: "abort", isTrusted: true };
+    expect(describeRejection(foreign).message).toContain('("abort")');
+    expect(describeRejection(foreign).message).not.toContain("Rejected object");
+  });
+
   it("handles primitives", () => {
     expect(describeRejection("plain string").message).toBe("plain string");
     expect(describeRejection(42).message).toBe("42");
@@ -128,5 +179,25 @@ describe("isUnactionableRejection", () => {
     expect(isUnactionableRejection(describeRejection({}))).toBe(true);
     expect(isUnactionableRejection(describeRejection(undefined))).toBe(true);
     expect(isUnactionableRejection(describeRejection(null))).toBe(true);
+  });
+
+  it("keeps an event rejection — it names the failing resource", () => {
+    // It used to arrive as the stack-less, nothing-naming "Rejected object:
+    // isTrusted"; now it carries a real message and stays reportable.
+    const description = describeRejection(new Event("error"));
+    expect(description.message).toBe('Event ("error")');
+    expect(isUnactionableRejection(description)).toBe(false);
+  });
+
+  it("still reports a key-list rejection", () => {
+    expect(isUnactionableRejection(describeRejection({ endpoint: "/t", retries: 3 }))).toBe(
+      false
+    );
+  });
+
+  it("keeps an Error rejection unchanged", () => {
+    const description = describeRejection(new Error("boom"));
+    expect(description.message).toBe("boom");
+    expect(isUnactionableRejection(description)).toBe(false);
   });
 });
