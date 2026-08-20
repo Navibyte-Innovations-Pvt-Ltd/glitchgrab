@@ -42,11 +42,28 @@ export async function GET(request: Request) {
   const parsed = parseCalendarState(state, jar.get(CALENDAR_STATE_COOKIE)?.value);
   if (!parsed) return fail("bad_state");
 
-  // Belt and braces: the signed-in user must BE the user the state was minted
-  // for. A mismatch is either CSRF or a session swap mid-flow.
-  const session = await auth();
-  if (!session?.user?.id || session.user.id !== parsed.userId) {
-    return fail("session_mismatch");
+  // An invite flow has no Glitchgrab session by design — the person connecting
+  // is a client with only their Google account. The invite is re-read here
+  // rather than trusted from the state: it must still be unused and unexpired
+  // at the moment the connection is actually created, not merely when the link
+  // was opened.
+  let invite: { id: string; repoId: string; userId: string } | null = null;
+
+  if (parsed.inviteId) {
+    const found = await prisma.calendarInvite.findUnique({
+      where: { id: parsed.inviteId },
+      select: { id: true, repoId: true, userId: true, usedAt: true, expiresAt: true },
+    });
+    if (!found || found.usedAt || found.expiresAt < new Date()) return fail("invite_expired");
+    if (found.userId !== parsed.userId) return fail("bad_state");
+    invite = { id: found.id, repoId: found.repoId, userId: found.userId };
+  } else {
+    // Belt and braces: the signed-in user must BE the user the state was minted
+    // for. A mismatch is either CSRF or a session swap mid-flow.
+    const session = await auth();
+    if (!session?.user?.id || session.user.id !== parsed.userId) {
+      return fail("session_mismatch");
+    }
   }
 
   try {
@@ -78,6 +95,25 @@ export async function GET(request: Request) {
     // Populate the list immediately — an empty screen after connecting reads as
     // a broken integration.
     await syncCalendar(connection.id).catch(() => {});
+
+    if (invite) {
+      // Point the project at the calendar that was just connected, and burn the
+      // invite. Assigning here is the whole purpose of the link — leaving it
+      // unassigned would connect a calendar nobody asked for and change nothing.
+      await prisma.bookingPage.upsert({
+        where: { repoId: invite.repoId },
+        create: { repoId: invite.repoId, calendarConnectionId: connection.id },
+        update: { calendarConnectionId: connection.id },
+      });
+      await prisma.calendarInvite.update({
+        where: { id: invite.id },
+        data: { usedAt: new Date(), connectionId: connection.id },
+      });
+
+      const thanks = NextResponse.redirect(`${appUrl}/calendar-connect/${invite.id}?done=1`);
+      thanks.cookies.delete(CALENDAR_STATE_COOKIE);
+      return thanks;
+    }
 
     const done = NextResponse.redirect(`${appUrl}/dashboard?calendar=connected`);
     // Single-use: the nonce must not survive to authorise a second flow.
