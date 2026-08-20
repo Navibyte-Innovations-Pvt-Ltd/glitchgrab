@@ -141,6 +141,9 @@ model Repo {
   gscProperties     GscProperty[]
   testerRepos       TesterRepo[]
   qaChecks          QaCheck[]
+  bookingPage       BookingPage?
+  bookings          Booking[]
+  clientLinks       ClientProject[]
   extensionSessions ExtensionSession[]
   members           RepoMember[]
   contextItems      ProjectContextItem[]
@@ -801,6 +804,200 @@ enum TranscriptStatus {
 /// `micRecordingKey` is the operator's microphone. Kept separate rather than
 /// mixed: which file a line came from IS the speaker, which beats anything
 /// diarization can infer, and it stays right when both people talk at once.
+/// Per-project demo booking, opened from the SDK dialog on the customer's own
+/// site (#311 follow-on — replaces cal.com).
+///
+/// One page per repo, because a booking is only meaningful against a project:
+/// it decides whose calendar is read, which Meet is created, and where the
+/// recording is filed afterwards.
+/// Someone who books demos with us — keyed by WhatsApp number.
+///
+/// A person is not a booking: the same number turns up for PracticeStack this
+/// month and a library project the next, and the second conversation should
+/// not start by asking their name again. Phone rather than email is the key
+/// because WhatsApp is the channel that identifies them.
+model Client {
+  id    String  @id @default(cuid())
+  phone String  @unique
+  name  String?
+  email String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects ClientProject[]
+  bookings Booking[]
+}
+
+/// Which of our projects a client has engaged with.
+///
+/// The link exists so a returning number can be offered "PracticeStack again,
+/// or something else?" instead of a cold menu of every project we run.
+model ClientProject {
+  id       String @id @default(cuid())
+  clientId String
+  repoId   String
+
+  createdAt DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  repo   Repo   @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, repoId])
+}
+
+enum WhatsappThreadStep {
+  /// Number is known to several projects, or arrived cold — ask which.
+  CHOOSE_PROJECT
+  CHOOSE_DATE
+  CHOOSE_TIME
+  ASK_NAME
+  ASK_EMAIL
+  DONE
+}
+
+/// Where a WhatsApp booking conversation has got to.
+///
+/// WhatsApp gives no session of its own — every inbound message is just a
+/// number and some text — so the thread state has to live here or the bot
+/// forgets what it asked between one message and the next.
+model WhatsappThread {
+  id    String @id @default(cuid())
+  phone String @unique
+
+  step   WhatsappThreadStep @default(CHOOSE_PROJECT)
+  repoId String?
+  /// Slot the visitor picked, held once they choose a time.
+  pendingStart DateTime?
+  /// Page offset while paging through the next fortnight of dates.
+  datePage Int @default(0)
+  name  String?
+  email String?
+
+  /// Meta only allows free-form replies within 24h of the customer's last
+  /// message. Past this the bot must fall back to a template or stay quiet.
+  lastInboundAt DateTime @default(now())
+  bookingId     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([step, updatedAt])
+}
+
+model BookingPage {
+  id     String @id @default(cuid())
+  repoId String @unique
+
+  /// Off means the SDK dialog refuses to open — a project that has not set
+  /// working hours must not offer slots it cannot honour.
+  enabled       Boolean @default(false)
+  /// Length of a demo, in minutes.
+  slotMinutes   Int     @default(30)
+  /// Dead time kept after each booking so calls don't butt up against each
+  /// other. Applied when generating slots, not stored on the event.
+  bufferMinutes Int     @default(15)
+  /// IANA zone the working hours are expressed in (e.g. "Asia/Kolkata").
+  /// Slots are offered in the visitor's own zone, but the owner's hours are
+  /// only meaningful in the owner's.
+  timezone      String  @default("Asia/Kolkata")
+  /// `{ "1": [["10:00","18:00"]], ... }` keyed by ISO weekday (1 = Monday).
+  /// Free-form rather than columns: a day can have several ranges, and this is
+  /// read as a whole or not at all.
+  workingHours  Json?
+
+  /// Short code used in the WhatsApp deep link ("demo practicestack"), so an
+  /// inbound message already knows which project it is about. Unique across
+  /// projects because it arrives as bare text with nothing else to scope it.
+  whatsappCode String? @unique
+
+  /// Shown at the top of the booking dialog.
+  title       String?
+  description String?
+
+  /// How far ahead visitors may book, and the minimum notice before a slot.
+  /// Without notice, someone books a call starting in ninety seconds.
+  horizonDays   Int @default(21)
+  noticeMinutes Int @default(120)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  repo     Repo      @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+}
+
+enum BookingStatus {
+  /// Slot is held while the visitor enters the WhatsApp code. Expires.
+  PENDING
+  CONFIRMED
+  CANCELLED
+  EXPIRED
+}
+
+/// One demo booked through the SDK dialog.
+///
+/// The row exists BEFORE the number is verified, because the slot has to be
+/// held while the code is in flight — two visitors racing for the last 3pm
+/// would otherwise both be told they had it.
+model Booking {
+  id     String @id @default(cuid())
+  pageId String
+  repoId String
+
+  name  String
+  email String
+  /// WhatsApp number, digits only. Required: the number is verified by OTP
+  /// before the booking is confirmed, so it is also the anti-abuse gate.
+  phone String
+
+  startsAt DateTime
+  endsAt   DateTime
+  /// What the visitor saw when they picked — kept so a later "3pm your time"
+  /// message matches what they booked.
+  timezone String?
+  note     String?
+
+  status BookingStatus @default(PENDING)
+  /// SHA-256 of the verification code, never the code itself.
+  otpHash    String?
+  otpSentAt  DateTime?
+  otpExpires DateTime?
+  /// Wrong codes tried. Caps a brute force against a six-digit number.
+  otpAttempts Int @default(0)
+
+  /// Set once confirmed: the Google event and its Meet link.
+  calendarEventId String?
+  meetUrl         String?
+  /// The recording this became. Demos are always recorded, whatever the
+  /// project's auto-record switch says.
+  meetingId       String?
+
+  /// Reminders already sent, so a cron re-run cannot send twice.
+  reminderSentAt DateTime?
+  ownerNotifiedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Set when the booking came from a WhatsApp thread, or when the website
+  /// booker's number matched someone we already know.
+  clientId String?
+
+  page   BookingPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  repo   Repo        @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  client Client?     @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  /// NOTE: a slot is claimed exactly once by a PARTIAL unique index created in
+  /// the migration — `(repoId, startsAt) WHERE status IN ('PENDING','CONFIRMED')`.
+  /// Prisma cannot express a filtered unique index, and a plain one would be
+  /// wrong: two cancelled bookings for the same slot are perfectly normal, and
+  /// a full unique constraint would reject the second cancellation forever.
+  @@index([status, startsAt])
+  @@index([repoId, startsAt])
+}
+
 model Meeting {
   id               String           @id @default(cuid())
   /// Null while a recording is unfiled — a first call about a prospect or an

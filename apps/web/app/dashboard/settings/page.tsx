@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { InnerPageHeader } from "@/components/dashboard/inner-page-header";
 import { WebhookForm } from "./webhook-form";
 import { WhatsappSettingsForm } from "./whatsapp-settings-form";
+import { CalendarSettings } from "./calendar-settings";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -62,6 +63,8 @@ export default async function SettingsPage() {
           </div>
         </div>
       </section>
+
+      <CalendarSettings />
 
       <WhatsappSettingsForm />
 

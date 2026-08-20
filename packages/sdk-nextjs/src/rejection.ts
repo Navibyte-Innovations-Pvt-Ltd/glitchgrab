@@ -92,6 +92,63 @@ function describeShape(reason: unknown): string {
   }
 }
 
+/** Max length of a resource URL appended to an event message. */
+const EVENT_URL_MAX_LENGTH = 120;
+
+/**
+ * Events cross realm boundaries (iframes, extensions) and fail `instanceof`,
+ * and `Event` is undefined outside the DOM. Duck-type instead: every event
+ * carries a string `type` and a boolean `isTrusted`.
+ */
+function isEventLike(reason: unknown): boolean {
+  try {
+    if (typeof Event !== "undefined" && reason instanceof Event) return true;
+    const source = reason as { type?: unknown; isTrusted?: unknown } | null;
+    return typeof source?.type === "string" && typeof source?.isTrusted === "boolean";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * A promise rejected with a DOM Event — a script/img/media `onerror`, an
+ * IndexedDB request, a third-party embed — carries no `.message` and no
+ * `.stack`. Its only own key in Chrome is `isTrusted`, so the shape fallback
+ * produced "Rejected object: isTrusted": a report naming nothing at all.
+ *
+ * The event's own `type` and `target` say which resource failed, so read those
+ * instead. The URL is stripped of its query and hash — a cache-busting param
+ * would otherwise give every occurrence a unique dedup signature.
+ */
+function describeEvent(reason: unknown): string {
+  const parts: string[] = [];
+
+  try {
+    const source = reason as { constructor?: { name?: string }; type?: unknown };
+    const name = source.constructor?.name || "Event";
+    parts.push(`${name} ("${String(source.type ?? "")}")`);
+  } catch {
+    parts.push("Event");
+  }
+
+  try {
+    const target = (reason as { target?: unknown }).target as
+      | (Element & { src?: string; href?: string; currentSrc?: string })
+      | null
+      | undefined;
+    const tag = target?.tagName?.toLowerCase();
+    if (tag) parts.push(`from <${tag}>`);
+    const url =
+      readString(target?.currentSrc) ?? readString(target?.src) ?? readString(target?.href);
+    if (url) parts.push(`— ${url.split(/[?#]/)[0].slice(0, EVENT_URL_MAX_LENGTH)}`);
+  } catch {
+    // Cross-origin or detached targets throw on access — the type alone still
+    // beats a key list.
+  }
+
+  return parts.join(" ").slice(0, MESSAGE_MAX_LENGTH);
+}
+
 export function describeRejection(reason: unknown): RejectionDescription {
   try {
     if (reason instanceof Error) {
@@ -134,8 +191,12 @@ export function describeRejection(reason: unknown): RejectionDescription {
     // `errorMessage` feeds computeSignature, so a message carrying volatile fields
     // (requestId, timestamps) would give every occurrence a unique signature and
     // defeat dedup entirely. The values still travel in `details`.
+    //
+    // An event is the one shapeless reason worth reporting: its type and target
+    // name the failing resource, so it gets a real message and stays actionable.
     return {
-      message: message || describeShape(reason),
+      message:
+        message || (isEventLike(reason) ? describeEvent(reason) : describeShape(reason)),
       stack,
       details,
     };

@@ -20,6 +20,7 @@ import type {
 } from "./types";
 import { GlitchgrabErrorBoundary } from "./error-boundary";
 import { ReportDialog } from "@glitchgrab/report-ui";
+import { BookingDialog } from "./booking-dialog";
 import { sanitizeUrl, captureContext, contextMetadata, sendReport, sendFeedback, captureDeviceInfo, enhanceText, transcribeAudio, type EnhanceContext } from "./utils";
 import {
   setContext as setContextInternal,
@@ -528,6 +529,16 @@ function GlitchgrabProviderInner({
    */
   const [projectName, setProjectName] = useState<string | null>(null);
 
+  /**
+   * Demo booking, opened from the host app's own "Book a demo" button.
+   *
+   * State lives here rather than in the button so a host can trigger it from
+   * anywhere — a pricing table, a nav item, the end of a blog post — without
+   * every one of those places owning a dialog.
+   */
+  const [bookingOpen, setBookingOpen] = useState(false);
+  const openBookingDialog = useCallback(() => setBookingOpen(true), []);
+
   useEffect(() => {
     let cancelled = false;
     fetch(`${baseUrl}/api/v1/sdk/project`, {
@@ -595,6 +606,7 @@ function GlitchgrabProviderInner({
         openFeedbackDialog,
         addBreadcrumb,
         openReportDialog,
+        openBookingDialog,
         enhanceText: enhance,
         shortcutLabel,
       }}
@@ -609,6 +621,12 @@ function GlitchgrabProviderInner({
       >
         {children}
       </GlitchgrabErrorBoundary>
+      <BookingDialog
+        token={token}
+        baseUrl={baseUrl ?? DEFAULT_BASE_URL}
+        open={bookingOpen}
+        onClose={() => setBookingOpen(false)}
+      />
       <ReportDialog
         report={report}
         sendFeedback={feedback}

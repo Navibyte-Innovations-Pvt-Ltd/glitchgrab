@@ -5,6 +5,7 @@ import { InnerPageHeader } from "@/components/dashboard/inner-page-header";
 import { MeetingsList } from "./meetings-list";
 import { SendBot } from "./send-bot";
 import { UpcomingCalls } from "./upcoming-calls";
+import { BookingSettings } from "./booking-settings";
 
 /**
  * Recorded client calls (#311 Phase B/C).
@@ -29,6 +30,7 @@ export default async function OrgMeetingsPage({
         meta="audio only · stored private · repo-scoped access"
       />
       <UpcomingCalls />
+      <BookingSettings />
       <SendBot />
       <MeetingsList orgSlug={ctx.orgSlug} />
     </div>

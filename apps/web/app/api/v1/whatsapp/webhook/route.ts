@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { reopenGitHubIssue } from "@/lib/github";
 import { getInstallationAccessToken } from "@/lib/github-app";
 import { sendDeveloperReopenedNotification } from "@/lib/whatsapp";
+import { handleBookingMessage } from "@/lib/whatsapp-booking";
 
 function verifySignature(body: string, signature: string | null): boolean {
   const appSecret = process.env.META_WA_APP_SECRET;
@@ -58,6 +59,12 @@ export async function POST(request: Request) {
               from: string;
               type: string;
               button?: { payload: string; text: string };
+              text?: { body: string };
+              interactive?: {
+                type: string;
+                list_reply?: { id: string; title: string };
+                button_reply?: { id: string; title: string };
+              };
             }>;
             statuses?: Array<{
               id: string;
@@ -83,15 +90,34 @@ export async function POST(request: Request) {
     }
 
     for (const message of messages) {
-      if (message.type !== "button" || !message.button?.payload) continue;
-
-      const { payload: btnPayload } = message.button;
-
-      if (btnPayload.startsWith("gg_no_")) {
-        const issueId = btnPayload.slice("gg_no_".length);
-        await handleReporterSaidNo(issueId);
+      // Template quick-reply taps (issue resolved yes/no) — unchanged.
+      if (message.type === "button" && message.button?.payload) {
+        const { payload: btnPayload } = message.button;
+        if (btnPayload.startsWith("gg_no_")) {
+          const issueId = btnPayload.slice("gg_no_".length);
+          await handleReporterSaidNo(issueId);
+        }
+        // "gg_yes_" → no action needed
+        continue;
       }
-      // "gg_yes_" → no action needed
+
+      // Demo booking: someone typed to us, or tapped a row in a picker we sent.
+      //
+      // Awaited rather than fired and forgotten — an un-awaited fetch in a
+      // route handler is killed the moment the response is sent, and the reply
+      // would silently never leave. Meta retries on a non-200, so failing loudly
+      // here is safer than answering 200 having done nothing.
+      if (message.type === "text" && message.text?.body) {
+        await handleBookingMessage({ phone: message.from, text: message.text.body });
+        continue;
+      }
+
+      if (message.type === "interactive" && message.interactive?.list_reply?.id) {
+        await handleBookingMessage({
+          phone: message.from,
+          listReplyId: message.interactive.list_reply.id,
+        });
+      }
     }
 
     return NextResponse.json({ ok: true });

@@ -849,6 +849,16 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
       .catch(() => reply({ dataUrl: null }));
     return true;
   }
+  if (msg.type === "MEET_OPEN_LOGIN") {
+    // The pill can't open a tab itself, and a signed-out operator has no way
+    // to find the dashboard from inside a call.
+    void chrome.storage.local.get("gg_api_base").then(({ gg_api_base }) => {
+      void chrome.tabs.create({
+        url: `${resolveApiBase(gg_api_base as string | undefined)}/login`,
+      });
+    });
+    return false;
+  }
   if (msg.type === "MEET_REMEMBER_REPO") {
     void chrome.storage.local.set({ gg_meeting_repo: msg.repoId });
     return false;
@@ -880,6 +890,9 @@ const RESOLVE_FRESH_BUDGET_MS = 2500;
 /** Cached repo lists older than this are treated as gone. */
 const RESOLVE_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
+/** A 401/403/404 from the server: the session is gone, not the network. */
+class SessionDeadError extends Error {}
+
 interface CachedRepos {
   repos: { id: string; fullName: string }[];
   at: number;
@@ -896,9 +909,23 @@ async function resolveMeetProject(meetUrl: string) {
   // Wait for the stored session — and mint one if there isn't a live one.
   await ensureSession();
 
+  const notSignedIn = async (why: string) => {
+    trace(why);
+    const { gg_api_base } = await chrome.storage.local.get("gg_api_base");
+    return {
+      ok: false,
+      error: "Not signed in",
+      needsLogin: true,
+      loginUrl: `${resolveApiBase(gg_api_base as string | undefined)}/login`,
+    };
+  };
+
   if (!tester) {
     trace("no tester session — extension is not logged in");
-    return { ok: false, error: "Not logged in" };
+    // Say WHICH kind of failure this is. "Not logged in" is not a transient
+    // error the pill should quietly retry behind a spinner — it needs the
+    // operator to do something, and it needs somewhere to send them.
+    return notSignedIn("no tester session");
   }
   trace(`session=${tester.sessionId.slice(0, 8)}… apiBase=${tester.apiBase}`);
   if (/localhost|127\.0\.0\.1/.test(tester.apiBase)) {
@@ -916,6 +943,14 @@ async function resolveMeetProject(meetUrl: string) {
       `${session.apiBase}/api/v1/meetings/resolve?meetUrl=${encodeURIComponent(meetUrl)}`,
       { headers: { ...authHeaders(), "x-gg-session": session.sessionId } }
     );
+    if (res.status === 401 || res.status === 403 || res.status === 404) {
+      // A stored session the server no longer honours. Indistinguishable from
+      // "not logged in" to the operator, and it is the COMMON case: the
+      // session outlives itself, `ensureSession` short-circuits on the stale
+      // object, and the pill spins. Drop it so the next pass re-mints or asks.
+      await forgetDeadSession(`resolve got ${res.status}`);
+      throw new SessionDeadError(`Server said ${res.status}`);
+    }
     if (!res.ok) throw new Error(`Server said ${res.status}`);
 
     const json = (await res.json()) as {
@@ -978,6 +1013,11 @@ async function resolveMeetProject(meetUrl: string) {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     trace(`failed: ${message}`);
+
+    // Cached projects would let the operator pick one and dispatch a bot with
+    // a session the server has already rejected — a silent failure in front of
+    // a client. Ask for a sign-in instead.
+    if (err instanceof SessionDeadError) return notSignedIn(`session rejected: ${message}`);
 
     const cached = await readCachedRepos();
     if (cached) {

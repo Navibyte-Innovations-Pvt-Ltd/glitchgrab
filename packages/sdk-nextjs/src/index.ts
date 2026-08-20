@@ -5,6 +5,7 @@ export { GlitchgrabProvider, useGlitchgrab } from "./provider";
 
 // ─── Optional Components ─────────────────────────────────
 export { ReportButton } from "./report-button";
+export { BookDemoButton } from "./book-demo-button";
 export { FeedbackButton } from "./feedback-button";
 export { GlitchgrabErrorBoundary } from "./error-boundary";
 

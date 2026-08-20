@@ -7,8 +7,10 @@ import { buildCalendarAuthUrl, CALENDAR_STATE_COOKIE } from "@/lib/calendar";
 /**
  * GET /api/v1/calendar/auth — begin connecting a Google Calendar.
  *
- * Read-only scopes: we look at when your meetings are and whether they carry a
- * Meet link. We never create, move or delete anything in anyone's calendar.
+ * Asks for read AND write, because demo booking creates the event and its Meet
+ * link on this calendar. Nothing is ever moved or deleted; the only writes are
+ * demos someone booked, and free/busy is read so offered slots reflect a real
+ * day rather than a guess.
  *
  * The random nonce set here is what ties the OAuth state to THIS browser, so a
  * state minted by an attacker cannot be completed in someone else's session.

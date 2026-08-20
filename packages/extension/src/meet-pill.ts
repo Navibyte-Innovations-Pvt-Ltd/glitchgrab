@@ -37,8 +37,15 @@ interface PillState {
   botStatus: string | null;
   /** The bot is visible in the participant list, whatever the server says. */
   inRoom: boolean;
-  phase: "loading" | "idle" | "sending" | "sent" | "error";
+  /**
+   * "signedout" is deliberately not "error": it is not something to retry
+   * behind a spinner, it is a question for the operator. A disabled busy dot
+   * with the reason hidden in a tooltip read as "still loading", forever.
+   */
+  phase: "loading" | "signedout" | "idle" | "sending" | "sent" | "error";
   message: string;
+  /** Where to send the operator to sign in. Set with the "signedout" phase. */
+  loginUrl: string | null;
 }
 
 const state: PillState = {
@@ -49,6 +56,7 @@ const state: PillState = {
   inRoom: false,
   phase: "loading",
   message: "connecting…",
+  loginUrl: null,
 };
 
 let root: HTMLElement | null = null;
@@ -303,6 +311,15 @@ function styles(): string {
       white-space: normal; line-height: 1.4;
     }
     #${POPOVER_ID} .gg-foot.gg-error { color: #f28b82; }
+    /* Signed out: the whole panel is the affordance, so it has to look like it. */
+    #${POPOVER_ID}.gg-signin { cursor: pointer; }
+    #${POPOVER_ID}.gg-signin .gg-head { color: #f28b82; }
+    #${POPOVER_ID}.gg-signin .gg-foot { border-top: none; margin-top: 0; }
+    #${POPOVER_ID}.gg-signin .gg-cta {
+      display: inline-block; margin: 8px 0 4px; padding: 8px 16px;
+      border-radius: 20px; background: #a8c7fa; color: #062e6f;
+      font-size: 14px; font-weight: 500;
+    }
     /* Once the bot is on its way the list is no longer a choice. */
     #${POPOVER_ID}.gg-locked .gg-item { cursor: default; opacity: .6; }
     #${POPOVER_ID}.gg-locked .gg-item:hover { background: transparent; }
@@ -438,6 +455,7 @@ function statusLine(): string {
   const project = state.repos.find((r) => r.id === state.repoId)?.fullName;
 
   if (state.phase === "error") return state.message;
+  if (state.phase === "signedout") return "Sign in to Glitchgrab to record this call";
   if (state.phase === "loading") return state.message;
   if (state.phase === "sending") return `Sending the bot to ${project ?? "your project"}…`;
   if (state.phase === "sent") return botPhaseLabel() ?? "Bot is on its way…";
@@ -446,6 +464,8 @@ function statusLine(): string {
 
 function dotClass(): string {
   if (state.phase === "error") return " bad";
+  // Signed out is a stop, not a wait — no spinning ring, no busy dot.
+  if (state.phase === "signedout") return " bad";
   if (state.phase === "loading" || state.phase === "sending") return " busy";
 
   if (state.phase === "sent") {
@@ -521,6 +541,78 @@ function closePopover() {
   }
 }
 
+/** Send the operator to the dashboard login, in a new tab. */
+function openLogin() {
+  const url = state.loginUrl ?? "https://glitchgrab.dev/login";
+  log(`opening ${url} to sign in`);
+  // Through the background worker: a content script's window.open on Meet is
+  // at the mercy of the page's popup handling, and chrome.tabs isn't available
+  // here. Fire-and-forget, with window.open as the fallback if the worker is
+  // gone (the tab is the point, not the reply).
+  void send({ type: "MEET_OPEN_LOGIN" });
+  pokeRetry();
+}
+
+/**
+ * The signed-out panel: why the button does nothing, and the way out.
+ *
+ * Same hover surface as the project list, because that is where the operator
+ * already looks. The reason used to live only in a tooltip on a 20px dot, so
+ * in practice the pill just spun.
+ */
+function openSignedOutPopover() {
+  if (!root) return;
+
+  const panel = document.createElement("div");
+  panel.id = POPOVER_ID;
+  panel.className = "gg-signin";
+
+  const head = document.createElement("div");
+  head.className = "gg-head";
+  head.textContent = "Not signed in";
+  panel.appendChild(head);
+
+  const foot = document.createElement("div");
+  foot.className = "gg-foot";
+  foot.textContent = "Glitchgrab can't record this call until you sign in.";
+  panel.appendChild(foot);
+
+  const cta = document.createElement("div");
+  cta.className = "gg-cta";
+  cta.textContent = "Sign in to Glitchgrab";
+  panel.appendChild(cta);
+
+  panel.addEventListener("mouseenter", () => {
+    if (popoverTimer) clearTimeout(popoverTimer);
+  });
+  panel.addEventListener("mouseleave", scheduleClosePopover);
+  panel.addEventListener("click", () => {
+    closePopover();
+    openLogin();
+  });
+
+  onDocumentDown = (e: MouseEvent) => {
+    const target = e.target as Node;
+    if (panel.contains(target) || root?.contains(target)) return;
+    closePopover();
+  };
+  document.addEventListener("mousedown", onDocumentDown, true);
+
+  document.body.appendChild(panel);
+
+  const anchor = root.getBoundingClientRect();
+  const box = panel.getBoundingClientRect();
+  const left = Math.max(8, Math.min(anchor.left, window.innerWidth - box.width - 8));
+  const above = anchor.top - box.height - 12;
+  const below = anchor.bottom + 12;
+  const top = Math.max(
+    8,
+    Math.min(above < 8 ? below : above, window.innerHeight - box.height - 8)
+  );
+  panel.style.left = `${left}px`;
+  panel.style.top = `${top}px`;
+}
+
 /**
  * Show the project list above the button.
  *
@@ -529,7 +621,13 @@ function closePopover() {
  * has to be inspectable and changeable before a client call.
  */
 function openPopover() {
-  if (!root || state.repos.length === 0) return;
+  if (!root) return;
+  if (state.phase === "signedout") {
+    closePopover();
+    openSignedOutPopover();
+    return;
+  }
+  if (state.repos.length === 0) return;
   closePopover();
 
   const panel = document.createElement("div");
@@ -896,6 +994,89 @@ function openRecordDialog() {
   log("asked whether to record this call");
 }
 
+/**
+ * "Sign in to record this call" — asked once, just after joining.
+ *
+ * Same reasoning as the record dialog: a 20px dot in the corner is where
+ * ongoing status lives, not where a question gets answered. Signing out is the
+ * one failure that no amount of retrying fixes, so it is the one that most
+ * needs saying out loud — and it used to say it only in a tooltip, on a dot
+ * that spins like it is still working.
+ */
+function openSignInDialog() {
+  if (document.getElementById(`${DIALOG_ID}-scrim`)) return;
+
+  closePopover();
+
+  const scrim = document.createElement("div");
+  scrim.id = `${DIALOG_ID}-scrim`;
+
+  const dialog = document.createElement("div");
+  dialog.id = DIALOG_ID;
+  dialog.setAttribute("role", "dialog");
+  dialog.setAttribute("aria-modal", "true");
+  dialog.setAttribute("aria-label", "Sign in to Glitchgrab");
+
+  const title = document.createElement("h2");
+  title.textContent = "Sign in to record this call";
+  dialog.appendChild(title);
+
+  const sub = document.createElement("p");
+  sub.className = "gg-sub";
+  sub.textContent =
+    "Glitchgrab isn't signed in on this browser, so it can't send the recording bot. Sign in and the badge picks up on its own — no need to reload the call.";
+  dialog.appendChild(sub);
+
+  const actions = document.createElement("div");
+  actions.className = "gg-actions";
+
+  const dismiss = document.createElement("button");
+  dismiss.className = "gg-btn";
+  dismiss.textContent = "Not now";
+
+  const signIn = document.createElement("button");
+  signIn.className = "gg-btn gg-primary";
+  signIn.textContent = "Sign in";
+
+  actions.append(dismiss, signIn);
+  dialog.appendChild(actions);
+
+  function close() {
+    scrim.remove();
+    document.removeEventListener("keydown", onKey, true);
+    if (closeSignInDialog === close) closeSignInDialog = null;
+  }
+  closeSignInDialog = close;
+
+  function onKey(e: KeyboardEvent) {
+    if (e.key === "Escape") {
+      e.stopPropagation();
+      close();
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      close();
+      openLogin();
+    }
+  }
+
+  dismiss.addEventListener("click", close);
+  signIn.addEventListener("click", () => {
+    close();
+    openLogin();
+  });
+  scrim.addEventListener("click", (e) => {
+    if (e.target === scrim) close();
+  });
+  dialog.addEventListener("click", (e) => e.stopPropagation());
+  document.addEventListener("keydown", onKey, true);
+
+  scrim.appendChild(dialog);
+  document.body.appendChild(scrim);
+  signIn.focus({ preventScroll: true });
+
+  log("told the operator they are signed out");
+}
+
 function scheduleClosePopover() {
   if (popoverTimer) clearTimeout(popoverTimer);
   // Small grace so moving the pointer from button to panel doesn't close it.
@@ -1207,6 +1388,14 @@ let lastMountLog = "";
 
 /** The picker opens by itself once per call, never again — nagging is not a nudge. */
 let promptedInCall = false;
+/** The signed-out modal is shown once per call, independent of the project one. */
+let promptedSignIn = false;
+/**
+ * Torn down the moment a session appears. Signing in in another tab has to
+ * clear this modal by itself — leaving "sign in to record" on screen after the
+ * sign-in worked is the same lie the spinner was.
+ */
+let closeSignInDialog: (() => void) | null = null;
 
 function mountLog(message: string) {
   if (message === lastMountLog) return;
@@ -1264,6 +1453,14 @@ function ensureMounted() {
     button = document.createElement("button");
     button.id = PILL_ID;
     button.addEventListener("click", () => {
+      // Signed out: the only useful thing a click can do is open the login
+      // page. Swallowing it (or opening an empty project list) is what made
+      // this look broken rather than logged out.
+      if (state.phase === "signedout") {
+        closePopover();
+        openLogin();
+        return;
+      }
       // Nothing chosen yet, so there is nothing to start — ask properly
       // instead of swallowing the click.
       if (!state.repoId) {
@@ -1286,16 +1483,27 @@ function ensureMounted() {
 
     // If the project lookup is still sleeping off an earlier failure, this is
     // the moment to retry it.
-    if (state.phase === "loading") pokeRetry();
+    if (state.phase === "loading" || state.phase === "signedout") pokeRetry();
 
     // Ask once, just after joining — the button mounts the moment "Leave call"
     // exists, which is exactly when recording becomes a live decision. A
     // control nobody notices is the same as no control at all, and this is the
     // one question that has to be answered early or not at all.
     if (!promptedInCall) {
-      promptedInCall = true;
       setTimeout(() => {
-        if (isInCall() && state.phase === "idle" && !state.repoId) openRecordDialog();
+        if (!isInCall() || promptedInCall) return;
+        // Signed out is its own question — and claiming the one prompt while
+        // the phase is still "loading" is why signing in mid-call used to land
+        // on an idle badge that never asked anything.
+        if (state.phase === "signedout") {
+          promptedInCall = true;
+          openSignInDialog();
+          return;
+        }
+        if (state.phase === "idle" && !state.repoId) {
+          promptedInCall = true;
+          openRecordDialog();
+        }
       }, 1200);
     }
   } else if (root !== button) {
@@ -1447,6 +1655,9 @@ export async function mountMeetPill(): Promise<void> {
         botStatus: string | null;
       } | null;
       lastRepoId?: string | null;
+      /** The failure is "sign in", not "try again" — see the signedout phase. */
+      needsLogin?: boolean;
+      loginUrl?: string | null;
       /** True when the repo list came from cache because the server was slow. */
       stale?: boolean;
       error?: string;
@@ -1466,6 +1677,22 @@ export async function mountMeetPill(): Promise<void> {
       continue;
     }
     if (!resolved.ok) {
+      if (resolved.needsLogin) {
+        // Keep looping — signing in happens in another tab, and the pill has
+        // to notice on its own or the operator reloads Meet mid-call.
+        state.phase = "signedout";
+        state.loginUrl = resolved.loginUrl ?? null;
+        // Say it once, where it will actually be seen. `promptedSignIn` is
+        // separate from `promptedInCall`: being told you are signed out must
+        // not consume the "which project?" question you get after signing in.
+        if (isInCall() && !promptedSignIn) {
+          promptedSignIn = true;
+          openSignInDialog();
+        }
+        await retry(resolved.error ?? "not signed in");
+        continue;
+      }
+      state.phase = "loading";
       await retry(resolved.error ?? "could not resolve project");
       continue;
     }
@@ -1475,6 +1702,11 @@ export async function mountMeetPill(): Promise<void> {
       await retry("no projects");
       continue;
     }
+
+    // Signed in after all — take the "sign in" modal off the screen before
+    // anything else renders behind it.
+    closeSignInDialog?.();
+    promptedSignIn = false;
 
     state.repos = resolved.repos;
 
