@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import { CalendarClock, Loader2 } from "lucide-react";
+import { CalendarClock, Check, Copy, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface ContextRepo {
@@ -22,6 +22,24 @@ interface BookingPage {
   horizonDays: number;
   noticeMinutes: number;
   whatsappCode: string | null;
+  calendarConnectionId: string | null;
+}
+
+interface Connection {
+  id: string;
+  googleEmail: string;
+}
+
+/**
+ * A project's own name is the right WhatsApp code nine times out of ten.
+ *
+ * Left empty it reads as optional, gets saved blank, and the "Book on WhatsApp"
+ * link is silently never generated — the placeholder looked like a value, which
+ * is worse than no suggestion at all.
+ */
+function defaultWhatsappCode(fullName: string): string {
+  const name = fullName.includes("/") ? fullName.split("/")[1] : fullName;
+  return name.toLowerCase().replace(/[^a-z0-9-]/g, "");
 }
 
 const DAYS = [
@@ -54,6 +72,7 @@ export function BookingSettings() {
   });
 
   const activeRepo = repoId || repos[0]?.id || "";
+  const activeRepoName = repos.find((r) => r.id === activeRepo)?.fullName ?? "";
 
   const { data, isLoading } = useQuery({
     queryKey: ["booking-page", activeRepo],
@@ -64,6 +83,7 @@ export function BookingSettings() {
         page: BookingPage | null;
         calendarConnected: boolean;
         calendarEmail: string | null;
+        connections: Connection[];
         defaults: { workingHours: Record<string, [string, string][]>; slotMinutes: number; timezone: string };
       };
     },
@@ -104,7 +124,12 @@ export function BookingSettings() {
           key={activeRepo}
           repoId={activeRepo}
           initial={
-            data.page ?? {
+            data.page
+              ? {
+                  ...data.page,
+                  whatsappCode: data.page.whatsappCode || defaultWhatsappCode(activeRepoName),
+                }
+              : {
               enabled: false,
               slotMinutes: data.defaults.slotMinutes,
               bufferMinutes: 0,
@@ -114,10 +139,12 @@ export function BookingSettings() {
               description: null,
               horizonDays: 15,
               noticeMinutes: 120,
-              whatsappCode: null,
+              whatsappCode: defaultWhatsappCode(activeRepoName),
+              calendarConnectionId: null,
             }
           }
           calendarConnected={data.calendarConnected}
+          connections={data.connections ?? []}
         />
       )}
     </div>
@@ -128,13 +155,37 @@ function BookingForm({
   repoId,
   initial,
   calendarConnected,
+  connections,
 }: {
   repoId: string;
   initial: BookingPage;
   calendarConnected: boolean;
+  connections: Connection[];
 }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<BookingPage>(initial);
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  /**
+   * A link the client opens themselves.
+   *
+   * "Connect another Google account" only works in THIS browser, signed in as
+   * you — useless for a client whose Gmail lives on their own machine. This
+   * mints a one-time link to send them instead.
+   */
+  const invite = useMutation({
+    mutationFn: async () => {
+      const { data } = await axios.post("/api/v1/calendar/invite", { repoId });
+      return data.data as { url: string; expiresAt: string };
+    },
+    onSuccess: (data) => {
+      setInviteUrl(data.url);
+      setCopied(false);
+      toast.success("Link ready — send it to the client");
+    },
+    onError: () => toast.error("Could not create the link"),
+  });
 
   const save = useMutation({
     mutationFn: async () => {
@@ -188,6 +239,77 @@ function BookingForm({
             />
             Accept demo bookings for this project
           </label>
+
+          {/* Which Google account this project books into.
+              One Glitchgrab login can hold a client's calendar next to your
+              own, and a demo for their product belongs on their calendar. */}
+          <div className="space-y-1">
+            <div className="text-xs text-muted-foreground">
+              Book demos into this Google account
+            </div>
+            <select
+              value={form.calendarConnectionId ?? ""}
+              onChange={(e) =>
+                setForm({ ...form, calendarConnectionId: e.target.value || null })
+              }
+              className="w-full bg-background border border-border rounded px-2 py-1.5 text-sm"
+            >
+              <option value="">
+                {connections[0]
+                  ? `Default — ${connections[0].googleEmail}`
+                  : "No calendar connected"}
+              </option>
+              {connections.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.googleEmail}
+                </option>
+              ))}
+            </select>
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              <a
+                href="/api/v1/calendar/auth"
+                className="text-[10px] text-primary hover:underline"
+              >
+                connect another Google account
+              </a>
+              <button
+                type="button"
+                onClick={() => invite.mutate()}
+                disabled={invite.isPending}
+                className="text-[10px] text-primary hover:underline disabled:opacity-60"
+              >
+                {invite.isPending ? "creating…" : "get a link for the client to connect theirs"}
+              </button>
+            </div>
+
+            {inviteUrl && (
+              <div className="border border-border rounded p-2 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <input
+                    readOnly
+                    value={inviteUrl}
+                    onFocus={(e) => e.currentTarget.select()}
+                    className="flex-1 bg-background border border-border rounded px-2 py-1 font-mono text-[10px] text-foreground"
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(inviteUrl);
+                      setCopied(true);
+                    }}
+                    className="inline-flex items-center gap-1 border border-border rounded px-2 py-1 text-[10px] hover:border-primary/40"
+                  >
+                    {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                    {copied ? "copied" : "copy"}
+                  </button>
+                </div>
+                <div className="text-[10px] text-muted-foreground">
+                  Send this to the client. They sign in with their own Google — no Glitchgrab
+                  account needed. Works once, expires in 7 days.
+                </div>
+              </div>
+            )}
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <Num label="Slot length (min)" value={form.slotMinutes} onChange={(v) => setForm({ ...form, slotMinutes: v })} />
