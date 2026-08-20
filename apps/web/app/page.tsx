@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import { version } from "../package.json";
+import { BookDemoCta } from "@/components/marketing/book-demo-cta";
 import { softwareApplicationSchema } from "@/lib/schema";
 import { BreadcrumbJsonLd, FAQJsonLd, DemoVideoJsonLd, SdkProductJsonLd } from "@/components/seo/json-ld";
 import { PublicNav } from "@/components/public-nav";
@@ -1014,6 +1015,15 @@ export default function LandingPage() {
           <p className="font-mono text-sm text-muted-foreground mt-2">
             Feature request, feedback, partnership — we read every message.
           </p>
+
+          {/* Booking sits above the form on purpose: someone who wants to be
+              shown the product should not have to write a message and wait. */}
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <BookDemoCta />
+            <span className="font-mono text-xs text-muted-foreground">
+              30 minutes, on Google Meet — pick a time that suits you.
+            </span>
+          </div>
         </div>
 
         <div className="border border-border bg-card p-5 sm:p-8 rounded-md">
