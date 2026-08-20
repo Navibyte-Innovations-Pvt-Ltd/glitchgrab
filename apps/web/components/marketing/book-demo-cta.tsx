@@ -4,6 +4,23 @@ import { useGlitchgrab } from "glitchgrab";
 import { CalendarClock } from "lucide-react";
 
 /**
+ * `useGlitchgrab` throws outside a provider, and the provider is a passthrough
+ * when no token is configured — which is the case during a production build,
+ * where `NEXT_PUBLIC_GLITCHGRAB_TOKEN` is not present. Prerendering the home
+ * page then failed the whole build.
+ *
+ * Booking is an enhancement, not the page: with no provider we render nothing
+ * rather than taking the marketing site down with us.
+ */
+function useGlitchgrabSafe() {
+  try {
+    return useGlitchgrab();
+  } catch {
+    return null;
+  }
+}
+
+/**
  * "Book a demo" on our own marketing site.
  *
  * Dogfooding the same dialog customers embed: it reads our real Google
@@ -18,7 +35,10 @@ export function BookDemoCta({
 }: {
   variant?: "primary" | "ghost";
 }) {
-  const { openBookingDialog } = useGlitchgrab();
+  const glitchgrab = useGlitchgrabSafe();
+  if (!glitchgrab) return null;
+
+  const { openBookingDialog } = glitchgrab;
 
   if (variant === "ghost") {
     return (
