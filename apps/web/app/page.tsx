@@ -1002,6 +1002,48 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* What the app does, in plain language.
+          Google's OAuth verification rejects a homepage that does not explain
+          the app's purpose, and ours described bug tracking while asking for
+          calendar access — a reviewer had no way to connect the two. This is
+          also simply true and worth saying to a visitor. */}
+      <section className="max-w-2xl mx-auto px-4 sm:px-6 py-16 sm:py-24 border-t border-border">
+        <div className="mb-8">
+          <div className="font-mono text-xs text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-2">
+            <span className="w-1 h-3 bg-primary inline-block" />
+            /what-it-does
+          </div>
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground">
+            Bugs, demos, and the calls in between.
+          </h2>
+        </div>
+
+        <div className="space-y-5 text-sm text-muted-foreground leading-relaxed">
+          <p>
+            Glitchgrab turns what happens around your product into GitHub issues and searchable
+            records. Errors in your app become issues automatically. Anyone can file a bug from
+            any page with a keyboard shortcut, screenshot attached.
+          </p>
+          <p>
+            It also schedules and records your client calls.{" "}
+            <strong className="text-foreground">Connect your Google Calendar</strong> and prospects
+            can book a demo from your own website or over WhatsApp, choosing from times you are
+            genuinely free. Glitchgrab creates the event on your calendar with a Google Meet link
+            and invites them. A notetaker joins the call, records it, and files the transcript
+            against the right project.
+          </p>
+          <p>
+            Your calendar is read only to work out your availability and to manage the demos booked
+            through Glitchgrab. We never modify or delete anything we did not create, and never
+            touch anyone else&apos;s calendar. Full detail is in our{" "}
+            <a href="/privacy" className="text-primary hover:underline">
+              privacy policy
+            </a>
+            .
+          </p>
+        </div>
+      </section>
+
       {/* Contact */}
       <section className="max-w-2xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
         <div className="mb-8">
