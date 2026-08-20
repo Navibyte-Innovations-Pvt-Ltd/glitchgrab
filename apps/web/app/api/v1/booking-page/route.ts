@@ -35,9 +35,10 @@ export async function GET(request: Request) {
   }
 
   const page = await prisma.bookingPage.findUnique({ where: { repoId: repo.id } });
-  const connection = await prisma.calendarConnection.findFirst({
+  const connections = await prisma.calendarConnection.findMany({
     where: { userId: session.user.id },
-    select: { googleEmail: true },
+    select: { id: true, googleEmail: true },
+    orderBy: { createdAt: "asc" },
   });
 
   return NextResponse.json({
@@ -46,8 +47,11 @@ export async function GET(request: Request) {
       page,
       // Booking cannot work without a calendar, and "no slots" is a terrible
       // way to discover that.
-      calendarConnected: Boolean(connection),
-      calendarEmail: connection?.googleEmail ?? null,
+      calendarConnected: connections.length > 0,
+      calendarEmail: connections[0]?.googleEmail ?? null,
+      // Every Google account on this Glitchgrab login, so a project can be
+      // pointed at the client's own calendar rather than the first one added.
+      connections,
       defaults: { workingHours: DEFAULT_HOURS, slotMinutes: 60, timezone: "Asia/Kolkata" },
     },
   });
@@ -71,6 +75,7 @@ export async function PUT(request: Request) {
     horizonDays?: number;
     noticeMinutes?: number;
     whatsappCode?: string;
+    calendarConnectionId?: string | null;
   };
 
   const repo = await assertRepoAccess(session.user.id, body.repoId);
@@ -95,7 +100,25 @@ export async function PUT(request: Request) {
     }
   }
 
+  // Only a calendar this login actually owns — otherwise a repoId plus a
+  // guessed connection id would point one project at another account's diary.
+  let calendarConnectionId: string | null = null;
+  if (body.calendarConnectionId) {
+    const owned = await prisma.calendarConnection.findFirst({
+      where: { id: body.calendarConnectionId, userId: session.user.id },
+      select: { id: true },
+    });
+    if (!owned) {
+      return NextResponse.json(
+        { success: false, error: "That calendar is not connected to your account" },
+        { status: 403 }
+      );
+    }
+    calendarConnectionId = owned.id;
+  }
+
   const data = {
+    calendarConnectionId,
     enabled: body.enabled ?? false,
     slotMinutes: Math.min(Math.max(body.slotMinutes ?? 60, 15), 180),
     bufferMinutes: Math.min(Math.max(body.bufferMinutes ?? 0, 0), 120),

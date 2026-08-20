@@ -129,13 +129,21 @@ async function slotsByDay(repoId: string): Promise<SlotsResult> {
     where: { id: repoId },
     select: { userId: true },
   });
-  const connection = owner
-    ? await prisma.calendarConnection.findFirst({
-        where: { userId: owner.userId },
-        select: { id: true },
-        orderBy: { createdAt: "asc" },
-      })
-    : null;
+  // Same rule as the website path: the project's chosen calendar, falling back
+  // to the oldest connection. Two code paths disagreeing about which calendar a
+  // project uses would book demos into two different Google accounts.
+  const connection = !owner
+    ? null
+    : page.calendarConnectionId
+      ? await prisma.calendarConnection.findFirst({
+          where: { id: page.calendarConnectionId, userId: owner.userId },
+          select: { id: true },
+        })
+      : await prisma.calendarConnection.findFirst({
+          where: { userId: owner.userId },
+          select: { id: true },
+          orderBy: { createdAt: "asc" },
+        });
   if (!connection) return { ok: false, error: "This project has no calendar connected" };
 
   const availability = await getAvailability({

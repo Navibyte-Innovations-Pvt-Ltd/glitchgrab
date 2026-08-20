@@ -50,6 +50,7 @@ model User {
   extensionSessions   ExtensionSession[]
   repoMemberships     RepoMember[]
   calendarConnections CalendarConnection[]
+  calendarInvites     CalendarInvite[]
 }
 
 model WhatsappOtp {
@@ -144,6 +145,7 @@ model Repo {
   bookingPage       BookingPage?
   bookings          Booking[]
   clientLinks       ClientProject[]
+  calendarInvites   CalendarInvite[]
   extensionSessions ExtensionSession[]
   members           RepoMember[]
   contextItems      ProjectContextItem[]
@@ -669,8 +671,9 @@ model CalendarConnection {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  user     User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  bookings ScheduledRecording[]
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookings     ScheduledRecording[]
+  bookingPages BookingPage[]
 
   @@unique([userId, googleEmail])
 }
@@ -886,6 +889,41 @@ model WhatsappThread {
   @@index([step, updatedAt])
 }
 
+/// A one-time link that lets someone else attach THEIR Google Calendar to one
+/// of your projects.
+///
+/// The client whose demos we are booking has their own Gmail, on their own
+/// machine. The normal connect flow needs a Glitchgrab session, so it only ever
+/// works for the account holder — this is the way to say "open this and sign in
+/// with your own Google", without giving them a login or sight of the dashboard.
+///
+/// Deliberately narrow: an invite can only ADD a calendar to the one project it
+/// was minted for. It grants no read access to anything, and dies on first use.
+model CalendarInvite {
+  id String @id @default(cuid())
+
+  /// Whose Glitchgrab account the resulting connection belongs to.
+  userId String
+  /// The project whose demos this calendar will host.
+  repoId String
+
+  /// Shown on the landing page so the client knows what they are agreeing to.
+  label String?
+
+  /// Single-use. Set the moment a connection is created from it.
+  usedAt    DateTime?
+  /// Set once used — which connection this invite produced.
+  connectionId String?
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repo Repo @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+}
+
 model BookingPage {
   id     String @id @default(cuid())
   repoId String @unique
@@ -912,6 +950,15 @@ model BookingPage {
   /// projects because it arrives as bare text with nothing else to scope it.
   whatsappCode String? @unique
 
+  /// Which connected Google account this project's demos are booked into.
+  ///
+  /// One Glitchgrab account can hold a client's calendar alongside its own —
+  /// PracticeStack demos belong on the PracticeStack calendar, not on whichever
+  /// account happened to be connected first. Null falls back to the oldest
+  /// connection, which is right for a single-calendar setup and wrong the
+  /// moment a second client is added.
+  calendarConnectionId String?
+
   /// Shown at the top of the booking dialog.
   title       String?
   description String?
@@ -924,8 +971,9 @@ model BookingPage {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  repo     Repo      @relation(fields: [repoId], references: [id], onDelete: Cascade)
-  bookings Booking[]
+  repo       Repo                @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  connection CalendarConnection? @relation(fields: [calendarConnectionId], references: [id], onDelete: SetNull)
+  bookings   Booking[]
 }
 
 enum BookingStatus {

@@ -30,14 +30,31 @@ export async function resolveBookingContext(
   });
   if (!apiToken) return { error: "Invalid API token", status: 401 };
 
-  // The owner's Google connection is what makes booking possible at all. A
-  // project whose owner has not connected a calendar cannot offer slots, and
-  // saying so plainly beats an empty list that looks like "fully booked".
-  const connection = await prisma.calendarConnection.findFirst({
-    where: { userId: apiToken.repo.userId },
-    select: { id: true },
-    orderBy: { createdAt: "asc" },
+  // The Google connection is what makes booking possible at all. A project
+  // whose owner has not connected a calendar cannot offer slots, and saying so
+  // plainly beats an empty list that looks like "fully booked".
+  //
+  // The project's OWN choice wins: one account can hold several clients'
+  // calendars, and PracticeStack demos belong on the PracticeStack calendar.
+  // Falling back to the oldest connection keeps a single-calendar setup working.
+  const page = await prisma.bookingPage.findUnique({
+    where: { repoId: apiToken.repo.id },
+    select: { calendarConnectionId: true },
   });
+
+  const connection = page?.calendarConnectionId
+    ? await prisma.calendarConnection.findFirst({
+        // Re-checked against the owner: a connection id left behind by a
+        // reassigned repo must not read someone else's calendar.
+        where: { id: page.calendarConnectionId, userId: apiToken.repo.userId },
+        select: { id: true },
+      })
+    : await prisma.calendarConnection.findFirst({
+        where: { userId: apiToken.repo.userId },
+        select: { id: true },
+        orderBy: { createdAt: "asc" },
+      });
+
   if (!connection) return { error: "This project has no calendar connected", status: 409 };
 
   return {
