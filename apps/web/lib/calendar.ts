@@ -52,10 +52,21 @@ export const CALENDAR_STATE_COOKIE = "gg_calendar_oauth";
  * victim the consent link, and have the victim's Google tokens stored under the
  * attacker's user — handing them the victim's calendar.
  */
-export function buildCalendarAuthUrl(userId: string): { url: string; nonce: string } {
+/**
+ * Start the OAuth dance.
+ *
+ * `inviteId` is set when the person connecting is NOT the account holder — a
+ * client attaching their own Gmail through a one-time link. The invite id
+ * travels inside the signed state so the callback can attach the connection to
+ * the right account without that person ever having a session here.
+ */
+export function buildCalendarAuthUrl(
+  userId: string,
+  inviteId?: string
+): { url: string; nonce: string } {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXTAUTH_URL ?? "";
   const nonce = randomBytes(32).toString("base64url");
-  const payload = JSON.stringify({ userId, nonce, ts: Date.now() });
+  const payload = JSON.stringify({ userId, nonce, ts: Date.now(), inviteId });
   const state = Buffer.from(
     JSON.stringify({ payload, sig: signState(payload) })
   ).toString("base64url");
@@ -93,7 +104,7 @@ function safeEqual(a: string, b: string): boolean {
 export function parseCalendarState(
   state: string,
   cookieNonce: string | undefined
-): { userId: string } | null {
+): { userId: string; inviteId?: string } | null {
   try {
     const { payload, sig } = JSON.parse(Buffer.from(state, "base64url").toString()) as {
       payload: string;
@@ -101,10 +112,11 @@ export function parseCalendarState(
     };
     if (!safeEqual(signState(payload), sig)) return null;
 
-    const { userId, nonce, ts } = JSON.parse(payload) as {
+    const { userId, nonce, ts, inviteId } = JSON.parse(payload) as {
       userId: string;
       nonce?: string;
       ts: number;
+      inviteId?: string;
     };
 
     // A stale state is a replay, not a slow user.
@@ -114,7 +126,7 @@ export function parseCalendarState(
     // without it — either way it is not usable.
     if (!nonce || !cookieNonce || !safeEqual(nonce, cookieNonce)) return null;
 
-    return { userId };
+    return { userId, inviteId };
   } catch {
     return null;
   }
