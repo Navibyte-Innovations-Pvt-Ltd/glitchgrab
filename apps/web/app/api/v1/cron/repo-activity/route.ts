@@ -56,7 +56,10 @@ async function fetchUserRepos(token: string): Promise<GithubRepo[]> {
   return all;
 }
 
-export async function POST(request: NextRequest) {
+// GET, not POST: Vercel's scheduler issues a GET, and a POST-only cron route
+// answers 405 every time it fires — silently, since nobody watches a cron that
+// was never observed working.
+export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });

@@ -693,3 +693,322 @@ export async function sendDeveloperQaFailed({
     console.error("[whatsapp] qa failed-dev notify error:", err);
   }
 }
+
+/**
+ * Format an instant for someone reading it on their phone.
+ *
+ * In the recipient's own zone where we know it — a demo confirmed as "3pm"
+ * when they meant 3pm their time is the single most expensive mistake this
+ * feature can make.
+ */
+function formatSlot(startsAt: Date, timezone: string): string {
+  try {
+    return new Intl.DateTimeFormat("en-GB", {
+      timeZone: timezone,
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }).format(startsAt);
+  } catch {
+    return startsAt.toUTCString();
+  }
+}
+
+/**
+ * Demo confirmed — to the person who booked it.
+ * Template "demo_confirmed" (Utility):
+ *   Body:   Hi {{1}}, your {{2}} demo is confirmed for {{3}}.
+ *   Button: URL "Join demo" → https://meet.google.com/{{1}}
+ */
+export async function sendBookingConfirmed(params: {
+  phone: string;
+  name: string;
+  project: string;
+  startsAt: Date;
+  timezone: string;
+  meetUrl: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  return sendTemplate(
+    "demo_confirmed",
+    params.phone,
+    [params.name, params.project, formatSlot(params.startsAt, params.timezone)],
+    meetCode(params.meetUrl)
+  );
+}
+
+/**
+ * Demo starting soon — to the person who booked it.
+ * Template "demo_reminder" (Utility):
+ *   Body:   Reminder: your {{1}} demo starts at {{2}}.
+ *   Button: URL "Join demo" → https://meet.google.com/{{1}}
+ */
+export async function sendBookingReminder(params: {
+  phone: string;
+  project: string;
+  startsAt: Date;
+  timezone: string;
+  meetUrl: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  return sendTemplate(
+    "demo_reminder",
+    params.phone,
+    [params.project, formatSlot(params.startsAt, params.timezone)],
+    meetCode(params.meetUrl)
+  );
+}
+
+/**
+ * Someone booked a demo — to the project owner.
+ * Template "demo_booked_owner" (Utility):
+ *   Body: {{1}} booked a {{2}} demo for {{3}}.
+ */
+export async function sendOwnerNewBooking(params: {
+  phone: string;
+  project: string;
+  bookerName: string;
+  startsAt: Date;
+  timezone: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  return sendTemplate("demo_booked_owner", params.phone, [
+    params.bookerName,
+    params.project,
+    formatSlot(params.startsAt, params.timezone),
+  ]);
+}
+
+/**
+ * A booked demo is about to start — to the project owner.
+ * Template "demo_starting_owner" (Utility):
+ *   Body:   Your {{1}} demo with {{2}} starts at {{3}}.
+ *   Button: URL "Join demo" → https://meet.google.com/{{1}}
+ */
+export async function sendOwnerBookingStarting(params: {
+  phone: string;
+  project: string;
+  bookerName: string;
+  startsAt: Date;
+  timezone: string;
+  meetUrl: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  return sendTemplate(
+    "demo_starting_owner",
+    params.phone,
+    [params.project, params.bookerName, formatSlot(params.startsAt, params.timezone)],
+    meetCode(params.meetUrl)
+  );
+}
+
+/**
+ * The part of a Meet link that varies.
+ *
+ * A WhatsApp template URL button is a FIXED prefix plus one variable, so the
+ * template stores `https://meet.google.com/{{1}}` and we send only the code.
+ * Passing the whole URL would produce `https://meet.google.com/https://…`.
+ */
+function meetCode(meetUrl: string): string {
+  return meetUrl.replace(/^https?:\/\/meet\.google\.com\//i, "").split(/[?#]/)[0];
+}
+
+/**
+ * Send a pre-approved Meta template with positional body parameters.
+ *
+ * Every message above is business-initiated and outside any 24-hour window, so
+ * it MUST be a template Meta has already approved — free-form text is silently
+ * dropped by the API. Shared here so a new notification is a list of strings
+ * rather than another copy of the request shape.
+ */
+async function sendTemplate(
+  templateName: string,
+  phone: string,
+  parameters: string[],
+  /**
+   * Fills the template's dynamic URL button. A tappable "Join demo" is worth
+   * more than a link in the body: on a phone, mid-day, it is the difference
+   * between joining and meaning to.
+   */
+  urlButtonParam?: string
+): Promise<{ ok: boolean; error?: string }> {
+  const phoneNumberId = process.env.META_WA_PHONE_NUMBER_ID;
+  const accessToken = process.env.META_WA_ACCESS_TOKEN;
+  if (!phoneNumberId || !accessToken) {
+    return { ok: false, error: "META_WA_PHONE_NUMBER_ID or META_WA_ACCESS_TOKEN not set" };
+  }
+
+  const to = phone.replace(/\D/g, "");
+  if (!to) return { ok: false, error: "Invalid phone number" };
+
+  try {
+    const res = await fetch(`${META_API_BASE}/${phoneNumberId}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        type: "template",
+        template: {
+          name: templateName,
+          language: { code: "en" },
+          components: [
+            { type: "body", parameters: parameters.map((text) => ({ type: "text", text })) },
+            ...(urlButtonParam
+              ? [
+                  {
+                    type: "button",
+                    sub_type: "url",
+                    index: "0",
+                    parameters: [{ type: "text", text: urlButtonParam }],
+                  },
+                ]
+              : []),
+          ],
+        },
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.text();
+      console.error(`WhatsApp ${templateName} failed:`, body);
+      return { ok: false, error: `WhatsApp said ${res.status}` };
+    }
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Network error" };
+  }
+}
+
+/**
+ * Free-form reply inside Meta's 24-hour service window.
+ *
+ * Only legal because the *customer* messaged us first — that is what makes the
+ * booking conversation possible without an approved template for every line.
+ * Outside the window Meta silently drops these, which is why the thread records
+ * `lastInboundAt` and the bot falls back to a template when it has gone stale.
+ */
+export async function sendWhatsappText(
+  phone: string,
+  text: string
+): Promise<{ ok: boolean; error?: string }> {
+  return postMessage({
+    messaging_product: "whatsapp",
+    to: phone.replace(/\D/g, ""),
+    type: "text",
+    text: { preview_url: true, body: text },
+  });
+}
+
+interface ListRow {
+  /** Comes back on the webhook as the reply id — encode what you need here. */
+  id: string;
+  title: string;
+  description?: string;
+}
+
+/**
+ * A native WhatsApp picker.
+ *
+ * Chosen over "reply with a number" because a mis-typed 3 books the wrong slot
+ * on a real calendar, and the tap carries a machine-readable id instead of text
+ * we would have to guess at.
+ *
+ * Meta caps a list at 10 rows TOTAL across all sections — the caller pages, and
+ * this refuses rather than silently truncating someone's afternoon away.
+ */
+export async function sendWhatsappList(params: {
+  phone: string;
+  body: string;
+  buttonLabel: string;
+  rows: ListRow[];
+  header?: string;
+  footer?: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  if (params.rows.length === 0) return { ok: false, error: "No rows to show" };
+  if (params.rows.length > 10) return { ok: false, error: "WhatsApp allows at most 10 rows" };
+
+  return postMessage({
+    messaging_product: "whatsapp",
+    to: params.phone.replace(/\D/g, ""),
+    type: "interactive",
+    interactive: {
+      type: "list",
+      ...(params.header ? { header: { type: "text", text: params.header } } : {}),
+      body: { text: params.body },
+      ...(params.footer ? { footer: { text: params.footer } } : {}),
+      action: {
+        button: params.buttonLabel.slice(0, 20),
+        sections: [
+          {
+            title: "Options",
+            rows: params.rows.map((r) => ({
+              id: r.id.slice(0, 200),
+              title: r.title.slice(0, 24),
+              ...(r.description ? { description: r.description.slice(0, 72) } : {}),
+            })),
+          },
+        ],
+      },
+    },
+  });
+}
+
+async function postMessage(payload: Record<string, unknown>): Promise<{ ok: boolean; error?: string }> {
+  const phoneNumberId = process.env.META_WA_PHONE_NUMBER_ID;
+  const accessToken = process.env.META_WA_ACCESS_TOKEN;
+  if (!phoneNumberId || !accessToken) {
+    return { ok: false, error: "META_WA_PHONE_NUMBER_ID or META_WA_ACCESS_TOKEN not set" };
+  }
+
+  try {
+    const res = await fetch(`${META_API_BASE}/${phoneNumberId}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      console.error("WhatsApp send failed:", await res.text());
+      return { ok: false, error: `WhatsApp said ${res.status}` };
+    }
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Network error" };
+  }
+}
+
+/**
+ * A message with a tappable button that opens a URL.
+ *
+ * Free-form equivalent of a template's URL button, usable inside the 24-hour
+ * window. Unlike a template the URL is unrestricted — no fixed prefix, no
+ * variable suffix — so the Meet link goes in whole.
+ *
+ * Worth the extra call over pasting the link in text: on a phone a button is a
+ * target, and a link in a paragraph is something to find first.
+ */
+export async function sendWhatsappCtaUrl(params: {
+  phone: string;
+  body: string;
+  buttonText: string;
+  url: string;
+  footer?: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  return postMessage({
+    messaging_product: "whatsapp",
+    to: params.phone.replace(/\D/g, ""),
+    type: "interactive",
+    interactive: {
+      type: "cta_url",
+      body: { text: params.body },
+      ...(params.footer ? { footer: { text: params.footer } } : {}),
+      action: {
+        name: "cta_url",
+        parameters: {
+          // Meta caps the label at 20 characters and silently rejects longer.
+          display_text: params.buttonText.slice(0, 20),
+          url: params.url,
+        },
+      },
+    },
+  });
+}
