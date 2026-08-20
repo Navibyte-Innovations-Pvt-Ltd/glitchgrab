@@ -18,9 +18,22 @@ const CALENDAR_API = "https://www.googleapis.com/calendar/v3";
 
 /** Read-only: we never create or modify anyone's events. */
 const SCOPES = [
-  "https://www.googleapis.com/auth/calendar.events.readonly",
+  // Write, not readonly: demo booking creates the event and its Meet link on
+  // the owner's calendar. An existing connection granted before this change
+  // has only the read scope — Google returns 403 on insert, and the fix is a
+  // reconnect, so `insertCalendarEvent` says exactly that rather than failing
+  // with a raw API error.
+  "https://www.googleapis.com/auth/calendar.events",
+  // Free/busy, so offered slots reflect the owner's real day rather than a
+  // guess. Reading events is not enough — other calendars can hold them.
+  "https://www.googleapis.com/auth/calendar.freebusy",
   "https://www.googleapis.com/auth/userinfo.email",
 ];
+
+/** True when a connection predates the write scope and must be reconnected. */
+export function isScopeError(status: number, body: string): boolean {
+  return status === 403 && /insufficient|scope|permission/i.test(body);
+}
 
 function signState(payload: string): string {
   return createHmac("sha256", process.env.AUTH_SECRET ?? "").update(payload).digest("hex");
@@ -146,7 +159,7 @@ export async function fetchGoogleEmail(accessToken: string): Promise<string> {
  * A usable access token, refreshing it first if it is expired or close to it.
  * Tokens are stored encrypted (AES-256-GCM), same as the Search Console ones.
  */
-async function getAccessToken(connectionId: string): Promise<string | null> {
+export async function getAccessToken(connectionId: string): Promise<string | null> {
   const connection = await prisma.calendarConnection.findUnique({
     where: { id: connectionId },
     select: {
