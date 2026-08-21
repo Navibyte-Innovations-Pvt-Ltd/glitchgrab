@@ -6,6 +6,7 @@ import { generateOtp, hashOtp, HOLD_MINUTES } from "@/lib/booking";
 import { BOOKING_CORS, resolveBookingContext } from "@/lib/booking-auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { sendWhatsappOtp } from "@/lib/whatsapp";
+import { sendSmsOtp, smsConfigured } from "@/lib/sms";
 
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: BOOKING_CORS });
@@ -121,7 +122,16 @@ export async function POST(request: Request) {
       );
     }
 
-    const sent = await sendWhatsappOtp(phone, code);
+    // SMS first when it is configured: a prospect booking a demo may not use
+    // WhatsApp at all, and a code that needs a second app installed is a code
+    // that does not arrive. WhatsApp stays as the fallback because it is the
+    // channel that is approved and working today.
+    const sent = smsConfigured()
+      ? await sendSmsOtp(phone, code).then(async (result) =>
+          result.ok ? result : sendWhatsappOtp(phone, code)
+        )
+      : await sendWhatsappOtp(phone, code);
+
     if (!sent.ok) {
       // Release the hold rather than leaving a slot blocked by a code that
       // never arrived.
@@ -130,7 +140,7 @@ export async function POST(request: Request) {
         data: { status: "EXPIRED" },
       });
       return NextResponse.json(
-        { success: false, error: "Couldn't send the WhatsApp code — check the number" },
+        { success: false, error: "Couldn't send the code — check the number" },
         { status: 502, headers: BOOKING_CORS }
       );
     }
