@@ -38,10 +38,19 @@ export function hashOtp(code: string): string {
   return createHash("sha256").update(code).digest("hex");
 }
 
+/**
+ * Four digits, not six.
+ *
+ * This is typed on a phone by someone who wants a demo, not a password reset —
+ * every extra digit is another chance to give up. Brute force is handled by the
+ * five-attempt cap and the ten-minute hold, not by length: 10,000 combinations
+ * against five tries is a 1-in-2,000 chance per booking, and a wrong code burns
+ * the slot.
+ */
 export function generateOtp(): string {
   // randomInt, not Math.random: this is the only thing standing between a
   // stranger and an event on someone's real calendar.
-  return String(randomInt(100000, 1000000));
+  return String(randomInt(1000, 10000));
 }
 
 /**
@@ -292,4 +301,72 @@ export async function insertCalendarEvent(params: {
   } catch {
     return { error: "Calendar returned something unreadable" };
   }
+}
+
+/**
+ * Move an existing demo to a new time.
+ *
+ * A PATCH, not a delete-and-recreate. The Meet link lives on the event, so
+ * recreating mints a NEW room and every "Join demo" button already delivered —
+ * in the confirmation, in the reminder, in the calendar invite — silently
+ * points at a dead meeting. Patching keeps the room and lets Google tell the
+ * attendees the time moved.
+ *
+ * Only start and end are sent. Including `conferenceData` risks detaching the
+ * very room this exists to preserve.
+ */
+export async function patchCalendarEvent(params: {
+  connectionId: string;
+  eventId: string;
+  startsAt: Date;
+  endsAt: Date;
+  timezone: string;
+}): Promise<{ ok: true } | { error: string }> {
+  const token = await getAccessToken(params.connectionId);
+  if (!token) return { error: "Calendar not connected" };
+
+  const res = await fetch(
+    `${CALENDAR_API}/calendars/primary/events/${encodeURIComponent(params.eventId)}?sendUpdates=all`,
+    {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        start: { dateTime: params.startsAt.toISOString(), timeZone: params.timezone },
+        end: { dateTime: params.endsAt.toISOString(), timeZone: params.timezone },
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    const body = await res.text();
+    if (isScopeError(res.status, body)) {
+      return { error: "Reconnect Google Calendar to enable booking" };
+    }
+    return { error: `Calendar said ${res.status}` };
+  }
+  return { ok: true };
+}
+
+/**
+ * Delete a demo from the calendar.
+ *
+ * 404 and 410 count as success: Meta retries a webhook whenever we answer
+ * non-200, so this runs twice for one tap more often than not. Treating "the
+ * event is already gone" as failure would report a cancellation as broken to
+ * someone whose call is, in fact, cancelled.
+ */
+export async function cancelCalendarEvent(params: {
+  connectionId: string;
+  eventId: string;
+}): Promise<{ ok: true } | { error: string }> {
+  const token = await getAccessToken(params.connectionId);
+  if (!token) return { error: "Calendar not connected" };
+
+  const res = await fetch(
+    `${CALENDAR_API}/calendars/primary/events/${encodeURIComponent(params.eventId)}?sendUpdates=all`,
+    { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }
+  );
+
+  if (res.ok || res.status === 404 || res.status === 410) return { ok: true };
+  return { error: `Calendar said ${res.status}` };
 }

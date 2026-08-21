@@ -1012,3 +1012,42 @@ export async function sendWhatsappCtaUrl(params: {
     },
   });
 }
+
+/**
+ * Up to three tappable reply buttons.
+ *
+ * Unlike `sendWhatsappList` these sit directly under the message with no menu
+ * to open, which is what a yes/no question wants — a confirmation buried behind
+ * "Choose" is one someone dismisses instead of answering.
+ *
+ * The tap returns as `interactive.button_reply.id`, so the id carries whatever
+ * the handler needs; the title is only ever seen by a human.
+ */
+export async function sendWhatsappButtons(params: {
+  phone: string;
+  body: string;
+  buttons: { id: string; title: string }[];
+  footer?: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  if (params.buttons.length === 0) return { ok: false, error: "No buttons to show" };
+  // Meta's cap. Refuse rather than truncate: a silently dropped third button is
+  // an option the person was meant to have and never saw.
+  if (params.buttons.length > 3) return { ok: false, error: "WhatsApp allows at most 3 buttons" };
+
+  return postMessage({
+    messaging_product: "whatsapp",
+    to: params.phone.replace(/\D/g, ""),
+    type: "interactive",
+    interactive: {
+      type: "button",
+      body: { text: params.body },
+      ...(params.footer ? { footer: { text: params.footer } } : {}),
+      action: {
+        buttons: params.buttons.map((b) => ({
+          type: "reply",
+          reply: { id: b.id.slice(0, 256), title: b.title.slice(0, 20) },
+        })),
+      },
+    },
+  });
+}

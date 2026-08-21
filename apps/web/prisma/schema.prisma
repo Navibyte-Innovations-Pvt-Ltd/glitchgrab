@@ -883,6 +883,15 @@ model WhatsappThread {
   lastInboundAt DateTime @default(now())
   bookingId     String?
 
+  /// Set while this thread is MOVING an existing booking rather than making a
+  /// new one. The date and time pickers are shared between the two flows, so
+  /// without a discriminant a reschedule silently creates a second demo and
+  /// leaves the original on the calendar.
+  ///
+  /// Cleared the moment the move completes: a stale value would make the next
+  /// fresh booking from this number overwrite the one it just finished.
+  rescheduleId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

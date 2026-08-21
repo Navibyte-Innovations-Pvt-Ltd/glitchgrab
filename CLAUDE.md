@@ -222,6 +222,27 @@ The dialog itself is `packages/report-ui`, vendored into `apps/glitchrecord/src/
 6. **Clipboard** in the editor uses Electron `clipboard.writeText` via IPC (`navigator.clipboard` silently fails in the renderer).
 7. Content script only sees **page DOM** — Chrome address bar, `chrome://` pages, other native apps (WhatsApp, etc.) are NOT capturable.
 
+## Forms
+
+`apps/web` forms go through `InputField` — never raw shadcn inputs. Not usable in
+`packages/sdk-nextjs` or `packages/report-ui` (no react-hook-form there).
+See `agent_docs/app-input-fields.md` and `agent_docs/forms.md`.
+
+## SMS OTP
+
+`lib/sms.ts` (Msg91). Message body is env config (`SMS_OTP_TEMPLATE`), not copy.
+Delivery success in the API response means nothing — verify on a handset.
+See `agent_docs/sms-otp.md`.
+
+## WhatsApp
+
+Free text only inside Meta's 24-hour window; outside it, an approved template or
+nothing (the API answers 200 either way). See `agent_docs/whatsapp-templates.md`;
+the four booking templates are in `WHATSAPP_TEMPLATES.md`.
+
+Reschedule/cancel taps move the Google event, the `Meeting` and the reminder
+flag together — never recreate the event. See `agent_docs/booking-reschedule.md`.
+
 ## Code conventions
 
 - TypeScript strict mode everywhere

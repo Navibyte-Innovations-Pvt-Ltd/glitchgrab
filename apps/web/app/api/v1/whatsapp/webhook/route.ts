@@ -6,7 +6,22 @@ import { prisma } from "@/lib/db";
 import { reopenGitHubIssue } from "@/lib/github";
 import { getInstallationAccessToken } from "@/lib/github-app";
 import { sendDeveloperReopenedNotification } from "@/lib/whatsapp";
-import { handleBookingMessage } from "@/lib/whatsapp-booking";
+import { handleBookingAction, handleBookingMessage } from "@/lib/whatsapp-booking";
+
+/**
+ * Does this button tap mean "move my demo" or "call it off"?
+ *
+ * Matched on the label because a template quick reply carries no payload of its
+ * own. Loose on purpose — case, spacing and any surrounding punctuation vary
+ * between the template button and the picker rows — but anchored on the two
+ * words so an unrelated button never cancels a client call.
+ */
+function bookingAction(text: string): "reschedule" | "cancel" | null {
+  const t = text.trim().toLowerCase();
+  if (/^reschedule\b/.test(t)) return "reschedule";
+  if (/^cancel\b/.test(t)) return "cancel";
+  return null;
+}
 
 function verifySignature(body: string, signature: string | null): boolean {
   const appSecret = process.env.META_WA_APP_SECRET;
@@ -91,13 +106,42 @@ export async function POST(request: Request) {
 
     for (const message of messages) {
       // Template quick-reply taps (issue resolved yes/no) — unchanged.
-      if (message.type === "button" && message.button?.payload) {
+      if (message.type === "button" && message.button?.payload?.startsWith("gg_")) {
         const { payload: btnPayload } = message.button;
         if (btnPayload.startsWith("gg_no_")) {
           const issueId = btnPayload.slice("gg_no_".length);
           await handleReporterSaidNo(issueId);
         }
         // "gg_yes_" → no action needed
+        continue;
+      }
+
+      // Reschedule / Cancel on a booking template.
+      //
+      // Read from every field the tap might arrive in. A template quick reply
+      // has no custom payload, so Meta echoes the button's own label — but
+      // which field carries it differs between a template button and an
+      // interactive reply button, and a wrong guess here fails SILENTLY: the
+      // loop would simply find nothing to do and answer 200.
+      const tapped =
+        message.button?.payload ??
+        message.button?.text ??
+        message.interactive?.button_reply?.id ??
+        message.interactive?.button_reply?.title ??
+        "";
+      const action = bookingAction(tapped);
+      if (action) {
+        await handleBookingAction({ phone: message.from, action });
+        continue;
+      }
+
+      // An interactive reply button that is not a booking action — the cancel
+      // confirmation's own Yes/Keep buttons carry ids the booking script owns.
+      if (message.type === "interactive" && message.interactive?.button_reply?.id) {
+        await handleBookingMessage({
+          phone: message.from,
+          listReplyId: message.interactive.button_reply.id,
+        });
         continue;
       }
 

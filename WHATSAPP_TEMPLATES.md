@@ -20,7 +20,50 @@ after the window, and reminders hours or days later.
 
 ---
 
-## How the Join button works
+## Four rules the Meta form enforces, learned the hard way
+
+### 1. Variable density — roughly 20 characters of body per variable
+
+Three variables in a 49-character body is rejected outright:
+
+> This template has too many variables for its length. Reduce the number of
+> variables or increase the message length.
+
+This is why every body below is longer than the sentence it needs to be. The
+padding is not decoration — it is what makes a three-variable template legal.
+Shorten one of these and the form stops accepting it.
+
+### 2. There is no draft-save
+
+Leaving the Create-template page discards everything typed into it. Templates
+must be filled and submitted **one at a time**; you cannot prepare all four and
+submit them together.
+
+Also: typing `{{` into the body box triggers brace auto-completion and produces
+`{{1}}1}}`. Use the **+ Add variable** button, or paste the body in whole.
+
+### 3. A body cannot start or end with a variable
+
+> Variables can't be at the start or end of the template.
+
+`{{1}} booked a {{2}} demo for {{3}}.` is rejected for opening on `{{1}}`, which
+is why `demo_booked_owner` is prefixed with "New demo booked:". Trailing
+punctuation counts as text, so a body ending `... at {{3}}.` is fine — one
+ending `... at {{3}}` is not.
+
+### 4. Editing an approved template re-enters review
+
+An approved template can be edited — name and language are locked, everything
+else is not — but the edit sends it back through Meta: it flips from Active to
+In review and cannot be sent in the meantime. Get the buttons right before
+submitting, and open the edit in a **second tab** if another draft is open, or
+rule 2 eats it.
+
+---
+
+## The buttons
+
+### Join demo — a dynamic URL button
 
 Three of these templates carry a **URL button** labelled *Join demo* rather than
 a link in the text. On a phone a button is a target; a link inside a paragraph
@@ -33,13 +76,39 @@ pass a whole URL. So the button is configured as:
 Type:        Visit website
 Button text: Join demo
 URL type:    Dynamic
-URL:         https://meet.google.com/{{1}}
-Sample:      abc-defg-hij
+URL:         https://meet.google.com/
+Sample:      https://meet.google.com/abc-defg-hij
 ```
 
-The code sends only the meeting code (`abc-defg-hij`), never the full link.
-Get this wrong — a Static URL, or `{{1}}` on its own — and the button either
-sends everyone to the same dead meeting or fails validation.
+The URL field takes the **prefix only** — Meta appends `{{1}}` itself and shows
+it as a chip beside the field. The sample field, confusingly, wants the **whole**
+URL. At send time the code passes only the meeting code (`abc-defg-hij`).
+
+Get this wrong — a Static URL, or `{{1}}` typed into the prefix — and the button
+either sends everyone to the same dead meeting or fails validation.
+
+**Untick "You direct Meta to use link tracking to report website clicks."** It is
+checked by default and sends click data on client demo links to Meta.
+
+### Reschedule — a quick reply
+
+Meta allows quick-reply buttons **alongside** the URL button (the old rule
+against mixing no longer applies; the form accepts it).
+
+**There is deliberately no Cancel button.** Offering one invites the tap: it
+sits under a message the client is already reading, and it turns "I can't make
+Tuesday" into calling the whole thing off rather than moving it. Reschedule
+keeps the demo alive; someone who genuinely wants out will say so, and typing
+"cancel" still reaches the same handler.
+
+Tapping a quick reply sends an inbound message to our number, which **opens the
+24-hour service window** — so the bot can then run the existing date/time picker
+as free interactive messages, with no further template needed. That is the whole
+reason these are quick replies and not links.
+
+The handler is built — see `agent_docs/booking-reschedule.md`. It PATCHes the
+existing Google event rather than recreating it, so every *Join demo* button
+already delivered stays valid.
 
 ---
 
@@ -54,7 +123,7 @@ Sent to the person who booked, right after the booking is confirmed.
 **Body**
 
 ```
-Hi {{1}}, your {{2}} demo is confirmed for {{3}}.
+Hi {{1}}, your {{2}} demo is confirmed for {{3}}. We look forward to speaking with you.
 ```
 
 **Sample values** (Meta asks for these)
@@ -65,7 +134,10 @@ Hi {{1}}, your {{2}} demo is confirmed for {{3}}.
 | {{2}} | PracticeStack |
 | {{3}} | Tue 19 Aug, 03:00 pm |
 
-**Button:** Visit website · *Join demo* · Dynamic · `https://meet.google.com/{{1}}` · sample `abc-defg-hij`
+**Buttons**
+
+- Visit website · *Join demo* · Dynamic · `https://meet.google.com/` · sample `https://meet.google.com/abc-defg-hij`
+- Quick reply · *Reschedule*
 
 ---
 
@@ -80,7 +152,7 @@ Sent to the person who booked, about 30 minutes before the call.
 **Body**
 
 ```
-Reminder: your {{1}} demo starts at {{2}}.
+Reminder: your {{1}} demo starts at {{2}}. Tap below to join, or reschedule if you cannot make it.
 ```
 
 | Variable | Example |
@@ -88,7 +160,13 @@ Reminder: your {{1}} demo starts at {{2}}.
 | {{1}} | PracticeStack |
 | {{2}} | 03:00 pm |
 
-**Button:** Visit website · *Join demo* · Dynamic · `https://meet.google.com/{{1}}` · sample `abc-defg-hij`
+**Buttons**
+
+- Visit website · *Join demo* · Dynamic · `https://meet.google.com/` · sample `https://meet.google.com/abc-defg-hij`
+- Quick reply · *Reschedule*
+
+The reminder is the moment someone realises they cannot make it, so it carries
+the same Reschedule button as the confirmation.
 
 ---
 
@@ -103,8 +181,11 @@ Sent to the project owner when someone books.
 **Body**
 
 ```
-{{1}} booked a {{2}} demo for {{3}}.
+New demo booked: {{1}} booked a {{2}} demo for {{3}}. The details are on your Glitchgrab dashboard.
 ```
+
+The "New demo booked:" prefix is not decoration — a body may not open on a
+variable (rule 3).
 
 | Variable | Example |
 |---|---|
@@ -112,7 +193,7 @@ Sent to the project owner when someone books.
 | {{2}} | PracticeStack |
 | {{3}} | Tue 19 Aug, 03:00 pm |
 
-**No button** — this one tells you a booking happened; the call is not for hours.
+**No buttons** — this one tells you a booking happened; the call is not for hours.
 
 ---
 
@@ -127,7 +208,7 @@ Sent to the project owner shortly before the call.
 **Body**
 
 ```
-Your {{1}} demo with {{2}} starts at {{3}}.
+Your {{1}} demo with {{2}} starts at {{3}}. Tap below to join the call.
 ```
 
 | Variable | Example |
@@ -136,7 +217,11 @@ Your {{1}} demo with {{2}} starts at {{3}}.
 | {{2}} | Rahul |
 | {{3}} | 03:00 pm |
 
-**Button:** Visit website · *Join demo* · Dynamic · `https://meet.google.com/{{1}}` · sample `abc-defg-hij`
+**Button:** Visit website · *Join demo* · Dynamic · `https://meet.google.com/` · sample `https://meet.google.com/abc-defg-hij`
+
+No quick replies — an owner who needs to move a call does it from the dashboard,
+and giving the owner path its own reschedule branch doubles the handler's work
+for no gain.
 
 ---
 
@@ -154,7 +239,9 @@ which is what an OTP would have been proving.
 
 ## After they are approved
 
-Nothing else to deploy — the code already calls them by these exact names.
+The bodies here are longer than the ones the code was written against, but the
+variable **count and order are unchanged**, so `sendTemplate` needs no edit.
+
 To check one is live before relying on it:
 
 ```bash

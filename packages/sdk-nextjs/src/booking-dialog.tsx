@@ -341,7 +341,7 @@ export function BookingDialog({
               <Field label="Your name" value={name} onChange={setName} />
               <Field label="Email" value={email} onChange={setEmail} type="email" />
               <Field
-                label="WhatsApp number"
+                label="Mobile number"
                 value={phone}
                 onChange={setPhone}
                 type="tel"
@@ -353,7 +353,7 @@ export function BookingDialog({
                 disabled={!canSubmitDetails || busy}
                 style={primaryStyle(!canSubmitDetails || busy)}
               >
-                {busy ? "Sending code…" : "Send code on WhatsApp"}
+                {busy ? "Sending code…" : "Send verification code"}
               </button>
             </div>
           )}
@@ -361,7 +361,7 @@ export function BookingDialog({
           {step === "code" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <div style={{ fontSize: 13, color: t.muted, lineHeight: 1.5 }}>
-                We sent a 6-digit code to your WhatsApp. Your slot is held for 10 minutes.
+                We sent a 4-digit code to your phone. Your slot is held for 10 minutes.
               </div>
               <Field label="Code" value={code} onChange={setCode} />
               <button

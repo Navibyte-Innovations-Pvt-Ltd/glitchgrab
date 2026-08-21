@@ -53,7 +53,11 @@
         "RAZORPAY_PLAN_PLATFORM",
         "KIMI_API_KEY",
         "MEET_BOT_CALLBACK_URL",
-        "META_WA_PUBLIC_NUMBER"
+        "META_WA_PUBLIC_NUMBER",
+        "NEXT_OTP_AUTH_KEY",
+        "SMS_OTP_TEMPLATE",
+        "SMS_DLT_TE_ID",
+        "SMS_SENDER_ID"
       ]
     },
     "dev": {
@@ -102,7 +106,11 @@
         "RAZORPAY_PLAN_PLATFORM",
         "KIMI_API_KEY",
         "MEET_BOT_CALLBACK_URL",
-        "META_WA_PUBLIC_NUMBER"
+        "META_WA_PUBLIC_NUMBER",
+        "NEXT_OTP_AUTH_KEY",
+        "SMS_OTP_TEMPLATE",
+        "SMS_DLT_TE_ID",
+        "SMS_SENDER_ID"
       ]
     },
     "lint": {
