@@ -28,8 +28,20 @@ jobs:
         with:
           node-version: "22"
 
+      # Versions are PINNED, and the pin on the preset is the load-bearing one.
+      #
+      # semantic-release 24 bundles conventional-changelog-writer@8. The
+      # conventionalcommits preset went to writer@9 in its v10, so installing it
+      # unpinned resolves to a preset the bundled writer cannot render, and the
+      # release dies in generateNotes with:
+      #
+      #   Missing helper: "conventional-changelog-conventionalcommits requires
+      #   conventional-changelog-writer@9 or newer"
+      #
+      # Nothing in the repo changes to trigger that — it breaks on its own the
+      # day the preset publishes a major. Bump these together, never one alone.
       - name: Install semantic-release plugins
-        run: npm install -g semantic-release @semantic-release/changelog @semantic-release/git conventional-changelog-conventionalcommits
+        run: npm install -g semantic-release@24 @semantic-release/changelog@6 @semantic-release/git@10 conventional-changelog-conventionalcommits@8
 
       - name: Release
         run: npx semantic-release
