@@ -3,9 +3,10 @@ export const dynamic = "force-dynamic";
 import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { qaLink } from "@/lib/qa";
 import { reopenGitHubIssue } from "@/lib/github";
 import { getInstallationAccessToken } from "@/lib/github-app";
-import { sendDeveloperReopenedNotification } from "@/lib/whatsapp";
+import { sendDeveloperReopenedNotification, sendWhatsappCtaUrl } from "@/lib/whatsapp";
 import { handleBookingAction, handleBookingMessage } from "@/lib/whatsapp-booking";
 
 /**
@@ -152,6 +153,13 @@ export async function POST(request: Request) {
       // would silently never leave. Meta retries on a non-200, so failing loudly
       // here is safer than answering 200 having done nothing.
       if (message.type === "text" && message.text?.body) {
+        // A registered tester saying hi gets a sign-in link, not the demo
+        // booking script. Checked first and gated on BOTH the sender being a
+        // known tester AND the text reading as a login intent, so a tester who
+        // genuinely wants to book a demo still falls through below.
+        if (await handleTesterLoginRequest({ phone: message.from, text: message.text.body })) {
+          continue;
+        }
         await handleBookingMessage({ phone: message.from, text: message.text.body });
         continue;
       }
@@ -169,6 +177,56 @@ export async function POST(request: Request) {
     console.error("[whatsapp-webhook] error:", err);
     return NextResponse.json({ error: "Processing failed" }, { status: 500 });
   }
+}
+
+/**
+ * "hi" from a tester → a one-tap sign-in link.
+ *
+ * The tester's magic token is a capability: whoever holds it is that tester. It
+ * is only ever sent to the number the admin registered, and only in reply to a
+ * message from that same number — an inbound message is what opens Meta's 24h
+ * window, so this reply is free text and needs no template.
+ *
+ * Returns true when it handled the message, so the caller skips the booking
+ * script. A phone that is not a tester, or a tester writing something that is
+ * not a login request, returns false and falls through untouched.
+ */
+const LOGIN_INTENT = /^(hi|hii+|hey|hello|login|log in|signin|sign in|start|qa|test|verify)\b/i;
+
+async function handleTesterLoginRequest({
+  phone,
+  text,
+}: {
+  phone: string;
+  text: string;
+}): Promise<boolean> {
+  const trimmed = text.trim();
+  if (!LOGIN_INTENT.test(trimmed)) return false;
+
+  const cleaned = phone.replace(/\D/g, "");
+  // Match on the last 10 digits so a stored "9370928324" still matches an
+  // inbound "919370928324" — Meta always sends the country code, admins rarely
+  // type one.
+  const tail = cleaned.slice(-10);
+  if (tail.length !== 10) return false;
+
+  const tester = await prisma.tester.findFirst({
+    where: { phone: { endsWith: tail } },
+    select: { name: true, magicToken: true, org: { select: { name: true } } },
+  });
+  if (!tester) return false;
+
+  const sent = await sendWhatsappCtaUrl({
+    phone: cleaned,
+    body: `Hi ${tester.name} 👋\n\nTap below to open your Glitchgrab QA dashboard for ${tester.org.name}. The link signs you in — no password, no code.`,
+    buttonText: "Open dashboard",
+    url: qaLink(tester.magicToken),
+    footer: "Glitchgrab QA",
+  });
+  if (!sent.ok) {
+    console.error("[whatsapp-webhook] tester login link failed:", sent.error);
+  }
+  return true;
 }
 
 async function handleReporterSaidNo(issueId: string) {

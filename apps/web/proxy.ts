@@ -27,6 +27,28 @@ export async function proxy(request: NextRequest) {
 
   // Dashboard auth guard + org redirect (fast path via JWT cache)
   if (path.startsWith("/dashboard")) {
+    // Testers are NOT NextAuth users — they carry the gg_tester cookie instead.
+    // Presence is enough here (the cookie is HMAC-signed and re-verified by the
+    // layout before anything renders); the point of this branch is to keep the
+    // tester OUT of every owner surface. A tester gets exactly /dashboard and
+    // nothing below it: no /dashboard/repos, /billing, /settings, /tokens, and
+    // no /org/<slug> redirect. Anything else bounces back to /dashboard.
+    const hasTesterCookie = Boolean(request.cookies.get("gg_tester")?.value);
+    if (hasTesterCookie) {
+      const ownerToken = await getToken({
+        req: request,
+        secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
+      });
+      if (!ownerToken) {
+        if (path !== "/dashboard" && path !== "/dashboard/") {
+          return NextResponse.redirect(new URL("/dashboard", request.url));
+        }
+        const testerHeaders = new Headers(request.headers);
+        testerHeaders.set("x-pathname", path);
+        return NextResponse.next({ request: { headers: testerHeaders } });
+      }
+    }
+
     const token = await getToken({
       req: request,
       secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,

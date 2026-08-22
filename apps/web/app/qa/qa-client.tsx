@@ -18,7 +18,7 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, XCircle, SkipForward, Loader2, ExternalLink, LogOut, Pencil } from "lucide-react";
+import { CheckCircle2, XCircle, SkipForward, Loader2, ExternalLink, LogOut, Pencil, MessageSquare } from "lucide-react";
 import type { QaCheckView } from "@/lib/qa-view";
 
 export function QaClient({
@@ -29,6 +29,7 @@ export function QaClient({
   orgName,
   checks,
   showLogout = false,
+  embedded = false,
 }: {
   token?: string;
   testerName: string;
@@ -37,6 +38,10 @@ export function QaClient({
   orgName: string;
   checks: QaCheckView[];
   showLogout?: boolean;
+  /** Rendered inside the dashboard TesterShell, which already owns the page
+   *  chrome (logo, tester name, sign out) — so drop the standalone greeting
+   *  block and the full-height wrapper instead of stacking two headers. */
+  embedded?: boolean;
 }) {
   const router = useRouter();
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -44,6 +49,8 @@ export function QaClient({
   const [failingId, setFailingId] = useState<string | null>(null);
   const [failReason, setFailReason] = useState("");
   const [failScreenshot, setFailScreenshot] = useState<string | null>(null);
+  const [commentingId, setCommentingId] = useState<string | null>(null);
+  const [commentText, setCommentText] = useState("");
   // Optimistically hidden from "To verify" the instant a Pass/Fail/Skip is clicked,
   // put back if the request fails — the row shouldn't wait on GitHub/S3/WhatsApp round-trips.
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
@@ -95,6 +102,25 @@ export function QaClient({
     onSettled: () => setPendingId(null),
   });
 
+  // A plain comment — no pass, no fail, no reopen. Posts as the GitHub App with
+  // a [TESTER: name] header so the developer sees who wrote it.
+  const commentMutation = useMutation({
+    mutationFn: async ({ checkId, message }: { checkId: string; message: string }) => {
+      const { data } = await axios.post(`/api/v1/qa/checks/${checkId}/comment`, { message, token });
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Comment posted on the issue");
+      setCommentingId(null);
+      setCommentText("");
+      router.refresh();
+    },
+    onError: (err) => {
+      const msg = axios.isAxiosError(err) ? err.response?.data?.error : "Something went wrong";
+      toast.error(msg ?? "Something went wrong");
+    },
+  });
+
   const logout = useMutation({
     mutationFn: async () => axios.post("/api/v1/qa/logout"),
     onSuccess: () => router.refresh(),
@@ -131,10 +157,10 @@ export function QaClient({
   const done = checks.filter((c) => c.status !== "PENDING");
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto max-w-2xl px-4 py-10">
-        <header className="mb-8">
-          <div className="flex items-start justify-between gap-4">
+    <div className={cn(!embedded && "min-h-screen bg-background", "text-foreground")}>
+      <div className={cn("mx-auto max-w-2xl px-4", embedded ? "py-6" : "py-10")}>
+        <header className={embedded ? "mb-6" : "mb-8"}>
+          <div className={cn("flex items-start justify-between gap-4", embedded && "hidden")}>
             <div className="text-xs font-mono uppercase tracking-wide text-muted-foreground">QA Verification</div>
             {showLogout && (
               <Button size="sm" variant="ghost" onClick={() => logout.mutate()} disabled={logout.isPending}>
@@ -144,13 +170,18 @@ export function QaClient({
             )}
           </div>
 
-          <div className="mt-3 flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-base font-semibold text-primary">
+          <div className={cn("mt-3 flex items-center gap-3", embedded && "mt-0")}>
+            <div className={cn(
+              "flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-base font-semibold text-primary",
+              embedded && "hidden"
+            )}>
               {testerName.charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0">
-              <h1 className="text-2xl font-semibold leading-tight">Hi {testerName} 👋</h1>
-              <p className="text-xs text-muted-foreground">
+              <h1 className={cn("font-semibold leading-tight", embedded ? "text-lg" : "text-2xl")}>
+                {embedded ? "Fixes to verify" : `Hi ${testerName} 👋`}
+              </h1>
+              <p className={cn("text-xs text-muted-foreground", embedded && "hidden")}>
                 Testing for <span className="font-medium text-foreground">{orgName}</span>
               </p>
             </div>
@@ -317,6 +348,7 @@ export function QaClient({
                     </div>
                   </div>
                 ) : (
+                  <>
                   <div className="mt-3 flex gap-2">
                     <Button
                       size="sm"
@@ -357,7 +389,62 @@ export function QaClient({
                         <SkipForward className="h-4 w-4" />
                       )}
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setCommentingId(commentingId === c.id ? null : c.id);
+                        setCommentText("");
+                      }}
+                      disabled={mutation.isPending}
+                      title="Leave a comment on the issue — no pass, no fail, nothing reopened"
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                    </Button>
                   </div>
+                  {commentingId === c.id && (
+                    <div className="mt-3 space-y-2">
+                      <Label htmlFor={`comment-${c.id}`} className="text-xs text-muted-foreground">
+                        Comment (posted on the issue as {testerName})
+                      </Label>
+                      <textarea
+                        id={`comment-${c.id}`}
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
+                        placeholder="e.g. works on desktop but the button overlaps the header on mobile"
+                        rows={3}
+                        autoFocus
+                        className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:border-primary/40"
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => commentMutation.mutate({ checkId: c.id, message: commentText.trim() })}
+                          disabled={commentMutation.isPending || !commentText.trim()}
+                          className="flex-1"
+                        >
+                          {commentMutation.isPending && commentMutation.variables?.checkId === c.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <MessageSquare className="h-4 w-4" />
+                          )}
+                          Post comment
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setCommentingId(null);
+                            setCommentText("");
+                          }}
+                          disabled={commentMutation.isPending}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  </>
                 )}
               </div>
             ))}
