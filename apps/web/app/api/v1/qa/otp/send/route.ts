@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { sendWhatsappOtp } from "@/lib/whatsapp";
+import { sendSmsOtp, smsConfigured } from "@/lib/sms";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createHash, randomInt } from "crypto";
 
@@ -14,12 +15,19 @@ function hashOtp(otp: string, testerId: string): string {
 
 /**
  * POST /api/v1/qa/otp/send — start tester login.
- * Body: { phone }. Sends a WhatsApp OTP (reuses the "wa_otp" template) if the
- * number belongs to a registered tester.
+ * Body: { phone, channel?: "sms" | "whatsapp" }.
+ *
+ * SMS is the default because a tester may not have WhatsApp at all, but it only
+ * delivers once the Msg91 DLT template is approved — `smsConfigured()` is false
+ * until every part of that registration is in env, and an unapproved template is
+ * dropped by the operator AFTER Msg91 returns a request id. So when SMS is not
+ * configured (or its send fails) this falls back to the WhatsApp OTP that has
+ * been working all along, and reports back which channel actually carried it.
  */
 export async function POST(req: Request) {
-  const body = (await req.json()) as { phone?: string };
+  const body = (await req.json()) as { phone?: string; channel?: "sms" | "whatsapp" };
   const cleaned = (body.phone ?? "").replace(/\D/g, "");
+  const requested: "sms" | "whatsapp" = body.channel === "whatsapp" ? "whatsapp" : "sms";
 
   if (!cleaned || cleaned.length < 10 || cleaned.length > 15) {
     return NextResponse.json(
@@ -51,11 +59,21 @@ export async function POST(req: Request) {
     data: { testerId: tester.id, phone: cleaned, otpHash, expiresAt },
   });
 
-  const sent = await sendWhatsappOtp(cleaned, otp);
+  const useSms = requested === "sms" && smsConfigured();
+  let channel: "sms" | "whatsapp" = useSms ? "sms" : "whatsapp";
+  let sent = useSms ? await sendSmsOtp(cleaned, otp) : await sendWhatsappOtp(cleaned, otp);
+
+  // SMS asked for but undeliverable → don't strand the tester on a dead channel.
+  if (!sent.ok && channel === "sms") {
+    console.error("[qa-otp] SMS send failed, falling back to WhatsApp:", sent.error);
+    channel = "whatsapp";
+    sent = await sendWhatsappOtp(cleaned, otp);
+  }
+
   if (!sent.ok) {
     await prisma.testerOtp.deleteMany({ where: { testerId: tester.id } });
     return NextResponse.json({ success: false, error: sent.error ?? "Failed to send OTP" }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, data: { channel } });
 }
