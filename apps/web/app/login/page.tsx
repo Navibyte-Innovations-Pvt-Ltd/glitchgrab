@@ -5,6 +5,8 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { GitHubSignInButton } from "./github-signin-button";
+import { LoginTabs } from "./login-tabs";
+import { getTesterSession } from "@/lib/tester-session";
 import {
   CodeRainBg,
   MiniTerminal,
@@ -16,6 +18,13 @@ import { ArrowLeft, Mail, ShieldAlert } from "lucide-react";
 
 export default async function LoginPage() {
   const session = await auth();
+
+  // A tester who is already signed in belongs on their dashboard, not on a
+  // sign-in page that only offers to sign them in again.
+  if (!session?.user?.id) {
+    const testerId = await getTesterSession();
+    if (testerId) redirect("/dashboard");
+  }
   if (session?.user?.id) {
     const membership = await prisma.orgMember.findFirst({
       where: { userId: session.user.id },
@@ -135,7 +144,11 @@ export default async function LoginPage() {
               </p>
             </div>
 
-            {/* Warning */}
+            {/* CTAs — tabbed: repo owner (GitHub) vs tester (phone OTP) */}
+            <Suspense fallback={null}>
+              <LoginTabs
+                owner={
+                  <div className="space-y-5">
             <div className="flex items-start gap-3 rounded-lg border border-yellow-500/15 bg-yellow-500/5 p-3">
               <ShieldAlert className="h-4 w-4 text-yellow-500/70 shrink-0 mt-0.5" />
               <div className="space-y-1">
@@ -147,7 +160,6 @@ export default async function LoginPage() {
               </div>
             </div>
 
-            {/* CTAs */}
             <div className="space-y-3">
               <Link href="/#waitlist" className="block">
                 <Button size="lg" className="w-full gap-2 text-sm font-semibold">
@@ -172,11 +184,13 @@ export default async function LoginPage() {
                 </Suspense>
               </div>
             </div>
-
-            {/* Fine print */}
             <p className="text-center text-[9px] text-muted-foreground/40 font-mono">
               repo access for issue creation only &middot; code is never read or stored
             </p>
+                  </div>
+                }
+              />
+            </Suspense>
           </div>
 
           {/* Email */}
