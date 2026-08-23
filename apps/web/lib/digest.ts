@@ -24,13 +24,13 @@ const DETAIL_LIMIT = 60;
 /** How many GitHub requests may be in flight at once while counting. */
 const CONCURRENCY = 6;
 
-export interface RepoCount {
+interface RepoCount {
   fullName: string;
   shortName: string;
   open: number;
 }
 
-export interface Digest {
+interface Digest {
   userId: string;
   phone: string;
   name: string;
