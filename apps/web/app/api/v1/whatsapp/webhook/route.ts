@@ -6,7 +6,8 @@ import { prisma } from "@/lib/db";
 import { qaLink } from "@/lib/qa";
 import { reopenGitHubIssue } from "@/lib/github";
 import { getInstallationAccessToken } from "@/lib/github-app";
-import { sendDeveloperReopenedNotification, sendWhatsappCtaUrl } from "@/lib/whatsapp";
+import { sendDeveloperReopenedNotification, sendWhatsappCtaUrl, sendWhatsappText } from "@/lib/whatsapp";
+import { muteDigestByPhone, unmuteDigestByPhone } from "@/lib/digest";
 import { handleBookingAction, handleBookingMessage } from "@/lib/whatsapp-booking";
 
 /**
@@ -22,6 +23,54 @@ function bookingAction(text: string): "reschedule" | "cancel" | null {
   if (/^reschedule\b/.test(t)) return "reschedule";
   if (/^cancel\b/.test(t)) return "cancel";
   return null;
+}
+
+/**
+ * "please don't message me today i am on leave" — issue #322, verbatim.
+ *
+ * Matched loosely on intent rather than an exact keyword because nobody types
+ * the keyword. Deliberately anchored on phrases that can only mean "stop
+ * messaging me": a bare "no" or "later" is left alone so a booking reply is
+ * never mistaken for a mute.
+ */
+const LEAVE_INTENT =
+  /^(leave|off|mute|dnd|stop)\b|\b(on leave|day off|days off|holiday|don'?t message|do not message|dont message|no messages?|not today|skip today)\b/i;
+
+/** The way back — only ever acted on for someone who is currently muted. */
+const RESUME_INTENT = /^(resume|unmute|back|i'?m back|im back|working)\b/i;
+
+/**
+ * A mute request, however it arrived, and the reply that confirms it.
+ *
+ * Free text rather than a template: the person just messaged us, which opens
+ * Meta's 24-hour service window. Returns true when it handled the message so
+ * the caller stops — a "don't message me" that then falls through to the
+ * booking script and gets answered with a slot picker is the exact failure this
+ * guards against.
+ */
+async function handleDigestMute(phone: string, text: string): Promise<boolean> {
+  const trimmed = text.trim();
+
+  if (RESUME_INTENT.test(trimmed)) {
+    const name = await unmuteDigestByPhone(phone);
+    if (!name) return false;
+    await sendWhatsappText(phone, `Welcome back ${name} 👋 Daily updates are on again.`);
+    return true;
+  }
+
+  if (!LEAVE_INTENT.test(trimmed)) return false;
+
+  const muted = await muteDigestByPhone(phone);
+  if (!muted) return false;
+
+  // Says plainly that this lasts a day, because "STOP" is in the intent list and
+  // people type it meaning "never again". Better to name the limit and point at
+  // the real off switch than to quietly mute for a day and be typed at again.
+  await sendWhatsappText(
+    phone,
+    `Got it ${muted.name} — no more issue updates today. Enjoy the break 🌴\n\nThey come back tomorrow; reply RESUME to turn them on sooner, or remove your number in Glitchgrab → Settings → WhatsApp to stop them for good.`
+  );
+  return true;
 }
 
 function verifySignature(body: string, signature: string | null): boolean {
@@ -130,6 +179,11 @@ export async function POST(request: Request) {
         message.interactive?.button_reply?.id ??
         message.interactive?.button_reply?.title ??
         "";
+      // A quick-reply tap that means "mute me" — checked before the booking
+      // actions because a template button echoes its own LABEL, and a label the
+      // booking matcher does not recognise otherwise falls through silently.
+      if (tapped && (await handleDigestMute(message.from, tapped))) continue;
+
       const action = bookingAction(tapped);
       if (action) {
         await handleBookingAction({ phone: message.from, action });
@@ -153,6 +207,10 @@ export async function POST(request: Request) {
       // would silently never leave. Meta retries on a non-200, so failing loudly
       // here is safer than answering 200 having done nothing.
       if (message.type === "text" && message.text?.body) {
+        // "I'm on leave, don't message me today" — first, because both handlers
+        // below would happily answer it with something else.
+        if (await handleDigestMute(message.from, message.text.body)) continue;
+
         // A registered tester saying hi gets a sign-in link, not the demo
         // booking script. Checked first and gated on BOTH the sender being a
         // known tester AND the text reading as a login intent, so a tester who
