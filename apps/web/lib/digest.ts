@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { getIssuesClosedSince, getOpenIssueCount } from "@/lib/github";
 import { getInstallationAccessToken } from "@/lib/github-app";
+import { magicButtonSuffix, magicLinkUrl, mintDigestLoginToken } from "@/lib/magic-login";
 
 /**
  * The two daily WhatsApp nudges — a morning digest and an evening recap.
@@ -16,6 +17,9 @@ const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
 /** Repos named in the breakdown string before it collapses into "+N more". */
 const BREAKDOWN_LIMIT = 4;
+
+/** Repos listed in the on-demand detail reply before it says "and N more". */
+const DETAIL_LIMIT = 60;
 
 /** How many GitHub requests may be in flight at once while counting. */
 const CONCURRENCY = 6;
@@ -44,8 +48,16 @@ export interface Digest {
   repoCounts: RepoCount[];
   /** Human org label — "Navibyte" or "Navibyte and 1 more". */
   orgLabel: string;
-  /** Dashboard deep-link path for the template's URL button, or null. */
+  /**
+   * The template's URL-button variable — `magic-link/<token>.<dest>` when a
+   * token could be minted, otherwise the plain path. Never null while the person
+   * owns an org: a template approved WITH a dynamic URL button is rejected
+   * outright when its parameter is missing, losing the whole message rather than
+   * just the button.
+   */
   glitchgrabPath: string | null;
+  /** Same destination as a full URL, for free-text replies. */
+  dashboardUrl: string | null;
 }
 
 /**
@@ -55,10 +67,13 @@ export interface Digest {
  * user connected", which misses repos a co-owner connected to an org the user
  * owns. The digest is org-scoped, so repos come off the org.
  */
-async function loadCandidates() {
+async function loadCandidates(phoneTail?: string) {
   return prisma.user.findMany({
     where: {
-      whatsappPhone: { not: null },
+      // Matched on the last 10 digits, the same way every other phone lookup in
+      // this codebase does: Meta always sends the country code, users rarely
+      // type one when saving their number.
+      whatsappPhone: phoneTail ? { endsWith: phoneTail } : { not: null },
       OR: [
         { ownedOrgs: { some: {} } },
         { orgMemberships: { some: {} } },
@@ -220,16 +235,20 @@ export function pickBreakdown(
 }
 
 /**
- * The "on your own plate" clause.
+ * The value after the template's "Assigned to you:" label.
  *
- * Says "not linked" rather than "0 assigned" when we have no GitHub login for
- * them — a confident zero that is really a missing join is how someone stops
- * trusting the whole message.
+ * A bare count, because the label already carries the meaning — the template
+ * renders it in bold on its own line, and "Assigned to you: 6 assigned to you"
+ * is what the earlier sentence-shaped version produced.
+ *
+ * Says "GitHub not linked" rather than "0" when we have no login for them: a
+ * confident zero that is really a missing join is how someone stops trusting
+ * every other number in the message.
  */
 export function formatOwnPlate(assignedOpen: number, githubLinked: boolean): string {
-  if (!githubLinked) return "GitHub not linked yet, so nothing to show";
-  if (assignedOpen === 0) return "nothing assigned to you right now";
-  return `${assignedOpen} assigned to you`;
+  if (!githubLinked) return "GitHub not linked";
+  if (assignedOpen === 0) return "none";
+  return String(assignedOpen);
 }
 
 /** "Navibyte" / "Navibyte and 1 more" / "your repos" when they own no org. */
@@ -278,6 +297,71 @@ export function startOfIstDay(now = new Date()): Date {
   const ist = new Date(now.getTime() + IST_OFFSET_MS);
   const midnightIst = Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate());
   return new Date(midnightIst - IST_OFFSET_MS);
+}
+
+/**
+ * Build one person's digest on demand, for a "Show details" tap.
+ *
+ * Ignores the mute deliberately: they just asked. A mute silences what we send
+ * unprompted, not an answer to a question.
+ *
+ * Returns null when the number belongs to nobody we know, or to someone with no
+ * repos at all — the caller then leaves the message to the other handlers rather
+ * than replying with an empty list.
+ */
+export async function buildDigestForPhone(phone: string): Promise<Digest | null> {
+  const tail = phone.replace(/\D/g, "").slice(-10);
+  if (tail.length !== 10) return null;
+
+  const [user] = await loadCandidates(tail);
+  if (!user) return null;
+
+  return buildOne(user, await tokenCache());
+}
+
+/**
+ * The full repo-by-repo list, as free text.
+ *
+ * Only legal because the person tapped a button, which counts as an inbound
+ * message and opens Meta's 24-hour service window — inside it we can send this
+ * without a template, and Meta does not bill it. That window is the whole reason
+ * the detail lives here rather than in a second template nobody would read.
+ *
+ * Untruncated on purpose: the digest itself collapses to "+3 more" to stay
+ * inside a template parameter, and this is where the rest of it lives.
+ */
+export function formatDetailMessage(digest: Digest): string {
+  const active = digest.repoCounts.filter((c) => c.open > 0);
+  const lines: string[] = [`*Open issues — ${digest.orgLabel}*`, ""];
+
+  if (!active.length) {
+    lines.push("Nothing open anywhere right now.");
+  } else {
+    // Hard cap far above any real org, so a runaway account cannot push the
+    // message past WhatsApp's 4096-character limit and get it dropped whole.
+    const shown = active.slice(0, DETAIL_LIMIT);
+    for (const repo of shown) {
+      lines.push(`${repo.shortName} — *${repo.open}*`);
+    }
+    if (active.length > shown.length) {
+      lines.push(`…and ${active.length - shown.length} more repos not listed.`);
+    }
+    lines.push("", `Total: *${digest.headlineOpen}*`);
+  }
+
+  if (digest.githubLinked) {
+    lines.push(`Assigned to you: *${digest.assignedOpen}*`);
+  } else {
+    lines.push("Assigned to you: GitHub not linked");
+  }
+
+  if (digest.dashboardUrl) {
+    // Carries the same single-use login token as the button, so the link opens
+    // the dashboard signed in rather than at a login screen.
+    lines.push("", `Full view: ${digest.dashboardUrl}`);
+  }
+
+  return lines.join("\n");
 }
 
 /**
@@ -336,8 +420,25 @@ export async function buildDigests({ closedSince }: { closedSince?: Date } = {})
   const digests: Digest[] = [];
 
   for (const user of candidates) {
-    if (!user.whatsappPhone) continue;
     if (isMuted(user.digestMutedUntil, now)) continue;
+
+    const digest = await buildOne(user, tokenFor, closedSince);
+    if (digest) digests.push(digest);
+  }
+
+  return digests;
+}
+
+type Candidate = Awaited<ReturnType<typeof loadCandidates>>[number];
+
+/** One person's counts. Split out so an on-demand reply can build just theirs. */
+async function buildOne(
+  user: Candidate,
+  tokenFor: (installationId: number) => Promise<string | null>,
+  closedSince?: Date
+): Promise<Digest | null> {
+  {
+    if (!user.whatsappPhone) return null;
 
     const ownedRepos = uniqueRepos(user.ownedOrgs.flatMap((org) => org.repos));
     const visibleRepos = uniqueRepos(
@@ -391,8 +492,15 @@ export async function buildDigests({ closedSince }: { closedSince?: Date } = {})
     const { headlineOpen, repoCounts } = pickBreakdown(ownedCounts, assignedCounts);
 
     const orgLogin = user.ownedOrgs[0]?.githubOrgLogin ?? null;
+    const targetPath = orgLogin ? `/org/${orgLogin}` : "/dashboard";
 
-    digests.push({
+    // Auto-login so the button is one tap, not a tap plus a GitHub round trip.
+    // Returns null on rate limit or any failure, and both helpers then fall back
+    // to a plain link — a digest must never be lost because a token could not
+    // be minted.
+    const loginToken = await mintDigestLoginToken({ userId: user.id, targetPath });
+
+    return {
       userId: user.id,
       phone: user.whatsappPhone,
       name: user.name?.split(" ")[0] ?? "there",
@@ -403,13 +511,8 @@ export async function buildDigests({ closedSince }: { closedSince?: Date } = {})
       closedInWindow,
       repoCounts,
       orgLabel: formatOrgLabel(user.ownedOrgs.map((org) => org.name)),
-      // No query string. A Meta dynamic URL button is a fixed prefix plus one
-      // variable, and a `?…=…` inside that variable is the kind of thing the
-      // review form rejects — a rejection costs a review cycle and dents the
-      // account's standing, which is not worth a pre-applied filter.
-      glitchgrabPath: orgLogin ? `org/${orgLogin}` : null,
-    });
+      glitchgrabPath: magicButtonSuffix(loginToken, targetPath),
+      dashboardUrl: magicLinkUrl(loginToken, targetPath),
+    };
   }
-
-  return digests;
 }
