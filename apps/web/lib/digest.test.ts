@@ -7,6 +7,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   formatBreakdown,
+  formatDetailMessage,
   formatOwnPlate,
   isMuted,
   muteUntil,
@@ -90,9 +91,81 @@ describe("pickBreakdown", () => {
 
 describe("formatOwnPlate", () => {
   it("distinguishes 'zero assigned' from 'we never linked your GitHub'", () => {
-    expect(formatOwnPlate(0, true)).toBe("nothing assigned to you right now");
-    expect(formatOwnPlate(0, false)).toBe("GitHub not linked yet, so nothing to show");
-    expect(formatOwnPlate(4, true)).toBe("4 assigned to you");
+    expect(formatOwnPlate(0, true)).toBe("none");
+    expect(formatOwnPlate(0, false)).toBe("GitHub not linked");
+    expect(formatOwnPlate(4, true)).toBe("4");
+  });
+
+  it("never repeats the template's own label", () => {
+    // The template line is "Assigned to you: *{{5}}*", so a value that reads
+    // "6 assigned to you" renders as "Assigned to you: 6 assigned to you".
+    for (const value of [formatOwnPlate(6, true), formatOwnPlate(0, true), formatOwnPlate(0, false)]) {
+      expect(value.toLowerCase()).not.toContain("assigned to you");
+    }
+  });
+});
+
+describe("formatDetailMessage", () => {
+  const base = {
+    userId: "u1",
+    phone: "919999999999",
+    name: "Naresh",
+    ownedOpen: 62,
+    assignedOpen: 6,
+    githubLinked: true,
+    headlineOpen: 62,
+    closedInWindow: 0,
+    orgLabel: "Navibyte Innovations",
+    glitchgrabPath: "magic-link/tok-123.L29yZy9OYXZpYnl0ZS1Jbm5vdmF0aW9ucy1QdnQtTHRk",
+    dashboardUrl:
+      "https://glitchgrab.dev/magic-link/tok-123.L29yZy9OYXZpYnl0ZS1Jbm5vdmF0aW9ucy1QdnQtTHRk",
+    repoCounts: [repo("practicestacks", 32), repo("abhyasika", 18), repo("glitchgrab", 12)],
+  };
+
+  it("lists every repo, unlike the digest's +N more", () => {
+    const out = formatDetailMessage(base);
+    expect(out).toContain("practicestacks — *32*");
+    expect(out).toContain("abhyasika — *18*");
+    expect(out).toContain("glitchgrab — *12*");
+    expect(out).not.toContain("more repos not listed");
+  });
+
+  it("carries the totals and the dashboard link", () => {
+    const out = formatDetailMessage(base);
+    expect(out).toContain("Total: *62*");
+    expect(out).toContain("Assigned to you: *6*");
+    // The auto-login URL, not a bare org path — tapping it lands signed in.
+    expect(out).toContain("https://glitchgrab.dev/magic-link/tok-123.");
+  });
+
+  it("drops quiet repos rather than listing zeroes", () => {
+    const out = formatDetailMessage({ ...base, repoCounts: [repo("a", 4), repo("b", 0)] });
+    expect(out).toContain("a — *4*");
+    expect(out).not.toContain("b —");
+  });
+
+  it("says so plainly when nothing is open", () => {
+    const out = formatDetailMessage({ ...base, repoCounts: [], headlineOpen: 0, ownedOpen: 0 });
+    expect(out).toContain("Nothing open anywhere right now.");
+    expect(out).not.toContain("Total:");
+  });
+
+  it("does not claim a confident zero when GitHub was never linked", () => {
+    const out = formatDetailMessage({ ...base, githubLinked: false, assignedOpen: 0 });
+    expect(out).toContain("Assigned to you: GitHub not linked");
+  });
+
+  it("stays inside WhatsApp's 4096-character limit for an absurd org", () => {
+    const many = Array.from({ length: 400 }, (_, i) => repo(`repository-number-${i}`, i + 1));
+    const out = formatDetailMessage({ ...base, repoCounts: many });
+    expect(out.length).toBeLessThan(4096);
+    // A silent truncation would read as "that is all of them" — it must say.
+    expect(out).toContain("more repos not listed");
+  });
+
+  it("omits the link for someone who owns no org", () => {
+    const out = formatDetailMessage({ ...base, dashboardUrl: null });
+    expect(out).not.toContain("Full view:");
   });
 });
 
