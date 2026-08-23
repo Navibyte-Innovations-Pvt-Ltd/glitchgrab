@@ -21,7 +21,7 @@ import type {
 import { GlitchgrabErrorBoundary } from "./error-boundary";
 import { ReportDialog } from "@glitchgrab/report-ui";
 import { BookingDialog } from "./booking-dialog";
-import { sanitizeUrl, captureContext, contextMetadata, sendReport, sendFeedback, captureDeviceInfo, enhanceText, transcribeAudio, type EnhanceContext } from "./utils";
+import { sanitizeUrl, captureContext, contextMetadata, sendReport, sendFeedback, captureDeviceInfo, enhanceText, assistTurn, transcribeAudio, type EnhanceContext } from "./utils";
 import {
   setContext as setContextInternal,
   setContexts as setContextsInternal,
@@ -480,6 +480,38 @@ function GlitchgrabProviderInner({
     [token, baseUrl]
   );
 
+  /**
+   * One assistant turn. Carries the same session context the enhance button
+   * sends — the page, where they had been, what they clicked — because that is
+   * most of what a developer would have asked for anyway.
+   */
+  const assist = useCallback(
+    async (params: {
+      messages: { role: "user" | "assistant"; content: string }[];
+      conversationId: string | null;
+      screenshot?: string | null;
+      context?: Record<string, unknown> | null;
+    }) => {
+      const ctx = captureContext(visitedPagesRef.current);
+      return assistTurn(
+        {
+          ...params,
+          context: {
+            ...(params.context ?? {}),
+            url: ctx.url,
+            visitedPages: ctx.visitedPages.slice(-5),
+            breadcrumbs: ctx.breadcrumbs
+              .slice(-25)
+              .map((b) => ({ type: b.type, message: b.message })),
+          },
+        },
+        token,
+        baseUrl
+      );
+    },
+    [token, baseUrl]
+  );
+
   const transcribe = useCallback(
     async (blob: Blob): Promise<string> => {
       try {
@@ -530,6 +562,14 @@ function GlitchgrabProviderInner({
   const [projectName, setProjectName] = useState<string | null>(null);
 
   /**
+   * Whether this project's owner turned the AI report assistant on (#330).
+   * Starts false so the dialog never flashes an affordance it may not keep, and
+   * is only ever a UI hint — /api/v1/ai/report-chat re-checks the same column
+   * on every call.
+   */
+  const [aiAssist, setAiAssist] = useState(false);
+
+  /**
    * Demo booking, opened from the host app's own "Book a demo" button.
    *
    * State lives here rather than in the button so a host can trigger it from
@@ -548,6 +588,7 @@ function GlitchgrabProviderInner({
       .then((json) => {
         if (cancelled || !json?.success || !json.data?.name) return;
         setProjectName(json.data.name as string);
+        setAiAssist(json.data.aiAssist === true);
       })
       .catch(() => {
         // The dialog simply omits the line — never block reporting on it.
@@ -631,6 +672,7 @@ function GlitchgrabProviderInner({
         report={report}
         sendFeedback={feedback}
         enhanceText={enhance}
+        assist={aiAssist ? assist : undefined}
         transcribeAudio={transcribe}
         types={types}
         showSeverity={showSeverity}
