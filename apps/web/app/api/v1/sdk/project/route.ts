@@ -25,6 +25,11 @@ export async function OPTIONS() {
  * Deliberately the repo NAME only, never the owner or the token: this renders
  * in a dialog any end user of the host app can open, and the org someone hosts
  * their code under is not theirs to see.
+ *
+ * Also carries `aiAssist` (#330) — whether the owner turned the report
+ * assistant on for this project. The dialog uses it to decide whether to render
+ * the AI tab at all; the flag is a UI hint, and /api/v1/ai/report-chat checks
+ * the same column again on every call. A client that lies about it gets a 403.
  */
 export async function GET(request: Request) {
   try {
@@ -38,7 +43,7 @@ export async function GET(request: Request) {
 
     const apiToken = await prisma.apiToken.findUnique({
       where: { tokenHash: hashToken(authHeader.replace("Bearer ", "")) },
-      select: { repo: { select: { fullName: true } } },
+      select: { repo: { select: { fullName: true, aiAssistEnabled: true } } },
     });
     if (!apiToken) {
       return NextResponse.json(
@@ -49,7 +54,13 @@ export async function GET(request: Request) {
 
     const fullName = apiToken.repo.fullName;
     return NextResponse.json(
-      { success: true, data: { name: fullName.includes("/") ? fullName.split("/")[1] : fullName } },
+      {
+        success: true,
+        data: {
+          name: fullName.includes("/") ? fullName.split("/")[1] : fullName,
+          aiAssist: apiToken.repo.aiAssistEnabled,
+        },
+      },
       { headers: CORS_HEADERS }
     );
   } catch (error) {
