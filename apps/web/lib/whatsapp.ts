@@ -404,16 +404,40 @@ export async function sendWeeklyIssueSummary({
  * somewhere to start. The same person is usually admin AND developer, so the
  * org backlog and their own plate ride in one message rather than two.
  *
+ * Wording is flat and transactional on purpose. The first draft opened with
+ * "☀️ Good morning {{1}}! … Pick one and close it today" and Meta's classifier
+ * answered "Category does not match — this message template will be rejected",
+ * pushing it to Marketing. Greetings, encouragement and a sun emoji read as
+ * promotion; a Utility template has to sound like an account statement.
+ *
+ * Laid out as a labelled block rather than a paragraph, with WhatsApp's own
+ * `*bold*` markup on the values. A wall of prose on a phone is skipped; the
+ * numbers have to be findable in a glance. Note the asterisks must not wrap a
+ * middle dot — `*Issue update · {{1}}*` renders as literal text, `*Issue update
+ * for {{1}}*` renders bold. Body line breaks are fine; PARAMETERS still cannot
+ * contain them (see `sanitizeParam`).
+ *
  * Template "daily_issue_digest" (Utility):
- *   Body:     ☀️ Good morning {{1}}! Across {{2}} there are {{3}} open issue(s)
- *             waiting. Where they sit: {{4}}. On your own plate: {{5}}. Pick one
- *             and close it today — and if you are on leave, tap Skip today.
+ *   Body:     *Issue update for {{1}}*
+ *             (blank line)
+ *             *{{2}}* has *{{3}}* open issue(s).
+ *             By repo: {{4}}
+ *             Assigned to you: *{{5}}*
+ *             (blank line)
+ *             Tap Show details for every repo, Open dashboard for the full view,
+ *             or Skip today to pause.
  *   Button 0 (URL):         Open dashboard → https://glitchgrab.dev/{{1}}
  *                           suffix = org/{login} — no query string; a `?…=…`
  *                           inside a dynamic-URL variable risks a rejection.
- *   Button 1 (quick reply): Skip today — mutes both nudges for the day. Handled
- *                           in /api/v1/whatsapp/webhook, which reads the button
- *                           LABEL: a template quick reply carries no payload.
+ *   Button 1 (quick reply): Skip today — mutes both nudges for the day.
+ *   Button 2 (quick reply): Show details — replies in-chat with the full
+ *                           repo-by-repo list, the part the template's "+3 more"
+ *                           had to drop. The tap is an inbound message, so the
+ *                           reply is free text inside Meta's 24-hour window and
+ *                           costs nothing.
+ *
+ * Both quick replies are handled in /api/v1/whatsapp/webhook, which matches on
+ * the button LABEL — a template quick reply carries no payload of its own.
  */
 export async function sendDailyIssueDigest({
   phone,
@@ -448,13 +472,22 @@ export async function sendDailyIssueDigest({
  * `updated_at`: a stale issue someone merely commented on today is not work
  * done, and claiming it is makes every future number suspect.
  *
+ * Same flat register as the morning digest, and for the same reason — see the
+ * note above `sendDailyIssueDigest`.
+ *
  * Template "evening_recap" (Utility):
- *   Body:     🌙 Evening wrap for {{1}} — {{2}} issue(s) closed today across {{3}}.
- *             Still open: {{4}}, and {{5}} of those sit with you. Good work today,
- *             rest up. Tap Skip today if tomorrow is off.
+ *   Body:     *Daily summary for {{1}}*
+ *             (blank line)
+ *             *{{2}}* issue(s) closed today in *{{3}}*.
+ *             Still open: {{4}}
+ *             Assigned to you: {{5}}
+ *             (blank line)
+ *             Tap Show details for every repo, Open dashboard for the full view,
+ *             or Skip today to pause.
  *   Button 0 (URL):         Open dashboard → https://glitchgrab.dev/{{1}}
  *                           suffix = org/{login}
  *   Button 1 (quick reply): Skip today
+ *   Button 2 (quick reply): Show details
  */
 export async function sendEveningRecap({
   phone,
