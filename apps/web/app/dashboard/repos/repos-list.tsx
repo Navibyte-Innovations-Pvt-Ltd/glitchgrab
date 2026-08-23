@@ -12,6 +12,7 @@ import {
   Loader2,
   RefreshCw,
   Search,
+  Sparkles,
   Users,
 } from "lucide-react";
 import { useState } from "react";
@@ -26,6 +27,8 @@ interface Repo {
   tokens: number;
   reports: number;
   installed: boolean;
+  /** Owner's AI report assistant switch (#330). Only meaningful on own repos. */
+  aiAssistEnabled: boolean;
 }
 
 interface ReposData {
@@ -171,6 +174,34 @@ function RepoCard({ repo, kind }: { repo: Repo; kind: "own" | "shared" }) {
 
   const queryClient = useQueryClient();
 
+  /**
+   * The AI report assistant switch (#330).
+   *
+   * Lives on the repo card because the repo is what it costs money against, and
+   * the owner is the only one who can turn it on. Off by default: an SDK
+   * embedded in someone's app can be opened by any of their end users, and
+   * nobody should discover they enabled that by reading a bill.
+   */
+  const { mutate: toggleAiAssist, isPending: isTogglingAi } = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const { data } = await axios.patch(`/api/v1/repos/${repo.id}/ai-assist`, {
+        enabled,
+      });
+      return data.data as { aiAssistEnabled: boolean };
+    },
+    onSuccess: (result) => {
+      toast.success(
+        result.aiAssistEnabled
+          ? "AI assist on — reporters can have the AI write their report"
+          : "AI assist off — reporters see the plain form"
+      );
+      queryClient.invalidateQueries({ queryKey: ["repos"] });
+    },
+    onError: () => {
+      toast.error("Could not change AI assist");
+    },
+  });
+
   const { mutate: syncRepo, isPending: isSyncing } = useMutation({
     mutationFn: () => resyncRepo(repo.id),
     onSuccess: (result) => {
@@ -246,6 +277,35 @@ function RepoCard({ repo, kind }: { repo: Repo; kind: "own" | "shared" }) {
           id:{repo.githubId}
         </span>
         <div className="flex items-center gap-1.5">
+          {kind === "own" && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleAiAssist(!repo.aiAssistEnabled);
+              }}
+              disabled={isTogglingAi}
+              title={
+                repo.aiAssistEnabled
+                  ? "AI assist is on — reporters can have the AI write their report. Click to turn off."
+                  : "AI assist is off. Click to let reporters have the AI write their report for them."
+              }
+              aria-pressed={repo.aiAssistEnabled}
+              className={`inline-flex items-center gap-1 px-2 py-1 rounded border font-mono text-[10px] uppercase tracking-wider transition-colors disabled:opacity-50 ${
+                repo.aiAssistEnabled
+                  ? "border-primary/40 bg-primary/10 text-primary"
+                  : "border-border bg-background text-muted-foreground hover:text-foreground hover:border-primary/40"
+              }`}
+            >
+              {isTogglingAi ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Sparkles className="h-3 w-3" />
+              )}
+              ai {repo.aiAssistEnabled ? "on" : "off"}
+            </button>
+          )}
           {kind === "own" && (
             <button
               type="button"
