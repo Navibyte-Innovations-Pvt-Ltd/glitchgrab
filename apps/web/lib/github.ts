@@ -269,14 +269,27 @@ export async function checkIssueIsOpen(
   }
 }
 
+/**
+ * Open issue count for a repo, optionally narrowed to one assignee.
+ *
+ * Counted off the Link header rather than by reading the page, so it costs one
+ * request no matter how many issues there are. `assignee` is a GitHub login;
+ * pass it to answer "how many are on THIS developer's plate".
+ *
+ * Caveat GitHub does not let us avoid: `/issues` counts pull requests too. Fine
+ * for a nudge ("you have ~87 things open"), wrong for anything that must tally
+ * with the issues list on screen.
+ */
 export async function getOpenIssueCount(
   accessToken: string,
   owner: string,
-  repo: string
+  repo: string,
+  assignee?: string
 ): Promise<number> {
   try {
+    const assigneeParam = assignee ? `&assignee=${encodeURIComponent(assignee)}` : "";
     const res = await fetch(
-      `${GITHUB_API}/repos/${owner}/${repo}/issues?state=open&per_page=1`,
+      `${GITHUB_API}/repos/${owner}/${repo}/issues?state=open&per_page=1${assigneeParam}`,
       { headers: headers(accessToken) }
     );
     if (!res.ok) return 0;
@@ -310,6 +323,53 @@ export async function getClosedIssueCountSince(
   } catch {
     return 0;
   }
+}
+
+/**
+ * Issues actually CLOSED since `since` — as opposed to `getClosedIssueCountSince`,
+ * which passes `since=` to GitHub and therefore filters on **updated_at**: an
+ * issue closed last month but commented on today counts there. Invisible in a
+ * weekly recap, glaring in a "you closed 4 issues today" message.
+ *
+ * Costs a page read instead of a Link-header peek, so it pages (capped at 500
+ * issues — a day or a week never gets near that).
+ */
+export async function getIssuesClosedSince(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  since: Date
+): Promise<number> {
+  const MAX_PAGES = 5;
+  let count = 0;
+
+  try {
+    for (let page = 1; page <= MAX_PAGES; page++) {
+      const res = await fetch(
+        `${GITHUB_API}/repos/${owner}/${repo}/issues?state=closed&since=${since.toISOString()}` +
+          `&sort=updated&direction=desc&per_page=100&page=${page}`,
+        { headers: headers(accessToken) }
+      );
+      if (!res.ok) return count;
+
+      const items = (await res.json()) as Array<{
+        closed_at: string | null;
+        pull_request?: unknown;
+      }>;
+      if (!items.length) return count;
+
+      for (const item of items) {
+        if (item.pull_request) continue;
+        if (item.closed_at && new Date(item.closed_at) >= since) count++;
+      }
+
+      if (items.length < 100) return count;
+    }
+  } catch {
+    return count;
+  }
+
+  return count;
 }
 
 // ─── Commit File (doc attachments) ───────────────────
