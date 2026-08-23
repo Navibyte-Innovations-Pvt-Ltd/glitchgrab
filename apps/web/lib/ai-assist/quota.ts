@@ -15,10 +15,15 @@ import { MAX_TURNS } from "./prompt";
  * doesn't, so the model is free to ask when asking is the right move.
  */
 
-/** Conversations per repo per calendar month before the assistant goes quiet. */
-export const MONTHLY_CONVERSATION_CAP = 50;
+/**
+ * Conversations per repo per calendar month before the assistant goes quiet.
+ *
+ * Module-private on purpose: the cap is enforced here and nowhere else. A route
+ * that imported it would be free to re-implement the check and drift from it.
+ */
+const MONTHLY_CONVERSATION_CAP = 50;
 
-export type QuotaDenial = "MONTHLY_CAP" | "TURN_CAP";
+type QuotaDenial = "MONTHLY_CAP" | "TURN_CAP";
 
 interface QuotaOk {
   ok: true;
@@ -32,7 +37,7 @@ interface QuotaDenied {
   reason: QuotaDenial;
 }
 
-export type QuotaResult = QuotaOk | QuotaDenied;
+type QuotaResult = QuotaOk | QuotaDenied;
 
 function startOfMonth(now: Date): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
