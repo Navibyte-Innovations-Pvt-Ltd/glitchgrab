@@ -1,3 +1,52 @@
+## [1.55.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.54.0...v1.55.0) (2026-08-23)
+
+### Features
+
+* **claude:** add daily digest functionality ([5a7afd4](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/5a7afd45c2ef3fef3beeb040f6e7f89020c4dbeb))
+* **daily-digest:** morning nudge with per-repo breakdown ([2d42116](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/2d42116107067d84acf58b4363c3286287a1bfb7))
+* **digest:** improve repo count logic ([5629396](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/562939625defe17ba1daeb3ab94dbe6a8e695205))
+* **layout:** add tester shell support for QA testers ([66f3a33](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/66f3a33435d52b8d18c0c90adc590e8e85d9b163))
+* **login:** add tester-signin-form component ([74faaa0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/74faaa0c01a053c214eb5bd1d873837da3b7539f))
+* **migration:** add `digestMutedUntil` column to User table ([d2ba428](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/d2ba42806f4a5ab1ee15bfd2e2677aba41c38ec1))
+* **migration:** add single-use auto-login token backend for WhatsApp digest's "Open dashboard" button ([35f5bf1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/35f5bf1cd996ba02c8ce3c832353ed59ed8876d4))
+* **proxy:** testers are not NextAuth users - use gg_tester cookie as proxy guard ([c349365](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/c3493657d598da340b164caa7e963dee389ccea1))
+* **repo:** add dynamic route for tester QA links ([6aa1140](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/6aa1140a1bcb074c7323420e536d44b1436d3b42))
+* **repo:** add MagicLinkPage component ([850dee5](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/850dee568167295e26c8194153a89eabe2e35e6f))
+* **webhook:** add digest detail handler ([19ad9b1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/19ad9b1e471cb5fcc9ad6135cbb901906d1570a0))
+* **webhook:** add login test functionality to whatsapp webhook route ([851ff70](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/851ff70d6cddf53009cb1d8b444a7d48052d93a3))
+* **whatsapp_templates:** re-classify Marketing as Utility ([a094211](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/a0942116c0ebf7a2208cb1e5d66816fbd7d099f5))
+
+### Bug Fixes
+
+* **api:** implement automatic daily issue reminder workflow ([c414dc9](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/c414dc968d3dd829498a2cfbc777777a3fc207ef))
+* **api:** use `magic-button-suffix` for weekly summary route ([e2358c4](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/e2358c4f28f78a71289d13ae68fa3963d2e3cc49))
+* **auth:** add credentials provider for WhatsApp magic link ([c74ca8e](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/c74ca8e253a9f430e95230a050beb916f53f7e76))
+* **auth:** handle tester login and sign-in in /login page ([d3e036b](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/d3e036bf5b6ec708dc4552bfc71ac2ecdef342da))
+* **claude:** add auto-login and show details actions ([ec3a6f2](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/ec3a6f2d0c1417de4037912b710ee77fb7be7ee4))
+* **comment:** add tester-specific comments ([1bce5a3](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/1bce5a334ad481a7851ce16dbe2b4a6733dea566))
+* **daily-reminder:** remove daily reminder route ([41a7491](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/41a74911466ac5769852d6137432106dfdb98dd4))
+* **digest.test.ts:** add digest tests for repo breakdown, muteUntil, and startOfIstDay ([9b03646](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/9b03646ebb5a69355f93f2b0ca8bd6afeb6fc20e))
+* **digest.test:** improve readability and avoid repetition ([d24bba4](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/d24bba425356c5127c1c186ecd60e8f4f6eee6cf))
+* **digest:** add buildDigestForPhone and formatDetailMessage ([b22e9c2](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/b22e9c2400800ea8da4916bb4c87015664c7ed6e))
+* **evening-recap:** add route for sending evening recap to whatsapp ([5d848d0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/5d848d0945c002bc299cfcf1007d6ede5001c0a6))
+* **github:** open issue count, getIssuesClosedSince ([b2adbf6](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/b2adbf6956aa15d36d1aec33073565161c9f8156))
+* **login-tabs:** add login tabs for owner and tester, use `?tab=tester` for tester sign in ([fe3d15e](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/fe3d15efb1ae393b679cd2e2fa1ef654ebeee3ad))
+* **magic-login.test:** add tests for encode/decode round trip, safeTargetPath, magicButtonSuffix, and magicLinkUrl ([806bc34](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/806bc342ac2611e65e84ba2b342efab0e5f4eb4a))
+* **magic-login:** add login token minting support ([ea13196](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/ea1319670a6d531f4e5432f748dda78d5d0ed7f1))
+* **prisma:** add digestMutedUntil field to User model ([a86c75f](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/a86c75f196106d061c63b3c42de84ade6d1db166))
+* **prisma:** add loginTokens table for auto-login tokens ([9ebaaed](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/9ebaaed20f9acd4ef98edf6328eaa87bc9d16ff6))
+* **proxy:** add WhatsApp digest auto-login and refactor token validation ([d55c986](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/d55c986ed04f2f11c597ab5da81239dd88db1798))
+* **qa-login:** remove `qa-login.tsx` file ([a2dee82](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/a2dee82292b5de93ae2d3cfe033ee4d6fcf7d2c8))
+* **qa:** redirect from /qa to /dashboard ([fee9cb7](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/fee9cb732d04cc66eef84a591168190f15b9c844))
+* **send:** improve sms fallback and clarify channel selection ([1cc3036](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/1cc303697d39725e4b2d20f63bc0bed8b8423ab9))
+* **tester-shell:** add new component ([78dc4ea](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/78dc4ea945e1cf002d187baad7135483563475b2))
+* **vercel:** add cron jobs for daily-reminder, daily-digest, evening-recap and weekly-summary ([b825937](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/b8259371d6abc4d7d4cd1c991b20587ed6e620d3))
+* **webhook:** handle digest mute request ([8a109fb](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/8a109fb80ebb8f60ab23ca7cf34a314b57904295))
+* **whatsapp_templates:** add daily digest templates ([a32679a](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/a32679a27576ba2c58eb1bee0d4855363b452fb3))
+* **whatsapp-magic-login:** use WhatsApp magic login button instead of PracticeStacks button ([a1839f5](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/a1839f5c35d6032985c7500fd5f601e9929968c4))
+* **whatsapp:** add morning and evening digest templates ([5180864](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/51808649ade21a375cfa3e0a921f1b84c453b6ed))
+* **whatsapp:** improve issue summary template to be flat and transactional ([a9aeeb5](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/a9aeeb5da4e3307cd12aa992d64d9bb6398c2167))
+
 ## [1.54.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.53.0...v1.54.0) (2026-08-21)
 
 ### Features
