@@ -29,7 +29,8 @@ export interface AssistMessage {
   content: string;
 }
 
-export interface AssistResult {
+/** Internal to this module — the route consumes `assistTurn`'s return directly. */
+interface AssistResult {
   /** Set when the model is still asking. Rendered as a chat bubble. */
   question: string | null;
   /** Set when the model wrote the report. Fills the description textarea. */
