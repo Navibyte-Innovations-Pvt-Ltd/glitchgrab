@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
+import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db";
 import { getUserOrgs, getUserOrgRoles, getGitHubUserLogin } from "@/lib/github";
@@ -27,6 +28,37 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         params: {
           scope: "read:user user:email repo",
         },
+      },
+    }),
+    /**
+     * Auto-login from a WhatsApp digest button. NOT a password provider — the
+     * only credential it accepts is a `LoginToken` this server minted and sent
+     * to the user's own verified WhatsApp number.
+     *
+     * Consumption is atomic: `updateMany` scoped to `usedAt: null` and an
+     * unexpired row, then `count === 1`. Read-then-write would let two taps
+     * arriving together both pass the check and both authorize, which for a
+     * link sitting in a chat thread is not a theoretical race.
+     */
+    Credentials({
+      id: "magic-token",
+      name: "Magic link",
+      credentials: { magicToken: { type: "text" } },
+      async authorize(credentials) {
+        const magicToken = credentials?.magicToken;
+        if (typeof magicToken !== "string" || !magicToken) return null;
+
+        const claimed = await prisma.loginToken.updateMany({
+          where: { token: magicToken, usedAt: null, expiresAt: { gt: new Date() } },
+          data: { usedAt: new Date() },
+        });
+        if (claimed.count !== 1) return null;
+
+        const row = await prisma.loginToken.findUnique({
+          where: { token: magicToken },
+          select: { user: { select: { id: true, name: true, email: true, image: true } } },
+        });
+        return row?.user ?? null;
       },
     }),
   ],

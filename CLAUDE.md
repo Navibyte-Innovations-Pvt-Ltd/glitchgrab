@@ -243,6 +243,16 @@ the four booking templates are in `WHATSAPP_TEMPLATES.md`.
 Reschedule/cancel taps move the Google event, the `Meeting` and the reminder
 flag together — never recreate the event. See `agent_docs/booking-reschedule.md`.
 
+Daily digest (morning 08:00 IST + evening 19:00 IST) lives in `lib/digest.ts`,
+sent by `cron/daily-digest` and `cron/evening-recap`. Inert until
+`WHATSAPP_DIGEST_ENABLED=true`; a "leave"/"skip today" reply mutes both until
+midnight IST, "show details" replies with the full repo list as free text (free
+— inbound tap opens Meta's 24h window). Templates: `WHATSAPP_TEMPLATES.md` §5–6.
+
+"Open dashboard" auto-logs in via a single-use 48h `LoginToken` — bearer
+credential, atomic claim, same-site redirects only. Changing where the button
+points needs NO template edit. See `agent_docs/whatsapp-magic-login.md`.
+
 ## Code conventions
 
 - TypeScript strict mode everywhere

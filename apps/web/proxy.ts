@@ -25,8 +25,89 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
+  // WhatsApp digest auto-login.
+  //
+  // Two jobs, both cheap:
+  //
+  //  1. Repair the encoded spelling. The digest's URL button is a fixed prefix
+  //     plus one variable, so the suffix we send contains a `/`. Meta
+  //     percent-encodes special characters in that value, and whether the slash
+  //     survives is NOT verified — a click would then arrive as
+  //     `/magic-link%2F<segment>`, a single segment that matches no route. Both
+  //     spellings are accepted here rather than gambling on Meta's behaviour.
+  //
+  //  2. Do not spend the token on someone already signed in. The token is
+  //     single-use; a signed-in visitor tapping yesterday's button would burn it
+  //     for nothing and see "already used" on the next tap.
+  const encodedMagic = path.startsWith("/magic-link%2F") || path.startsWith("/magic-link%2f");
+  if (encodedMagic) {
+    const segment = path.slice("/magic-link%2F".length);
+    const repaired = request.nextUrl.clone();
+    repaired.pathname = `/magic-link/${segment}`;
+    return NextResponse.redirect(repaired);
+  }
+
+  if (path.startsWith("/magic-link/")) {
+    const token = await getToken({
+      req: request,
+      secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
+      cookieName: "authjs.session-token",
+    });
+    if (token) {
+      // Decoded inline rather than importing lib/magic-login: this file runs on
+      // the edge runtime, where pulling in the Prisma client would fail.
+      const segment = path.slice("/magic-link/".length);
+      const dot = segment.indexOf(".");
+      const encoded = dot === -1 ? "" : segment.slice(dot + 1);
+      let target = "/dashboard";
+      if (encoded) {
+        try {
+          const padded = encoded
+            .replace(/-/g, "+")
+            .replace(/_/g, "/")
+            .padEnd(Math.ceil(encoded.length / 4) * 4, "=");
+          const decoded = atob(padded);
+          // Same rule as safeTargetPath: same-site paths only. `//evil.com` has
+          // no scheme but browsers treat it as absolute.
+          if (decoded.startsWith("/") && !decoded.startsWith("//") && !decoded.includes("\\")) {
+            target = decoded;
+          }
+        } catch {
+          /* keep the default */
+        }
+      }
+      const url = request.nextUrl.clone();
+      url.pathname = target;
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+    return NextResponse.next();
+  }
+
   // Dashboard auth guard + org redirect (fast path via JWT cache)
   if (path.startsWith("/dashboard")) {
+    // Testers are NOT NextAuth users — they carry the gg_tester cookie instead.
+    // Presence is enough here (the cookie is HMAC-signed and re-verified by the
+    // layout before anything renders); the point of this branch is to keep the
+    // tester OUT of every owner surface. A tester gets exactly /dashboard and
+    // nothing below it: no /dashboard/repos, /billing, /settings, /tokens, and
+    // no /org/<slug> redirect. Anything else bounces back to /dashboard.
+    const hasTesterCookie = Boolean(request.cookies.get("gg_tester")?.value);
+    if (hasTesterCookie) {
+      const ownerToken = await getToken({
+        req: request,
+        secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
+      });
+      if (!ownerToken) {
+        if (path !== "/dashboard" && path !== "/dashboard/") {
+          return NextResponse.redirect(new URL("/dashboard", request.url));
+        }
+        const testerHeaders = new Headers(request.headers);
+        testerHeaders.set("x-pathname", path);
+        return NextResponse.next({ request: { headers: testerHeaders } });
+      }
+    }
+
     const token = await getToken({
       req: request,
       secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
@@ -59,5 +140,13 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/api/v1/sdk/:path*", "/api/v1/reports/:path*", "/dashboard/:path*"],
+  matcher: [
+    "/api/v1/sdk/:path*",
+    "/api/v1/reports/:path*",
+    "/dashboard/:path*",
+    "/magic-link/:path*",
+    // The percent-encoded spelling matches no `:path*` pattern — it is one
+    // literal segment — so it needs its own entry.
+    "/magic-link%2F:path*",
+  ],
 };

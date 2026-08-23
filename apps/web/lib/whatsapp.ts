@@ -396,6 +396,127 @@ export async function sendWeeklyIssueSummary({
 }
 
 /**
+ * Morning digest — one message that serves both hats.
+ *
+ * Replaces the old `daily_issue_reminder` for anyone once
+ * `WHATSAPP_DIGEST_ENABLED` is on. The point of the extra parameters is issue
+ * #322: "87 open issues" is a number, "PracticeStacks 32, Abhyasika 18" is
+ * somewhere to start. The same person is usually admin AND developer, so the
+ * org backlog and their own plate ride in one message rather than two.
+ *
+ * Wording is flat and transactional on purpose. The first draft opened with
+ * "☀️ Good morning {{1}}! … Pick one and close it today" and Meta's classifier
+ * answered "Category does not match — this message template will be rejected",
+ * pushing it to Marketing. Greetings, encouragement and a sun emoji read as
+ * promotion; a Utility template has to sound like an account statement.
+ *
+ * Laid out as a labelled block rather than a paragraph, with WhatsApp's own
+ * `*bold*` markup on the values. A wall of prose on a phone is skipped; the
+ * numbers have to be findable in a glance. Note the asterisks must not wrap a
+ * middle dot — `*Issue update · {{1}}*` renders as literal text, `*Issue update
+ * for {{1}}*` renders bold. Body line breaks are fine; PARAMETERS still cannot
+ * contain them (see `sanitizeParam`).
+ *
+ * Template "daily_issue_digest" (Utility):
+ *   Body:     *Issue update for {{1}}*
+ *             (blank line)
+ *             *{{2}}* has *{{3}}* open issue(s).
+ *             By repo: {{4}}
+ *             Assigned to you: *{{5}}*
+ *             (blank line)
+ *             Tap Show details for every repo, Open dashboard for the full view,
+ *             or Skip today to pause.
+ *   Button 0 (URL):         Open dashboard → https://glitchgrab.dev/{{1}}
+ *                           suffix = org/{login} — no query string; a `?…=…`
+ *                           inside a dynamic-URL variable risks a rejection.
+ *   Button 1 (quick reply): Skip today — mutes both nudges for the day.
+ *   Button 2 (quick reply): Show details — replies in-chat with the full
+ *                           repo-by-repo list, the part the template's "+3 more"
+ *                           had to drop. The tap is an inbound message, so the
+ *                           reply is free text inside Meta's 24-hour window and
+ *                           costs nothing.
+ *
+ * Both quick replies are handled in /api/v1/whatsapp/webhook, which matches on
+ * the button LABEL — a template quick reply carries no payload of its own.
+ */
+export async function sendDailyIssueDigest({
+  phone,
+  name,
+  orgLabel,
+  openCount,
+  breakdown,
+  ownPlate,
+  glitchgrabPath,
+}: {
+  phone: string;
+  name: string;
+  orgLabel: string;
+  openCount: number;
+  breakdown: string;
+  ownPlate: string;
+  glitchgrabPath: string | null;
+}): Promise<{ ok: boolean; error?: string }> {
+  return sendTemplate(
+    "daily_issue_digest",
+    phone,
+    [name, orgLabel, String(openCount), breakdown, ownPlate].map(sanitizeParam),
+    glitchgrabPath ?? undefined
+  );
+}
+
+/**
+ * Evening recap — what actually got finished today.
+ *
+ * The counterpart to the morning nudge, and the half the issue asked for by
+ * name ("oh good work you have done some work"). Counted off `closed_at`, not
+ * `updated_at`: a stale issue someone merely commented on today is not work
+ * done, and claiming it is makes every future number suspect.
+ *
+ * Same flat register as the morning digest, and for the same reason — see the
+ * note above `sendDailyIssueDigest`.
+ *
+ * Template "evening_recap" (Utility):
+ *   Body:     *Daily summary for {{1}}*
+ *             (blank line)
+ *             *{{2}}* issue(s) closed today in *{{3}}*.
+ *             Still open: {{4}}
+ *             Assigned to you: {{5}}
+ *             (blank line)
+ *             Tap Show details for every repo, Open dashboard for the full view,
+ *             or Skip today to pause.
+ *   Button 0 (URL):         Open dashboard → https://glitchgrab.dev/{{1}}
+ *                           suffix = org/{login}
+ *   Button 1 (quick reply): Skip today
+ *   Button 2 (quick reply): Show details
+ */
+export async function sendEveningRecap({
+  phone,
+  name,
+  closedCount,
+  orgLabel,
+  openCount,
+  assignedCount,
+  glitchgrabPath,
+}: {
+  phone: string;
+  name: string;
+  closedCount: number;
+  orgLabel: string;
+  openCount: number;
+  assignedCount: number;
+  glitchgrabPath: string | null;
+}): Promise<{ ok: boolean; error?: string }> {
+  return sendTemplate(
+    "evening_recap",
+    phone,
+    [name, String(closedCount), orgLabel, String(openCount), String(assignedCount)].map(
+      sanitizeParam
+    ),
+    glitchgrabPath ?? undefined
+  );
+}
+
+/**
  * Notify a developer that a GitHub issue was assigned to them.
  * Template "issue_assigned_dev" (Utility):
  *   Body:    Hi {{1}}, issue "{{2}}" from {{3}} has been assigned to you on GitHub.

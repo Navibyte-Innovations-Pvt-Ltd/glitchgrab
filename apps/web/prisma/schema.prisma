@@ -31,6 +31,10 @@ model User {
   image         String?
   githubLogin   String?
   whatsappPhone String?
+  /// Digest nudges (morning + evening) stay silent until this moment. Set when
+  /// the user replies LEAVE on WhatsApp; null means "message me normally".
+  /// See lib/digest.ts and /api/v1/cron/daily-digest.
+  digestMutedUntil DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -51,6 +55,29 @@ model User {
   repoMemberships     RepoMember[]
   calendarConnections CalendarConnection[]
   calendarInvites     CalendarInvite[]
+  loginTokens         LoginToken[]
+}
+
+/// Single-use, 48-hour auto-login token behind the "Open dashboard" button on a
+/// WhatsApp digest. Minted server-side only, for a user whose WhatsApp number we
+/// already verified, and delivered ONLY to that number — there is no
+/// mint-for-any-user endpoint. Consumed atomically in NextAuth `authorize()`
+/// (updateMany on `usedAt: null` + `count === 1`), so a double-tap or a
+/// forwarded screenshot can never authorize twice.
+model LoginToken {
+  id         String    @id @default(cuid())
+  token      String    @unique
+  userId     String
+  targetPath String    @default("/dashboard")
+  purpose    String    @default("DIGEST_DEEPLINK")
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId, createdAt])
 }
 
 model WhatsappOtp {

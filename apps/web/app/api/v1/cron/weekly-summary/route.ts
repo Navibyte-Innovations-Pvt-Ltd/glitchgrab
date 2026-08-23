@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getClosedIssueCountSince } from "@/lib/github";
 import { getInstallationAccessToken } from "@/lib/github-app";
+import { magicButtonSuffix, mintDigestLoginToken } from "@/lib/magic-login";
 import { sendWeeklyIssueSummary } from "@/lib/whatsapp";
 
 export async function GET(request: Request) {
@@ -41,9 +42,15 @@ export async function GET(request: Request) {
 
     const orgName = dev.ownedOrgs?.[0]?.name ?? dev.name ?? "your org";
     const orgLogin = dev.ownedOrgs?.[0]?.githubOrgLogin;
-    const glitchgrabPath = orgLogin
-      ? `org/${orgLogin}?triageAssign=assigned`
+    // Auto-login, same single-use 48h token as the new digests. Falls back to a
+    // plain path when a token cannot be minted — never to null, because a
+    // template approved with a dynamic URL button is rejected outright when its
+    // parameter is missing, which loses the whole message.
+    const targetPath = orgLogin ? `/org/${orgLogin}?triageAssign=assigned` : "/dashboard";
+    const loginToken = orgLogin
+      ? await mintDigestLoginToken({ userId: dev.id, targetPath })
       : null;
+    const glitchgrabPath = orgLogin ? magicButtonSuffix(loginToken, targetPath) : null;
 
     await sendWeeklyIssueSummary({
       phone: dev.whatsappPhone,

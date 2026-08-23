@@ -16,6 +16,14 @@
       "schedule": "30 2 * * *"
     },
     {
+      "path": "/api/v1/cron/daily-digest",
+      "schedule": "30 2 * * *"
+    },
+    {
+      "path": "/api/v1/cron/evening-recap",
+      "schedule": "30 13 * * *"
+    },
+    {
       "path": "/api/v1/cron/weekly-summary",
       "schedule": "30 2 * * 1"
     },

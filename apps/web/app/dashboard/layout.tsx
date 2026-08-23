@@ -9,6 +9,8 @@ import { PaywallGuard } from "@/components/dashboard/paywall-guard";
 import { DashboardStatusBar } from "@/components/dashboard/dashboard-status-bar";
 import { PhonePromptDialog } from "@/components/dashboard/phone-prompt-dialog";
 import { prisma } from "@/lib/db";
+import { getTesterSession } from "@/lib/tester-session";
+import { TesterShell } from "@/components/dashboard/tester-shell";
 
 export default async function DashboardLayout({
   children,
@@ -17,7 +19,29 @@ export default async function DashboardLayout({
 }) {
   const session = await auth();
 
-  if (!session?.user) redirect("/login");
+  if (!session?.user) {
+    // No NextAuth session — this may still be a QA tester, who signs in with a
+    // phone OTP and carries the gg_tester cookie. They get the tester shell and
+    // nothing else: none of the billing/plan/org lookups below ever run for
+    // them, so there is no owner data to leak even by accident.
+    const testerId = await getTesterSession();
+    const tester = testerId
+      ? await prisma.tester.findUnique({
+          where: { id: testerId },
+          select: { name: true, org: { select: { name: true } } },
+        })
+      : null;
+
+    if (tester) {
+      return (
+        <TesterShell name={tester.name} orgName={tester.org.name}>
+          {children}
+        </TesterShell>
+      );
+    }
+
+    redirect("/login");
+  }
 
   // Fallback org redirect for sessions created before orgSlug was cached in JWT
   // (proxy.ts handles the fast path; this catches users who haven't re-logged-in)
