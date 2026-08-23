@@ -7,7 +7,12 @@ import { qaLink } from "@/lib/qa";
 import { reopenGitHubIssue } from "@/lib/github";
 import { getInstallationAccessToken } from "@/lib/github-app";
 import { sendDeveloperReopenedNotification, sendWhatsappCtaUrl, sendWhatsappText } from "@/lib/whatsapp";
-import { muteDigestByPhone, unmuteDigestByPhone } from "@/lib/digest";
+import {
+  buildDigestForPhone,
+  formatDetailMessage,
+  muteDigestByPhone,
+  unmuteDigestByPhone,
+} from "@/lib/digest";
 import { handleBookingAction, handleBookingMessage } from "@/lib/whatsapp-booking";
 
 /**
@@ -38,6 +43,40 @@ const LEAVE_INTENT =
 
 /** The way back — only ever acted on for someone who is currently muted. */
 const RESUME_INTENT = /^(resume|unmute|back|i'?m back|im back|working)\b/i;
+
+/**
+ * "Show details" — the digest's third button, and the typed equivalents.
+ *
+ * Narrow on purpose. Unlike the mute intent this competes with the booking
+ * script for ordinary words, so it matches only phrasings that can mean nothing
+ * else here.
+ */
+const DETAIL_INTENT = /^(show details|details|detail|show more|breakdown|repo wise|repos)\b/i;
+
+/**
+ * Reply with the full repo-by-repo list.
+ *
+ * Free text, no template: the tap itself is an inbound message, which opens
+ * Meta's 24-hour service window — inside it this send is both allowed and
+ * unbilled. Counting is a live GitHub read per repo, so it is awaited rather
+ * than fired and forgotten; an un-awaited fetch in a route handler is killed the
+ * moment the response is sent and the reply would silently never leave.
+ *
+ * Returns true when handled, so the caller stops before the booking script sees
+ * a word like "details" and answers with a slot picker.
+ */
+async function handleDigestDetail(phone: string, text: string): Promise<boolean> {
+  if (!DETAIL_INTENT.test(text.trim())) return false;
+
+  const digest = await buildDigestForPhone(phone);
+  if (!digest) return false;
+
+  const sent = await sendWhatsappText(phone, formatDetailMessage(digest));
+  if (!sent.ok) {
+    console.error("[whatsapp-webhook] digest detail reply failed:", sent.error);
+  }
+  return true;
+}
 
 /**
  * A mute request, however it arrived, and the reply that confirms it.
@@ -183,6 +222,7 @@ export async function POST(request: Request) {
       // actions because a template button echoes its own LABEL, and a label the
       // booking matcher does not recognise otherwise falls through silently.
       if (tapped && (await handleDigestMute(message.from, tapped))) continue;
+      if (tapped && (await handleDigestDetail(message.from, tapped))) continue;
 
       const action = bookingAction(tapped);
       if (action) {
@@ -210,6 +250,7 @@ export async function POST(request: Request) {
         // "I'm on leave, don't message me today" — first, because both handlers
         // below would happily answer it with something else.
         if (await handleDigestMute(message.from, message.text.body)) continue;
+        if (await handleDigestDetail(message.from, message.text.body)) continue;
 
         // A registered tester saying hi gets a sign-in link, not the demo
         // booking script. Checked first and gated on BOTH the sender being a
