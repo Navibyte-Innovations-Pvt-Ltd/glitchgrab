@@ -396,6 +396,94 @@ export async function sendWeeklyIssueSummary({
 }
 
 /**
+ * Morning digest — one message that serves both hats.
+ *
+ * Replaces the old `daily_issue_reminder` for anyone once
+ * `WHATSAPP_DIGEST_ENABLED` is on. The point of the extra parameters is issue
+ * #322: "87 open issues" is a number, "PracticeStacks 32, Abhyasika 18" is
+ * somewhere to start. The same person is usually admin AND developer, so the
+ * org backlog and their own plate ride in one message rather than two.
+ *
+ * Template "daily_issue_digest" (Utility):
+ *   Body:     ☀️ Good morning {{1}}! Across {{2}} there are {{3}} open issue(s)
+ *             waiting. Where they sit: {{4}}. On your own plate: {{5}}. Pick one
+ *             and close it today — and if you are on leave, tap Skip today.
+ *   Button 0 (URL):         Open dashboard → https://glitchgrab.dev/{{1}}
+ *                           suffix = org/{login} — no query string; a `?…=…`
+ *                           inside a dynamic-URL variable risks a rejection.
+ *   Button 1 (quick reply): Skip today — mutes both nudges for the day. Handled
+ *                           in /api/v1/whatsapp/webhook, which reads the button
+ *                           LABEL: a template quick reply carries no payload.
+ */
+export async function sendDailyIssueDigest({
+  phone,
+  name,
+  orgLabel,
+  openCount,
+  breakdown,
+  ownPlate,
+  glitchgrabPath,
+}: {
+  phone: string;
+  name: string;
+  orgLabel: string;
+  openCount: number;
+  breakdown: string;
+  ownPlate: string;
+  glitchgrabPath: string | null;
+}): Promise<{ ok: boolean; error?: string }> {
+  return sendTemplate(
+    "daily_issue_digest",
+    phone,
+    [name, orgLabel, String(openCount), breakdown, ownPlate].map(sanitizeParam),
+    glitchgrabPath ?? undefined
+  );
+}
+
+/**
+ * Evening recap — what actually got finished today.
+ *
+ * The counterpart to the morning nudge, and the half the issue asked for by
+ * name ("oh good work you have done some work"). Counted off `closed_at`, not
+ * `updated_at`: a stale issue someone merely commented on today is not work
+ * done, and claiming it is makes every future number suspect.
+ *
+ * Template "evening_recap" (Utility):
+ *   Body:     🌙 Evening wrap for {{1}} — {{2}} issue(s) closed today across {{3}}.
+ *             Still open: {{4}}, and {{5}} of those sit with you. Good work today,
+ *             rest up. Tap Skip today if tomorrow is off.
+ *   Button 0 (URL):         Open dashboard → https://glitchgrab.dev/{{1}}
+ *                           suffix = org/{login}
+ *   Button 1 (quick reply): Skip today
+ */
+export async function sendEveningRecap({
+  phone,
+  name,
+  closedCount,
+  orgLabel,
+  openCount,
+  assignedCount,
+  glitchgrabPath,
+}: {
+  phone: string;
+  name: string;
+  closedCount: number;
+  orgLabel: string;
+  openCount: number;
+  assignedCount: number;
+  glitchgrabPath: string | null;
+}): Promise<{ ok: boolean; error?: string }> {
+  return sendTemplate(
+    "evening_recap",
+    phone,
+    [name, String(closedCount), orgLabel, String(openCount), String(assignedCount)].map(
+      sanitizeParam
+    ),
+    glitchgrabPath ?? undefined
+  );
+}
+
+/**
  * Notify a developer that a GitHub issue was assigned to them.
  * Template "issue_assigned_dev" (Utility):
  *   Body:    Hi {{1}}, issue "{{2}}" from {{3}} has been assigned to you on GitHub.
