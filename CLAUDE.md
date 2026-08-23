@@ -222,6 +222,14 @@ The dialog itself is `packages/report-ui`, vendored into `apps/glitchrecord/src/
 6. **Clipboard** in the editor uses Electron `clipboard.writeText` via IPC (`navigator.clipboard` silently fails in the renderer).
 7. Content script only sees **page DOM** — Chrome address bar, `chrome://` pages, other native apps (WhatsApp, etc.) are NOT capturable.
 
+## AI report assist (#330)
+
+Opt-in per repo (`Repo.aiAssistEnabled`, owner-only switch on the repo card).
+A sheet — right drawer on desktop, bottom sheet on mobile — where the reporter
+chats, gets a draft, and sends. Reuses the dialog's own submit handler, so the
+issue pipeline stays AI-free. Hard cap, graceful degrade: over the cap the sheet
+closes and the plain form takes over. See `agent_docs/ai-report-assist.md`.
+
 ## Forms
 
 `apps/web` forms go through `InputField` — never raw shadcn inputs. Not usable in
