@@ -71,6 +71,29 @@ function apiKey(): string {
   return key;
 }
 
+/**
+ * A Sarvam call that came back with an HTTP error.
+ *
+ * The status matters: a 5xx or a network drop is worth retrying forever, while
+ * a 401/403/404 never becomes true no matter how long we poll. Without the code
+ * on the error the caller has to treat both the same — which is how a job whose
+ * API key was rotated stayed "transcribing…" for eight days.
+ */
+export class SarvamHttpError extends Error {
+  constructor(
+    readonly status: number,
+    message: string
+  ) {
+    super(message);
+    this.name = "SarvamHttpError";
+  }
+
+  /** No amount of retrying fixes these. */
+  get permanent(): boolean {
+    return this.status >= 400 && this.status < 500 && this.status !== 408 && this.status !== 429;
+  }
+}
+
 async function sarvamFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${SARVAM_BASE}${path}`, {
     ...init,
@@ -84,7 +107,10 @@ async function sarvamFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(`Sarvam ${path} failed: ${res.status} ${body.slice(0, 300)}`);
+    throw new SarvamHttpError(
+      res.status,
+      `Sarvam ${path} failed: ${res.status} ${body.slice(0, 300)}`
+    );
   }
 
   return (await res.json()) as T;
