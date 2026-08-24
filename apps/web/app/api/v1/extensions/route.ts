@@ -126,6 +126,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: "Unknown connection" }, { status: 400 });
   }
 
+  // The two ids look nothing alike but sit next to each other in the form, and
+  // pasting the extension id into both is the obvious slip. Caught here it is a
+  // sentence; left to Google it is a 404 that reads as "your extension is
+  // missing".
+  if (publisherId && /^[a-p]{32}$/.test(publisherId)) {
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          "That is the extension id, not the publisher id. The publisher id is on the developer dashboard under Account, and it identifies your whole account rather than one extension.",
+      },
+      { status: 400 }
+    );
+  }
+
   // The publisher is a property of the account, asked once. It only comes in
   // with the first extension, because that is the first moment anyone has a
   // reason to look it up.
