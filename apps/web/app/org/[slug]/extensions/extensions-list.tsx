@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { FormProvider, useForm, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import {
@@ -210,12 +213,26 @@ function ConnectAccount({ connections }: { connections: StoreConnection[] }) {
 }
 
 /**
+ * What the add form collects.
+ *
+ * The link is validated as "contains a store id" rather than "is a URL": a bare
+ * 32-letter id is a perfectly good answer and refusing it would be pedantry.
+ */
+const watchSchema = z.object({
+  link: z.string().min(1, "Paste the Chrome Web Store link"),
+  name: z.string(),
+  repoId: z.string(),
+  publisherId: z.string(),
+});
+type WatchForm = z.infer<typeof watchSchema>;
+
+/**
  * Register an extension to watch.
  *
- * One field, because the store API cannot list a publisher's items — its whole
- * surface is five per-item methods — so the id has to be supplied and the only
- * question left is whether supplying it means typing or pasting. Paste the
- * store link and the name arrives with it.
+ * One field that matters, because the store API cannot list a publisher's items
+ * — its whole surface is five per-item methods — so the id has to be supplied
+ * and the only question left is whether supplying it means typing or pasting.
+ * Paste the store link and the name arrives with it.
  */
 function AddExtension({
   connection,
@@ -225,10 +242,18 @@ function AddExtension({
   onDone: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [link, setLink] = useState("");
-  const [name, setName] = useState("");
-  const [repoId, setRepoId] = useState("");
-  const [publisherId, setPublisherId] = useState("");
+
+  const form = useForm<WatchForm>({
+    resolver: zodResolver(watchSchema),
+    mode: "onChange",
+    defaultValues: { link: "", name: "", repoId: "", publisherId: "" },
+  });
+
+  // useWatch, never form.watch() — the React Compiler rejects the latter.
+  const link = useWatch({ control: form.control, name: "link" }) ?? "";
+  const typedName = useWatch({ control: form.control, name: "name" }) ?? "";
+  const repoId = useWatch({ control: form.control, name: "repoId" }) ?? "";
+  const publisherId = useWatch({ control: form.control, name: "publisherId" }) ?? "";
 
   const { data: repos = [] } = useQuery<ContextRepo[]>({
     queryKey: ["project-context", "repos"],
@@ -238,12 +263,12 @@ function AddExtension({
     },
   });
 
-  const itemId = /[/=]([a-p]{32})(?:[/?#]|$)/.exec(link.trim())?.[1] ??
-    (/^[a-p]{32}$/.test(link.trim()) ? link.trim() : null);
+  const trimmed = link.trim();
+  const itemId =
+    /[/=]([a-p]{32})(?:[/?#]|$)/.exec(trimmed)?.[1] ??
+    (/^[a-p]{32}$/.test(trimmed) ? trimmed : null);
 
   // Fill the name in from the public listing the moment a valid id appears.
-  // A never-published extension has no public page, so a miss here is normal
-  // and simply leaves the field to be typed.
   const lookup = useQuery<{
     itemId: string;
     name: string | null;
@@ -253,36 +278,35 @@ function AddExtension({
     queryKey: ["store-lookup", itemId],
     enabled: Boolean(itemId),
     queryFn: async () => {
-      const { data } = await axios.get(`/api/v1/extensions/lookup?q=${encodeURIComponent(itemId ?? "")}`);
+      const { data } = await axios.get(
+        `/api/v1/extensions/lookup?q=${encodeURIComponent(trimmed || (itemId ?? ""))}`
+      );
       return data.data;
     },
     retry: false,
   });
 
   // Three outcomes, not two. "It has no public page" means draft; "the store
-  // would not answer" and "we could not reach our own API" mean nothing about
+  // would not answer" and "we could not reach our own API" say nothing about
   // the extension at all. Collapsing them told people their live extension was
   // a draft.
   const lookupFailed = lookup.isError || lookup.data?.reason === "unreachable";
   const noListing = !lookup.isFetching && lookup.data?.reason === "no-listing";
-
-  const resolvedName = name.trim() || lookup.data?.name || "";
+  const resolvedName = typedName.trim() || lookup.data?.name || "";
 
   const mutation = useMutation({
     mutationFn: async () => {
       const { data } = await axios.post("/api/v1/extensions", {
         name: resolvedName,
-        itemId,
+        itemId: trimmed,
         repoId: repoId || null,
         publisherId: publisherId.trim() || undefined,
       });
       return data.data;
     },
     onSuccess: () => {
-      toast.success("Watching it — first reading within 30 minutes");
-      setLink("");
-      setName("");
-      setPublisherId("");
+      toast.success("Watching it — the store was read just now");
+      form.reset();
       setOpen(false);
       onDone();
     },
@@ -312,99 +336,144 @@ function AddExtension({
   }
 
   return (
-    <div className="border border-border rounded p-3 space-y-3">
-      <div className="flex items-center gap-2">
-        <Blocks className="w-3.5 h-3.5 text-muted-foreground" />
-        <span className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground">
-          Watch an extension
-        </span>
-      </div>
-
-      <input
-        value={link}
-        onChange={(e) => setLink(e.target.value)}
-        placeholder="Paste the Chrome Web Store link — or just the 32-letter id"
-        className="w-full font-mono text-xs px-2 py-2 rounded border border-border bg-background"
-      />
-
-      {itemId && (
-        <div className="font-mono text-[10px] text-muted-foreground/70">
-          {lookup.isFetching ? (
-            <span className="inline-flex items-center gap-1">
-              <Loader2 className="w-2.5 h-2.5 animate-spin" />
-              reading the store listing…
-            </span>
-          ) : lookup.data?.name ? (
-            <span className="text-emerald-400/90">found “{lookup.data.name}”</span>
-          ) : lookupFailed ? (
-            <span className="text-red-400/90">
-              Could not read the store listing
-              {lookup.data?.detail ? ` (${lookup.data.detail})` : ""} — type the name
-              below, it changes nothing else.
-            </span>
-          ) : noListing ? (
-            <span className="text-amber-400/80">
-              No public listing — never published, or still a draft. Name it yourself.
-            </span>
-          ) : null}
+    <FormProvider {...form}>
+      <form
+        onSubmit={form.handleSubmit(() => mutation.mutate())}
+        className="border border-border rounded p-3 space-y-3"
+      >
+        <div className="flex items-center gap-2">
+          <Blocks className="w-3.5 h-3.5 text-muted-foreground" />
+          <span className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground">
+            Watch an extension
+          </span>
         </div>
-      )}
 
-      <div className="grid gap-2 sm:grid-cols-2">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder={lookup.data?.name ?? "Name"}
-          className="font-mono text-xs px-2 py-2 rounded border border-border bg-background"
-        />
-        <select
-          value={repoId}
-          onChange={(e) => setRepoId(e.target.value)}
-          className="font-mono text-xs px-2 py-2 rounded border border-border bg-background"
-        >
-          <option value="">No project</option>
-          {repos.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.fullName}
-            </option>
-          ))}
-        </select>
-      </div>
+        {/* Raw controls, deliberately: `InputField` is the house convention
+            (agent_docs/app-input-fields.md) but the copy vendored into this app
+            does not compile — its barrel pulls in tiptap, react-select, dnd-kit
+            and several PracticeStack-only modules that were never brought
+            across. The form is already react-hook-form shaped, so swapping the
+            three controls over is a small diff once that is fixed. */}
+        <label className="block space-y-1">
+          <span className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground">
+            Chrome Web Store link <span className="text-red-400">*</span>
+          </span>
+          <input
+            {...form.register("link")}
+            placeholder="https://chromewebstore.google.com/detail/…  — or just the 32-letter id"
+            className="w-full font-mono text-xs px-2 py-2 rounded border border-border bg-background"
+          />
+        </label>
 
-      {/* Asked once per connected account, never again: every item on one
-          publisher shares it. */}
-      {needsPublisher && (
-        <input
-          value={publisherId}
-          onChange={(e) => setPublisherId(e.target.value)}
-          placeholder="Publisher id — developer dashboard → Account (asked once)"
-          className="w-full font-mono text-xs px-2 py-2 rounded border border-border bg-background"
-        />
-      )}
+        {itemId && (
+          <div className="font-mono text-[10px] text-muted-foreground/70">
+            {lookup.isFetching ? (
+              <span className="inline-flex items-center gap-1">
+                <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                reading the store listing…
+              </span>
+            ) : lookup.data?.name ? (
+              <span className="text-emerald-400/90">found “{lookup.data.name}”</span>
+            ) : lookupFailed ? (
+              <span className="text-red-400/90">
+                Could not read the store listing
+                {lookup.data?.detail ? ` (${lookup.data.detail})` : ""} — type the name
+                below, it changes nothing else.
+              </span>
+            ) : noListing ? (
+              <span className="text-amber-400/80">
+                No public listing — never published, or still a draft. Name it yourself.
+              </span>
+            ) : null}
+          </div>
+        )}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          disabled={!ready || mutation.isPending}
-          onClick={() => mutation.mutate()}
-          className="inline-flex items-center gap-2 font-mono text-[11px] px-3 py-2 rounded border border-primary/50 text-primary hover:bg-primary/10 disabled:opacity-50"
-        >
-          {mutation.isPending ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          ) : (
-            <Plus className="w-3.5 h-3.5" />
-          )}
-          {mutation.isPending ? "Saving…" : "Start watching"}
-        </button>
-        <button
-          type="button"
-          onClick={() => setOpen(false)}
-          className="font-mono text-[11px] px-3 py-2 rounded border border-border text-muted-foreground hover:border-primary/30"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block space-y-1">
+            <span className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground">
+              Name
+            </span>
+            <input
+              {...form.register("name")}
+              placeholder={lookup.data?.name ?? "What you call it"}
+              className="w-full font-mono text-xs px-2 py-2 rounded border border-border bg-background"
+            />
+            {lookup.data?.name && (
+              <span className="font-mono text-[10px] text-muted-foreground/60">
+                Filled in from the store listing
+              </span>
+            )}
+          </label>
+
+          <label className="block space-y-1">
+            <span className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground">
+              Project
+            </span>
+            <select
+              {...form.register("repoId")}
+              className="w-full font-mono text-xs px-2 py-2 rounded border border-border bg-background"
+            >
+              <option value="">No project</option>
+              {repos.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.fullName}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        {/* Asked once per connected account, never again: every item on one
+            publisher shares it. */}
+        {needsPublisher && (
+          <label className="block space-y-1">
+            <span className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground">
+              Publisher id <span className="text-red-400">*</span>
+            </span>
+            <input
+              {...form.register("publisherId")}
+              placeholder="From the dashboard's Account page — not the extension id"
+              className="w-full font-mono text-xs px-2 py-2 rounded border border-border bg-background"
+            />
+            <span className="font-mono text-[10px] text-muted-foreground/60">
+              Developer dashboard → Account. Identifies your whole account, not
+              one extension — asked once, then never again.
+            </span>
+            {/* The two ids sit next to each other in this form and look
+                interchangeable. Saying so before submit beats a 404 from
+                Google that reads as "your extension is missing". */}
+            {/^[a-p]{32}$/.test(publisherId.trim()) && (
+              <span className="font-mono text-[10px] text-amber-400/90">
+                That is the extension id — the publisher id is a different value
+                on the dashboard&apos;s Account page.
+              </span>
+            )}
+          </label>
+        )}
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="submit"
+            disabled={!ready || mutation.isPending}
+            className="inline-flex items-center gap-2 font-mono text-[11px] px-3 py-2 rounded border border-primary/50 text-primary hover:bg-primary/10 disabled:opacity-50"
+          >
+            {mutation.isPending ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Plus className="w-3.5 h-3.5" />
+            )}
+            {mutation.isPending ? "Saving…" : "Start watching"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="font-mono text-[11px] px-3 py-2 rounded border border-border text-muted-foreground hover:border-primary/30"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    </FormProvider>
   );
 }
 
