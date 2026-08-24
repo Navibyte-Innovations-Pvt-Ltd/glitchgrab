@@ -57,6 +57,7 @@ model User {
   calendarInvites     CalendarInvite[]
   loginTokens         LoginToken[]
   storeExtensions     StoreExtension[]
+  storeConnections    StoreConnection[]
 }
 
 /// Single-use, 48-hour auto-login token behind the "Open dashboard" button on a
@@ -820,10 +821,8 @@ model StoreExtension {
   /// Publisher the item belongs to — v2 API paths are per publisher.
   publisherId String
 
-  /// Google service-account JSON, AES-256-GCM (same treatment as user AI keys).
-  /// A service account never expires the way an OAuth refresh token does, which
-  /// is the entire reason this is not a stored refresh token.
-  credentials String
+  /// Which connected Google account can read this item's status.
+  connectionId String
 
   publishedVersion String?
   submittedVersion String?
@@ -844,11 +843,46 @@ model StoreExtension {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  repo Repo? @relation(fields: [repoId], references: [id], onDelete: SetNull)
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repo       Repo?           @relation(fields: [repoId], references: [id], onDelete: SetNull)
+  connection StoreConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
 
   @@unique([userId, itemId])
   @@index([state])
+  @@index([connectionId])
+}
+
+/// A Google account connected for Chrome Web Store access (#332).
+///
+/// One connection covers every extension on that publisher account — the thing
+/// a service-account key file could not do without being pasted again per
+/// extension. The developer clicks Connect once; adding the next extension is
+/// two ids and nothing else.
+///
+/// Read-only scope on purpose (`chromewebstore.readonly`): the watcher only
+/// ever asks what the store thinks. A connection made for status reporting
+/// must not double as a way to publish to everyone's browser.
+model StoreConnection {
+  id          String @id @default(cuid())
+  userId      String
+  /// Which Google account this is, so the UI can say whose access it is.
+  googleEmail String
+
+  /// OAuth refresh token, AES-256-GCM. Access tokens last an hour; this is what
+  /// survives, and it is exactly as sensitive as the account's store access.
+  refreshToken String
+
+  /// Set when Google stops accepting the token — revoked, or the consent screen
+  /// was left in Testing, where refresh tokens die after 7 days.
+  lastError String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  extensions StoreExtension[]
+
+  @@unique([userId, googleEmail])
 }
 
 model RateLimit {
