@@ -1,4 +1,6 @@
-import { createSign } from "crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "crypto";
+import { prisma } from "@/lib/db";
+import { decrypt } from "@/lib/encrypt";
 
 /**
  * Chrome Web Store, read side (#332).
@@ -13,20 +15,32 @@ import { createSign } from "crypto";
  * revision alongside the published one, which is the whole question. v1 could
  * only show you the draft.
  *
- * Auth is a **service account**, not an OAuth refresh token. Google issues
- * refresh tokens on a testing-mode client that die after 7 days, which is why
- * the older setup needed a cron purely to rotate a secret. A service account
- * added as a user on the publisher account does not expire.
+ * **The v2 API has no list endpoint.** Its discovery document offers exactly
+ * five methods — fetchStatus, publish, cancelSubmission,
+ * setPublishedDeployPercentage, upload — so a connected account cannot be asked
+ * "which extensions do you have?". The ids have to be typed. Don't go looking
+ * for that endpoint again.
+ *
+ * Auth is a **connected Google account**, not a service-account key file. The
+ * key-file path also required a *group* publisher account to add the service
+ * account as a user, which a personal publisher account cannot do at all — a
+ * dead end rather than a chore.
  */
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const API_BASE = "https://chromewebstore.googleapis.com/v2";
-const SCOPE = "https://www.googleapis.com/auth/chromewebstore";
 
-interface ServiceAccountKey {
-  client_email: string;
-  private_key: string;
-}
+/**
+ * Read-only, deliberately.
+ *
+ * The full `chromewebstore` scope can publish to every existing user of every
+ * extension on the account. The watcher only ever asks what the store thinks,
+ * so connecting for status must not hand over the ability to ship.
+ */
+const SCOPES = [
+  "https://www.googleapis.com/auth/chromewebstore.readonly",
+  "https://www.googleapis.com/auth/userinfo.email",
+];
 
 /** Coarse on purpose — see the enum comment in schema.prisma. */
 type ReviewState = "DRAFT" | "IN_REVIEW" | "PUBLISHED" | "NEEDS_ATTENTION" | "UNKNOWN";
@@ -39,71 +53,160 @@ interface ItemStatus {
   detail: string | null;
 }
 
-function base64url(input: string | Buffer): string {
-  return Buffer.from(input)
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
+/** Cookie carrying the nonce that ties an OAuth state to THIS browser. */
+export const STORE_STATE_COOKIE = "gg_cws_oauth";
+
+function appUrl(): string {
+  return process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXTAUTH_URL ?? "";
+}
+
+function redirectUri(): string {
+  return `${appUrl()}/api/v1/extensions/callback`;
+}
+
+function signState(payload: string): string {
+  return createHmac("sha256", process.env.AUTH_SECRET ?? "").update(payload).digest("hex");
+}
+
+/** Constant-time compare — a nonce check must not leak by timing. */
+function safeEqual(a: string, b: string): boolean {
+  const left = Buffer.from(a);
+  const right = Buffer.from(b);
+  if (left.length !== right.length) return false;
+  return timingSafeEqual(left, right);
 }
 
 /**
- * Parse the JSON a service-account key file contains.
+ * Start the connect flow.
  *
- * Thrown errors here are a misconfiguration, never a transient failure, so the
- * caller can record them on the row instead of retrying forever.
+ * Returns the nonce with the URL; the caller sets it as an httpOnly cookie. A
+ * signed state alone only proves *we* minted it, not that the browser
+ * finishing the flow is the one that started it — without that binding an
+ * attacker can mint a state for their own account, get the victim to complete
+ * consent, and end up holding the victim's store access.
  */
-export function parseServiceAccount(json: string): ServiceAccountKey {
-  const parsed = JSON.parse(json) as Partial<ServiceAccountKey>;
-  if (!parsed.client_email || !parsed.private_key) {
-    throw new Error("Service account JSON is missing client_email or private_key");
-  }
-  return { client_email: parsed.client_email, private_key: parsed.private_key };
-}
-
-/**
- * Exchange the service-account key for an access token (JWT bearer flow).
- *
- * Done by hand rather than pulling in googleapis: this is one signature and one
- * POST, and the SDK is 40 MB of surface for it.
- */
-export async function getStoreAccessToken(key: ServiceAccountKey): Promise<string> {
-  const now = Math.floor(Date.now() / 1000);
-  const header = base64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
-  const claims = base64url(
-    JSON.stringify({
-      iss: key.client_email,
-      scope: SCOPE,
-      aud: TOKEN_URL,
-      iat: now,
-      exp: now + 3600,
-    })
+export function buildStoreAuthUrl(userId: string): { url: string; nonce: string } {
+  const nonce = randomBytes(32).toString("base64url");
+  const payload = JSON.stringify({ userId, nonce, ts: Date.now() });
+  const state = Buffer.from(JSON.stringify({ payload, sig: signState(payload) })).toString(
+    "base64url"
   );
 
-  const signer = createSign("RSA-SHA256");
-  signer.update(`${header}.${claims}`);
-  // Key files carry literal \n when they have been through an env var.
-  const assertion = `${header}.${claims}.${base64url(
-    signer.sign(key.private_key.replace(/\\n/g, "\n"))
-  )}`;
+  const params = new URLSearchParams({
+    client_id: process.env.GOOGLE_CLIENT_ID ?? "",
+    redirect_uri: redirectUri(),
+    response_type: "code",
+    scope: SCOPES.join(" "),
+    // Without offline + consent Google returns no refresh token, and the
+    // connection silently dies an hour later.
+    access_type: "offline",
+    prompt: "select_account consent",
+    state,
+  });
+
+  return { url: `https://accounts.google.com/o/oauth2/v2/auth?${params}`, nonce };
+}
+
+/** Verify the state and recover the user it was minted for. */
+export function parseStoreState(
+  state: string,
+  cookieNonce: string | undefined
+): { userId: string } | null {
+  try {
+    const { payload, sig } = JSON.parse(Buffer.from(state, "base64url").toString()) as {
+      payload: string;
+      sig: string;
+    };
+    if (!safeEqual(sig, signState(payload))) return null;
+
+    const parsed = JSON.parse(payload) as { userId: string; nonce: string; ts: number };
+    // Fifteen minutes is longer than any consent screen takes and short enough
+    // that a leaked link is useless by the time it is found.
+    if (Date.now() - parsed.ts > 15 * 60_000) return null;
+    if (!cookieNonce || !safeEqual(parsed.nonce, cookieNonce)) return null;
+
+    return { userId: parsed.userId };
+  } catch {
+    return null;
+  }
+}
+
+interface TokenResponse {
+  access_token: string;
+  refresh_token?: string;
+}
+
+/** Trade the callback code for tokens. */
+export async function exchangeStoreCode(code: string): Promise<TokenResponse> {
+  const res = await fetch(TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      code,
+      client_id: process.env.GOOGLE_CLIENT_ID ?? "",
+      client_secret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+      redirect_uri: redirectUri(),
+      grant_type: "authorization_code",
+    }),
+  });
+
+  if (!res.ok) throw new Error(`Google refused the code: ${await res.text()}`);
+  return (await res.json()) as TokenResponse;
+}
+
+/** Which Google account just connected, so the UI can name it. */
+export async function fetchConnectedEmail(accessToken: string): Promise<string> {
+  const res = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error("Could not read the connected account");
+  return ((await res.json()) as { email?: string }).email ?? "";
+}
+
+/**
+ * A usable access token for one connection.
+ *
+ * Refresh tokens are the thing that lasts, and the thing that breaks: a consent
+ * screen left in **Testing** issues refresh tokens that expire after 7 days,
+ * which is precisely the failure the old rotation cron existed to paper over.
+ * When Google refuses one, the reason is written to the row so the dashboard
+ * can say "reconnect" instead of showing a silent, permanent zero.
+ */
+export async function accessTokenForConnection(connectionId: string): Promise<string | null> {
+  const connection = await prisma.storeConnection.findUnique({
+    where: { id: connectionId },
+    select: { id: true, refreshToken: true },
+  });
+  if (!connection) return null;
 
   const res = await fetch(TOKEN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
-      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      assertion,
+      client_id: process.env.GOOGLE_CLIENT_ID ?? "",
+      client_secret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+      refresh_token: decrypt(connection.refreshToken),
+      grant_type: "refresh_token",
     }),
     cache: "no-store",
   });
 
   if (!res.ok) {
-    throw new Error(`Google refused the service account (${res.status}): ${await res.text()}`);
+    const body = (await res.text()).slice(0, 300);
+    await prisma.storeConnection.update({
+      where: { id: connection.id },
+      data: { lastError: `Google refused the connection (${res.status}): ${body}` },
+    });
+    return null;
   }
 
-  const data = (await res.json()) as { access_token?: string };
-  if (!data.access_token) throw new Error("Google returned no access token");
-  return data.access_token;
+  await prisma.storeConnection.update({
+    where: { id: connection.id },
+    data: { lastError: null },
+  });
+
+  return ((await res.json()) as TokenResponse).access_token;
 }
 
 interface RevisionStatus {
