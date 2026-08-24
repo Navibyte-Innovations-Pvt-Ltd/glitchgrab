@@ -22,7 +22,7 @@ export async function GET() {
     where: { userId },
     // Never the refresh token. It is as sensitive as the store access itself
     // and nothing on the client has any use for it.
-    select: { id: true, googleEmail: true, lastError: true, createdAt: true },
+    select: { id: true, googleEmail: true, publisherId: true, lastError: true, createdAt: true },
     orderBy: { createdAt: "asc" },
   });
 
