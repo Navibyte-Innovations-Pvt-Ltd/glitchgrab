@@ -230,6 +230,14 @@ chats, gets a draft, and sends. Reuses the dialog's own submit handler, so the
 issue pipeline stays AI-free. Hard cap, graceful degrade: over the cap the sheet
 closes and the plain form takes over. See `agent_docs/ai-report-assist.md`.
 
+## Chrome Web Store releases (#332)
+
+A submission's verdict lands hours after CI exits, so nothing in a workflow can
+report it — `cron/extension-watch` polls the store and WhatsApps only when a
+human has something to do. Auth is a **service account** (OAuth refresh tokens
+die after 7 days; do not port practice-stack's rotation cron).
+See `agent_docs/chrome-web-store.md`.
+
 ## Forms
 
 `apps/web` forms go through `InputField` — never raw shadcn inputs. Not usable in
