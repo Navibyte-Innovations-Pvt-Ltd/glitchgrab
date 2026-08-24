@@ -305,8 +305,18 @@ export async function joinMeeting(options: JoinOptions): Promise<MeetSession> {
         if (presence.count <= 1) {
           aloneSince ??= Date.now();
           if (Date.now() - aloneSince >= ALONE_GRACE_MS) {
-            console.log("[bot] everyone else left — ending the recording");
-            return "alone";
+            // Second opinion before leaving. A count that reads 1 while someone
+            // is audibly talking is a misread of Meet's DOM, not an empty room,
+            // and hanging up on a live client call is the worst thing this bot
+            // can do. Sound present → keep recording and look again.
+            const level = await sampleLevel(options.sink ?? "", 2000);
+            if (level !== null && level > SILENCE_LEVEL) {
+              console.log("[bot] participant list says empty but the room has sound — staying");
+              aloneSince = null;
+            } else {
+              console.log("[bot] everyone else left — ending the recording");
+              return "alone";
+            }
           }
         } else {
           // Someone came back, or Meet was mid-render. Only a sustained empty
@@ -364,8 +374,14 @@ export async function joinMeeting(options: JoinOptions): Promise<MeetSession> {
 /** How long the bot tolerates being the only participant before leaving. */
 const ALONE_GRACE_MS = 60_000;
 
-/** How long "cannot read the room AND cannot hear anything" runs before leaving. */
-const BLIND_SILENCE_MS = 10 * 60 * 1000;
+/**
+ * How long "cannot read the room AND cannot hear anything" runs before leaving.
+ *
+ * Long, on purpose: a participant who is present but not speaking is a normal
+ * meeting, and cutting one short loses the part that mattered. This window only
+ * ever runs when the participant list cannot be read at all.
+ */
+const BLIND_SILENCE_MS = 20 * 60 * 1000;
 
 /** Probing costs a parec spawn, so it runs on its own slower clock. */
 const SOUND_PROBE_INTERVAL_MS = 30_000;
@@ -478,16 +494,39 @@ export async function readPresence(page: Page): Promise<Presence> {
 }
 
 /**
- * True while we are inside the call.
+ * Meet's waiting-room screen, which looks almost exactly like the call.
  *
- * The "leave call" control only exists once admitted and disappears the moment
- * the call ends or we are removed, which makes it both the admission signal and
- * the end-of-call signal.
+ * Since Google's March 2026 guest-admission change the lobby renders the full
+ * in-call chrome — including **Leave call** — so the leave button alone says
+ * nothing about being admitted. Only this line does. Reading it wrong is
+ * expensive: the bot reports RECORDING from the lobby, records silence, sees
+ * an empty room (nobody else is in a lobby) and leaves while the host is still
+ * waiting for it to be let in.
+ */
+async function isInLobby(page: Page): Promise<boolean> {
+  try {
+    return await page.evaluate(() =>
+      /wait until (a|the) meeting host|asking to be let in|asking to join|you'?ll join when someone lets you in/i.test(
+        document.body.innerText || ""
+      )
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * True while we are inside the call — admitted, not merely on the page.
+ *
+ * The "leave call" control appears in the lobby too, so it is necessary but
+ * not sufficient: it disappears when the call ends or we are removed, which
+ * still makes it the end-of-call signal.
  */
 async function inCall(page: Page): Promise<boolean> {
   try {
     const leaveButton = page.getByRole("button", { name: /leave call/i }).first();
-    return await leaveButton.isVisible({ timeout: 2000 });
+    if (!(await leaveButton.isVisible({ timeout: 2000 }))) return false;
+    return !(await isInLobby(page));
   } catch {
     return false;
   }
