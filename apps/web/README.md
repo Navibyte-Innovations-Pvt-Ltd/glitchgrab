@@ -80,22 +80,27 @@ review verdict lands hours or days after CI has exited, on a console nobody has
 open. That is how a version ends up sitting in **Draft** for a week while the
 team believes it shipped.
 
-### Setup — two clicks and two ids
+### Setup — connect, then paste a link
 
-1. **Extensions → Connect Google account.** Google's consent screen, Allow, back
-   to the page. Read-only: Glitchgrab can see what the store says about your
+1. **Extensions → Connect Google account.** Consent screen, Allow, back to the
+   page. Read-only: Glitchgrab can see what the store says about your
    extensions and nothing else — it cannot publish.
-2. **Watch an extension.** Name, project (optional), and two ids:
-   - **Extension id** — the 32 letters in the store URL
-   - **Publisher id** — developer dashboard → Account
-
-   The store API has no way to list your extensions (there is no such
-   endpoint), so these are typed once. One connection covers every extension on
-   that publisher — the second extension is just two ids.
-3. Make sure your WhatsApp number is on your Glitchgrab profile, or there is
+2. **Watch an extension → paste the store link.** The id is pulled out of the
+   URL and the name is read off the public listing, so there is nothing to
+   type. An extension that has never been published has no public page — name
+   that one yourself.
+3. **Publisher id** — asked once, on your first extension only (developer
+   dashboard → Account). Every extension on that account shares it.
+4. Make sure your WhatsApp number is on your Glitchgrab profile, or there is
    nowhere to send anything.
 
-No key file, no JSON, and no *group* publisher account required.
+No key file, no JSON, no *group* publisher account.
+
+**Why the link is needed at all:** the Chrome Web Store API cannot list a
+publisher's items. Its entire surface is five per-item methods
+(`fetchStatus`, `publish`, `cancelSubmission`, `setPublishedDeployPercentage`,
+`upload`) and the older v1.1 API is retired. Nothing anywhere answers "which
+extensions does this account have", so each one is named once.
 
 ### After that, you do nothing
 
