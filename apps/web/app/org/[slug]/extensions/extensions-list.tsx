@@ -8,6 +8,7 @@ import {
   Blocks,
   Check,
   Clock,
+  Copy,
   ExternalLink,
   FileWarning,
   Link2,
@@ -24,7 +25,6 @@ interface ExtensionRow {
   id: string;
   name: string;
   itemId: string;
-  publisherId: string;
   repoFullName: string | null;
   state: ReviewState;
   stateDetail: string | null;
@@ -44,6 +44,8 @@ interface ContextRepo {
 interface StoreConnection {
   id: string;
   googleEmail: string;
+  /** Null until the first extension supplies it — see the add form. */
+  publisherId: string | null;
   lastError: string | null;
 }
 
@@ -95,6 +97,8 @@ function relative(iso: string | null): string {
  * account cannot do at all. This asks for a click instead of a file.
  */
 function ConnectAccount({ connections }: { connections: StoreConnection[] }) {
+  const [link, setLink] = useState<string | null>(null);
+
   const mutation = useMutation({
     mutationFn: async () => {
       const { data } = await axios.post("/api/v1/extensions/connect");
@@ -106,6 +110,24 @@ function ConnectAccount({ connections }: { connections: StoreConnection[] }) {
       window.location.href = url;
     },
     onError: () => toast.error("Could not start the connection"),
+  });
+
+  // Same request, but the link is shown instead of followed. Google's consent
+  // screen fails with a bare "400. That's an error" and no way to see what was
+  // sent — having the URL in hand is the difference between reading the
+  // client_id and scopes off it and guessing.
+  const copyLink = useMutation({
+    mutationFn: async () => {
+      const { data } = await axios.post("/api/v1/extensions/connect");
+      const url = (data.data as { url: string }).url;
+      await navigator.clipboard.writeText(url);
+      return url;
+    },
+    onSuccess: (url) => {
+      setLink(url);
+      toast.success("Link copied — open it in this browser");
+    },
+    onError: () => toast.error("Could not copy the link"),
   });
 
   const broken = connections.find((c) => c.lastError);
@@ -127,20 +149,51 @@ function ConnectAccount({ connections }: { connections: StoreConnection[] }) {
           </div>
         </div>
 
-        <button
-          type="button"
-          disabled={mutation.isPending}
-          onClick={() => mutation.mutate()}
-          className="inline-flex items-center gap-2 font-mono text-[11px] px-3 py-2 rounded border border-primary/50 text-primary hover:bg-primary/10 disabled:opacity-50 shrink-0"
-        >
-          {mutation.isPending ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          ) : (
-            <Link2 className="w-3.5 h-3.5" />
-          )}
-          {connections.length === 0 ? "Connect Google account" : "Connect another"}
-        </button>
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <button
+            type="button"
+            disabled={copyLink.isPending}
+            onClick={() => copyLink.mutate()}
+            title="Copy the consent URL instead of following it"
+            className="inline-flex items-center gap-2 font-mono text-[11px] px-3 py-2 rounded border border-border text-muted-foreground hover:border-primary/40 hover:text-primary disabled:opacity-50"
+          >
+            {copyLink.isPending ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Copy className="w-3.5 h-3.5" />
+            )}
+            Copy link
+          </button>
+
+          <button
+            type="button"
+            disabled={mutation.isPending}
+            onClick={() => mutation.mutate()}
+            className="inline-flex items-center gap-2 font-mono text-[11px] px-3 py-2 rounded border border-primary/50 text-primary hover:bg-primary/10 disabled:opacity-50"
+          >
+            {mutation.isPending ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Link2 className="w-3.5 h-3.5" />
+            )}
+            {connections.length === 0 ? "Connect Google account" : "Connect another"}
+          </button>
+        </div>
       </div>
+
+      {link && (
+        <div className="space-y-1">
+          {/* Wrapped, not truncated: the point of showing it is to read the
+              client_id and scope arguments when Google refuses it. */}
+          <code className="block font-mono text-[10px] text-muted-foreground/80 break-all border border-border rounded p-2">
+            {link}
+          </code>
+          <p className="font-mono text-[10px] text-amber-400/80">
+            Open it in this browser — the link is tied to a cookie set when it
+            was made, so another browser or profile will refuse it.
+          </p>
+        </div>
+      )}
 
       {broken && (
         <div className="font-mono text-[10px] text-red-400/90">
@@ -156,13 +209,26 @@ function ConnectAccount({ connections }: { connections: StoreConnection[] }) {
   );
 }
 
-/** Register an extension to watch. Collapsed until asked for — most people add one, once. */
-function AddExtension({ onDone }: { onDone: () => void }) {
+/**
+ * Register an extension to watch.
+ *
+ * One field, because the store API cannot list a publisher's items — its whole
+ * surface is five per-item methods — so the id has to be supplied and the only
+ * question left is whether supplying it means typing or pasting. Paste the
+ * store link and the name arrives with it.
+ */
+function AddExtension({
+  connection,
+  onDone,
+}: {
+  connection: StoreConnection;
+  onDone: () => void;
+}) {
   const [open, setOpen] = useState(false);
+  const [link, setLink] = useState("");
   const [name, setName] = useState("");
-  const [itemId, setItemId] = useState("");
-  const [publisherId, setPublisherId] = useState("");
   const [repoId, setRepoId] = useState("");
+  const [publisherId, setPublisherId] = useState("");
 
   const { data: repos = [] } = useQuery<ContextRepo[]>({
     queryKey: ["project-context", "repos"],
@@ -172,20 +238,38 @@ function AddExtension({ onDone }: { onDone: () => void }) {
     },
   });
 
+  const itemId = /[/=]([a-p]{32})(?:[/?#]|$)/.exec(link.trim())?.[1] ??
+    (/^[a-p]{32}$/.test(link.trim()) ? link.trim() : null);
+
+  // Fill the name in from the public listing the moment a valid id appears.
+  // A never-published extension has no public page, so a miss here is normal
+  // and simply leaves the field to be typed.
+  const lookup = useQuery<{ itemId: string; name: string | null }>({
+    queryKey: ["store-lookup", itemId],
+    enabled: Boolean(itemId),
+    queryFn: async () => {
+      const { data } = await axios.get(`/api/v1/extensions/lookup?q=${encodeURIComponent(itemId ?? "")}`);
+      return data.data;
+    },
+    retry: false,
+  });
+
+  const resolvedName = name.trim() || lookup.data?.name || "";
+
   const mutation = useMutation({
     mutationFn: async () => {
       const { data } = await axios.post("/api/v1/extensions", {
-        name: name.trim(),
-        itemId: itemId.trim(),
-        publisherId: publisherId.trim(),
+        name: resolvedName,
+        itemId,
         repoId: repoId || null,
+        publisherId: publisherId.trim() || undefined,
       });
       return data.data;
     },
     onSuccess: () => {
       toast.success("Watching it — first reading within 30 minutes");
+      setLink("");
       setName("");
-      setItemId("");
       setPublisherId("");
       setOpen(false);
       onDone();
@@ -199,7 +283,8 @@ function AddExtension({ onDone }: { onDone: () => void }) {
     },
   });
 
-  const ready = name.trim() && /^[a-p]{32}$/.test(itemId.trim()) && publisherId.trim();
+  const needsPublisher = !connection.publisherId;
+  const ready = Boolean(itemId) && resolvedName && (!needsPublisher || publisherId.trim());
 
   if (!open) {
     return (
@@ -223,11 +308,35 @@ function AddExtension({ onDone }: { onDone: () => void }) {
         </span>
       </div>
 
+      <input
+        value={link}
+        onChange={(e) => setLink(e.target.value)}
+        placeholder="Paste the Chrome Web Store link — or just the 32-letter id"
+        className="w-full font-mono text-xs px-2 py-2 rounded border border-border bg-background"
+      />
+
+      {itemId && (
+        <div className="font-mono text-[10px] text-muted-foreground/70">
+          {lookup.isFetching ? (
+            <span className="inline-flex items-center gap-1">
+              <Loader2 className="w-2.5 h-2.5 animate-spin" />
+              reading the store listing…
+            </span>
+          ) : lookup.data?.name ? (
+            <span className="text-emerald-400/90">found “{lookup.data.name}”</span>
+          ) : (
+            <span className="text-amber-400/80">
+              No public listing — never published, or still a draft. Name it yourself.
+            </span>
+          )}
+        </div>
+      )}
+
       <div className="grid gap-2 sm:grid-cols-2">
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Name — e.g. Glitchgrab Capture"
+          placeholder={lookup.data?.name ?? "Name"}
           className="font-mono text-xs px-2 py-2 rounded border border-border bg-background"
         />
         <select
@@ -242,19 +351,18 @@ function AddExtension({ onDone }: { onDone: () => void }) {
             </option>
           ))}
         </select>
-        <input
-          value={itemId}
-          onChange={(e) => setItemId(e.target.value)}
-          placeholder="Extension id (32 letters)"
-          className="font-mono text-xs px-2 py-2 rounded border border-border bg-background"
-        />
+      </div>
+
+      {/* Asked once per connected account, never again: every item on one
+          publisher shares it. */}
+      {needsPublisher && (
         <input
           value={publisherId}
           onChange={(e) => setPublisherId(e.target.value)}
-          placeholder="Publisher id"
-          className="font-mono text-xs px-2 py-2 rounded border border-border bg-background"
+          placeholder="Publisher id — developer dashboard → Account (asked once)"
+          className="w-full font-mono text-xs px-2 py-2 rounded border border-border bg-background"
         />
-      </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-2">
         <button
@@ -278,12 +386,6 @@ function AddExtension({ onDone }: { onDone: () => void }) {
           Cancel
         </button>
       </div>
-
-      <p className="font-mono text-[10px] text-muted-foreground/60">
-        Extension id is the 32 letters in the store URL. Publisher id is in the
-        developer dashboard under Account. The store API cannot list them —
-        there is no endpoint for it, so they have to be typed once.
-      </p>
     </div>
   );
 }
@@ -364,7 +466,7 @@ export function ExtensionsList() {
 
       {/* Adding an extension before there is an account to read it with would
           only ever end in a refusal, so the form waits. */}
-      {connections.length > 0 && <AddExtension onDone={refresh} />}
+      {connections[0] && <AddExtension connection={connections[0]} onDone={refresh} />}
 
       {extensions.length === 0 ? (
         <div className="border border-border rounded p-8 text-center space-y-3">
