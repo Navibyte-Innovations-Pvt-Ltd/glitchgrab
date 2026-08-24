@@ -50,6 +50,10 @@
     {
       "path": "/api/v1/cron/transcript-poll",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/v1/cron/extension-watch",
+      "schedule": "*/30 * * * *"
     }
   ]
 }
