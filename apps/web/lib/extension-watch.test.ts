@@ -102,6 +102,21 @@ describe("parseItemId", () => {
     expect(parseItemId(`  ${ID}  `)).toBe(ID);
   });
 
+  it("takes the real Glitchgrab listing url, verbatim", () => {
+    // The exact string copied out of Chrome's address bar: percent-encoded
+    // em-dash in the slug, locale and authuser query params on the end.
+    const pasted =
+      "https://chromewebstore.google.com/detail/glitchgrab-%E2%80%94-bug-reports/bjnddojeemkbienciefaoiikfehfhpef?hl=en-GB&authuser=0";
+    expect(parseItemId(pasted)).toBe("bjnddojeemkbienciefaoiikfehfhpef");
+    expect(parseItemId(`  ${pasted}  `)).toBe("bjnddojeemkbienciefaoiikfehfhpef");
+    // Same link after the browser decodes the slug for display.
+    expect(
+      parseItemId(
+        "https://chromewebstore.google.com/detail/glitchgrab-—-bug-reports/bjnddojeemkbienciefaoiikfehfhpef?hl=en-GB"
+      )
+    ).toBe("bjnddojeemkbienciefaoiikfehfhpef");
+  });
+
   it("takes the store link people actually copy", () => {
     expect(parseItemId(`https://chromewebstore.google.com/detail/react-developer-tools/${ID}`)).toBe(ID);
     expect(parseItemId(`https://chrome.google.com/webstore/detail/react-developer-tools/${ID}`)).toBe(ID);
