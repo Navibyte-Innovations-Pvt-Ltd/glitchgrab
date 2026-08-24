@@ -298,3 +298,64 @@ export async function fetchItemStatus(params: {
     detail,
   };
 }
+
+/**
+ * The 32-character item id, from whatever the developer pasted.
+ *
+ * People copy the whole store URL, because that is what is in front of them —
+ * and the id sits in the middle of it. Asking them to extract it by hand is
+ * asking them to do a regex.
+ */
+export function parseItemId(input: string): string | null {
+  const trimmed = input.trim();
+  if (/^[a-p]{32}$/.test(trimmed)) return trimmed;
+
+  // Both the current host and the legacy one, with or without the name slug:
+  //   chromewebstore.google.com/detail/<slug>/<id>
+  //   chrome.google.com/webstore/detail/<slug>/<id>
+  //   .../devconsole/detail/<id>
+  const match = trimmed.match(/[/=]([a-p]{32})(?:[/?#]|$)/);
+  return match?.[1] ?? null;
+}
+
+/**
+ * The extension's name, read off its public store page.
+ *
+ * Deliberately not the API: `fetchStatus` returns versions and review state,
+ * never a title. The public listing has one and needs no auth.
+ *
+ * Returns null for anything that has never been published — a Draft-only item
+ * has no public page at all, which is precisely the case this feature exists
+ * to catch, so the caller must treat this as a convenience and nothing more.
+ */
+export async function fetchStoreListingName(itemId: string): Promise<string | null> {
+  try {
+    const res = await fetch(`https://chromewebstore.google.com/detail/${itemId}`, {
+      // A default fetch UA gets a different page; this is a public listing, so
+      // asking for it the way a browser does is the honest request.
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; Glitchgrab/1.0)" },
+      signal: AbortSignal.timeout(6000),
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+
+    const html = await res.text();
+    const title =
+      html.match(/<meta property="og:title" content="([^"]+)"/)?.[1] ??
+      html.match(/<title>([^<]+)<\/title>/)?.[1];
+    if (!title) return null;
+
+    // The page title carries the store's own suffix, which is not part of the
+    // extension's name.
+    const name = title.replace(/\s*[-–|]\s*Chrome Web Store\s*$/i, "").trim();
+    return name
+      ? name
+          .replace(/&amp;/g, "&")
+          .replace(/&#39;/g, "'")
+          .replace(/&quot;/g, '"')
+          .slice(0, 120)
+      : null;
+  } catch {
+    return null;
+  }
+}
