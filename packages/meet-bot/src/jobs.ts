@@ -28,6 +28,12 @@ export interface JobRecord {
   error: string | null;
   /** PulseAudio sink this job records from. One per job, never shared. */
   sink: string | null;
+  /**
+   * Someone asked this recording to end early. The job polls it and leaves the
+   * call cleanly — the recording so far is still uploaded, which is the whole
+   * difference between this and restarting the service.
+   */
+  stopRequested: boolean;
 }
 
 const live = new Map<string, JobRecord>();
@@ -48,6 +54,7 @@ export function startJob(meetingId: string, meetUrl: string): JobRecord {
     endedAt: null,
     error: null,
     sink: null,
+    stopRequested: false,
   };
   live.set(meetingId, record);
   return record;
@@ -82,12 +89,22 @@ export function finishJob(meetingId: string, phase: "DONE" | "FAILED", error?: s
   if (history.length > MAX_HISTORY) history.pop();
 }
 
-function isLive(meetingId: string): boolean {
-  return live.has(meetingId);
+/**
+ * Ask a live recording to wrap up.
+ *
+ * Returns false when there is nothing to stop, so the caller can say "no bot is
+ * on that call" rather than silently succeeding.
+ */
+export function requestStop(meetingId: string): boolean {
+  const record = live.get(meetingId);
+  if (!record) return false;
+  record.stopRequested = true;
+  console.log(`[bot] stop requested for ${meetingId}`);
+  return true;
 }
 
-export function liveCount(): number {
-  return live.size;
+export function isStopRequested(meetingId: string): boolean {
+  return live.get(meetingId)?.stopRequested ?? false;
 }
 
 function view(record: JobRecord) {
@@ -106,6 +123,7 @@ function view(record: JobRecord) {
       : null,
     error: record.error,
     sink: record.sink,
+    stopRequested: record.stopRequested,
   };
 }
 
