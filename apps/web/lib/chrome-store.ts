@@ -318,44 +318,135 @@ export function parseItemId(input: string): string | null {
   return match?.[1] ?? null;
 }
 
+const STORE_UA =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+
+/**
+ * Repair a Location header that arrived mis-encoded.
+ *
+ * `/detail/{id}` 301s to `/detail/{slug}/{id}`, and Google sends that slug
+ * UTF-8-encoded twice while Node reads it as latin-1 once. An extension whose
+ * name contains any non-ASCII character — an em-dash is enough — therefore
+ * redirects to a URL that never matches, so undici loops until it gives up with
+ * "redirect count exceeded". curl and Bun normalise it; Node does not, and Node
+ * is what runs the route.
+ *
+ * Undo both encodings, then percent-encode the real bytes.
+ */
+function repairLocation(raw: string): string {
+  // Pure ASCII: nothing to repair, and most listings land here.
+  if (!/[^\x00-\x7F]/.test(raw)) return raw;
+
+  // Anything above U+00FF means the header was decoded correctly (Bun does
+  // this) — the character is real and only needs percent-encoding.
+  const decodedProperly = [...raw].some((c) => c.charCodeAt(0) > 0xff);
+  const bytes = decodedProperly
+    ? Buffer.from(raw, "utf8")
+    : // Everything in latin-1 range is the mojibake case (Node): the slug was
+      // UTF-8-encoded twice and read back once, so undo both.
+      Buffer.from(Buffer.from(raw, "latin1").toString("utf8"), "latin1");
+
+  let out = "";
+  for (const byte of bytes) {
+    out += byte < 0x80 ? String.fromCharCode(byte) : `%${byte.toString(16).toUpperCase().padStart(2, "0")}`;
+  }
+  return out;
+}
+
+/** Follow redirects ourselves, because Node cannot follow these ones. */
+async function fetchStorePage(url: string, hops = 4): Promise<Response | null> {
+  let current = url;
+
+  for (let i = 0; i < hops; i++) {
+    const res = await fetch(current, {
+      headers: { "User-Agent": STORE_UA, "Accept-Language": "en-US,en;q=0.9" },
+      redirect: "manual",
+      signal: AbortSignal.timeout(10_000),
+      cache: "no-store",
+    });
+
+    if (res.status < 300 || res.status >= 400) return res;
+
+    const location = res.headers.get("location");
+    if (!location) return res;
+
+    const next = new URL(repairLocation(location), current).toString();
+    // A redirect to where we already are is the loop, not a hop.
+    if (next === current) return res;
+    current = next;
+  }
+
+  return null;
+}
+
 /**
  * The extension's name, read off its public store page.
  *
  * Deliberately not the API: `fetchStatus` returns versions and review state,
  * never a title. The public listing has one and needs no auth.
  *
- * Returns null for anything that has never been published — a Draft-only item
- * has no public page at all, which is precisely the case this feature exists
- * to catch, so the caller must treat this as a convenience and nothing more.
+ * Returns a *reason* alongside the name rather than a bare null. The two
+ * silences are different — "this has never been published" is the case the
+ * watcher exists for, while "the store would not talk to us" is a bug — and
+ * collapsing them into null told people their live extension was a draft.
+ *
+ * `sourceUrl` is the link the developer actually pasted. When it already
+ * carries the name slug it is requested as-is and no redirect happens at all,
+ * which is both faster and immune to the encoding bug above.
  */
-export async function fetchStoreListingName(itemId: string): Promise<string | null> {
-  try {
-    const res = await fetch(`https://chromewebstore.google.com/detail/${itemId}`, {
-      // A default fetch UA gets a different page; this is a public listing, so
-      // asking for it the way a browser does is the honest request.
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; Glitchgrab/1.0)" },
-      signal: AbortSignal.timeout(6000),
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-
-    const html = await res.text();
-    const title =
-      html.match(/<meta property="og:title" content="([^"]+)"/)?.[1] ??
-      html.match(/<title>([^<]+)<\/title>/)?.[1];
-    if (!title) return null;
-
-    // The page title carries the store's own suffix, which is not part of the
-    // extension's name.
-    const name = title.replace(/\s*[-–|]\s*Chrome Web Store\s*$/i, "").trim();
-    return name
-      ? name
-          .replace(/&amp;/g, "&")
-          .replace(/&#39;/g, "'")
-          .replace(/&quot;/g, '"')
-          .slice(0, 120)
+export async function fetchStoreListingName(
+  itemId: string,
+  sourceUrl?: string
+): Promise<{ name: string | null; reason: "ok" | "no-listing" | "unreachable"; detail?: string }> {
+  const direct =
+    sourceUrl && /chromewebstore\.google\.com\/detail\/[^/]+\/[a-p]{32}/.test(sourceUrl)
+      ? sourceUrl.split("?")[0]
       : null;
-  } catch {
-    return null;
+
+  let res: Response | null;
+  try {
+    res = await fetchStorePage(direct ?? `https://chromewebstore.google.com/detail/${itemId}`);
+  } catch (err) {
+    const cause = (err as { cause?: { message?: string } })?.cause?.message;
+    return {
+      name: null,
+      reason: "unreachable",
+      detail: cause ?? (err instanceof Error ? err.message : "network error"),
+    };
   }
+
+  if (!res) return { name: null, reason: "unreachable", detail: "too many redirects" };
+
+  // 404 is the genuine "no public page" — anything else is the store refusing
+  // us, which says nothing about whether the extension is published.
+  if (res.status === 404) return { name: null, reason: "no-listing" };
+  if (!res.ok) return { name: null, reason: "unreachable", detail: `store returned ${res.status}` };
+
+  const html = await res.text();
+  const title =
+    html.match(/<meta property="og:title" content="([^"]+)"/)?.[1] ??
+    html.match(/<title>([^<]+)<\/title>/)?.[1];
+
+  // A 200 with no title at all is a bot check or a consent wall, not a listing.
+  if (!title) {
+    return { name: null, reason: "unreachable", detail: "no title on the page" };
+  }
+
+  // The page title carries the store's own suffix, which is not part of the
+  // extension's name.
+  const name = title.replace(/\s*[-–|]\s*Chrome Web Store\s*$/i, "").trim();
+
+  // An id nobody has published still answers 200 — with the store's own
+  // landing page, whose title is just "Chrome Web Store". Left alone that
+  // becomes the extension's name, which is worse than no name at all.
+  if (!name || /^chrome web store$/i.test(name)) return { name: null, reason: "no-listing" };
+
+  return {
+    name: name
+      .replace(/&amp;/g, "&")
+      .replace(/&#39;/g, "'")
+      .replace(/&quot;/g, '"')
+      .slice(0, 120),
+    reason: "ok",
+  };
 }
