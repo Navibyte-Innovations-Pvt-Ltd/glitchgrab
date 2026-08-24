@@ -447,6 +447,59 @@ would mute nothing at all).
 
 ---
 
+## 7. `extension_review_status`
+
+Sent when the Chrome Web Store's verdict on a submission changes — published,
+rejected, or sitting somewhere it should not be. **Not** a progress ticker: a
+message goes out on a publish, on a rejection, on a draft older than 12 hours,
+and on a review older than three days. Nothing else, because a template that
+fires every 30 minutes is one nobody reads when the rejection finally lands.
+
+- **Name:** `extension_review_status`
+- **Category:** Utility
+- **Language:** English
+
+**Body**
+
+```
+*Chrome Web Store update*
+
+*{{1}}* v{{2}} {{3}}.
+{{4}}
+
+Tap below to open it in the developer console.
+```
+
+Renders as:
+
+> **Chrome Web Store update**
+>
+> **Glitchgrab Capture** v1.4.0 **needs your attention**.
+> Google says: Description mentions a competitor. Fix it and resubmit.
+>
+> Tap below to open it in the developer console.
+
+| Variable | Example |
+|---|---|
+| {{1}} | Glitchgrab Capture |
+| {{2}} | 1.4.0 |
+| {{3}} | needs your attention |
+| {{4}} | Google says: Description mentions a competitor. Fix it and resubmit. |
+
+**Buttons**
+
+- Visit website · *Open in console* · Dynamic · `https://chrome.google.com/webstore/devconsole/` · sample `detail/abcdefghijklmnopabcdefghijklmnop`
+
+{{3}} is a phrase, not a status word, so the sentence reads as English in every
+case: *is published* / *needs your attention* / *is still a draft* / *is still
+in review*. {{4}} is the one line telling you what to do about it, and carries
+Google's own rejection text when there is one — sanitised through
+`sanitizeParam`, because Meta rejects any parameter containing a newline, a tab,
+or four consecutive spaces (error 132018).
+
+The body deliberately never says "no action needed" — a Utility template that
+arrives with nothing to do is the definition of the noise rule 4 warns about.
+
 ## Already approved — do not recreate
 
 `wa_otp` is reused for verifying the number on the **website** booking form.
