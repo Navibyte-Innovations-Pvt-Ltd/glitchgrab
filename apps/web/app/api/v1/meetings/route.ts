@@ -1,9 +1,14 @@
 export const dynamic = "force-dynamic";
 
+
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { resolveMeetingCaller, scopeRepo } from "@/lib/meetings";
 import { collectMeetingTranscript } from "@/lib/sarvam/collect";
+import { fetchLiveBotPhases } from "@/lib/meet-bot";
+
+/** Phases whose stored value goes stale while the bot is still getting in. */
+const PRE_ADMIT_BADGES = ["DISPATCHING", "JOINING", "WAITING_ADMIT"];
 
 const CORS_HEADERS = {
   // The extension calls this from a background service worker, which sends
@@ -160,11 +165,25 @@ export async function GET(request: Request) {
       take: 100,
     });
 
+    // The stored botStatus only moves when the bot manages to call us, so a
+    // row can still say "sending bot…" while the bot is already recording. Ask
+    // the bot service directly for the rows that have not reached the call yet
+    // — one request for the whole list, and it is what the badge is for.
+    const livePhases = meetings.some(
+      (m) => m.recorder === "bot" && PRE_ADMIT_BADGES.includes(m.botStatus ?? "")
+    )
+      ? await fetchLiveBotPhases()
+      : new Map<string, string>();
+
     return NextResponse.json(
       {
         success: true,
         data: meetings.map((m) => ({
           ...m,
+          botStatus:
+            m.recorder === "bot" && PRE_ADMIT_BADGES.includes(m.botStatus ?? "")
+              ? (livePhases.get(m.id) ?? m.botStatus)
+              : m.botStatus,
           // Unfiled recordings show as such rather than as a blank project.
           repoFullName: m.repoId ? (names.get(m.repoId) ?? "") : "No project yet",
           hasRecording: Boolean(m.tabRecordingKey || m.micRecordingKey),
