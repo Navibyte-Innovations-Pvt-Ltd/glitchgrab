@@ -1,7 +1,6 @@
 import type { ExtensionReviewState, StoreExtension } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { decrypt } from "@/lib/encrypt";
-import { fetchItemStatus, getStoreAccessToken, parseServiceAccount } from "@/lib/chrome-store";
+import { accessTokenForConnection, fetchItemStatus } from "@/lib/chrome-store";
 import { sendExtensionStatusWhatsApp } from "@/lib/whatsapp";
 
 /**
@@ -78,8 +77,11 @@ function consolePath(itemId: string): string {
 }
 
 async function checkOne(row: StoreExtension): Promise<ExtensionReviewState> {
-  const key = parseServiceAccount(decrypt(row.credentials));
-  const token = await getStoreAccessToken(key);
+  const token = await accessTokenForConnection(row.connectionId);
+  // A refused connection is recorded on the connection itself, and the reason
+  // there ("reconnect") is more useful than repeating it on every extension.
+  if (!token) throw new Error("The connected Google account needs reconnecting");
+
   const status = await fetchItemStatus({
     publisherId: row.publisherId,
     itemId: row.itemId,
