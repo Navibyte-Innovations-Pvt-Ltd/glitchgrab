@@ -33,8 +33,14 @@ export async function GET(request: Request) {
   }
 
   // A null name is not a failure: an extension that has never been published
-  // has no public page, and that is exactly the case worth watching.
-  const name = await fetchStoreListingName(itemId);
+  // has no public page, and that is exactly the case worth watching. The reason
+  // travels with it so the form can tell that apart from the store refusing us.
+  // The pasted link is handed on: when it carries the name slug the store
+  // answers directly, with no redirect to mis-decode.
+  const listing = await fetchStoreListingName(itemId, query);
 
-  return NextResponse.json({ success: true, data: { itemId, name } });
+  return NextResponse.json({
+    success: true,
+    data: { itemId, name: listing.name, reason: listing.reason, detail: listing.detail ?? null },
+  });
 }
