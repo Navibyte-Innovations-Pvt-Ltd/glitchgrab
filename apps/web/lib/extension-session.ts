@@ -32,11 +32,11 @@ export async function getExtensionSessionIdentity(
  */
 export async function getExtensionSessionRepos(
   identity: ExtensionSessionIdentity
-): Promise<{ id: string; fullName: string }[]> {
+): Promise<{ id: string; fullName: string; aiAssistEnabled: boolean }[]> {
   if (identity.testerId) {
     const rows = await prisma.testerRepo.findMany({
       where: { testerId: identity.testerId, repo: { name: { not: { startsWith: "." } } } },
-      include: { repo: { select: { id: true, fullName: true } } },
+      include: { repo: { select: { id: true, fullName: true, aiAssistEnabled: true } } },
       orderBy: [{ repo: { pushedAt: { sort: "desc", nulls: "last" } } }, { createdAt: "desc" }],
     });
     return rows.map((r) => r.repo);
@@ -44,7 +44,7 @@ export async function getExtensionSessionRepos(
   if (identity.userId) {
     return prisma.repo.findMany({
       where: { userId: identity.userId, name: { not: { startsWith: "." } } },
-      select: { id: true, fullName: true },
+      select: { id: true, fullName: true, aiAssistEnabled: true },
       // Most recently pushed first — the project someone is about to demo is
       // almost always the one they have been committing to, and this list is
       // read in the seconds before a client call. Nulls last, so a repo the

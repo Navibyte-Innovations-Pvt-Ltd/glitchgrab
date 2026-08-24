@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { ReportDialog } from "@glitchgrab/report-ui";
 import type {
+  AssistFn,
   ReportFn,
   ReportResult,
   ReportType,
@@ -27,6 +28,8 @@ interface PendingReport {
 interface RepoOption {
   id: string;
   fullName: string;
+  /** Owner's AI report assistant switch (#330), per repo. */
+  aiAssistEnabled: boolean;
 }
 
 function ProjectPicker({
@@ -227,6 +230,61 @@ function App() {
     });
   }, []);
 
+  /**
+   * One turn of the AI report assistant (#330).
+   *
+   * Only wired when the repo the tester picked has it switched on — and the
+   * server checks that column again on every call, so switching repos mid-report
+   * cannot smuggle the assistant into a project that did not ask for it.
+   *
+   * Sends what only this extension knows: the page being reported and the
+   * console errors captured off it. Never throws — a failure comes back as
+   * `degraded` and the dialog falls back to its plain form.
+   */
+  const assist: AssistFn = async (params) => {
+    const offline = {
+      conversationId: null,
+      question: null,
+      report: null,
+      degraded: "The assistant is unavailable — write your report below and send it as normal.",
+    };
+    if (!pending || !repoId) return offline;
+    try {
+      const res = await fetch(`${pending.apiBase}/api/v1/ai/report-chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...params,
+          sessionId: pending.sessionId,
+          repoId,
+          context: {
+            ...(params.context ?? {}),
+            url: pending.pageUrl ?? undefined,
+            breadcrumbs: (pending.consoleErrors ?? [])
+              .slice(-10)
+              .map((message) => ({ type: "console", message })),
+          },
+        }),
+      });
+      const data = (await res.json().catch(() => null)) as {
+        success?: boolean;
+        error?: string;
+        data?: { conversationId?: string; question?: string | null; report?: string | null };
+      } | null;
+      if (!res.ok || !data?.success) {
+        return { ...offline, degraded: data?.error ?? offline.degraded };
+      }
+      return {
+        conversationId: data.data?.conversationId ?? null,
+        question: data.data?.question ?? null,
+        report: data.data?.report ?? null,
+        degraded: null,
+      };
+    } catch {
+      return offline;
+    }
+  };
+
   const report: ReportFn = async (
     type: ReportType,
     description: string,
@@ -385,6 +443,7 @@ function App() {
   return (
     <ReportDialog
       report={report}
+      assist={repos.find((r) => r.id === repoId)?.aiAssistEnabled ? assist : undefined}
       captureScreenshot={captureScreenshot}
       reporter={reporter}
       headerSlot={projectField}

@@ -302,6 +302,77 @@ export async function enhanceText(
 }
 
 /**
+ * One turn of the AI report assistant (#330).
+ *
+ * Same never-throw contract as everything else in the SDK: a failure comes back
+ * as `degraded` and the dialog quietly falls back to the plain form. An
+ * end-user of the host app must never see a Glitchgrab error, and must never be
+ * blocked from filing a bug because a model was busy.
+ */
+export async function assistTurn(
+  params: {
+    messages: { role: "user" | "assistant"; content: string }[];
+    conversationId: string | null;
+    screenshot?: string | null;
+    context?: Record<string, unknown> | null;
+  },
+  token: string,
+  baseUrl?: string
+): Promise<{
+  conversationId: string | null;
+  question: string | null;
+  report: string | null;
+  degraded?: string | null;
+}> {
+  const offline = {
+    conversationId: null,
+    question: null,
+    report: null,
+    degraded:
+      "The assistant is unavailable — write your report below and send it as normal.",
+  };
+  try {
+    const url = `${baseUrl ?? DEFAULT_BASE_URL}/api/v1/ai/report-chat`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(params),
+    });
+    const envelope = (await response.json().catch(() => null)) as {
+      success?: boolean;
+      error?: string;
+      degrade?: boolean;
+      disabled?: boolean;
+      data?: { conversationId?: string; question?: string | null; report?: string | null };
+    } | null;
+
+    if (!response.ok || !envelope?.success) {
+      // The server distinguishes "cannot help" (cap, rate limit, model down,
+      // switched off) from a bug. Either way the dialog does the same thing —
+      // but the reason is the server's to word, so pass it through.
+      return {
+        conversationId: null,
+        question: null,
+        report: null,
+        degraded: envelope?.error ?? offline.degraded,
+      };
+    }
+
+    return {
+      conversationId: envelope.data?.conversationId ?? null,
+      question: envelope.data?.question ?? null,
+      report: envelope.data?.report ?? null,
+      degraded: null,
+    };
+  } catch {
+    return offline;
+  }
+}
+
+/**
  * Send an audio Blob to the Glitchgrab STT proxy (which calls Sarvam).
  * Returns the transcript string, or "" on any failure. Never throws.
  */

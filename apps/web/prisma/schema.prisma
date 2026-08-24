@@ -24,19 +24,19 @@ model Waitlist {
 // ─── Auth ────────────────────────────────────────────────
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String    @unique
-  emailVerified DateTime?
-  image         String?
-  githubLogin   String?
-  whatsappPhone String?
+  id               String    @id @default(cuid())
+  name             String?
+  email            String    @unique
+  emailVerified    DateTime?
+  image            String?
+  githubLogin      String?
+  whatsappPhone    String?
   /// Digest nudges (morning + evening) stay silent until this moment. Set when
   /// the user replies LEAVE on WhatsApp; null means "message me normally".
   /// See lib/digest.ts and /api/v1/cron/daily-digest.
   digestMutedUntil DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   accounts            Account[]
   sessions            Session[]
@@ -144,24 +144,30 @@ model Installation {
 }
 
 model Repo {
-  id             String   @id @default(cuid())
-  userId         String
-  orgId          String?
-  installationId String?
-  githubId       Int
-  fullName       String
-  owner          String
-  name           String
-  isPrivate      Boolean  @default(false)
+  id              String    @id @default(cuid())
+  userId          String
+  orgId           String?
+  installationId  String?
+  githubId        Int
+  fullName        String
+  owner           String
+  name            String
+  isPrivate       Boolean   @default(false)
   /// Last push to the default branch, per GitHub. Refreshed hourly by
   /// `cron/repo-activity`, never read live: the in-Meet project picker orders
   /// by it, and that list is built while someone is seconds from a client call.
-  pushedAt       DateTime?
-  createdAt      DateTime @default(now())
+  pushedAt        DateTime?
+  /// Opt-in AI report assistant (#330). Off by default and owned by the repo,
+  /// not the reporter: the dialog is opened by SDK end users, QA testers and
+  /// the owner alike, and only the owner is in a position to accept the cost.
+  /// The server reads this off the repo the token/session resolves to — a
+  /// client is never asked whether AI is on.
+  aiAssistEnabled Boolean   @default(false)
+  createdAt       DateTime  @default(now())
 
-  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  org               Organization?        @relation(fields: [orgId], references: [id], onDelete: SetNull)
-  installation      Installation?        @relation(fields: [installationId], references: [id], onDelete: SetNull)
+  user              User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org               Organization?          @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  installation      Installation?          @relation(fields: [installationId], references: [id], onDelete: SetNull)
   tokens            ApiToken[]
   reports           Report[]
   feedback          Feedback[]
@@ -177,6 +183,7 @@ model Repo {
   members           RepoMember[]
   contextItems      ProjectContextItem[]
   meetings          Meeting[]
+  aiAssistChats     AiAssistConversation[]
 
   @@unique([userId, githubId])
   @@index([githubId])
@@ -526,6 +533,38 @@ model AiEnhanceLog {
   user     User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
 
+/// One AI-assisted report composition (#330).
+///
+/// A row is created on the FIRST message of a conversation and is the unit the
+/// monthly cap counts — a long back-and-forth costs the same quota as a short
+/// one, so the reporter is never punished for the model needing another
+/// question. `turns` is the separate guard that stops one conversation looping
+/// forever.
+///
+/// Deliberately stores no message bodies: the transcript is a draft bug report
+/// typed by an end user of somebody else's app, and it is already persisted, on
+/// purpose and with consent, the moment they press Send. Keeping a second copy
+/// of every abandoned draft buys nothing and is a liability.
+model AiAssistConversation {
+  id        String   @id @default(cuid())
+  repoId    String
+  /// Model round-trips spent. Hard-capped server-side (see lib/ai-assist/quota).
+  turns     Int      @default(0)
+  /// Who was composing, for abuse tracing. All three are nullable and only one
+  /// is ever set: SDK end users have a token, QA testers a testerId, dashboard
+  /// and GlitchRecord owners a userId. Plain scalars, no FKs — a revoked token
+  /// or a deleted tester must not erase the audit trail.
+  tokenId   String?
+  userId    String?
+  testerId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  repo Repo @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  @@index([repoId, createdAt])
+}
+
 // Temporary click-capture sessions for Recordly script generation
 model CaptureSession {
   id        String   @id @default(cuid())
@@ -868,7 +907,7 @@ model ClientProject {
   clientId String
   repoId   String
 
-  createdAt DateTime @default(now())
+  createdAt  DateTime @default(now())
   lastSeenAt DateTime @default(now())
 
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
@@ -896,14 +935,14 @@ model WhatsappThread {
   id    String @id @default(cuid())
   phone String @unique
 
-  step   WhatsappThreadStep @default(CHOOSE_PROJECT)
-  repoId String?
+  step         WhatsappThreadStep @default(CHOOSE_PROJECT)
+  repoId       String?
   /// Slot the visitor picked, held once they choose a time.
   pendingStart DateTime?
   /// Page offset while paging through the next fortnight of dates.
-  datePage Int @default(0)
-  name  String?
-  email String?
+  datePage     Int                @default(0)
+  name         String?
+  email        String?
 
   /// Meta only allows free-form replies within 24h of the customer's last
   /// message. Past this the bot must fall back to a template or stay quiet.
@@ -947,10 +986,10 @@ model CalendarInvite {
   label String?
 
   /// Single-use. Set the moment a connection is created from it.
-  usedAt    DateTime?
+  usedAt       DateTime?
   /// Set once used — which connection this invite produced.
   connectionId String?
-  expiresAt DateTime
+  expiresAt    DateTime
 
   createdAt DateTime @default(now())
 
@@ -1043,13 +1082,13 @@ model Booking {
   timezone String?
   note     String?
 
-  status BookingStatus @default(PENDING)
+  status      BookingStatus @default(PENDING)
   /// SHA-256 of the verification code, never the code itself.
-  otpHash    String?
-  otpSentAt  DateTime?
-  otpExpires DateTime?
+  otpHash     String?
+  otpSentAt   DateTime?
+  otpExpires  DateTime?
   /// Wrong codes tried. Caps a brute force against a six-digit number.
-  otpAttempts Int @default(0)
+  otpAttempts Int           @default(0)
 
   /// Set once confirmed: the Google event and its Meet link.
   calendarEventId String?
@@ -1059,7 +1098,7 @@ model Booking {
   meetingId       String?
 
   /// Reminders already sent, so a cron re-run cannot send twice.
-  reminderSentAt DateTime?
+  reminderSentAt  DateTime?
   ownerNotifiedAt DateTime?
 
   createdAt DateTime @default(now())

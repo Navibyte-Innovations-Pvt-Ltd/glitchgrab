@@ -59,6 +59,9 @@ export async function GET(request: Request) {
     tokens: r._count.tokens,
     reports: r._count.reports,
     installed: r.installationId !== null,
+    /// Whether the AI report assistant is on for this project (#330). The
+    /// owner's switch — nobody else can flip it, and the reporter never sees it.
+    aiAssistEnabled: r.aiAssistEnabled,
   }));
 
   const needsInstall = ownRepos.some((r) => !r.installed);

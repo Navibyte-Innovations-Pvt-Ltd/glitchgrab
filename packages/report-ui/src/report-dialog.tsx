@@ -9,6 +9,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { AnnotationCanvas } from "./annotation-canvas";
+import { AssistSheet } from "./assist-sheet";
 import { getShortcutLabel } from "./shortcut";
 import { ATTACHMENT_ACCEPT } from "./attachments";
 import { encodeScreenshot } from "./image-encode";
@@ -19,6 +20,7 @@ import type {
   ReportFn,
   FeedbackFn,
   EnhanceTextFn,
+  AssistFn,
   ReportReporter,
 } from "./types";
 
@@ -377,6 +379,24 @@ interface ReportDialogProps {
    */
   sendFeedback?: FeedbackFn;
   enhanceText?: EnhanceTextFn;
+  /**
+   * Runs one turn of the AI report assistant (#330). Supplying it adds a
+   * "Describe it with AI" affordance above the description box; omitting it
+   * leaves the dialog exactly as it was. The assistant is an EXTRA mode, never
+   * a replacement — the plain form stays present and usable throughout, and
+   * the assistant closes itself the moment it cannot help.
+   *
+   * Hosts pass this only when the project has it switched on: the SDK reads
+   * `aiAssist` off /api/v1/sdk/project. The server re-checks the same column on
+   * every call, so this prop is a UI hint and not a permission.
+   */
+  assist?: AssistFn;
+  /**
+   * Session facts handed to the assistant — page URL, pages visited, recent
+   * clicks and API calls. The host owns this because only the host has it: the
+   * SDK keeps breadcrumbs, the extension has the tab, GlitchRecord has neither.
+   */
+  assistContext?: Record<string, unknown> | null;
   transcribeAudio?: (blob: Blob) => Promise<string>;
   types?: ReportType[];
   showSeverity?: boolean;
@@ -449,6 +469,8 @@ export function ReportDialog({
   report,
   sendFeedback,
   enhanceText,
+  assist,
+  assistContext = null,
   transcribeAudio,
   types,
   showSeverity = true,
@@ -458,6 +480,16 @@ export function ReportDialog({
   headerSlot,
 }: ReportDialogProps) {
   const [isEnhancing, setIsEnhancing] = useState(false);
+
+  /**
+   * AI assistant (#330). Closed until asked for, and one-way: once it degrades
+   * or hands over a description it does not reopen itself. `assistNotice` is
+   * why it went away, shown once under the box so the reporter is never left
+   * wondering where the button went.
+   */
+  const [assistOpen, setAssistOpen] = useState(false);
+  const [assistNotice, setAssistNotice] = useState<string | null>(null);
+  const [assistUsed, setAssistUsed] = useState(false);
   const [isEnhanced, setIsEnhanced] = useState(false);
   const [originalDescription, setOriginalDescription] = useState<string | null>(
     null,
@@ -907,6 +939,36 @@ export function ReportDialog({
     try { mediaRecorderRef.current?.stop(); } catch { /* ignore */ }
   };
 
+  /**
+   * Is the AI sheet the surface in charge right now?
+   *
+   * When it is, the dialog is hidden outright rather than dimmed behind it. The
+   * two share `description` and `severity`, so leaving it on screen showed the
+   * same report text, the same severity buttons and a second Send Report behind
+   * a translucent overlay — one report wearing two faces. Nothing is lost by
+   * hiding it: the state is shared, so "Write it myself" brings it straight
+   * back with everything intact.
+   */
+  const sheetUp = !!assist && assistOpen && !isRating;
+
+  /**
+   * `display:none` already takes the dialog out of the tab order, but it is set
+   * by React on the overlay while `inert`/`aria-hidden` go on the card itself —
+   * so this also covers the frame where the sheet is mounting and the dialog
+   * has not yet been hidden.
+   */
+  useEffect(() => {
+    const el = modalRef.current;
+    if (!el) return;
+    if (sheetUp) {
+      el.setAttribute("inert", "");
+      el.setAttribute("aria-hidden", "true");
+    } else {
+      el.removeAttribute("inert");
+      el.removeAttribute("aria-hidden");
+    }
+  }, [sheetUp, isOpen]);
+
   const handleClose = () => {
     stopVoice();
     setIsOpen(false);
@@ -926,6 +988,11 @@ export function ReportDialog({
     setVoiceError(null);
     setIsEnhanced(false);
     setOriginalDescription(null);
+    // A new report is a new conversation. Leaving `assistUsed` set would hide
+    // the assistant for the rest of the page's life after one use.
+    setAssistOpen(false);
+    setAssistUsed(false);
+    setAssistNotice(null);
   };
 
   const toggleVoice = async () => {
@@ -1212,7 +1279,10 @@ export function ReportDialog({
               inset: 0,
               zIndex: 2147483647,
               pointerEvents: "auto",
-              display: "flex",
+              // Hidden, not unmounted, while the AI sheet is in charge — the
+              // dialog's state IS the report, and unmounting would drop the
+              // screenshots, attachments and step the reporter is on.
+              display: sheetUp ? "none" : "flex",
               alignItems: "center",
               justifyContent: "center",
               backgroundColor: "rgba(0,0,0,0.5)",
@@ -1700,6 +1770,47 @@ export function ReportDialog({
                             })}
                           </div>
                         )}
+                        {/* Entry point to the AI sheet (#330). The sheet itself
+                            renders in its own portal at the bottom of this
+                            component, not inline: a conversation crammed into a
+                            420px card read like a form field, not a chat.
+                            Hidden for RATING — a star needs no help. */}
+                        {assist && !isRating && !assistUsed && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAssistNotice(null);
+                              setAssistOpen(true);
+                            }}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              marginBottom: "10px",
+                              // 8px vertical keeps the tap target at ~32px.
+                              padding: "8px 10px",
+                              borderRadius: "6px",
+                              border: `1px solid ${t.accent}`,
+                              background: "transparent",
+                              color: t.accent,
+                              fontSize: "12px",
+                              fontWeight: 600,
+                              fontFamily: "inherit",
+                              cursor: "pointer",
+                            }}
+                            title="Answer a question or two and the assistant writes the report for you"
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                              <path
+                                d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3zM19 15l.75 2.25L22 18l-2.25.75L19 21l-.75-2.25L16 18l2.25-.75L19 15z"
+                                stroke={t.accent}
+                                strokeWidth="1.5"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                            Describe it with AI
+                          </button>
+                        )}
                         <div style={{ position: "relative" }}>
                           <textarea
                             ref={textareaRef}
@@ -2083,6 +2194,25 @@ export function ReportDialog({
                             }}
                           >
                             {voiceError}
+                          </p>
+                        )}
+
+                        {/* Why the assistant went away — a draft it wrote, a
+                            cap it hit, or a model that was down. Sits directly
+                            under the box it is talking about: a notice about
+                            the description that renders below Severity reads as
+                            being about Severity. */}
+                        {assistNotice && (
+                          <p
+                            style={{
+                              color: t.textMuted,
+                              fontSize: "12px",
+                              marginTop: "6px",
+                              marginBottom: 0,
+                              lineHeight: 1.5,
+                            }}
+                          >
+                            {assistNotice}
                           </p>
                         )}
 
@@ -2736,6 +2866,56 @@ export function ReportDialog({
           />,
           document.body,
         )}
+
+      {/* The AI sheet (#330) — its own layer, above the dialog. It owns the
+          whole flow (chat → draft → Send) but NOT submission: `description`,
+          `severity` and `handleSubmit` are this component's own, so there is
+          exactly one submit path and the sheet cannot drift from it. */}
+      {isOpen && sheetUp && (
+        <AssistSheet
+          assist={assist}
+          theme={{
+            bg: t.bg,
+            bgSecondary: t.bgSecondary,
+            border: t.border,
+            text: t.text,
+            textMuted: t.textMuted,
+            inputBg: t.inputBg,
+            inputBorder: t.inputBorder,
+            accent: t.accent,
+            accentText: t.accentText,
+          }}
+          screenshot={screenshots[0] ?? null}
+          attachmentCount={screenshots.length + attachments.length}
+          context={{ ...(assistContext ?? {}), reportType }}
+          reportTypeLabel={getTypeLabel(reportType)}
+          projectSlot={headerSlot}
+          reporterName={reporter?.name ?? null}
+          description={description}
+          onDescriptionChange={(value) => {
+            setDescription(value);
+            if (validationError) setValidationError(null);
+          }}
+          severity={severity}
+          onSeverityChange={setSeverity}
+          showSeverity={showSeverity}
+          isSubmitting={isSubmitting}
+          submitted={submitted}
+          onSend={() => void handleSubmit()}
+          onDegrade={(message) => {
+            setAssistOpen(false);
+            setAssistUsed(true);
+            setAssistNotice(message);
+          }}
+          onClose={() => {
+            setAssistOpen(false);
+            // Closing by hand is not "used up" — someone who peeked and backed
+            // out should still find the button where they left it. Only a
+            // degrade (cap, outage) retires the assistant for this report.
+            requestAnimationFrame(() => textareaRef.current?.focus());
+          }}
+        />
+      )}
     </>
   );
 }
