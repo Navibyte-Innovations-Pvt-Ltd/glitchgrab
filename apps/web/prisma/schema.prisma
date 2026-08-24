@@ -56,6 +56,7 @@ model User {
   calendarConnections CalendarConnection[]
   calendarInvites     CalendarInvite[]
   loginTokens         LoginToken[]
+  storeExtensions     StoreExtension[]
 }
 
 /// Single-use, 48-hour auto-login token behind the "Open dashboard" button on a
@@ -184,6 +185,7 @@ model Repo {
   contextItems      ProjectContextItem[]
   meetings          Meeting[]
   aiAssistChats     AiAssistConversation[]
+  storeExtensions   StoreExtension[]
 
   @@unique([userId, githubId])
   @@index([githubId])
@@ -778,6 +780,75 @@ model ScheduledRecording {
 
   @@unique([connectionId, calendarEventId])
   @@index([status, startsAt])
+}
+
+/// What the Chrome Web Store says about a submission right now.
+///
+/// Deliberately coarse: the store's own vocabulary changes, and the only
+/// question a developer actually has is "is it live, is Google still looking at
+/// it, or is it sitting somewhere waiting for me?".
+enum ExtensionReviewState {
+  /// Uploaded or edited, never submitted. The trap this whole feature exists
+  /// for — a draft looks identical to "shipped" from the outside.
+  DRAFT
+  /// Submitted, Google is looking at it.
+  IN_REVIEW
+  /// Live for users.
+  PUBLISHED
+  /// Rejected or taken down — needs a human.
+  NEEDS_ATTENTION
+  /// The store answered something we don't recognise, or we could not reach it.
+  UNKNOWN
+}
+
+/// One Chrome extension we watch on the Web Store (#332).
+///
+/// A submission's outcome lands hours or days after the release workflow has
+/// exited, so nothing in CI can ever report it. This row is what a cron polls,
+/// and what turns "it's been in review since Tuesday" into a WhatsApp instead
+/// of a dashboard nobody opens.
+model StoreExtension {
+  id     String  @id @default(cuid())
+  userId String
+  /// Optional: which project this extension belongs to, so the release shows
+  /// up next to the repo it was built from.
+  repoId String?
+  name   String
+
+  /// The 32-character Chrome Web Store item id.
+  itemId String
+  /// Publisher the item belongs to — v2 API paths are per publisher.
+  publisherId String
+
+  /// Google service-account JSON, AES-256-GCM (same treatment as user AI keys).
+  /// A service account never expires the way an OAuth refresh token does, which
+  /// is the entire reason this is not a stored refresh token.
+  credentials String
+
+  publishedVersion String?
+  submittedVersion String?
+  state            ExtensionReviewState @default(UNKNOWN)
+  /// Extra detail from the store — a rejection reason, or why we can't read it.
+  stateDetail      String?
+
+  /// The state someone was last told about. Without it a review in progress
+  /// sends the same message every poll.
+  notifiedState ExtensionReviewState?
+  /// When `state` last changed. A draft that has sat untouched for a day is
+  /// worth a nudge; one from ten minutes ago is just someone mid-release.
+  stateSince    DateTime?
+
+  lastCheckedAt DateTime?
+  lastError     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repo Repo? @relation(fields: [repoId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, itemId])
+  @@index([state])
 }
 
 model RateLimit {
