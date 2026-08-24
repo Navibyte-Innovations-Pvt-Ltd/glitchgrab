@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { parseItemId } from "@/lib/chrome-store";
+import { accessTokenForConnection, fetchItemStatus, parseItemId } from "@/lib/chrome-store";
 
 /**
  * Chrome Web Store extensions this user ships (#332).
@@ -148,18 +148,74 @@ export async function POST(request: Request) {
     });
   }
 
+  // Ask the store once, now, with the ids just given. A wrong publisher id or
+  // an extension on someone else's account is otherwise indistinguishable from
+  // "not read yet" — the row would sit there looking fine and never update,
+  // which is the exact silence this feature exists to end.
+  const publisher = publisherId || connection.publisherId;
+  const token = await accessTokenForConnection(connection.id);
+
+  if (!token) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "That Google account needs reconnecting before an extension can be added",
+      },
+      { status: 400 }
+    );
+  }
+
+  let firstReading;
+  try {
+    firstReading = await fetchItemStatus({
+      publisherId: publisher as string,
+      itemId,
+      accessToken: token,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "The Chrome Web Store refused that";
+    return NextResponse.json(
+      {
+        success: false,
+        error: /40[34]/.test(message)
+          ? "The store does not recognise that extension for this account — check the publisher id and that the extension belongs to it"
+          : message,
+      },
+      { status: 400 }
+    );
+  }
+
   const saved = await prisma.storeExtension.upsert({
     where: { userId_itemId: { userId, itemId } },
-    create: { userId, name, itemId, repoId, connectionId: connection.id },
+    create: {
+      userId,
+      name,
+      itemId,
+      repoId,
+      connectionId: connection.id,
+      // The reading is already in hand — showing "not read yet" for half an
+      // hour after a successful add would be a lie about what we know.
+      state: firstReading.state,
+      stateDetail: firstReading.detail,
+      publishedVersion: firstReading.publishedVersion,
+      submittedVersion: firstReading.submittedVersion,
+      stateSince: new Date(),
+      lastCheckedAt: new Date(),
+    },
     update: {
       name,
       repoId,
       connectionId: connection.id,
+      state: firstReading.state,
+      stateDetail: firstReading.detail,
+      publishedVersion: firstReading.publishedVersion,
+      submittedVersion: firstReading.submittedVersion,
+      lastCheckedAt: new Date(),
       // A re-registration usually follows a fix, so a stale error must not sit
       // on screen until the next sweep half an hour later.
       lastError: null,
     },
-    select: { id: true, name: true, itemId: true },
+    select: { id: true, name: true, itemId: true, state: true },
   });
 
   return NextResponse.json({ success: true, data: saved });
