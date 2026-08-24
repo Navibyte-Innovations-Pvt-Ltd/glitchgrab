@@ -1179,6 +1179,143 @@ function botInRoom(): boolean {
   return false;
 }
 
+/**
+ * Let our own notetaker in, without making the host fight Meet for it (#311).
+ *
+ * Google's safeguarded admit flow (March 2026) puts every third-party bot in a
+ * "potential risks" queue whose default action is **Deny** — the row shows no
+ * Admit button at all, only Deny and an overflow menu. Being on the calendar
+ * invite avoids that queue, but only for events we organise; for everything
+ * else the host has to find the People panel, open a ⋮ menu and override a red
+ * warning, mid-call, every single time.
+ *
+ * The host is us, and this runs in the host's own tab, so the click is ours to
+ * make.
+ *
+ * Strict by construction, because "admit whoever is knocking" is a security
+ * bug, not a convenience:
+ *  - only while a bot WE dispatched from this tab is still pre-admission;
+ *  - only a waiting row whose name matches our notetaker;
+ *  - exactly one such row, or it does nothing;
+ *  - never "Admit all" and never the "admit one guest" chip, which admit a
+ *    stranger just as happily as they admit us.
+ */
+const BOT_NAME_RE = /glitchgrab/i;
+
+/** Meet needs a beat to render a menu after the ⋮ is clicked. */
+const MENU_RENDER_MS = 350;
+
+/** How often an admit attempt may run. Each one walks a fair chunk of DOM. */
+const ADMIT_RETRY_MS = 4000;
+let lastAdmitAttempt = 0;
+
+function labelOf(el: Element): string {
+  return `${el.getAttribute("aria-label") ?? ""} ${el.textContent ?? ""}`.replace(/\s+/g, " ").trim();
+}
+
+function buttonsIn(root: Element): HTMLElement[] {
+  return Array.from(root.querySelectorAll<HTMLElement>('button, [role="button"], [role="menuitem"]'));
+}
+
+/**
+ * The waiting-room row for our bot: the nearest ancestor of its name that also
+ * holds a Deny control.
+ *
+ * Deny is what makes it a *waiting* row — the bot's name also appears in the
+ * participant list once it is in, and clicking things there would be wrong.
+ */
+function findWaitingRow(): HTMLElement | null {
+  const matches: HTMLElement[] = [];
+
+  for (const node of Array.from(document.querySelectorAll<HTMLElement>("span, div"))) {
+    if (node.childElementCount > 0) continue;
+    const text = node.textContent?.trim() ?? "";
+    if (!text || text.length > 60 || !BOT_NAME_RE.test(text)) continue;
+
+    let row: HTMLElement | null = node;
+    for (let depth = 0; row && depth < 6; depth++) {
+      if (buttonsIn(row).some((b) => /^deny$/i.test(labelOf(b)))) {
+        matches.push(row);
+        break;
+      }
+      row = row.parentElement;
+    }
+  }
+
+  // Two matching rows means we cannot tell which guest is ours. Do nothing and
+  // let the human decide — that is the safe direction here.
+  if (matches.length !== 1) {
+    if (matches.length > 1) log(`auto-admit: ${matches.length} rows match the bot name — leaving it alone`);
+    return null;
+  }
+  return matches[0] ?? null;
+}
+
+/** Open the People panel, so a waiting row exists to look at. Returns the opener. */
+function openPeoplePanel(): HTMLElement | null {
+  const opener = document.querySelector<HTMLElement>(
+    '[aria-label*="show everyone" i], [aria-label*="people" i], [aria-label*="participants" i]'
+  );
+  if (!opener) return null;
+  opener.click();
+  return opener;
+}
+
+async function autoAdmitBot(): Promise<void> {
+  if (Date.now() - lastAdmitAttempt < ADMIT_RETRY_MS) return;
+  lastAdmitAttempt = Date.now();
+
+  let row = findWaitingRow();
+  let openedPanel: HTMLElement | null = null;
+
+  // The queue may simply not be on screen. Open the panel, look again, and put
+  // the host's UI back the way we found it either way.
+  if (!row) {
+    openedPanel = openPeoplePanel();
+    if (!openedPanel) return;
+    await new Promise((r) => setTimeout(r, MENU_RENDER_MS));
+    row = findWaitingRow();
+  }
+
+  try {
+    if (!row) return;
+
+    // The trusted queue still offers a plain Admit.
+    const direct = buttonsIn(row).find((b) => /^(admit|let in)$/i.test(labelOf(b)));
+    if (direct) {
+      direct.click();
+      log("auto-admit: admitted our notetaker from the waiting list");
+      return;
+    }
+
+    // The "potential risks" queue hides it behind the row's overflow menu.
+    const overflow = buttonsIn(row).find((b) => /more (options|actions)/i.test(labelOf(b)));
+    if (!overflow) {
+      log("auto-admit: found the waiting row but no admit control — Meet's DOM changed");
+      return;
+    }
+
+    overflow.click();
+    await new Promise((r) => setTimeout(r, MENU_RENDER_MS));
+
+    const item = Array.from(
+      document.querySelectorAll<HTMLElement>('[role="menuitem"], [role="menuitemradio"]')
+    ).find((el) => /admit|let (them )?in|allow/i.test(labelOf(el)));
+
+    if (!item) {
+      log("auto-admit: overflow menu had no admit item");
+      document.body.click();
+      return;
+    }
+
+    item.click();
+    log("auto-admit: admitted our notetaker via the risky-guest menu");
+  } finally {
+    // Leave the call looking how the host left it.
+    if (openedPanel) openedPanel.click();
+  }
+}
+
 let statusTimer: ReturnType<typeof setInterval> | null = null;
 /** When the bot's current phase was first seen — the basis for calling it stuck. */
 let phaseSince = 0;
@@ -1227,6 +1364,10 @@ function startStatusPoll() {
     // reach us at all — it is in the call, recording into nothing, and no
     // status it posts will ever arrive.
     const preAdmit = ["DISPATCHING", "JOINING", "WAITING_ADMIT"].includes(next ?? "");
+
+    // Still knocking. Google's risky-guest queue defaults to Deny, so waiting
+    // for the host to notice is how a recording gets lost.
+    if (preAdmit && !botInRoom()) void autoAdmitBot();
 
     // The bot is in the room but its status has not caught up. Believe the
     // room: it is recording, whatever the callback managed to deliver.
