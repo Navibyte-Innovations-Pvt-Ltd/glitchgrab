@@ -234,8 +234,10 @@ closes and the plain form takes over. See `agent_docs/ai-report-assist.md`.
 
 A submission's verdict lands hours after CI exits, so nothing in a workflow can
 report it — `cron/extension-watch` polls the store and WhatsApps only when a
-human has something to do. Auth is a **service account** (OAuth refresh tokens
-die after 7 days; do not port practice-stack's rotation cron).
+human has something to do. Auth is a **connected Google account**, read-only
+scope; the consent screen is already In production so refresh tokens don't
+expire (do not port practice-stack's rotation cron). The v2 API has **no list
+endpoint** — item and publisher ids are typed.
 See `agent_docs/chrome-web-store.md`.
 
 ## Forms
