@@ -17,6 +17,7 @@ import {
   LogOut,
   UserCog,
   SearchCheck,
+  Blocks,
   FlaskConical,
   Brain,
   Radio,
@@ -36,6 +37,7 @@ const OWNER_NAV = [
   { href: "/tester-activity", label: "Tester Activity", icon: FlaskConical },
   { href: "/analytics", label: "Analytics", icon: Activity },
   { href: "/seo", label: "SEO", icon: SearchCheck },
+  { href: "/extensions", label: "Extensions", icon: Blocks },
 ];
 
 const OWNER_CONFIG = [
