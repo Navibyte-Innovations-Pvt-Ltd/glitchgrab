@@ -353,7 +353,42 @@ function repairLocation(raw: string): string {
   return out;
 }
 
-/** Follow redirects ourselves, because Node cannot follow these ones. */
+/** The only host this module is ever allowed to fetch. */
+const STORE_HOST = "chromewebstore.google.com";
+
+/**
+ * Is this a Chrome Web Store listing URL, and nothing else?
+ *
+ * Exact host equality over a parsed URL, never a substring match on the raw
+ * string: `https://evil.example/chromewebstore.google.com/detail/x/<32 chars>`
+ * satisfies any unanchored pattern, and this function decides what the *server*
+ * fetches. Getting it wrong turns a signed-in user into a request forwarder
+ * with our egress — reachable from anywhere our network is, including link-local
+ * metadata addresses.
+ */
+export function isStoreListingUrl(candidate: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(candidate);
+  } catch {
+    return false;
+  }
+
+  return (
+    url.protocol === "https:" &&
+    url.hostname === STORE_HOST &&
+    // Anchored: the id must end the path, not merely appear inside it.
+    /^\/detail\/[^/]+\/[a-p]{32}\/?$/.test(url.pathname)
+  );
+}
+
+/**
+ * Follow redirects ourselves, because Node cannot follow these ones.
+ *
+ * Every hop is re-checked against the same allowlist. `redirect: "manual"` only
+ * hands us the Location header — it does not make following one safe, and an
+ * open redirect on the store would otherwise walk us straight off it.
+ */
 async function fetchStorePage(url: string, hops = 4): Promise<Response | null> {
   let current = url;
 
@@ -373,6 +408,8 @@ async function fetchStorePage(url: string, hops = 4): Promise<Response | null> {
     const next = new URL(repairLocation(location), current).toString();
     // A redirect to where we already are is the loop, not a hop.
     if (next === current) return res;
+    // Refuse to leave the store, whatever it asks.
+    if (!isStoreListingUrl(next)) return null;
     current = next;
   }
 
@@ -398,14 +435,16 @@ export async function fetchStoreListingName(
   itemId: string,
   sourceUrl?: string
 ): Promise<{ name: string | null; reason: "ok" | "no-listing" | "unreachable"; detail?: string }> {
+  // The pasted link is only ever used when it is provably a store listing URL
+  // for this very item. Anything else is discarded and the URL is rebuilt from
+  // the validated id, which cannot point anywhere but the store.
+  const stripped = sourceUrl?.split("?")[0] ?? "";
   const direct =
-    sourceUrl && /chromewebstore\.google\.com\/detail\/[^/]+\/[a-p]{32}/.test(sourceUrl)
-      ? sourceUrl.split("?")[0]
-      : null;
+    stripped && isStoreListingUrl(stripped) && stripped.endsWith(itemId) ? stripped : null;
 
   let res: Response | null;
   try {
-    res = await fetchStorePage(direct ?? `https://chromewebstore.google.com/detail/${itemId}`);
+    res = await fetchStorePage(direct ?? `https://${STORE_HOST}/detail/${itemId}`);
   } catch (err) {
     const cause = (err as { cause?: { message?: string } })?.cause?.message;
     return {
@@ -415,7 +454,8 @@ export async function fetchStoreListingName(
     };
   }
 
-  if (!res) return { name: null, reason: "unreachable", detail: "too many redirects" };
+  // Null means the redirect chain either looped or tried to leave the store.
+  if (!res) return { name: null, reason: "unreachable", detail: "redirected off the store" };
 
   // 404 is the genuine "no public page" — anything else is the store refusing
   // us, which says nothing about whether the extension is published.
