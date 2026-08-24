@@ -3,8 +3,6 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { encrypt } from "@/lib/encrypt";
-import { parseServiceAccount } from "@/lib/chrome-store";
 
 /**
  * Chrome Web Store extensions this user ships (#332).
@@ -12,9 +10,9 @@ import { parseServiceAccount } from "@/lib/chrome-store";
  * GET  — everything being watched, with the last thing the store said.
  * POST — register one, or replace the credentials on an existing one.
  *
- * The service-account JSON is write-only through this API: it is encrypted on
- * arrival and never selected back out. A key that can publish an extension to
- * every existing user is closer to a signing key than to a setting.
+ * There is no credential here any more: an extension is attached to a
+ * connected Google account (see POST /extensions/connect), and one connection
+ * covers every extension on that publisher. The second extension is two ids.
  */
 export async function GET() {
   const session = await auth();
@@ -39,6 +37,7 @@ export async function GET() {
       lastCheckedAt: true,
       lastError: true,
       repo: { select: { fullName: true } },
+      connection: { select: { googleEmail: true, lastError: true } },
     },
     orderBy: { name: "asc" },
   });
@@ -48,7 +47,12 @@ export async function GET() {
     data: extensions.map((e) => ({
       ...e,
       repoFullName: e.repo?.fullName ?? null,
+      connectedAs: e.connection.googleEmail,
+      // A dead connection is the extension's problem too — it is why the row
+      // stopped updating.
+      lastError: e.lastError ?? e.connection.lastError,
       repo: undefined,
+      connection: undefined,
       stateSince: e.stateSince?.toISOString() ?? null,
       lastCheckedAt: e.lastCheckedAt?.toISOString() ?? null,
     })),
@@ -66,7 +70,7 @@ export async function POST(request: Request) {
     name?: string;
     itemId?: string;
     publisherId?: string;
-    credentials?: string;
+    connectionId?: string;
     repoId?: string | null;
   };
 
@@ -104,52 +108,40 @@ export async function POST(request: Request) {
     repoId = repo.id;
   }
 
-  const existing = await prisma.storeExtension.findUnique({
-    where: { userId_itemId: { userId, itemId } },
+  // Which connected account reads this one. Defaulting to the only connection
+  // is not a shortcut: with one account connected there is nothing to choose,
+  // and asking would be a form field with a single option.
+  const connections = await prisma.storeConnection.findMany({
+    where: { userId },
     select: { id: true },
+    orderBy: { createdAt: "asc" },
   });
 
-  let credentials: string | undefined;
-  if (body.credentials?.trim()) {
-    try {
-      // Parse before storing: an unusable key discovered at registration is a
-      // form error, discovered by the cron it is a silent dead watcher.
-      parseServiceAccount(body.credentials);
-    } catch (err) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: err instanceof Error ? err.message : "That service account JSON is not valid",
-        },
-        { status: 400 }
-      );
-    }
-    credentials = encrypt(body.credentials.trim());
-  } else if (!existing) {
+  if (connections.length === 0) {
     return NextResponse.json(
-      { success: false, error: "Service account JSON is required" },
+      { success: false, error: "Connect a Google account with Chrome Web Store access first" },
       { status: 400 }
     );
   }
 
+  const connectionId = body.connectionId
+    ? connections.find((c) => c.id === body.connectionId)?.id
+    : connections[0]?.id;
+
+  if (!connectionId) {
+    return NextResponse.json({ success: false, error: "Unknown connection" }, { status: 400 });
+  }
+
   const saved = await prisma.storeExtension.upsert({
     where: { userId_itemId: { userId, itemId } },
-    create: {
-      userId,
-      name,
-      itemId,
-      publisherId,
-      repoId,
-      credentials: credentials as string,
-    },
+    create: { userId, name, itemId, publisherId, repoId, connectionId },
     update: {
       name,
       publisherId,
       repoId,
-      ...(credentials ? { credentials } : {}),
-      // New credentials or a new publisher mean the last reading may be wrong.
-      // Clear the error rather than leaving a stale one on screen until the
-      // next sweep.
+      connectionId,
+      // A re-registration usually follows a fix, so a stale error must not sit
+      // on screen until the next sweep half an hour later.
       lastError: null,
     },
     select: { id: true, name: true, itemId: true },
