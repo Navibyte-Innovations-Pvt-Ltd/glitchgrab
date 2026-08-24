@@ -42,10 +42,16 @@ and `publishType: STAGED_PUBLISH` (pass review, go live on your word).
 
 ## Setting up the service account
 
-One-time, in the Google Cloud console and the CWS developer dashboard:
+Already done on the `GlitchGrab` Cloud project (24 Aug 2026):
 
-1. Cloud console → **APIs & Services → Library** → enable **Chrome Web Store API**.
-2. **IAM & Admin → Service Accounts** → create one → **Keys → Add key → JSON**. Download it.
+- **Chrome Web Store API** — enabled.
+- **Service account** — `glitchgrab-cws-watcher@glitchgrab.iam.gserviceaccount.com`,
+  no GCP IAM role: store permission comes from the publisher account, not Cloud IAM.
+
+What is left needs a human, because both steps handle the private key itself:
+
+1. ~~Cloud console → **APIs & Services → Library** → enable **Chrome Web Store API**.~~ done
+2. **IAM & Admin → Service Accounts → glitchgrab-cws-watcher → Keys → Add key → JSON**. Download it.
 3. CWS developer dashboard → **Account → Users** (a *group* publisher account is
    required; a personal publisher account cannot add users) → invite the service
    account's `client_email` as a user with publish rights.
