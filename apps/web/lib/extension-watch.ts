@@ -82,8 +82,14 @@ async function checkOne(row: StoreExtension): Promise<ExtensionReviewState> {
   // there ("reconnect") is more useful than repeating it on every extension.
   if (!token) throw new Error("The connected Google account needs reconnecting");
 
+  const connection = await prisma.storeConnection.findUnique({
+    where: { id: row.connectionId },
+    select: { publisherId: true },
+  });
+  if (!connection?.publisherId) throw new Error("This account has no publisher id set");
+
   const status = await fetchItemStatus({
-    publisherId: row.publisherId,
+    publisherId: connection.publisherId,
     itemId: row.itemId,
     accessToken: token,
   });
