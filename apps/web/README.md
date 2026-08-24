@@ -80,30 +80,22 @@ review verdict lands hours or days after CI has exited, on a console nobody has
 open. That is how a version ends up sitting in **Draft** for a week while the
 team believes it shipped.
 
-### One-time setup (about 10 minutes, mostly Google's console)
+### Setup — two clicks and two ids
 
-1. ~~**Google Cloud console** → enable **Chrome Web Store API**~~ — done on the
-   `GlitchGrab` project.
-2. ~~Create the service account~~ — done:
-   `glitchgrab-cws-watcher@glitchgrab.iam.gserviceaccount.com`. You still need
-   its key: *IAM & Admin → Service Accounts → glitchgrab-cws-watcher → Keys →
-   Add key → JSON*, and download the file. Nobody but you should touch that
-   file — it can publish to every user of every extension on the account.
-3. **Chrome Web Store developer dashboard** → *Account → Users* → invite the
-   service account's `client_email` as a user with publish rights.
-   This needs a **group publisher account** — a personal one cannot add users,
-   and skipping this step is why every call comes back 403.
-4. **Glitchgrab** → *Extensions* → **Watch an extension**. Fill in:
-   - Name — whatever you call it
-   - Project — optional, links the extension to a repo
-   - Extension id — the 32 letters from the store URL
-   - Publisher id — from the developer dashboard URL
-   - Service account JSON — paste the whole file
+1. **Extensions → Connect Google account.** Google's consent screen, Allow, back
+   to the page. Read-only: Glitchgrab can see what the store says about your
+   extensions and nothing else — it cannot publish.
+2. **Watch an extension.** Name, project (optional), and two ids:
+   - **Extension id** — the 32 letters in the store URL
+   - **Publisher id** — developer dashboard → Account
 
-   The key is encrypted (AES-256-GCM) before it is stored and is never readable
-   through the API again.
-5. Make sure your WhatsApp number is on your Glitchgrab profile, or there is
+   The store API has no way to list your extensions (there is no such
+   endpoint), so these are typed once. One connection covers every extension on
+   that publisher — the second extension is just two ids.
+3. Make sure your WhatsApp number is on your Glitchgrab profile, or there is
    nowhere to send anything.
+
+No key file, no JSON, and no *group* publisher account required.
 
 ### After that, you do nothing
 
@@ -126,8 +118,9 @@ Each message carries a button straight to that item in the developer console.
 - **waiting vY** (amber) — what is submitted and not out yet
 - **draft — not submitted** — uploaded, never sent for review. Nobody has it
 - **needs attention** — rejected or taken down
-- **not read yet** — we could not reach the store; the row shows the error
-  (usually the step-3 permission)
+- **not read yet** — we could not reach the store; the row shows the error.
+  If the connected account itself stopped working (revoked access), the
+  Chrome Web Store access card says so and offers Connect again
 
 ### Before any of it sends
 
