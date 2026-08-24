@@ -10,6 +10,7 @@ import {
   Clock,
   ExternalLink,
   FileWarning,
+  Link2,
   Loader2,
   Plus,
   Trash2,
@@ -32,11 +33,18 @@ interface ExtensionRow {
   stateSince: string | null;
   lastCheckedAt: string | null;
   lastError: string | null;
+  connectedAs: string;
 }
 
 interface ContextRepo {
   id: string;
   fullName: string;
+}
+
+interface StoreConnection {
+  id: string;
+  googleEmail: string;
+  lastError: string | null;
 }
 
 /**
@@ -78,6 +86,76 @@ function relative(iso: string | null): string {
   return `${Math.round(hours / 24)}d ago`;
 }
 
+/**
+ * Connect the Google account that can see the store listings.
+ *
+ * One connection covers every extension on that publisher account. The
+ * alternative — a downloaded service-account key — also required a *group*
+ * publisher account to add that key as a user, which a personal publisher
+ * account cannot do at all. This asks for a click instead of a file.
+ */
+function ConnectAccount({ connections }: { connections: StoreConnection[] }) {
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await axios.post("/api/v1/extensions/connect");
+      return data.data as { url: string };
+    },
+    onSuccess: ({ url }) => {
+      // Full navigation, not a popup: Google refuses consent inside an iframe,
+      // and a popup is the thing browsers block.
+      window.location.href = url;
+    },
+    onError: () => toast.error("Could not start the connection"),
+  });
+
+  const broken = connections.find((c) => c.lastError);
+
+  return (
+    <div className="border border-border rounded p-3 space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <Link2 className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground">
+              Chrome Web Store access
+            </span>
+          </div>
+          <div className="font-mono text-[11px] text-muted-foreground/80 mt-1">
+            {connections.length === 0
+              ? "No Google account connected yet."
+              : connections.map((c) => c.googleEmail).join(", ")}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          disabled={mutation.isPending}
+          onClick={() => mutation.mutate()}
+          className="inline-flex items-center gap-2 font-mono text-[11px] px-3 py-2 rounded border border-primary/50 text-primary hover:bg-primary/10 disabled:opacity-50 shrink-0"
+        >
+          {mutation.isPending ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Link2 className="w-3.5 h-3.5" />
+          )}
+          {connections.length === 0 ? "Connect Google account" : "Connect another"}
+        </button>
+      </div>
+
+      {broken && (
+        <div className="font-mono text-[10px] text-red-400/90">
+          {broken.googleEmail} stopped working — reconnect it. {broken.lastError}
+        </div>
+      )}
+
+      <p className="font-mono text-[10px] text-muted-foreground/60">
+        Read-only access: Glitchgrab can see what the store says about your
+        extensions and nothing else — it cannot publish.
+      </p>
+    </div>
+  );
+}
+
 /** Register an extension to watch. Collapsed until asked for — most people add one, once. */
 function AddExtension({ onDone }: { onDone: () => void }) {
   const [open, setOpen] = useState(false);
@@ -85,7 +163,6 @@ function AddExtension({ onDone }: { onDone: () => void }) {
   const [itemId, setItemId] = useState("");
   const [publisherId, setPublisherId] = useState("");
   const [repoId, setRepoId] = useState("");
-  const [credentials, setCredentials] = useState("");
 
   const { data: repos = [] } = useQuery<ContextRepo[]>({
     queryKey: ["project-context", "repos"],
@@ -102,7 +179,6 @@ function AddExtension({ onDone }: { onDone: () => void }) {
         itemId: itemId.trim(),
         publisherId: publisherId.trim(),
         repoId: repoId || null,
-        credentials: credentials.trim(),
       });
       return data.data;
     },
@@ -111,7 +187,6 @@ function AddExtension({ onDone }: { onDone: () => void }) {
       setName("");
       setItemId("");
       setPublisherId("");
-      setCredentials("");
       setOpen(false);
       onDone();
     },
@@ -124,8 +199,7 @@ function AddExtension({ onDone }: { onDone: () => void }) {
     },
   });
 
-  const ready =
-    name.trim() && /^[a-p]{32}$/.test(itemId.trim()) && publisherId.trim() && credentials.trim();
+  const ready = name.trim() && /^[a-p]{32}$/.test(itemId.trim()) && publisherId.trim();
 
   if (!open) {
     return (
@@ -182,14 +256,6 @@ function AddExtension({ onDone }: { onDone: () => void }) {
         />
       </div>
 
-      <textarea
-        value={credentials}
-        onChange={(e) => setCredentials(e.target.value)}
-        rows={3}
-        placeholder='Service account JSON — {"client_email": "...", "private_key": "..."}'
-        className="w-full font-mono text-xs px-2 py-2 rounded border border-border bg-background"
-      />
-
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
@@ -214,8 +280,9 @@ function AddExtension({ onDone }: { onDone: () => void }) {
       </div>
 
       <p className="font-mono text-[10px] text-muted-foreground/60">
-        The key is encrypted and never shown again. It needs to be a user on your
-        publisher account — see agent_docs/chrome-web-store.md for the four steps.
+        Extension id is the 32 letters in the store URL. Publisher id is in the
+        developer dashboard under Account. The store API cannot list them —
+        there is no endpoint for it, so they have to be typed once.
       </p>
     </div>
   );
@@ -262,6 +329,14 @@ function DeleteExtension({ id, name }: { id: string; name: string }) {
 export function ExtensionsList() {
   const queryClient = useQueryClient();
 
+  const { data: connections = [] } = useQuery<StoreConnection[]>({
+    queryKey: ["store-connections"],
+    queryFn: async () => {
+      const { data } = await axios.get("/api/v1/extensions/connections");
+      return data.data ?? [];
+    },
+  });
+
   const { data: extensions = [], isLoading } = useQuery<ExtensionRow[]>({
     queryKey: ["store-extensions"],
     queryFn: async () => {
@@ -285,7 +360,11 @@ export function ExtensionsList() {
 
   return (
     <div className="space-y-4">
-      <AddExtension onDone={refresh} />
+      <ConnectAccount connections={connections} />
+
+      {/* Adding an extension before there is an account to read it with would
+          only ever end in a refusal, so the form waits. */}
+      {connections.length > 0 && <AddExtension onDone={refresh} />}
 
       {extensions.length === 0 ? (
         <div className="border border-border rounded p-8 text-center space-y-3">
@@ -315,6 +394,7 @@ export function ExtensionsList() {
                         <span className="text-amber-400/80">waiting v{e.submittedVersion}</span>
                       )}
                       <span>checked {relative(e.lastCheckedAt)}</span>
+                      <span>via {e.connectedAs}</span>
                     </div>
                     {(e.stateDetail || e.lastError) && (
                       <div
