@@ -4,6 +4,7 @@ import {
   formatTranscript,
   getBatchJobStatus,
   mergeTranscripts,
+  SarvamHttpError,
   SELF_LABEL,
   toTranscriptEntries,
 } from "./batch";
@@ -74,7 +75,21 @@ export async function collectMeetingTranscript(meetingId: string): Promise<Colle
     status = await getBatchJobStatus(meeting.transcriptJobId);
   } catch (err) {
     // A transient Sarvam outage must not mark the job failed forever — leave it
-    // RUNNING so the next poll retries.
+    // RUNNING so the next poll retries. A 4xx is the opposite case: the key was
+    // rotated, or the job belongs to another account, and no number of retries
+    // will change that. Retrying it forever is what pins a row at
+    // "transcribing…" for days with nothing behind it.
+    if (err instanceof SarvamHttpError && err.permanent) {
+      const message =
+        err.status === 401 || err.status === 403
+          ? "Sarvam rejected the API key for this job — it was submitted with a different key"
+          : `Sarvam could not read this job (${err.status})`;
+      await prisma.meeting.update({
+        where: { id: meeting.id },
+        data: { transcriptStatus: "FAILED", transcriptError: message },
+      });
+      return { status: "FAILED", message };
+    }
     console.error("[sarvam] status check failed:", err);
     return { status: "RUNNING", message: "Could not reach Sarvam" };
   }
@@ -108,6 +123,15 @@ export async function collectMeetingTranscript(meetingId: string): Promise<Colle
   try {
     results = await downloadResults(meeting.transcriptJobId, wanted);
   } catch (err) {
+    // Same rule as the status check: a 4xx here never becomes a transcript.
+    if (err instanceof SarvamHttpError && err.permanent) {
+      const message = `Sarvam would not hand over the results (${err.status})`;
+      await prisma.meeting.update({
+        where: { id: meeting.id },
+        data: { transcriptStatus: "FAILED", transcriptError: message },
+      });
+      return { status: "FAILED", message };
+    }
     console.error("[sarvam] download failed:", err);
     return { status: "RUNNING", message: "Could not download results" };
   }
@@ -162,4 +186,34 @@ export async function collectMeetingTranscript(meetingId: string): Promise<Colle
   });
 
   return { status: "DONE" };
+}
+
+/**
+ * How long a job may sit at RUNNING before we call it dead.
+ *
+ * Sarvam finishes a meeting-length file in minutes. Anything still Running the
+ * next morning is a job whose result will never arrive — and a row that says
+ * "transcribing…" forever is worse than one that says it failed, because only
+ * the second tells anyone to look.
+ */
+const STALE_TRANSCRIPT_MS = 6 * 60 * 60 * 1000;
+
+/**
+ * Mark long-dead transcription jobs FAILED.
+ *
+ * Every non-terminal path in collectMeetingTranscript returns RUNNING on
+ * purpose, so nothing else in the system can ever end one.
+ */
+export async function failStaleTranscripts(): Promise<number> {
+  const { count } = await prisma.meeting.updateMany({
+    where: {
+      transcriptStatus: "RUNNING",
+      updatedAt: { lt: new Date(Date.now() - STALE_TRANSCRIPT_MS) },
+    },
+    data: {
+      transcriptStatus: "FAILED",
+      transcriptError: "Sarvam never returned a result for this job",
+    },
+  });
+  return count;
 }
