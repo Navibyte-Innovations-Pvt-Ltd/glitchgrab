@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { decideNotification } from "./extension-watch";
+import { parseItemId } from "./chrome-store";
 
 /**
  * These rules are the whole feature. Getting them wrong in either direction is
@@ -90,5 +91,32 @@ describe("decideNotification", () => {
 
   it("never treats an unreadable answer as good news", () => {
     expect(decideNotification(row(), "UNKNOWN", NOW)).toBeNull();
+  });
+});
+
+describe("parseItemId", () => {
+  const ID = "fmkadmapgofadopljbjfkapdkoienihi";
+
+  it("takes a bare id", () => {
+    expect(parseItemId(ID)).toBe(ID);
+    expect(parseItemId(`  ${ID}  `)).toBe(ID);
+  });
+
+  it("takes the store link people actually copy", () => {
+    expect(parseItemId(`https://chromewebstore.google.com/detail/react-developer-tools/${ID}`)).toBe(ID);
+    expect(parseItemId(`https://chrome.google.com/webstore/detail/react-developer-tools/${ID}`)).toBe(ID);
+    expect(parseItemId(`https://chromewebstore.google.com/detail/${ID}?hl=en`)).toBe(ID);
+  });
+
+  it("takes a developer console link", () => {
+    expect(parseItemId(`https://chrome.google.com/webstore/devconsole/detail/${ID}`)).toBe(ID);
+  });
+
+  it("refuses anything without an id in it", () => {
+    expect(parseItemId("")).toBeNull();
+    expect(parseItemId("https://chromewebstore.google.com/category/extensions")).toBeNull();
+    // Store ids use a–p only; a stray hex-looking string is not one.
+    expect(parseItemId("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz")).toBeNull();
+    expect(parseItemId(ID.slice(0, 31))).toBeNull();
   });
 });
