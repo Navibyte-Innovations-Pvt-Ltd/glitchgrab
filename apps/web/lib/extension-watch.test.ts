@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { decideNotification } from "./extension-watch";
-import { parseItemId } from "./chrome-store";
+import { isStoreListingUrl, parseItemId } from "./chrome-store";
 
 /**
  * These rules are the whole feature. Getting them wrong in either direction is
@@ -133,5 +133,46 @@ describe("parseItemId", () => {
     // Store ids use a–p only; a stray hex-looking string is not one.
     expect(parseItemId("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz")).toBeNull();
     expect(parseItemId(ID.slice(0, 31))).toBeNull();
+  });
+});
+
+/**
+ * This guard decides what the *server* fetches, so a hole in it turns any
+ * signed-in user into a request forwarder using our egress.
+ */
+describe("isStoreListingUrl", () => {
+  const ID = "bjnddojeemkbienciefaoiikfehfhpef";
+
+  it("accepts a real listing url", () => {
+    expect(isStoreListingUrl(`https://chromewebstore.google.com/detail/some-slug/${ID}`)).toBe(true);
+    expect(
+      isStoreListingUrl(`https://chromewebstore.google.com/detail/glitchgrab-%E2%80%94-bug-reports/${ID}`)
+    ).toBe(true);
+  });
+
+  it("rejects a host that merely contains the store's name", () => {
+    // The unanchored substring check this replaced accepted both of these.
+    expect(isStoreListingUrl(`https://evil.example/chromewebstore.google.com/detail/x/${ID}`)).toBe(false);
+    expect(isStoreListingUrl(`https://chromewebstore.google.com.evil.example/detail/x/${ID}`)).toBe(false);
+  });
+
+  it("rejects userinfo pointing somewhere else", () => {
+    expect(isStoreListingUrl(`https://chromewebstore.google.com@127.0.0.1:9911/detail/x/${ID}`)).toBe(false);
+  });
+
+  it("rejects internal and metadata addresses", () => {
+    expect(isStoreListingUrl(`http://169.254.169.254/detail/x/${ID}`)).toBe(false);
+    expect(isStoreListingUrl(`http://localhost:3000/detail/x/${ID}`)).toBe(false);
+  });
+
+  it("rejects plain http on the store itself", () => {
+    expect(isStoreListingUrl(`http://chromewebstore.google.com/detail/x/${ID}`)).toBe(false);
+  });
+
+  it("rejects paths that only look right", () => {
+    // new URL() normalises the traversal, so the anchored pattern then fails.
+    expect(isStoreListingUrl(`https://chromewebstore.google.com/detail/x/${ID}/../../evil`)).toBe(false);
+    expect(isStoreListingUrl(`https://chromewebstore.google.com/search/${ID}`)).toBe(false);
+    expect(isStoreListingUrl("not a url at all")).toBe(false);
   });
 });
