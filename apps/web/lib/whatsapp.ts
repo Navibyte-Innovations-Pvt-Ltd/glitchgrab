@@ -321,6 +321,91 @@ export async function sendDailyIssueReminder({
 }
 
 /**
+ * Tell the owner what the Chrome Web Store did with their submission (#332).
+ *
+ * The reason this is WhatsApp and not a dashboard badge: the outcome lands
+ * hours or days after the release, when nobody is looking at Glitchgrab. A
+ * rejected extension that sits unread is a release that silently did not
+ * happen — and a Draft looks exactly like a shipped version from the outside.
+ *
+ * Template "extension_review_status" (Utility):
+ *   Body:     🧩 {{1}} v{{2}} on the Chrome Web Store: {{3}}. {{4}}
+ *   Button 0 (URL): Open the store listing → https://chrome.google.com/webstore/devconsole/{{1}}
+ */
+export async function sendExtensionStatusWhatsApp({
+  phone,
+  extensionName,
+  version,
+  headline,
+  detail,
+  consolePath,
+}: {
+  phone: string;
+  extensionName: string;
+  version: string;
+  /** Two or three words: "published", "still in review", "needs your attention". */
+  headline: string;
+  /** What to do about it, in one sentence. */
+  detail: string;
+  consolePath: string | null;
+}): Promise<void> {
+  const phoneNumberId = process.env.META_WA_PHONE_NUMBER_ID;
+  const accessToken = process.env.META_WA_ACCESS_TOKEN;
+
+  if (!phoneNumberId || !accessToken) return;
+
+  const to = formatPhone(phone);
+  if (!to) return;
+
+  const components: object[] = [
+    {
+      type: "body",
+      parameters: [
+        { type: "text", text: sanitizeParam(extensionName) },
+        { type: "text", text: sanitizeParam(version) },
+        { type: "text", text: sanitizeParam(headline) },
+        { type: "text", text: sanitizeParam(detail) },
+      ],
+    },
+  ];
+
+  if (consolePath) {
+    components.push({
+      type: "button",
+      sub_type: "url",
+      index: "0",
+      parameters: [{ type: "text", text: consolePath }],
+    });
+  }
+
+  try {
+    const res = await fetch(`${META_API_BASE}/${phoneNumberId}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        type: "template",
+        template: {
+          name: "extension_review_status",
+          language: { code: "en" },
+          components,
+        },
+      }),
+    });
+
+    if (!res.ok) {
+      console.error("[whatsapp] extension status failed:", await res.text());
+    }
+  } catch (err) {
+    console.error("[whatsapp] extension status error:", err);
+  }
+}
+
+/**
  * Weekly summary to developer: how many issues resolved this week.
  * Template "weekly_issue_summary" (Utility):
  *   Body:     📊 Weekly recap for {{1}} on {{2}}: you resolved {{3}} issue(s) this week. Great work!
