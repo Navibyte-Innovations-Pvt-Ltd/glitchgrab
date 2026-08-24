@@ -82,10 +82,13 @@ team believes it shipped.
 
 ### One-time setup (about 10 minutes, mostly Google's console)
 
-1. **Google Cloud console** → *APIs & Services → Library* → enable **Chrome Web
-   Store API**.
-2. *IAM & Admin → Service Accounts* → create one → **Keys → Add key → JSON**.
-   Download the file.
+1. ~~**Google Cloud console** → enable **Chrome Web Store API**~~ — done on the
+   `GlitchGrab` project.
+2. ~~Create the service account~~ — done:
+   `glitchgrab-cws-watcher@glitchgrab.iam.gserviceaccount.com`. You still need
+   its key: *IAM & Admin → Service Accounts → glitchgrab-cws-watcher → Keys →
+   Add key → JSON*, and download the file. Nobody but you should touch that
+   file — it can publish to every user of every extension on the account.
 3. **Chrome Web Store developer dashboard** → *Account → Users* → invite the
    service account's `client_email` as a user with publish rights.
    This needs a **group publisher account** — a personal one cannot add users,
