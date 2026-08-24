@@ -244,7 +244,12 @@ function AddExtension({
   // Fill the name in from the public listing the moment a valid id appears.
   // A never-published extension has no public page, so a miss here is normal
   // and simply leaves the field to be typed.
-  const lookup = useQuery<{ itemId: string; name: string | null }>({
+  const lookup = useQuery<{
+    itemId: string;
+    name: string | null;
+    reason: "ok" | "no-listing" | "unreachable";
+    detail: string | null;
+  }>({
     queryKey: ["store-lookup", itemId],
     enabled: Boolean(itemId),
     queryFn: async () => {
@@ -254,12 +259,12 @@ function AddExtension({
     retry: false,
   });
 
-  // "We asked and it has no public page" and "we could not ask" are different
-  // facts, and only the first one means draft. Collapsing them told people
-  // their published extension was unpublished.
-  const lookupFailed = lookup.isError;
-  const noListing =
-    !lookup.isFetching && !lookupFailed && Boolean(lookup.data) && !lookup.data?.name;
+  // Three outcomes, not two. "It has no public page" means draft; "the store
+  // would not answer" and "we could not reach our own API" mean nothing about
+  // the extension at all. Collapsing them told people their live extension was
+  // a draft.
+  const lookupFailed = lookup.isError || lookup.data?.reason === "unreachable";
+  const noListing = !lookup.isFetching && lookup.data?.reason === "no-listing";
 
   const resolvedName = name.trim() || lookup.data?.name || "";
 
@@ -333,7 +338,9 @@ function AddExtension({
             <span className="text-emerald-400/90">found “{lookup.data.name}”</span>
           ) : lookupFailed ? (
             <span className="text-red-400/90">
-              Could not reach the store to read the name — type it below, it changes nothing else.
+              Could not read the store listing
+              {lookup.data?.detail ? ` (${lookup.data.detail})` : ""} — type the name
+              below, it changes nothing else.
             </span>
           ) : noListing ? (
             <span className="text-amber-400/80">
