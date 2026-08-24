@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { syncCalendar } from "@/lib/calendar";
+import { inviteBotToEvent, syncCalendar } from "@/lib/calendar";
 import { botAlreadyOnCall, startBotRecording } from "@/lib/meet-bot";
 
 /**
@@ -62,6 +62,8 @@ export async function GET(request: Request) {
       meetUrl: true,
       title: true,
       startsAt: true,
+      connectionId: true,
+      calendarEventId: true,
       connection: { select: { userId: true } },
     },
     take: 10,
@@ -89,6 +91,17 @@ export async function GET(request: Request) {
           data: { error: "A bot was already on this call" },
         });
         continue;
+      }
+
+      // Put the bot on the guest list first. Google's safeguarded admit flow
+      // sends an uninvited guest to the "potential risks" queue, where the
+      // default is Deny — an attendee lands in the normal one instead. Best
+      // effort: a bot that still has to knock records fine once admitted.
+      const invited = await inviteBotToEvent(call.connectionId, call.calendarEventId).catch(
+        (err) => ({ ok: false, reason: err instanceof Error ? err.message : "invite failed" })
+      );
+      if (!invited.ok) {
+        console.warn(`[meeting-dispatch] bot not pre-invited to ${call.calendarEventId}: ${invited.reason}`);
       }
 
       const { meetingId, dispatch } = await startBotRecording({

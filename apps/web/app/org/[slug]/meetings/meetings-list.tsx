@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import Link from "next/link";
-import { Loader2, Mic, Radio, FileText, AlertTriangle, Bot } from "lucide-react";
+import { Loader2, Mic, Radio, FileText, AlertTriangle, Bot, Square } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 
@@ -98,6 +99,71 @@ const BOT_LABEL: Record<string, string> = {
   FAILED: "bot failed",
 };
 
+/**
+ * Phases where a live job exists to stop. DISPATCHING is excluded on purpose —
+ * for those few seconds the bot service has not created the job yet, so the
+ * button would only ever report that nothing is running.
+ */
+const STOPPABLE = ["JOINING", "WAITING_ADMIT", "RECORDING"];
+
+/**
+ * Get the bot out of a call it should have left.
+ *
+ * The bot decides on its own when everyone has gone by reading a Meet DOM
+ * Google rewrites without notice — and every check in it errs towards keeping
+ * the recording. When that goes wrong the bot sits in the client's call for
+ * hours, visible to everyone in it. This is the button that ends it, and the
+ * audio recorded so far is still kept.
+ */
+function StopBot({ meetingId }: { meetingId: string }) {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await axios.post(`/api/v1/meetings/${meetingId}/stop`);
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Bot is leaving the call — the recording so far is kept");
+      void queryClient.invalidateQueries({ queryKey: ["meetings"] });
+    },
+    onError: (error) => {
+      const message =
+        axios.isAxiosError(error) && error.response?.data?.error
+          ? String(error.response.data.error)
+          : "Could not reach the bot service";
+      toast.error(message);
+      void queryClient.invalidateQueries({ queryKey: ["meetings"] });
+    },
+  });
+
+  return (
+    <button
+      type="button"
+      disabled={mutation.isPending}
+      onClick={(e) => {
+        // The whole row is a link to the meeting — stopping the bot must not
+        // navigate away from the list it was pressed on.
+        e.preventDefault();
+        e.stopPropagation();
+        mutation.mutate();
+      }}
+      // Taller than the badges beside it on purpose: it is the only pressable
+      // thing in the row, and a 14px target is not one. Neutral until hovered —
+      // a red control here would read as "this recording failed", which is what
+      // the red badge further along the row actually means.
+      className="font-mono text-[9px] tracking-widest uppercase px-2 min-h-8 rounded border shrink-0 inline-flex items-center gap-1 border-border text-muted-foreground hover:border-red-500/40 hover:text-red-400 hover:bg-red-500/10 disabled:opacity-50"
+    >
+      {mutation.isPending ? (
+        <Loader2 className="w-2.5 h-2.5 animate-spin" />
+      ) : (
+        <Square className="w-2.5 h-2.5" />
+      )}
+      {mutation.isPending ? "stopping…" : "stop"}
+    </button>
+  );
+}
+
 /** Below this, filters are clutter — the whole list fits on screen. */
 const FILTER_THRESHOLD = 10;
 
@@ -145,7 +211,7 @@ export function MeetingsList({ orgSlug }: { orgSlug: string }) {
           m.transcriptStatus === "RUNNING" ||
           (m.recorder === "bot" && m.botStatus !== null && !["DONE", "FAILED"].includes(m.botStatus))
       )
-        ? 15_000
+        ? 8_000
         : false,
   });
 
@@ -237,8 +303,11 @@ export function MeetingsList({ orgSlug }: { orgSlug: string }) {
             href={`/org/${orgSlug}/meetings/${m.id}`}
             className="block border border-border rounded p-3 hover:border-primary/40 transition-colors"
           >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              {/* Grows on a wide row, but keeps a 14rem base so the badge
+                  cluster wraps to its own line on a phone instead of shrinking
+                  the title to "Meet - …". */}
+              <div className="min-w-0 flex-[1_1_14rem]">
                 <div className="text-sm text-foreground truncate">
                   {m.title || "Untitled call"}
                 </div>
@@ -269,7 +338,15 @@ export function MeetingsList({ orgSlug }: { orgSlug: string }) {
                 )}
               </div>
 
-              {botLabel(m) && (
+              {/* Button and badges wrap as one cluster. As three separate
+                  shrink-0 children they squeezed the title down to a
+                  two-character ellipsis on a phone. */}
+              <div className="flex flex-wrap items-center justify-end gap-2 shrink-0">
+                {m.recorder === "bot" && STOPPABLE.includes(m.botStatus ?? "") && (
+                  <StopBot meetingId={m.id} />
+                )}
+
+                {botLabel(m) && (
                 <span
                   className={cn(
                     "font-mono text-[9px] tracking-widest uppercase px-1.5 py-0.5 rounded border shrink-0 inline-flex items-center gap-1",
@@ -296,6 +373,7 @@ export function MeetingsList({ orgSlug }: { orgSlug: string }) {
                 )}
                 {TRANSCRIPT_LABEL[m.transcriptStatus]}
               </span>
+              </div>
             </div>
           </Link>
         ))}

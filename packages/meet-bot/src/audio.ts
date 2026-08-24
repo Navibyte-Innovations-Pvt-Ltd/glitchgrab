@@ -135,3 +135,52 @@ export function startRecording(outPath: string, sink = DEFAULT_SINK): Recording 
 
   return { path: outPath, stop };
 }
+
+/**
+ * Peak amplitude (0–1) of what the sink is playing right now.
+ *
+ * The DOM checks that decide "is anyone still here" all fail *towards keeping
+ * the recording* — a selector Google renames returns nothing, which is
+ * indistinguishable from a full room. Audio is the one signal Meet cannot take
+ * away from us: it comes off PulseAudio, not off the page. A call that has been
+ * both unreadable and silent for a long time is over.
+ *
+ * Returns null if the probe itself fails — an unreadable level must never be
+ * mistaken for silence.
+ */
+export async function sampleLevel(sink: string, ms = 2000): Promise<number | null> {
+  return new Promise((resolve) => {
+    const parec = spawn(
+      "parec",
+      [
+        `--device=${sink || DEFAULT_SINK}.monitor`,
+        "--format=s16le",
+        "--rate=16000",
+        "--channels=1",
+      ],
+      { stdio: ["ignore", "pipe", "ignore"] }
+    );
+
+    let peak = 0;
+    let done = false;
+
+    const finish = (value: number | null) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      parec.kill("SIGKILL");
+      resolve(value);
+    };
+
+    parec.stdout?.on("data", (chunk: Buffer) => {
+      for (let i = 0; i + 1 < chunk.length; i += 2) {
+        const sample = Math.abs(chunk.readInt16LE(i)) / 32768;
+        if (sample > peak) peak = sample;
+      }
+    });
+
+    parec.on("error", () => finish(null));
+
+    const timer = setTimeout(() => finish(peak), ms);
+  });
+}

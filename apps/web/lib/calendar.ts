@@ -16,7 +16,7 @@ import { decrypt, encrypt } from "@/lib/encrypt";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const CALENDAR_API = "https://www.googleapis.com/calendar/v3";
 
-/** Read-only: we never create or modify anyone's events. */
+/** Write: booking creates events, and the bot is added to their guest list. */
 const SCOPES = [
   // Write, not readonly: demo booking creates the event and its Meet link on
   // the owner's calendar. An existing connection granted before this change
@@ -309,6 +309,96 @@ async function listUpcomingMeetings(
   }
 
   return events;
+}
+
+/**
+ * Put the bot on the guest list before it knocks (#311).
+ *
+ * Since Google's safeguarded guest admit flow (March 2026) a knocking guest
+ * lands in one of two queues: **confirmed** — already on the invite or in the
+ * host's organisation, default Admit — or **potential risks**, default *Deny*,
+ * which is where every uninvited notetaker bot goes. The host then has to
+ * override a red warning every single call, and one careless "Deny all" loses
+ * the recording. Being an attendee is the documented way out, and it is what
+ * the notetakers that join cleanly (tl;dv and friends) actually do.
+ *
+ * It also makes the invite itself the consent record: the client sees the
+ * notetaker on the guest list before the call rather than meeting it in the
+ * room.
+ *
+ * Best effort by design — a bot that is merely knocking still records once
+ * admitted, so nothing here may throw the dispatch away.
+ */
+export async function inviteBotToEvent(
+  connectionId: string,
+  calendarEventId: string
+): Promise<{ ok: boolean; reason?: string }> {
+  const botEmail = process.env.MEET_BOT_EMAIL;
+  if (!botEmail) return { ok: false, reason: "MEET_BOT_EMAIL is not set" };
+
+  const token = await getAccessToken(connectionId);
+  if (!token) return { ok: false, reason: "Calendar connection has no usable token" };
+
+  const eventUrl = `${CALENDAR_API}/calendars/primary/events/${encodeURIComponent(calendarEventId)}`;
+
+  const current = await fetch(eventUrl, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (!current.ok) return { ok: false, reason: `Could not read the event (${current.status})` };
+
+  const event = (await current.json()) as GoogleEvent;
+  const attendees = event.attendees ?? [];
+  if (attendees.some((a) => a.email?.toLowerCase() === botEmail.toLowerCase())) {
+    return { ok: true };
+  }
+
+  // PATCH replaces the whole attendee list, so the existing guests have to be
+  // sent back with it — dropping them would uninvite the actual meeting.
+  const res = await fetch(`${eventUrl}?sendUpdates=none`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      attendees: [
+        ...attendees,
+        { email: botEmail, optional: true, comment: "Notetaker — records this call" },
+      ],
+    }),
+  });
+
+  if (!res.ok) {
+    // 403 is the normal failure: only the organiser can edit the guest list, so
+    // a call someone else booked simply cannot be pre-authorised this way.
+    const body = await res.text().catch(() => "");
+    return { ok: false, reason: `Google refused the guest (${res.status}) ${body.slice(0, 200)}` };
+  }
+
+  return { ok: true };
+}
+
+/**
+ * Same thing for a Meet link pasted by hand: find the user's own event for that
+ * link, then invite the bot to it. Returns false when the call is not on any
+ * calendar we hold — someone else's meeting, which we cannot edit.
+ */
+export async function inviteBotToMeetUrl(
+  userId: string,
+  meetUrl: string
+): Promise<{ ok: boolean; reason?: string }> {
+  const connections = await prisma.calendarConnection.findMany({
+    where: { userId },
+    select: { id: true },
+  });
+
+  const wanted = meetUrl.trim().replace(/\/$/, "");
+
+  for (const connection of connections) {
+    const events = await listUpcomingMeetings(connection.id).catch(() => []);
+    const match = events.find((e) => e.meetUrl.replace(/\/$/, "") === wanted);
+    if (match) return inviteBotToEvent(connection.id, match.id);
+  }
+
+  return { ok: false, reason: "That Meet link is not on a calendar we can edit" };
 }
 
 /**

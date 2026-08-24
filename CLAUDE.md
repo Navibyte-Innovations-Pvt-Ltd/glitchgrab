@@ -162,10 +162,10 @@ Electron main/preload changes need a full quit + relaunch to take effect reliabl
 
 Records client calls, transcribes them, and files them against a project. Replaces tldv. **Two recorders, one pipeline** — a bot recording and an extension recording are indistinguishable downstream (same `Meeting` row, same Sarvam job, same Calls page).
 
-- **Bot** (`packages/meet-bot`) — headless Chromium joins the Meet as a guest, records, uploads. Needs a real browser + sound server, so it **cannot run on Vercel**; ship the Docker image to a container host. PulseAudio null sink → ffmpeg → Opus/WebM. Env: `MEET_BOT_URL`, `MEET_BOT_SECRET` (web side), `MEET_BOT_SECRET`/`MEET_BOT_NAME`/`MEET_BOT_MAX_CONCURRENT` (bot side).
+- **Bot** (`packages/meet-bot`) — headless Chromium joins the Meet as a guest, records, uploads. Since Google's safeguarded admit flow (Mar 2026) an **uninvited** guest lands in the "potential risks" queue whose default is *Deny*; both dispatch paths therefore add `MEET_BOT_EMAIL` to the event's guest list first (`inviteBotToEvent` / `inviteBotToMeetUrl`) — only possible on events we organise. Meet's **lobby renders the full in-call UI including "Leave call"**, so admission is detected by the absence of the waiting-room text, never by that button. Needs a real browser + sound server, so it **cannot run on Vercel**; ship the Docker image to a container host. PulseAudio null sink → ffmpeg → Opus/WebM. Env: `MEET_BOT_URL`, `MEET_BOT_SECRET` (web side), `MEET_BOT_SECRET`/`MEET_BOT_NAME`/`MEET_BOT_MAX_CONCURRENT` (bot side). **Leaving** is read from Meet's DOM, which Google rewrites without notice, so it also has an audio backstop (silence off the sink) and a manual `POST /stop` → "stop bot" button on the Calls page. Every DOM check fails towards *keep recording* — assume it will break again and check the `in-call` dump in the Railway logs first.
 - **Extension** (`packages/extension`) — the operator's own Chrome. Two tracks (tab audio = client, mic = operator), recorded in an **offscreen document** (an MV3 worker cannot hold a MediaStream). Tab capture **mutes the tab** unless the stream is routed back through an `AudioContext` — that passthrough is not optional.
 - **Storage** — `lib/recordings.ts`, private S3 prefix, presigned PUT/GET only. Never the screenshot CDN. Do NOT sign `ServerSideEncryption` into the URL: it becomes a signed header the uploader must reproduce, and every PUT 403s.
-- **Transcription** — `lib/sarvam/batch.ts`, the **batch** API (the sync route in `sdk/stt` can't do meeting-length audio and can't diarize). Settings go inside a `job_parameters` wrapper; `with_timestamps` defaults to false and must be set. `language_code: "unknown"` = auto-detect. Results are named **positionally** (`0.json`), so `Meeting.transcriptFiles` records submission order — it's the only link from a result back to a speaker.
+- **Transcription** — `lib/sarvam/batch.ts`, the **batch** API (the sync route in `sdk/stt` can't do meeting-length audio and can't diarize). Settings go inside a `job_parameters` wrapper; `with_timestamps` defaults to false and must be set. `language_code: "unknown"` = auto-detect. Results are named **positionally** (`0.json`), so `Meeting.transcriptFiles` records submission order — it's the only link from a result back to a speaker. Sarvam never tells us it finished: `cron/transcript-poll` asks. A 4xx from Sarvam (rotated key, another account's job) is permanent and fails the row — retrying it forever is what pinned rows at "transcribing…" for days.
 - **Speaker names** — the tab track is every remote participant mixed together, so diarization separates voices but can't name them. Names come from Meet's participant list (1-on-1 → that name replaces "Client") and Meet's captions (`lib/sarvam/speakers.ts`). Captions supply names only; words always come from Sarvam.
 - **Google Calendar** (`lib/calendar.ts`) — replaces cal.com. Reads upcoming events with a Meet link into `ScheduledRecording`, and `cron/meeting-dispatch` sends the bot ~6 min before start. The cron **claims a row before dispatching**, or two overlapping runs send two bots to the same call.
 - **Recording from a dev server** — the bot calls back to `apiBase` to report progress and upload, so `localhost` resolves to its own container and every recording is silently discarded. Dispatch refuses that combination outright. To test against a laptop: `bun run tunnel` (ngrok), put the https URL in `MEET_BOT_CALLBACK_URL`, restart the dev server — dotenvx reads env at start, so a running server never sees a new value.
@@ -229,6 +229,16 @@ A sheet — right drawer on desktop, bottom sheet on mobile — where the report
 chats, gets a draft, and sends. Reuses the dialog's own submit handler, so the
 issue pipeline stays AI-free. Hard cap, graceful degrade: over the cap the sheet
 closes and the plain form takes over. See `agent_docs/ai-report-assist.md`.
+
+## Chrome Web Store releases (#332)
+
+A submission's verdict lands hours after CI exits, so nothing in a workflow can
+report it — `cron/extension-watch` polls the store and WhatsApps only when a
+human has something to do. Auth is a **connected Google account**, read-only
+scope; the consent screen is already In production so refresh tokens don't
+expire (do not port practice-stack's rotation cron). The v2 API has **no list
+endpoint** — item and publisher ids are typed.
+See `agent_docs/chrome-web-store.md`.
 
 ## Forms
 

@@ -2,9 +2,15 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createSink, destroySink, startRecording } from "./audio";
-import { enableCaptions, joinMeeting, readParticipants, watchCaptions } from "./meet";
+import {
+  type EndReason,
+  enableCaptions,
+  joinMeeting,
+  readParticipants,
+  watchCaptions,
+} from "./meet";
 import { reportStatus, uploadRecording } from "./upload";
-import { finishJob, setPhase, setSink, startJob } from "./jobs";
+import { finishJob, isStopRequested, setPhase, setSink, startJob } from "./jobs";
 
 /**
  * One bot recording, start to finish (#311).
@@ -60,6 +66,7 @@ export async function runBotJob(params: JobParams): Promise<void> {
       admitTimeoutMs: ADMIT_TIMEOUT_MS,
       maxDurationMs: MAX_DURATION_MS,
       onWaitingAdmit: () => void status("WAITING_ADMIT"),
+      shouldStop: () => isStopRequested(params.meetingId),
       sink,
     });
   } catch (err) {
@@ -103,7 +110,7 @@ export async function runBotJob(params: JobParams): Promise<void> {
   console.log("[bot] Meet participants (raw):", JSON.stringify(firstRead));
   for (const n of firstRead) participants.add(n);
 
-  let reason: "ended" | "max-duration" | "alone" = "ended";
+  let reason: EndReason = "ended";
   try {
     reason = await session.waitForEnd();
   } catch (err) {
@@ -122,6 +129,12 @@ export async function runBotJob(params: JobParams): Promise<void> {
   }
   if (reason === "alone") {
     console.log("[bot] left because everyone else had gone");
+  }
+  if (reason === "silent") {
+    console.log("[bot] left because the room was unreadable and silent");
+  }
+  if (reason === "stopped") {
+    console.log("[bot] left because a stop was requested");
   }
 
   await status("UPLOADING");

@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { resolveMeetingCaller, scopeRepo } from "@/lib/meetings";
 import { botAlreadyOnCall, isMeetUrl, startBotRecording } from "@/lib/meet-bot";
+import { inviteBotToMeetUrl } from "@/lib/calendar";
 
 /**
  * POST /api/v1/meetings/bot — send the bot to a Google Meet call.
@@ -75,6 +76,19 @@ export async function POST(request: Request) {
         },
         { status: 409 }
       );
+    }
+
+    // If this call is on a calendar we hold, add the bot to the guest list
+    // before it knocks: Google routes an uninvited guest into the "potential
+    // risks" queue whose default is Deny, and an attendee into the normal one.
+    // A link someone else owns simply cannot be pre-authorised — the bot knocks
+    // and the host admits it, same as before.
+    if (caller.userId) {
+      const invited = await inviteBotToMeetUrl(caller.userId, meetUrl).catch(() => ({
+        ok: false,
+        reason: "invite failed",
+      }));
+      if (!invited.ok) console.warn(`[send-bot] not pre-invited: ${invited.reason}`);
     }
 
     const { meetingId, dispatch } = await startBotRecording({

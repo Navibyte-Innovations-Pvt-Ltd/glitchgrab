@@ -126,6 +126,82 @@ export async function fetchLiveBotPhase(meetingId: string): Promise<string | nul
 }
 
 /**
+ * The live phase of every job the bot service is running, keyed by meeting id.
+ *
+ * One request for the whole list. The list page shows many rows and a
+ * per-row status call would put N requests on the bot service every poll.
+ */
+export async function fetchLiveBotPhases(): Promise<Map<string, string>> {
+  const botUrl = process.env.MEET_BOT_URL;
+  const secret = process.env.MEET_BOT_SECRET;
+  const phases = new Map<string, string>();
+  if (!botUrl || !secret) return phases;
+
+  try {
+    const res = await fetch(`${botUrl.replace(/\/$/, "")}/status`, {
+      headers: { "x-gg-bot": secret },
+      signal: AbortSignal.timeout(2500),
+      cache: "no-store",
+    });
+    if (!res.ok) return phases;
+
+    const json = (await res.json()) as {
+      data?: { jobs?: Array<{ meetingId?: string; phase?: string }> };
+    };
+    for (const job of json.data?.jobs ?? []) {
+      if (job.meetingId && job.phase) phases.set(job.meetingId, job.phase);
+    }
+  } catch {
+    /* the stored value is right behind this — never a required answer */
+  }
+  return phases;
+}
+
+/**
+ * Ask the bot to leave a call it is still sitting in.
+ *
+ * The escape hatch for when leave-detection is wrong. Meet's DOM is rewritten
+ * without notice and every automatic check fails towards "keep recording", so
+ * there has to be a way out that does not involve restarting the service and
+ * losing the audio of every call in flight.
+ */
+export async function stopBotRecording(
+  meetingId: string
+): Promise<DispatchResult & { status?: number }> {
+  const botUrl = process.env.MEET_BOT_URL;
+  const secret = process.env.MEET_BOT_SECRET;
+  if (!botUrl || !secret) {
+    return { ok: false, error: "The meeting bot is not configured" };
+  }
+
+  try {
+    const res = await fetch(`${botUrl.replace(/\/$/, "")}/stop`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-gg-bot": secret },
+      body: JSON.stringify({ meetingId }),
+      signal: AbortSignal.timeout(10_000),
+    });
+
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      return {
+        ok: false,
+        status: res.status,
+        error: body.error ?? `Bot service said ${res.status}`,
+      };
+    }
+    return { ok: true, status: res.status };
+  } catch (err) {
+    // No status: the bot never heard the request. It is still in the call and
+    // will keep reporting — the row must NOT be rewritten as failed.
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Could not reach the bot service",
+    };
+  }
+}
+
+/**
  * Before a bot is in the room, it is only ever a few seconds from either
  * getting in or failing. A row still claiming DISPATCHING or JOINING ten
  * minutes later is not a bot on a call — it is the wreckage of one that died,

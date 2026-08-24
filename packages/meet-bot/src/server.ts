@@ -1,6 +1,6 @@
 import { runBotJob } from "./job";
 import { autoStartLoginIfNeeded, hasProfile, loginStatus, startLogin, stopLogin } from "./login";
-import { liveCount, statusReport } from "./jobs";
+import { requestStop, statusReport } from "./jobs";
 
 /**
  * The Meet bot service (#311).
@@ -86,6 +86,35 @@ Bun.serve({
           login: loginStatus(),
         },
       });
+    }
+
+    /**
+     * POST /stop — end a recording that is still in the call.
+     *
+     * Detection of "everyone has gone" reads a DOM Google rewrites without
+     * notice, so it will be wrong again one day. Without this the only remedy
+     * is restarting the service, which kills every other live recording and
+     * loses the audio; this leaves the call properly and still uploads.
+     */
+    if (url.pathname === "/stop" && request.method === "POST") {
+      if (!SECRET || request.headers.get("x-gg-bot") !== SECRET) {
+        return json({ success: false, error: "Unauthorized" }, 401);
+      }
+
+      const body = (await request.json().catch(() => ({}))) as { meetingId?: string };
+      if (!body.meetingId) {
+        return json({ success: false, error: "meetingId is required" }, 400);
+      }
+
+      const stopping = requestStop(body.meetingId);
+      return json(
+        {
+          success: stopping,
+          error: stopping ? undefined : "No live recording for that meeting",
+          data: { meetingId: body.meetingId, stopping },
+        },
+        stopping ? 200 : 404
+      );
     }
 
     // ── Google login (see src/login.ts) ────────────────────────

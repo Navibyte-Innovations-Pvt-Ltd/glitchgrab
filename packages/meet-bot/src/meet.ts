@@ -1,4 +1,5 @@
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright-core";
+import { sampleLevel } from "./audio";
 import { isSignInWall, loadGoogleSession, saveGoogleSession } from "./auth";
 import { clearProfileLocks, hasProfile, PROFILE_DIR } from "./login";
 
@@ -34,7 +35,16 @@ export interface JoinOptions {
    * just shows a spinner.
    */
   onWaitingAdmit?: () => void;
+  /**
+   * Polled while recording. The only way to evict a bot that is sitting in a
+   * call it should have left — without it the sole remedy is restarting the
+   * service, which destroys every other recording in flight.
+   */
+  shouldStop?: () => boolean;
 }
+
+/** Why the recording stopped. All of these are normal ends, not failures. */
+export type EndReason = "ended" | "max-duration" | "alone" | "silent" | "stopped";
 
 export interface MeetSession {
   page: Page;
@@ -42,7 +52,7 @@ export interface MeetSession {
   browser: Browser | null;
   context: BrowserContext;
   /** Resolves when the call ends (everyone left, we were removed, or the cap). */
-  waitForEnd: () => Promise<"ended" | "max-duration" | "alone">;
+  waitForEnd: () => Promise<EndReason>;
   leave: () => Promise<void>;
 }
 
@@ -252,27 +262,92 @@ export async function joinMeeting(options: JoinOptions): Promise<MeetSession> {
   options.onWaitingAdmit?.();
   await waitUntilAdmitted(page, options.admitTimeoutMs);
 
+  // Opening the People panel is free for a bot — nobody is looking at its
+  // screen — and it is the one place Meet still renders a real list of who is
+  // here. Tile attributes have already been renamed out from under us. Opened
+  // before the first participant read, or that read is empty and the transcript
+  // loses every real name.
+  await openPeoplePanel(page);
+
   const startedAt = Date.now();
 
-  const waitForEnd = async (): Promise<"ended" | "max-duration" | "alone"> => {
+  const waitForEnd = async (): Promise<EndReason> => {
     let aloneSince: number | null = null;
+    /** Since when the participant list has been unreadable. */
+    let blindSince: number | null = null;
+    let lastSoundAt = Date.now();
+    let lastProbeAt = 0;
+
+    // One dump of the in-call DOM per recording. When Google renames things
+    // again, this is the difference between a fix and another live meeting
+    // spent reproducing the break.
+    await describePage(page, "in-call");
 
     while (Date.now() - startedAt < options.maxDurationMs) {
+      if (options.shouldStop?.()) {
+        console.log("[bot] stop requested — ending the recording");
+        return "stopped";
+      }
       if (!(await inCall(page))) return "ended";
 
-      // Leaving a Meet as host does NOT end the call — everyone else stays in,
-      // including us. Without this the bot sits alone in an empty room until
-      // the 3-hour cap, recording silence and holding a slot.
-      if (await isAloneInCall(page)) {
-        aloneSince ??= Date.now();
-        if (Date.now() - aloneSince >= ALONE_GRACE_MS) {
-          console.log("[bot] everyone else left — ending the recording");
-          return "alone";
-        }
-      } else {
-        // Someone came back, or Meet was mid-render. Only a sustained empty
-        // room counts, so a momentary blip doesn't cut a live call short.
+      const presence = await readPresence(page);
+
+      if (presence.count === null) {
+        // Unknown is NOT "someone is here" — it used to be, and that is why a
+        // bot could sit alone in an empty room for the full three hours.
+        blindSince ??= Date.now();
         aloneSince = null;
+      } else {
+        blindSince = null;
+
+        // Leaving a Meet as host does NOT end the call — everyone else stays
+        // in, including us.
+        if (presence.count <= 1) {
+          aloneSince ??= Date.now();
+          if (Date.now() - aloneSince >= ALONE_GRACE_MS) {
+            // Second opinion before leaving. A count that reads 1 while someone
+            // is audibly talking is a misread of Meet's DOM, not an empty room,
+            // and hanging up on a live client call is the worst thing this bot
+            // can do. Sound present → keep recording and look again.
+            const level = await sampleLevel(options.sink ?? "", 2000);
+            if (level !== null && level > SILENCE_LEVEL) {
+              console.log("[bot] participant list says empty but the room has sound — staying");
+              aloneSince = null;
+            } else {
+              console.log("[bot] everyone else left — ending the recording");
+              return "alone";
+            }
+          }
+        } else {
+          // Someone came back, or Meet was mid-render. Only a sustained empty
+          // room counts, so a momentary blip doesn't cut a live call short.
+          aloneSince = null;
+        }
+      }
+
+      // Audio backstop. Every DOM check above fails towards "keep recording",
+      // and Meet's DOM will be renamed again — the reading can be missing, or
+      // simply wrong in the direction that keeps us here. Sound comes off
+      // PulseAudio, not off the page, so it survives whatever Google renames.
+      if (Date.now() - lastProbeAt >= SOUND_PROBE_INTERVAL_MS) {
+        lastProbeAt = Date.now();
+        const level = await sampleLevel(options.sink ?? "", 2000);
+        // A failed probe is not silence.
+        if (level === null || level > SILENCE_LEVEL) lastSoundAt = Date.now();
+
+        // Cannot see the room and cannot hear it. Nothing here is a meeting.
+        //
+        // Deliberately only in the blind case: the bot hears the REMOTE side
+        // only, so an operator-led demo with the client muted is genuinely
+        // silent for its whole length. Silence alone must never end a call.
+        if (
+          blindSince !== null &&
+          Date.now() - blindSince >= BLIND_SILENCE_MS &&
+          Date.now() - lastSoundAt >= BLIND_SILENCE_MS
+        ) {
+          console.log("[bot] participant list unreadable and no sound — ending the recording");
+          return "silent";
+        }
       }
 
       await page.waitForTimeout(5000);
@@ -300,34 +375,158 @@ export async function joinMeeting(options: JoinOptions): Promise<MeetSession> {
 const ALONE_GRACE_MS = 60_000;
 
 /**
- * True when Meet says nobody else is in the call.
+ * How long "cannot read the room AND cannot hear anything" runs before leaving.
  *
- * Read from Meet's own on-screen message rather than a participant count: the
- * participant DOM is obfuscated and currently yields nothing, whereas this
- * banner is user-facing text Google keeps stable for the people reading it.
+ * Long, on purpose: a participant who is present but not speaking is a normal
+ * meeting, and cutting one short loses the part that mattered. This window only
+ * ever runs when the participant list cannot be read at all.
  */
-async function isAloneInCall(page: Page): Promise<boolean> {
+const BLIND_SILENCE_MS = 20 * 60 * 1000;
+
+/** Probing costs a parec spawn, so it runs on its own slower clock. */
+const SOUND_PROBE_INTERVAL_MS = 30_000;
+
+/**
+ * Peak amplitude below which the sink counts as silent. Room tone and codec
+ * noise sit far below this; any speech at all is far above it.
+ */
+const SILENCE_LEVEL = 0.02;
+
+export interface Presence {
+  /** How many people are in the call, bot included. Null when unreadable. */
+  count: number | null;
+  names: string[];
+}
+
+/**
+ * Open Meet's People panel and leave it open for the whole call.
+ *
+ * The bot has no viewer, so the panel costs nothing, and it is the only
+ * surface that still lists participants by name — the tile attributes this
+ * used to read (`[data-participant-id]`) now yield an empty array on a live
+ * call, which is exactly how a bot ended up recording an empty room.
+ */
+async function openPeoplePanel(page: Page): Promise<boolean> {
+  return clickAny(page, [/show everyone/i, /^people$/i, /participants/i], 5000);
+}
+
+/**
+ * Who is in the call right now.
+ *
+ * Deliberately several independent readings taking the LARGEST answer: an
+ * under-count ends a live call early, which is far worse than a late leave.
+ * Every strategy failing is reported as null — "I don't know" — never as zero.
+ */
+export async function readPresence(page: Page): Promise<Presence> {
   try {
     return await page.evaluate(() => {
-      const text = document.body.innerText || "";
-      return /you'?re the only one here|no one else is here|you are the only one/i.test(text);
+      const clean = (value: string | null | undefined) =>
+        (value ?? "").replace(/\s+/g, " ").trim();
+
+      const names = new Set<string>();
+
+      // 1. The People panel's rows — the reading that works today.
+      //
+      // Scoped to the panel, never document-wide: chat, activities and any
+      // open menu also use listitem, and counting those inflates the room to
+      // "someone is still here" — which is the failure being fixed.
+      const panel =
+        document.querySelector('[role="list"][aria-label*="articipant" i]') ??
+        document.querySelector('[aria-label*="articipant" i] [role="list"]') ??
+        document.querySelector('[aria-label*="eople" i] [role="list"]');
+
+      const rows = panel
+        ? Array.from(panel.querySelectorAll('[role="listitem"]')).filter(
+            (el) => clean(el.textContent).length > 0
+          )
+        : [];
+
+      for (const row of rows) {
+        const label =
+          clean(row.getAttribute("aria-label")) || clean(row.querySelector("span, div")?.textContent);
+        if (label && label.length <= 60) names.add(label);
+      }
+
+      // 2. Video tiles. Free, and still true on some Meet builds.
+      const tiles = Array.from(document.querySelectorAll("[data-participant-id]"));
+      for (const tile of tiles) {
+        for (const attr of ["data-self-name", "aria-label"]) {
+          const value = clean(tile.getAttribute(attr));
+          if (value && value.length <= 60) names.add(value);
+        }
+      }
+
+      // 3. The People button's badge ("People 3"). Read from the accessible
+      // name only, and only digits sitting next to the word — textContent on a
+      // container button drags in unrelated numbers from the page.
+      let badge: number | null = null;
+      for (const el of Array.from(document.querySelectorAll('button, [role="button"]'))) {
+        const match = clean(el.getAttribute("aria-label")).match(
+          /(?:people|participants)\D{0,3}(\d+)/i
+        );
+        if (match) badge = Math.max(badge ?? 0, Number(match[1]));
+      }
+
+      // 4. Meet's own "you're the only one here" wording. A transient toast, so
+      // it is a last resort rather than the primary signal it used to be.
+      const alone = /you'?re the only one here|no one else is here|you are the only one/i.test(
+        document.body.innerText || ""
+      );
+
+      // Best available reading wins — NOT the largest. Taking the max turns a
+      // single bad read into a bot that never leaves, which is the whole bug.
+      const count =
+        rows.length > 0
+          ? rows.length
+          : tiles.length > 0
+            ? tiles.length
+            : badge !== null
+              ? badge
+              : alone
+                ? 1
+                : null;
+
+      return { count, names: [...names] };
     });
+  } catch {
+    return { count: null, names: [] };
+  }
+}
+
+/**
+ * Meet's waiting-room screen, which looks almost exactly like the call.
+ *
+ * Since Google's March 2026 guest-admission change the lobby renders the full
+ * in-call chrome — including **Leave call** — so the leave button alone says
+ * nothing about being admitted. Only this line does. Reading it wrong is
+ * expensive: the bot reports RECORDING from the lobby, records silence, sees
+ * an empty room (nobody else is in a lobby) and leaves while the host is still
+ * waiting for it to be let in.
+ */
+async function isInLobby(page: Page): Promise<boolean> {
+  try {
+    return await page.evaluate(() =>
+      /wait until (a|the) meeting host|asking to be let in|asking to join|you'?ll join when someone lets you in/i.test(
+        document.body.innerText || ""
+      )
+    );
   } catch {
     return false;
   }
 }
 
 /**
- * True while we are inside the call.
+ * True while we are inside the call — admitted, not merely on the page.
  *
- * The "leave call" control only exists once admitted and disappears the moment
- * the call ends or we are removed, which makes it both the admission signal and
- * the end-of-call signal.
+ * The "leave call" control appears in the lobby too, so it is necessary but
+ * not sufficient: it disappears when the call ends or we are removed, which
+ * still makes it the end-of-call signal.
  */
 async function inCall(page: Page): Promise<boolean> {
   try {
     const leaveButton = page.getByRole("button", { name: /leave call/i }).first();
-    return await leaveButton.isVisible({ timeout: 2000 });
+    if (!(await leaveButton.isVisible({ timeout: 2000 }))) return false;
+    return !(await isInLobby(page));
   } catch {
     return false;
   }
@@ -373,20 +572,7 @@ async function waitUntilAdmitted(page: Page, timeoutMs: number): Promise<void> {
  * "Client" throughout the transcript.
  */
 export async function readParticipants(page: Page): Promise<string[]> {
-  try {
-    return await page.evaluate(() => {
-      const names = new Set<string>();
-      for (const tile of Array.from(document.querySelectorAll("[data-participant-id]"))) {
-        for (const attr of ["data-self-name", "aria-label"]) {
-          const value = tile.getAttribute(attr)?.trim();
-          if (value && value.length <= 60) names.add(value);
-        }
-      }
-      return [...names];
-    });
-  } catch {
-    return [];
-  }
+  return (await readPresence(page)).names;
 }
 
 /**
