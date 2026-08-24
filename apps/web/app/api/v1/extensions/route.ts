@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { parseItemId } from "@/lib/chrome-store";
 
 /**
  * Chrome Web Store extensions this user ships (#332).
@@ -27,7 +28,6 @@ export async function GET() {
       id: true,
       name: true,
       itemId: true,
-      publisherId: true,
       repoId: true,
       state: true,
       stateDetail: true,
@@ -37,7 +37,7 @@ export async function GET() {
       lastCheckedAt: true,
       lastError: true,
       repo: { select: { fullName: true } },
-      connection: { select: { googleEmail: true, lastError: true } },
+      connection: { select: { googleEmail: true, lastError: true, publisherId: true } },
     },
     orderBy: { name: "asc" },
   });
@@ -75,22 +75,16 @@ export async function POST(request: Request) {
   };
 
   const name = body.name?.trim();
-  const itemId = body.itemId?.trim();
   const publisherId = body.publisherId?.trim();
 
-  if (!name || !itemId || !publisherId) {
-    return NextResponse.json(
-      { success: false, error: "Name, extension id and publisher id are required" },
-      { status: 400 }
-    );
-  }
+  // Accepts a pasted store URL as readily as a bare id — see parseItemId. A
+  // typo caught here is a message now instead of a silent 404 from Google
+  // every 30 minutes forever.
+  const itemId = parseItemId(body.itemId ?? "");
 
-  // Store item ids are a fixed 32 lowercase letters. Checking here turns a
-  // typo into a message now instead of a silent 404 from Google every 30
-  // minutes forever.
-  if (!/^[a-p]{32}$/.test(itemId)) {
+  if (!name || !itemId) {
     return NextResponse.json(
-      { success: false, error: "That doesn't look like a Chrome Web Store extension id" },
+      { success: false, error: "A name and a Chrome Web Store link or id are required" },
       { status: 400 }
     );
   }
@@ -113,7 +107,7 @@ export async function POST(request: Request) {
   // and asking would be a form field with a single option.
   const connections = await prisma.storeConnection.findMany({
     where: { userId },
-    select: { id: true },
+    select: { id: true, publisherId: true },
     orderBy: { createdAt: "asc" },
   });
 
@@ -124,22 +118,43 @@ export async function POST(request: Request) {
     );
   }
 
-  const connectionId = body.connectionId
-    ? connections.find((c) => c.id === body.connectionId)?.id
-    : connections[0]?.id;
+  const connection = body.connectionId
+    ? connections.find((c) => c.id === body.connectionId)
+    : connections[0];
 
-  if (!connectionId) {
+  if (!connection) {
     return NextResponse.json({ success: false, error: "Unknown connection" }, { status: 400 });
+  }
+
+  // The publisher is a property of the account, asked once. It only comes in
+  // with the first extension, because that is the first moment anyone has a
+  // reason to look it up.
+  if (!connection.publisherId) {
+    if (!publisherId) {
+      return NextResponse.json(
+        { success: false, error: "Publisher id is needed once for this account" },
+        { status: 400 }
+      );
+    }
+    await prisma.storeConnection.update({
+      where: { id: connection.id },
+      data: { publisherId },
+    });
+  } else if (publisherId && publisherId !== connection.publisherId) {
+    // Correcting it is legitimate — a wrong one 404s every item on the account.
+    await prisma.storeConnection.update({
+      where: { id: connection.id },
+      data: { publisherId },
+    });
   }
 
   const saved = await prisma.storeExtension.upsert({
     where: { userId_itemId: { userId, itemId } },
-    create: { userId, name, itemId, publisherId, repoId, connectionId },
+    create: { userId, name, itemId, repoId, connectionId: connection.id },
     update: {
       name,
-      publisherId,
       repoId,
-      connectionId,
+      connectionId: connection.id,
       // A re-registration usually follows a fix, so a stale error must not sit
       // on screen until the next sweep half an hour later.
       lastError: null,
