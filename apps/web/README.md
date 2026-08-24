@@ -71,3 +71,68 @@ descriptions happen to sort differently than they were written (e.g.
 `..._extension_session_tester_link` sorting before
 `..._extension_tester_sessions` purely because `s` < `t`), silently running an
 `ALTER TABLE` before the `CREATE TABLE` it depends on.
+
+## Chrome Web Store release watching — what you actually do
+
+Glitchgrab watches your extensions on the Chrome Web Store and messages you on
+WhatsApp when something needs you. The store itself tells nobody anything: a
+review verdict lands hours or days after CI has exited, on a console nobody has
+open. That is how a version ends up sitting in **Draft** for a week while the
+team believes it shipped.
+
+### One-time setup (about 10 minutes, mostly Google's console)
+
+1. **Google Cloud console** → *APIs & Services → Library* → enable **Chrome Web
+   Store API**.
+2. *IAM & Admin → Service Accounts* → create one → **Keys → Add key → JSON**.
+   Download the file.
+3. **Chrome Web Store developer dashboard** → *Account → Users* → invite the
+   service account's `client_email` as a user with publish rights.
+   This needs a **group publisher account** — a personal one cannot add users,
+   and skipping this step is why every call comes back 403.
+4. **Glitchgrab** → *Extensions* → **Watch an extension**. Fill in:
+   - Name — whatever you call it
+   - Project — optional, links the extension to a repo
+   - Extension id — the 32 letters from the store URL
+   - Publisher id — from the developer dashboard URL
+   - Service account JSON — paste the whole file
+
+   The key is encrypted (AES-256-GCM) before it is stored and is never readable
+   through the API again.
+5. Make sure your WhatsApp number is on your Glitchgrab profile, or there is
+   nowhere to send anything.
+
+### After that, you do nothing
+
+Every 30 minutes Glitchgrab asks the store about each extension and updates the
+page. You get a WhatsApp only when there is something to do:
+
+| What happened | You hear about it |
+|---|---|
+| Google rejected or removed it | **Immediately**, with Google's own reason |
+| It went live | Once, when it flips |
+| A version has been sitting in Draft | After **12 hours** — the silent one |
+| Review is taking unusually long | After **3 days** |
+| The store answered something unreadable | Never — it shows as "not read yet" on the page |
+
+Each message carries a button straight to that item in the developer console.
+
+### Reading the Extensions page
+
+- **live vX** — what users have right now
+- **waiting vY** (amber) — what is submitted and not out yet
+- **draft — not submitted** — uploaded, never sent for review. Nobody has it
+- **needs attention** — rejected or taken down
+- **not read yet** — we could not reach the store; the row shows the error
+  (usually the step-3 permission)
+
+### Before any of it sends
+
+The WhatsApp template `extension_review_status` has to be approved by Meta.
+It is prepared in WhatsApp Manager — **you press Submit for Review**, since a
+rejected submission burns a review cycle against the account. Until it is
+approved the watcher still runs and the page still updates; only the message
+fails, silently.
+
+Full detail: `agent_docs/chrome-web-store.md`. Template spec:
+`WHATSAPP_TEMPLATES.md` §7.
