@@ -254,6 +254,13 @@ function AddExtension({
     retry: false,
   });
 
+  // "We asked and it has no public page" and "we could not ask" are different
+  // facts, and only the first one means draft. Collapsing them told people
+  // their published extension was unpublished.
+  const lookupFailed = lookup.isError;
+  const noListing =
+    !lookup.isFetching && !lookupFailed && Boolean(lookup.data) && !lookup.data?.name;
+
   const resolvedName = name.trim() || lookup.data?.name || "";
 
   const mutation = useMutation({
@@ -324,11 +331,15 @@ function AddExtension({
             </span>
           ) : lookup.data?.name ? (
             <span className="text-emerald-400/90">found “{lookup.data.name}”</span>
-          ) : (
+          ) : lookupFailed ? (
+            <span className="text-red-400/90">
+              Could not reach the store to read the name — type it below, it changes nothing else.
+            </span>
+          ) : noListing ? (
             <span className="text-amber-400/80">
               No public listing — never published, or still a draft. Name it yourself.
             </span>
-          )}
+          ) : null}
         </div>
       )}
 
