@@ -14,16 +14,17 @@ outside the console. That is what this feature exists to stop.
 
 ## What is built
 
-**The watcher.** `StoreExtension` rows hold the item id, publisher id and an
-encrypted service-account key. `cron/extension-watch` (every 30 min) polls each
-one and sends WhatsApp when — and only when — a human has something to do.
+**The watcher.** A `StoreConnection` holds one connected Google account;
+`StoreExtension` rows point at it and carry the ids. `cron/extension-watch`
+(every 30 min) polls each one and sends WhatsApp when — and only when — a human
+has something to do.
 
 | File | Job |
 |---|---|
-| `lib/chrome-store.ts` | Service-account auth, `:fetchStatus`, folding Google's vocabulary into our five states |
+| `lib/chrome-store.ts` | OAuth connect/refresh, `:fetchStatus`, folding Google's vocabulary into our five states |
 | `lib/extension-watch.ts` | When a state change is worth a message. `decideNotification` is unit-tested — it is the whole feature |
 | `app/api/v1/cron/extension-watch/route.ts` | The sweep |
-| `app/api/v1/extensions/` | Register, list, delete |
+| `app/api/v1/extensions/` | Connect, list connections, register, list, delete |
 
 ## Why v2 of the API
 
@@ -40,27 +41,59 @@ user on the publisher account does not expire. Do not port that cron here.
 Also available, unused so far: `:cancelSubmission` (pull back a bad submission)
 and `publishType: STAGED_PUBLISH` (pass review, go live on your word).
 
-## Setting up the service account
+## How a developer connects
 
-Already done on the `GlitchGrab` Cloud project (24 Aug 2026):
+**Click Connect, approve on Google's screen, done.** No file, no paste.
+
+The service-account path this replaced needed a downloaded private key *and* a
+**group** publisher account to add that key as a user — which a personal
+publisher account cannot do at all. That made it a dead end for some accounts,
+not merely a chore.
+
+Already configured on the `GlitchGrab` Cloud project (24 Aug 2026):
 
 - **Chrome Web Store API** — enabled.
-- **Service account** — `glitchgrab-cws-watcher@glitchgrab.iam.gserviceaccount.com`,
-  no GCP IAM role: store permission comes from the publisher account, not Cloud IAM.
+- **OAuth client** `Web client 1` — redirect URIs added for both
+  `https://glitchgrab.dev/api/v1/extensions/callback` and the localhost
+  equivalent. Same client as Calendar and Search Console; no new one.
+- **Consent screen** — already **In production**, so refresh tokens do not
+  expire. (In *Testing* they die after 7 days — that is the whole reason
+  practice-stack carries a token-rotation cron.)
+- **Scopes** — `chromewebstore.readonly` + `userinfo.email`.
 
-What is left needs a human, because both steps handle the private key itself:
+The read-only scope is deliberate. The full `chromewebstore` scope can publish
+to every existing user of every extension on the account; a connection made for
+status reporting must not double as a way to ship.
 
-1. ~~Cloud console → **APIs & Services → Library** → enable **Chrome Web Store API**.~~ done
-2. **IAM & Admin → Service Accounts → glitchgrab-cws-watcher → Keys → Add key → JSON**. Download it.
-3. CWS developer dashboard → **Account → Users** (a *group* publisher account is
-   required; a personal publisher account cannot add users) → invite the service
-   account's `client_email` as a user with publish rights.
-4. Paste the JSON into Glitchgrab when registering the extension. It is
-   encrypted with `ENCRYPTION_KEY` (AES-256-GCM, same as user AI keys) and never
-   read back out through the API.
+### The flow
 
-Step 3 is the one that catches people: without it every call returns 403 and
-the row just records the error.
+1. `POST /api/v1/extensions/connect` mints a signed state + nonce cookie and
+   returns Google's consent URL. The nonce is what proves the browser finishing
+   consent is the one that started it — a signed state alone only proves *we*
+   minted it, and without the binding an attacker can have someone else
+   complete a flow that stores their store access under the attacker's user.
+2. `GET /api/v1/extensions/callback` exchanges the code, reads the account
+   email, and stores the refresh token encrypted (`ENCRYPTION_KEY`, AES-256-GCM).
+3. Adding an extension is then a name, an item id and a publisher id. One
+   connection covers every extension on that publisher.
+
+### Why the ids are typed
+
+**The v2 API has no list endpoint.** Its discovery document
+(`https://chromewebstore.googleapis.com/$discovery/rest?version=v2`) offers
+exactly five methods:
+
+```
+publishers.items.fetchStatus                    GET
+publishers.items.publish                        POST
+publishers.items.cancelSubmission               POST
+publishers.items.setPublishedDeployPercentage   POST
+media.upload                                    POST
+```
+
+A connected account cannot be asked "which extensions do you have?". Don't go
+looking for that endpoint again — item id is the 32 letters in the store URL,
+publisher id is in the developer dashboard under Account.
 
 ## The notification rules
 
