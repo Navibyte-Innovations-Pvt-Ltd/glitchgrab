@@ -240,6 +240,23 @@ expire (do not port practice-stack's rotation cron). The v2 API has **no list
 endpoint** — item and publisher ids are typed.
 See `agent_docs/chrome-web-store.md`.
 
+## Dashboard routes live under /org/<slug>
+
+There is ONE owner surface: `/org/<slug>/*`. `/dashboard` is the QA **tester**
+surface and nothing else — its layout redirects every signed-in owner into their
+org, or to `/org/setup` when they have none (an org is required). `proxy.ts`
+maps `/dashboard/x` → `/org/<slug>/x` with the query string intact; if an
+exception is ever added it must be added in `app/dashboard/layout.tsx` too.
+
+Files under `app/dashboard/*` that are not `page.tsx`/`layout.tsx` are shared
+components imported by org pages — not routes.
+
+**Pro is not enforced anywhere.** `PaywallGuard` only ever wrapped `/dashboard`,
+which owners no longer see, so every org page is free. Turning it on is a
+billing decision, not a bug fix — and `getUserPlan()` returns `dev-bypass` when
+`NODE_ENV=development`, so the block is invisible locally and lands first in
+production. See the note in `app/org/[slug]/layout.tsx`.
+
 ## Forms
 
 `apps/web` forms go through `InputField` — never raw shadcn inputs. Not usable in
