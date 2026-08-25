@@ -135,5 +135,24 @@ rejected submission burns a review cycle against the account. Until it is
 approved the watcher still runs and the page still updates; only the message
 fails, silently.
 
+### Releasing from CI
+
+Push to `main` touching `packages/extension/**` and
+`.github/workflows/release-extension.yml` builds, versions, zips and submits it
+— or run it by hand from the Actions tab, where you can pick the bump and tick
+**dry run** to build without submitting.
+
+The repo needs exactly one secret, `GLITCHGRAB_TOKEN` (Glitchgrab → API Tokens,
+for this project). No Chrome Web Store credentials live in any repo: the store
+account is the one you connected on the Extensions page, and Glitchgrab does the
+upload.
+
+The version comes from the **store**, not from a tag — whatever is live or
+already submitted, plus the bump inferred from your conventional commits
+(`feat:` → minor, `feat!:` → major, otherwise patch).
+
+A green tick means *submitted*. Google's verdict lands hours or days later and
+reaches you on WhatsApp.
+
 Full detail: `agent_docs/chrome-web-store.md`. Template spec:
 `WHATSAPP_TEMPLATES.md` §7.
