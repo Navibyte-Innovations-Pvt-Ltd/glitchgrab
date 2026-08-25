@@ -497,7 +497,7 @@ export async function fetchStoreListingName(
 }
 
 /** What a release attempt did, in the words the workflow log will show. */
-export interface ReleaseOutcome {
+interface ReleaseOutcome {
   ok: boolean;
   error?: string;
 }
