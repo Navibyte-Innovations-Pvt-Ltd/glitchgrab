@@ -120,15 +120,28 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
 
-    // Fast path: JWT already has orgSlug cached → redirect immediately
-    // Config paths are user-level (not org-scoped) — skip redirect to avoid loops
-    const CONFIG_PATHS = ["/settings", "/tokens", "/billing", "/members"];
+    // Fast path: JWT already has orgSlug cached → redirect immediately.
+    //
+    // Every owner path redirects, with no exceptions. There used to be a
+    // CONFIG_PATHS escape hatch for /settings, /tokens, /billing and /members,
+    // on the theory that those were user-level rather than org-level. What it
+    // actually did was strand people: the org sidebar linked to
+    // /org/<slug>/settings, that page redirected to /dashboard/settings, and
+    // you arrived in the dashboard shell whose sidebar has no slug in it. Those
+    // four now render inside the org shell, so the exception is gone — and if
+    // it ever comes back it has to come back in BOTH places, here and in
+    // app/dashboard/layout.tsx, which carries the same logic as a fallback.
     const orgSlug = token.orgSlug as string | null | undefined;
     if (orgSlug) {
       const subPath = path.slice("/dashboard".length);
-      if (!CONFIG_PATHS.some((p) => subPath.startsWith(p))) {
-        return NextResponse.redirect(new URL(`/org/${orgSlug}${subPath}`, request.url));
-      }
+      const target = request.nextUrl.clone();
+      target.pathname = `/org/${orgSlug}${subPath}`;
+      // Carry the query string over. Several callbacks land here with state in
+      // it — /dashboard/repos?error=missing_installation from the GitHub App
+      // install, ?calendar=connected from the Google OAuth return — and
+      // building the URL from the pathname alone silently ate all of it, so the
+      // page rendered as if nothing had gone wrong.
+      return NextResponse.redirect(target);
     }
     // No orgSlug in JWT yet → fall through; layout.tsx does DB lookup as fallback
   }
