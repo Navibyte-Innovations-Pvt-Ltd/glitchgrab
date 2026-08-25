@@ -1,17 +1,23 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
-import { Sidebar } from "@/components/dashboard/sidebar";
-import { BottomNav } from "@/components/dashboard/bottom-nav";
-import { getUserPlan, getTrialStatus } from "@/lib/billing";
-import type { PlanBadgeType } from "@/components/dashboard/plan-badge";
-import { PaywallGuard } from "@/components/dashboard/paywall-guard";
-import { DashboardStatusBar } from "@/components/dashboard/dashboard-status-bar";
-import { PhonePromptDialog } from "@/components/dashboard/phone-prompt-dialog";
 import { prisma } from "@/lib/db";
 import { getTesterSession } from "@/lib/tester-session";
 import { TesterShell } from "@/components/dashboard/tester-shell";
 
+/**
+ * /dashboard is the QA tester surface, and nothing else.
+ *
+ * It used to be the owner surface too, duplicating every page that now lives
+ * under /org/<slug>/*. Those duplicates are gone: an owner arriving here is
+ * redirected into their org (proxy.ts does this on the fast path; the lookup
+ * below catches sessions minted before orgSlug was cached in the JWT), and an
+ * owner with no org is sent to build one, because an org is required to use
+ * the product.
+ *
+ * What is left renders only for a tester — who is not a NextAuth user at all,
+ * but carries the gg_tester cookie — so none of the owner queries can run for
+ * them and there is no owner data here to leak by accident.
+ */
 export default async function DashboardLayout({
   children,
 }: {
@@ -20,10 +26,6 @@ export default async function DashboardLayout({
   const session = await auth();
 
   if (!session?.user) {
-    // No NextAuth session — this may still be a QA tester, who signs in with a
-    // phone OTP and carries the gg_tester cookie. They get the tester shell and
-    // nothing else: none of the billing/plan/org lookups below ever run for
-    // them, so there is no owner data to leak even by accident.
     const testerId = await getTesterSession();
     const tester = testerId
       ? await prisma.tester.findUnique({
@@ -43,63 +45,22 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  // Fallback org redirect for sessions created before orgSlug was cached in JWT
-  // (proxy.ts handles the fast path; this catches users who haven't re-logged-in)
-  if (session.user.id) {
-    const membership = await prisma.orgMember.findFirst({
-      where: { userId: session.user.id },
-      select: { org: { select: { githubOrgLogin: true } } },
-    });
-    if (membership) {
-      const headersList = await headers();
-      const currentPath = headersList.get("x-pathname") ?? "/dashboard";
-      const subPath = currentPath.slice("/dashboard".length);
-      const CONFIG_PATHS = ["/settings", "/tokens", "/billing", "/members"];
-      if (!CONFIG_PATHS.some((p) => subPath.startsWith(p))) {
-        redirect(`/org/${membership.org.githubOrgLogin}${subPath}`);
-      }
-    }
-  }
-
-  const dbUser = session.user.id
-    ? await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { whatsappPhone: true },
+  const membership = session.user.id
+    ? await prisma.orgMember.findFirst({
+        where: { userId: session.user.id },
+        select: { role: true, org: { select: { githubOrgLogin: true } } },
       })
     : null;
 
-  const user = {
-    name: session.user.name,
-    email: session.user.email,
-    image: session.user.image,
-  };
+  if (!membership) redirect("/org/setup");
 
-  // Resolve plan badge type
-  let planBadge: PlanBadgeType = "none";
-  let trialDaysLeft = 0;
-
-  if (session.user.id) {
-    const plan = await getUserPlan(session.user.id);
-    const trial = await getTrialStatus(session.user.id, plan);
-
-    if (plan.isActive) planBadge = "premium";
-    else if (trial.inTrial) {
-      planBadge = "trial";
-      trialDaysLeft = trial.daysLeft;
-    }
-  }
-
-  return (
-    <div className="flex h-(--app-height,100vh) bg-background transition-[height] duration-100">
-      <Sidebar user={user} planBadge={planBadge} trialDaysLeft={trialDaysLeft} />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <DashboardStatusBar />
-        <main className="flex-1 overflow-y-auto p-4 pb-20 md:p-6 md:pb-6">
-          <PaywallGuard>{children}</PaywallGuard>
-        </main>
-        <PhonePromptDialog hasPhone={!!dbUser?.whatsappPhone} />
-        <BottomNav user={user} planBadge={planBadge} trialDaysLeft={trialDaysLeft} />
-      </div>
-    </div>
-  );
+  // The sub-path is deliberately dropped here. proxy.ts already maps
+  // /dashboard/x → /org/<slug>/x for every path it sees; this fallback only
+  // catches the bare root and stale sessions, and every owner page below
+  // /dashboard has been deleted, so there is no sub-path left worth carrying.
+  //
+  // A MEMBER has no overview — the org root is an owner page — so they go
+  // straight to chat, the same rule the old dashboard page applied.
+  const slug = membership.org.githubOrgLogin;
+  redirect(membership.role === "MEMBER" ? `/org/${slug}/chat` : `/org/${slug}`);
 }
