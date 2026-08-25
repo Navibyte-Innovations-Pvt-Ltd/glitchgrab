@@ -5,7 +5,8 @@
   "scripts": {
     "build": "bun run build.ts",
     "dev": "bun run build.ts --watch",
-    "test": "bun test src/"
+    "test": "bun test src/",
+    "zip": "bun run build && bun run zip.ts"
   },
   "dependencies": {},
   "devDependencies": {
