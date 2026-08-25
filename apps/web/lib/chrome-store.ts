@@ -31,6 +31,13 @@ const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const API_BASE = "https://chromewebstore.googleapis.com/v2";
 
 /**
+ * Media uploads use a separate path prefix — see the discovery document's
+ * `mediaUpload.protocols.simple.path`. The resource URL and the upload URL are
+ * not interchangeable.
+ */
+const UPLOAD_BASE = "https://chromewebstore.googleapis.com/upload/v2";
+
+/**
  * Read-only, deliberately.
  *
  * The full `chromewebstore` scope can publish to every existing user of every
@@ -517,11 +524,17 @@ export async function uploadAndPublish(params: {
   accessToken: string;
   zip: ArrayBuffer;
 }): Promise<ReleaseOutcome> {
-  const base = `${API_BASE}/publishers/${encodeURIComponent(
-    params.publisherId
-  )}/items/${encodeURIComponent(params.itemId)}`;
+  const name = `publishers/${encodeURIComponent(params.publisherId)}/items/${encodeURIComponent(
+    params.itemId
+  )}`;
+  const base = `${API_BASE}/${name}`;
 
-  const upload = await fetch(`${base}:upload`, {
+  // Media goes to the /upload/ host path with uploadType=media, per the
+  // discovery document's `mediaUpload.protocols.simple.path`. Posting a zip to
+  // the plain resource URL makes Google parse it as JSON and answer "Invalid
+  // JSON payload received. Unexpected token. PK\u0003\u0004" — the zip's own
+  // magic bytes, which is a confusing way to say "wrong endpoint".
+  const upload = await fetch(`${UPLOAD_BASE}/${name}:upload?uploadType=media`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${params.accessToken}`,
@@ -543,7 +556,11 @@ export async function uploadAndPublish(params: {
       Authorization: `Bearer ${params.accessToken}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({}),
+    // Both fields are optional and both defaults are what we want — say them
+    // anyway, so a change to Google's defaults cannot quietly alter what a
+    // release does. DEFAULT_PUBLISH goes live on approval; STAGED_PUBLISH
+    // would sit waiting for a second action nobody has been told to take.
+    body: JSON.stringify({ publishType: "DEFAULT_PUBLISH", blockOnWarnings: false }),
   });
 
   if (!publish.ok) {
