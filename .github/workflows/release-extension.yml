@@ -151,6 +151,15 @@ jobs:
             }
           "
 
+      # The extension imports @glitchgrab/report-ui, which resolves through its
+      # `dist/` — and `dist/` is gitignored, so it exists on a developer's
+      # machine and never in CI. Without this the extension build dies on
+      # "Could not resolve @glitchgrab/report-ui", which reads like a missing
+      # dependency rather than an unbuilt one.
+      - name: Build the shared report dialog
+        working-directory: packages/report-ui
+        run: bun run build
+
       - name: Build and zip
         working-directory: packages/extension
         run: bun run zip
