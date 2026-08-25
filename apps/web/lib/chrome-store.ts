@@ -569,6 +569,25 @@ export async function uploadAndPublish(params: {
  * them, so the repo and the store drift apart and nobody notices until a
  * release is rejected for a duplicate version.
  */
+/** Highest of the versions given, ignoring anything unparseable. */
+export function highestVersion(...candidates: (string | null | undefined)[]): string | null {
+  const parsed = candidates
+    .filter((c): c is string => Boolean(c) && /^\d+(\.\d+)*$/.test(c as string))
+    .map((c) => ({ raw: c, parts: c.split(".").map((n) => Number.parseInt(n, 10) || 0) }));
+
+  if (parsed.length === 0) return null;
+
+  const [highest] = parsed.sort((a, b) => {
+    for (let i = 0; i < 4; i++) {
+      const diff = (b.parts[i] ?? 0) - (a.parts[i] ?? 0);
+      if (diff !== 0) return diff;
+    }
+    return 0;
+  });
+
+  return highest?.raw ?? null;
+}
+
 export function nextVersion(current: string | null, bump: "major" | "minor" | "patch"): string {
   const [major = 0, minor = 0, patch = 0] = (current ?? "0.0.0")
     .split(".")

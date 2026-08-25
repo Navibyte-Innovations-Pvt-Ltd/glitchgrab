@@ -97,15 +97,26 @@ jobs:
             exit 1
           fi
 
-          # The store is the source of truth for the version. Deriving it from a
-          # git tag and patching files at build time lets the repo and the store
-          # drift until a release is refused for a duplicate version.
+          # The store is the source of truth for the version, but send what is
+          # checked out too: Glitchgrab takes the highest of the three, so a
+          # store read that comes back empty can never hand back a version
+          # lower than the one already shipped.
+          CURRENT=$(node -p "require('./packages/extension/src/manifest.json').version")
+
           RESPONSE=$(curl -sS -w '\n%{http_code}' \
             -H "Authorization: Bearer $GG_TOKEN" \
-            "$GG_API/api/v1/extensions/release?bump=$BUMP")
+            "$GG_API/api/v1/extensions/release?bump=$BUMP&current=$CURRENT")
 
           BODY=$(echo "$RESPONSE" | sed '$d')
           CODE=$(echo "$RESPONSE" | tail -1)
+
+          if [ "$CODE" = "405" ]; then
+            # Next.js matched /extensions/[id] instead, because the release
+            # route is not in the deployed build. A 404 would have said this;
+            # 405 does not, so say it here.
+            echo "::error::$GG_API has no release endpoint yet — deploy Glitchgrab, then re-run this job."
+            exit 1
+          fi
 
           if [ "$CODE" != "200" ]; then
             echo "::error::Glitchgrab said $CODE: $(echo "$BODY" | jq -r '.error // .')"
@@ -114,8 +125,9 @@ jobs:
 
           VERSION=$(echo "$BODY" | jq -r '.data.version')
           LIVE=$(echo "$BODY" | jq -r '.data.publishedVersion // "none"')
+          BASED_ON=$(echo "$BODY" | jq -r '.data.basedOn // "nothing"')
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Live on the store: $LIVE → releasing $VERSION"
+          echo "Live on the store: $LIVE | in the repo: $CURRENT | bumped from: $BASED_ON → releasing $VERSION"
 
       # Every value that came off the network goes through `env:`, never straight
       # into a run block. The version arrives in an HTTP response, and a string
@@ -132,7 +144,7 @@ jobs:
             if (!/^\d+\.\d+\.\d+$/.test(version)) {
               throw new Error('Refusing to stamp a version that is not x.y.z: ' + version);
             }
-            for (const f of ['package.json', 'manifest.json']) {
+            for (const f of ['package.json', 'src/manifest.json']) {
               const json = JSON.parse(fs.readFileSync(f, 'utf-8'));
               json.version = version;
               fs.writeFileSync(f, JSON.stringify(json, null, 2) + '\n');
@@ -165,6 +177,11 @@ jobs:
 
           BODY=$(echo "$RESPONSE" | sed '$d')
           CODE=$(echo "$RESPONSE" | tail -1)
+
+          if [ "$CODE" = "405" ]; then
+            echo "::error::$GG_API has no release endpoint yet — deploy Glitchgrab, then re-run this job."
+            exit 1
+          fi
 
           if [ "$CODE" != "200" ]; then
             # A real failure, unlike the bare 400 the old bpp action returned on

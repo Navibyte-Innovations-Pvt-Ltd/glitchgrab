@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { decideNotification } from "./extension-watch";
-import { isStoreListingUrl, parseItemId } from "./chrome-store";
+import { highestVersion, isStoreListingUrl, nextVersion, parseItemId } from "./chrome-store";
 
 /**
  * These rules are the whole feature. Getting them wrong in either direction is
@@ -174,5 +174,38 @@ describe("isStoreListingUrl", () => {
     expect(isStoreListingUrl(`https://chromewebstore.google.com/detail/x/${ID}/../../evil`)).toBe(false);
     expect(isStoreListingUrl(`https://chromewebstore.google.com/search/${ID}`)).toBe(false);
     expect(isStoreListingUrl("not a url at all")).toBe(false);
+  });
+});
+
+/**
+ * A release that numbers itself *below* what is already live is rejected by the
+ * store, and the workflow log blames the release rather than the number.
+ */
+describe("highestVersion / nextVersion", () => {
+  it("picks the highest of what anyone knows", () => {
+    expect(highestVersion("1.1.0", "1.0.9", "1.0.0")).toBe("1.1.0");
+    expect(highestVersion(null, undefined, "2.0.0")).toBe("2.0.0");
+    // Numeric, not lexical: "1.10.0" beats "1.9.0".
+    expect(highestVersion("1.9.0", "1.10.0")).toBe("1.10.0");
+    // Chrome allows four parts.
+    expect(highestVersion("1.2.3", "1.2.3.1")).toBe("1.2.3.1");
+  });
+
+  it("ignores anything that is not a version", () => {
+    expect(highestVersion(null, undefined, "")).toBeNull();
+    expect(highestVersion("not-a-version", "1.0.0")).toBe("1.0.0");
+  });
+
+  it("never numbers a release below what the repo already has", () => {
+    // The bug this guards: an empty store read used to start from 0.0.0 and
+    // hand back 0.1.0 while 1.1.0 was live.
+    const live = highestVersion(null, null, "1.1.0");
+    expect(nextVersion(live, "minor")).toBe("1.2.0");
+    expect(nextVersion(live, "patch")).toBe("1.1.1");
+    expect(nextVersion(live, "major")).toBe("2.0.0");
+  });
+
+  it("counts from zero only when nothing is known", () => {
+    expect(nextVersion(null, "minor")).toBe("0.1.0");
   });
 });
