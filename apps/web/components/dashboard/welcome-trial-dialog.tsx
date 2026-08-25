@@ -9,7 +9,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { CheckCircle, Sparkles } from "lucide-react";
-import { UpgradeButton } from "@/app/dashboard/billing/upgrade-button";
+import { UpgradeButton } from "@/components/billing/upgrade-button";
 
 export function WelcomeTrialDialog({
   email,
