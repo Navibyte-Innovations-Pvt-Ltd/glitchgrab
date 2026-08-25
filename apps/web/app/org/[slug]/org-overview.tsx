@@ -933,7 +933,7 @@ function OrgIssuesClosedPreview({ orgSlug }: { orgSlug: string }) {
         </>
       )}
       <a
-        href={`/dashboard/analytics`}
+        href={`/org/${orgSlug}/analytics`}
         className="text-xs font-mono text-muted-foreground hover:text-primary transition-colors w-max mt-auto"
       >
         Full analytics →
