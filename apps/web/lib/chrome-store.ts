@@ -38,7 +38,12 @@ const API_BASE = "https://chromewebstore.googleapis.com/v2";
  * so connecting for status must not hand over the ability to ship.
  */
 const SCOPES = [
-  "https://www.googleapis.com/auth/chromewebstore.readonly",
+  // Write, not readonly: releasing from CI means uploading and submitting, and
+  // the read-only scope cannot do either. This is real power — it can push a
+  // new version to every existing user of every extension on the account — so
+  // it lives in one place we control rather than as copies of a key file in
+  // every repo that ships an extension.
+  "https://www.googleapis.com/auth/chromewebstore",
   "https://www.googleapis.com/auth/userinfo.email",
 ];
 
@@ -489,4 +494,87 @@ export async function fetchStoreListingName(
       .slice(0, 120),
     reason: "ok",
   };
+}
+
+/** What a release attempt did, in the words the workflow log will show. */
+interface ReleaseOutcome {
+  ok: boolean;
+  error?: string;
+}
+
+/**
+ * Upload a new package and submit it for review (#332).
+ *
+ * Two calls, both of which have to succeed: `upload` replaces the draft, and
+ * `publish` is what actually sends it to Google. Uploading alone is the exact
+ * silence this whole feature exists to end — a new version sitting in Draft
+ * while everyone believes it shipped — so a failure to publish is reported as a
+ * failed release, never as a partial success.
+ */
+export async function uploadAndPublish(params: {
+  publisherId: string;
+  itemId: string;
+  accessToken: string;
+  zip: ArrayBuffer;
+}): Promise<ReleaseOutcome> {
+  const base = `${API_BASE}/publishers/${encodeURIComponent(
+    params.publisherId
+  )}/items/${encodeURIComponent(params.itemId)}`;
+
+  const upload = await fetch(`${base}:upload`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${params.accessToken}`,
+      "Content-Type": "application/zip",
+    },
+    body: params.zip,
+  });
+
+  if (!upload.ok) {
+    return {
+      ok: false,
+      error: `Upload rejected (${upload.status}): ${(await upload.text()).slice(0, 300)}`,
+    };
+  }
+
+  const publish = await fetch(`${base}:publish`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${params.accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({}),
+  });
+
+  if (!publish.ok) {
+    return {
+      ok: false,
+      // Named precisely: the upload DID happen, so the draft on the store is
+      // now the new code. Saying "release failed" without that would send
+      // someone hunting for a version that is already sitting there.
+      error: `Uploaded, but submitting for review failed (${publish.status}): ${(
+        await publish.text()
+      ).slice(0, 300)}`,
+    };
+  }
+
+  return { ok: true };
+}
+
+/**
+ * The version this release should carry.
+ *
+ * Derived from what the **store** currently holds, not from a git tag: the tag
+ * approach patches version numbers into files at build time without committing
+ * them, so the repo and the store drift apart and nobody notices until a
+ * release is rejected for a duplicate version.
+ */
+export function nextVersion(current: string | null, bump: "major" | "minor" | "patch"): string {
+  const [major = 0, minor = 0, patch = 0] = (current ?? "0.0.0")
+    .split(".")
+    .map((part) => Number.parseInt(part, 10) || 0);
+
+  if (bump === "major") return `${major + 1}.0.0`;
+  if (bump === "minor") return `${major}.${minor + 1}.0`;
+  return `${major}.${minor}.${patch + 1}`;
 }
