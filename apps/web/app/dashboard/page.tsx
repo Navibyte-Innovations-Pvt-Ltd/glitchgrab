@@ -1,57 +1,36 @@
 export const dynamic = "force-dynamic";
 
-import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
-import { DashboardAnalytics } from "./dashboard-analytics";
-import { NoReposState } from "./components/no-repos-state";
-import { getDashboardContext } from "./lib/get-dashboard-context";
 import { getTesterSession } from "@/lib/tester-session";
 import { getQaView } from "@/lib/qa-view";
 import { QaClient } from "@/app/qa/qa-client";
 
+/**
+ * Tester home.
+ *
+ * A tester has no NextAuth session — they sign in with a phone OTP and carry
+ * the gg_tester cookie — and /dashboard is the ONLY page they can reach, since
+ * proxy.ts bounces every sub-path back here. That is the point: no more
+ * /qa/<token> link living outside the product.
+ *
+ * Owners never get this far. The layout redirects them into their org (or to
+ * /org/setup if they have none) before this renders, which is why the owner
+ * overview that used to live here is gone — /org/<slug> is the real one.
+ */
 export default async function DashboardPage() {
-  const session = await auth();
+  const testerId = await getTesterSession();
+  const view = testerId ? await getQaView(testerId) : null;
 
-  // Tester home. A tester has no NextAuth session, so this branch runs before
-  // any owner query — the dashboard is the ONLY page they can reach (proxy.ts
-  // bounces every sub-path), which is the point: no more /qa/<token> link that
-  // lives outside the product.
-  if (!session?.user) {
-    const testerId = await getTesterSession();
-    const view = testerId ? await getQaView(testerId) : null;
-    if (view) {
-      return (
-        <QaClient
-          testerName={view.testerName}
-          testerEmail={view.testerEmail}
-          testerPhone={view.testerPhone}
-          orgName={view.orgName}
-          checks={view.checks}
-          embedded
-        />
-      );
-    }
-  }
+  if (!view) redirect("/login");
 
-  if (session?.user?.id) {
-    const membership = await prisma.orgMember.findFirst({
-      where: { userId: session.user.id },
-      include: { org: true },
-    });
-    if (membership) {
-      const dest = membership.role === "MEMBER"
-        ? `/org/${membership.org.githubOrgLogin}/chat`
-        : `/org/${membership.org.githubOrgLogin}`;
-      redirect(dest);
-    }
-  }
-
-  const { repos, hasOwnerSession } = await getDashboardContext();
-
-  if (repos.length === 0) {
-    return <NoReposState canConnect={hasOwnerSession} />;
-  }
-
-  return <DashboardAnalytics />;
+  return (
+    <QaClient
+      testerName={view.testerName}
+      testerEmail={view.testerEmail}
+      testerPhone={view.testerPhone}
+      orgName={view.orgName}
+      checks={view.checks}
+      embedded
+    />
+  );
 }
