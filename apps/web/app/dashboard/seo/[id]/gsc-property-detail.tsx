@@ -416,7 +416,9 @@ export function GscPropertyDetail({
     onSuccess: () => {
       toast.success("Property disconnected");
       queryClient.invalidateQueries({ queryKey: ["gsc-properties"] });
-      router.push("/dashboard/seo");
+      // backHref, not a literal — this renders inside /org/<slug>/seo/<id> and
+      // the old /dashboard/seo it used to point at no longer exists.
+      router.push(backHref);
     },
     onError: (err) =>
       toast.error(err instanceof Error ? err.message : "Disconnect failed"),
