@@ -6,6 +6,7 @@ import { hashToken } from "@/lib/tokens";
 import {
   accessTokenForConnection,
   fetchItemStatus,
+  highestVersion,
   nextVersion,
   uploadAndPublish,
 } from "@/lib/chrome-store";
@@ -128,10 +129,18 @@ export async function GET(request: Request) {
 
   try {
     const status = await fetchItemStatus({ publisherId, itemId: extension.itemId, accessToken });
-    // The highest version the store knows about — a submitted-but-unreviewed
-    // version still occupies its number, so ignoring it would produce a
-    // duplicate the store refuses.
-    const live = status.submittedVersion ?? status.publishedVersion;
+
+    // Highest of everything anyone knows about, including the version the
+    // caller already has checked out. A submitted-but-unreviewed version still
+    // occupies its number, and if the store read comes back empty — a field
+    // Google renamed, a revision shape we do not parse — starting from zero
+    // would produce a version *lower* than what is live, which the store
+    // rejects and which reads as "the release is broken".
+    const live = highestVersion(
+      status.submittedVersion,
+      status.publishedVersion,
+      url.searchParams.get("current")
+    );
 
     return NextResponse.json({
       success: true,
@@ -140,6 +149,8 @@ export async function GET(request: Request) {
         name: extension.name,
         publishedVersion: status.publishedVersion,
         submittedVersion: status.submittedVersion,
+        // Named so a workflow log shows where the number came from.
+        basedOn: live,
         version: nextVersion(live, bump),
       },
     });
