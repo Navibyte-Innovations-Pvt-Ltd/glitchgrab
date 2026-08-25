@@ -1,3 +1,19 @@
+## [1.58.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.57.0...v1.58.0) (2026-08-25)
+
+### Features
+
+* **readme:** update how to release from CI ([c3cd166](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/c3cd166700bd2d72965931620a3f3be441d08c89))
+* **release:** add route.ts to handle extension releases ([c459255](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/c4592553aeb6e304a4f54b230b7cab275a490251))
+
+### Bug Fixes
+
+* **chrome-store:** add more checks for release outcomes ([502b1aa](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/502b1aaf6f4c601d2e6e5f3f00f3891d48e98286))
+* **chrome-store:** add uploadAndPublish and nextVersion functions ([a9750a9](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/a9750a9f219891df5a1f8842940f0b222d7f2ce5))
+* **chrome-web-store:** update release extension workflow ([ca638f7](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/ca638f70b83138ee2ef7f779c482e29912fb1918))
+* **extension:** add `.gitignore` entry for `glitchgrab-extension.zip` ([09d699b](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/09d699b2d556d35b007dfe37df0c4767a6c0c288))
+* **extension:** add zip functionality to package command ([cc440a2](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/cc440a2a50fd1c291e2ea4c4df7f00cc2bff4236))
+* **zip:** add script to build package and zip it ([41fc108](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/41fc108527bce72a5e2903d0efe74ea001f5a3e0))
+
 ## [1.57.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.56.0...v1.57.0) (2026-08-25)
 
 ### Features
