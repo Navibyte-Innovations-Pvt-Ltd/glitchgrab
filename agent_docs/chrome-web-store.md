@@ -91,9 +91,20 @@ publishers.items.setPublishedDeployPercentage   POST
 media.upload                                    POST
 ```
 
-A connected account cannot be asked "which extensions do you have?". Don't go
-looking for that endpoint again — item id is the 32 letters in the store URL,
-publisher id is in the developer dashboard under Account.
+A connected account cannot be asked "which extensions do you have?". The v1.1
+discovery document is now a 404 — that API is retired, so there is no older
+route either. Don't go looking for this again.
+
+What *is* automated, since the id has to come from somewhere:
+
+- **`parseItemId`** takes the store URL people actually copy (either host, with
+  or without the name slug, devconsole links too) and pulls the id out.
+- **`fetchStoreListingName`** reads the name off the **public listing page** —
+  not the API, which returns versions and review state but never a title. A
+  Draft-only item has no public page, so this returns null exactly in the case
+  the watcher exists for, and the name is typed there.
+- **`publisherId` lives on `StoreConnection`**, not on the extension: it is one
+  value per account, so it is asked with the first extension and never again.
 
 ## The notification rules
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { decideNotification } from "./extension-watch";
+import { isStoreListingUrl, parseItemId } from "./chrome-store";
 
 /**
  * These rules are the whole feature. Getting them wrong in either direction is
@@ -90,5 +91,88 @@ describe("decideNotification", () => {
 
   it("never treats an unreadable answer as good news", () => {
     expect(decideNotification(row(), "UNKNOWN", NOW)).toBeNull();
+  });
+});
+
+describe("parseItemId", () => {
+  const ID = "fmkadmapgofadopljbjfkapdkoienihi";
+
+  it("takes a bare id", () => {
+    expect(parseItemId(ID)).toBe(ID);
+    expect(parseItemId(`  ${ID}  `)).toBe(ID);
+  });
+
+  it("takes the real Glitchgrab listing url, verbatim", () => {
+    // The exact string copied out of Chrome's address bar: percent-encoded
+    // em-dash in the slug, locale and authuser query params on the end.
+    const pasted =
+      "https://chromewebstore.google.com/detail/glitchgrab-%E2%80%94-bug-reports/bjnddojeemkbienciefaoiikfehfhpef?hl=en-GB&authuser=0";
+    expect(parseItemId(pasted)).toBe("bjnddojeemkbienciefaoiikfehfhpef");
+    expect(parseItemId(`  ${pasted}  `)).toBe("bjnddojeemkbienciefaoiikfehfhpef");
+    // Same link after the browser decodes the slug for display.
+    expect(
+      parseItemId(
+        "https://chromewebstore.google.com/detail/glitchgrab-—-bug-reports/bjnddojeemkbienciefaoiikfehfhpef?hl=en-GB"
+      )
+    ).toBe("bjnddojeemkbienciefaoiikfehfhpef");
+  });
+
+  it("takes the store link people actually copy", () => {
+    expect(parseItemId(`https://chromewebstore.google.com/detail/react-developer-tools/${ID}`)).toBe(ID);
+    expect(parseItemId(`https://chrome.google.com/webstore/detail/react-developer-tools/${ID}`)).toBe(ID);
+    expect(parseItemId(`https://chromewebstore.google.com/detail/${ID}?hl=en`)).toBe(ID);
+  });
+
+  it("takes a developer console link", () => {
+    expect(parseItemId(`https://chrome.google.com/webstore/devconsole/detail/${ID}`)).toBe(ID);
+  });
+
+  it("refuses anything without an id in it", () => {
+    expect(parseItemId("")).toBeNull();
+    expect(parseItemId("https://chromewebstore.google.com/category/extensions")).toBeNull();
+    // Store ids use a–p only; a stray hex-looking string is not one.
+    expect(parseItemId("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz")).toBeNull();
+    expect(parseItemId(ID.slice(0, 31))).toBeNull();
+  });
+});
+
+/**
+ * This guard decides what the *server* fetches, so a hole in it turns any
+ * signed-in user into a request forwarder using our egress.
+ */
+describe("isStoreListingUrl", () => {
+  const ID = "bjnddojeemkbienciefaoiikfehfhpef";
+
+  it("accepts a real listing url", () => {
+    expect(isStoreListingUrl(`https://chromewebstore.google.com/detail/some-slug/${ID}`)).toBe(true);
+    expect(
+      isStoreListingUrl(`https://chromewebstore.google.com/detail/glitchgrab-%E2%80%94-bug-reports/${ID}`)
+    ).toBe(true);
+  });
+
+  it("rejects a host that merely contains the store's name", () => {
+    // The unanchored substring check this replaced accepted both of these.
+    expect(isStoreListingUrl(`https://evil.example/chromewebstore.google.com/detail/x/${ID}`)).toBe(false);
+    expect(isStoreListingUrl(`https://chromewebstore.google.com.evil.example/detail/x/${ID}`)).toBe(false);
+  });
+
+  it("rejects userinfo pointing somewhere else", () => {
+    expect(isStoreListingUrl(`https://chromewebstore.google.com@127.0.0.1:9911/detail/x/${ID}`)).toBe(false);
+  });
+
+  it("rejects internal and metadata addresses", () => {
+    expect(isStoreListingUrl(`http://169.254.169.254/detail/x/${ID}`)).toBe(false);
+    expect(isStoreListingUrl(`http://localhost:3000/detail/x/${ID}`)).toBe(false);
+  });
+
+  it("rejects plain http on the store itself", () => {
+    expect(isStoreListingUrl(`http://chromewebstore.google.com/detail/x/${ID}`)).toBe(false);
+  });
+
+  it("rejects paths that only look right", () => {
+    // new URL() normalises the traversal, so the anchored pattern then fails.
+    expect(isStoreListingUrl(`https://chromewebstore.google.com/detail/x/${ID}/../../evil`)).toBe(false);
+    expect(isStoreListingUrl(`https://chromewebstore.google.com/search/${ID}`)).toBe(false);
+    expect(isStoreListingUrl("not a url at all")).toBe(false);
   });
 });

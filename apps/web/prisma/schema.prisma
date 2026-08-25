@@ -818,8 +818,6 @@ model StoreExtension {
 
   /// The 32-character Chrome Web Store item id.
   itemId String
-  /// Publisher the item belongs to — v2 API paths are per publisher.
-  publisherId String
 
   /// Which connected Google account can read this item's status.
   connectionId String
@@ -867,6 +865,11 @@ model StoreConnection {
   userId      String
   /// Which Google account this is, so the UI can say whose access it is.
   googleEmail String
+
+  /// The publisher every item on this account belongs to. Lives here rather
+  /// than on the extension because it is the same value for all of them —
+  /// asking again per extension is asking the same question twice.
+  publisherId String?
 
   /// OAuth refresh token, AES-256-GCM. Access tokens last an hour; this is what
   /// survives, and it is exactly as sensitive as the account's store access.

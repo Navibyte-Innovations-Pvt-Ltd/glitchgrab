@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { FormProvider, useForm, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import {
@@ -8,6 +11,7 @@ import {
   Blocks,
   Check,
   Clock,
+  Copy,
   ExternalLink,
   FileWarning,
   Link2,
@@ -24,7 +28,6 @@ interface ExtensionRow {
   id: string;
   name: string;
   itemId: string;
-  publisherId: string;
   repoFullName: string | null;
   state: ReviewState;
   stateDetail: string | null;
@@ -44,6 +47,8 @@ interface ContextRepo {
 interface StoreConnection {
   id: string;
   googleEmail: string;
+  /** Null until the first extension supplies it — see the add form. */
+  publisherId: string | null;
   lastError: string | null;
 }
 
@@ -95,6 +100,8 @@ function relative(iso: string | null): string {
  * account cannot do at all. This asks for a click instead of a file.
  */
 function ConnectAccount({ connections }: { connections: StoreConnection[] }) {
+  const [link, setLink] = useState<string | null>(null);
+
   const mutation = useMutation({
     mutationFn: async () => {
       const { data } = await axios.post("/api/v1/extensions/connect");
@@ -106,6 +113,24 @@ function ConnectAccount({ connections }: { connections: StoreConnection[] }) {
       window.location.href = url;
     },
     onError: () => toast.error("Could not start the connection"),
+  });
+
+  // Same request, but the link is shown instead of followed. Google's consent
+  // screen fails with a bare "400. That's an error" and no way to see what was
+  // sent — having the URL in hand is the difference between reading the
+  // client_id and scopes off it and guessing.
+  const copyLink = useMutation({
+    mutationFn: async () => {
+      const { data } = await axios.post("/api/v1/extensions/connect");
+      const url = (data.data as { url: string }).url;
+      await navigator.clipboard.writeText(url);
+      return url;
+    },
+    onSuccess: (url) => {
+      setLink(url);
+      toast.success("Link copied — open it in this browser");
+    },
+    onError: () => toast.error("Could not copy the link"),
   });
 
   const broken = connections.find((c) => c.lastError);
@@ -127,20 +152,51 @@ function ConnectAccount({ connections }: { connections: StoreConnection[] }) {
           </div>
         </div>
 
-        <button
-          type="button"
-          disabled={mutation.isPending}
-          onClick={() => mutation.mutate()}
-          className="inline-flex items-center gap-2 font-mono text-[11px] px-3 py-2 rounded border border-primary/50 text-primary hover:bg-primary/10 disabled:opacity-50 shrink-0"
-        >
-          {mutation.isPending ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          ) : (
-            <Link2 className="w-3.5 h-3.5" />
-          )}
-          {connections.length === 0 ? "Connect Google account" : "Connect another"}
-        </button>
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <button
+            type="button"
+            disabled={copyLink.isPending}
+            onClick={() => copyLink.mutate()}
+            title="Copy the consent URL instead of following it"
+            className="inline-flex items-center gap-2 font-mono text-[11px] px-3 py-2 rounded border border-border text-muted-foreground hover:border-primary/40 hover:text-primary disabled:opacity-50"
+          >
+            {copyLink.isPending ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Copy className="w-3.5 h-3.5" />
+            )}
+            Copy link
+          </button>
+
+          <button
+            type="button"
+            disabled={mutation.isPending}
+            onClick={() => mutation.mutate()}
+            className="inline-flex items-center gap-2 font-mono text-[11px] px-3 py-2 rounded border border-primary/50 text-primary hover:bg-primary/10 disabled:opacity-50"
+          >
+            {mutation.isPending ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Link2 className="w-3.5 h-3.5" />
+            )}
+            {connections.length === 0 ? "Connect Google account" : "Connect another"}
+          </button>
+        </div>
       </div>
+
+      {link && (
+        <div className="space-y-1">
+          {/* Wrapped, not truncated: the point of showing it is to read the
+              client_id and scope arguments when Google refuses it. */}
+          <code className="block font-mono text-[10px] text-muted-foreground/80 break-all border border-border rounded p-2">
+            {link}
+          </code>
+          <p className="font-mono text-[10px] text-amber-400/80">
+            Open it in this browser — the link is tied to a cookie set when it
+            was made, so another browser or profile will refuse it.
+          </p>
+        </div>
+      )}
 
       {broken && (
         <div className="font-mono text-[10px] text-red-400/90">
@@ -156,13 +212,48 @@ function ConnectAccount({ connections }: { connections: StoreConnection[] }) {
   );
 }
 
-/** Register an extension to watch. Collapsed until asked for — most people add one, once. */
-function AddExtension({ onDone }: { onDone: () => void }) {
+/**
+ * What the add form collects.
+ *
+ * The link is validated as "contains a store id" rather than "is a URL": a bare
+ * 32-letter id is a perfectly good answer and refusing it would be pedantry.
+ */
+const watchSchema = z.object({
+  link: z.string().min(1, "Paste the Chrome Web Store link"),
+  name: z.string(),
+  repoId: z.string(),
+  publisherId: z.string(),
+});
+type WatchForm = z.infer<typeof watchSchema>;
+
+/**
+ * Register an extension to watch.
+ *
+ * One field that matters, because the store API cannot list a publisher's items
+ * — its whole surface is five per-item methods — so the id has to be supplied
+ * and the only question left is whether supplying it means typing or pasting.
+ * Paste the store link and the name arrives with it.
+ */
+function AddExtension({
+  connection,
+  onDone,
+}: {
+  connection: StoreConnection;
+  onDone: () => void;
+}) {
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [itemId, setItemId] = useState("");
-  const [publisherId, setPublisherId] = useState("");
-  const [repoId, setRepoId] = useState("");
+
+  const form = useForm<WatchForm>({
+    resolver: zodResolver(watchSchema),
+    mode: "onChange",
+    defaultValues: { link: "", name: "", repoId: "", publisherId: "" },
+  });
+
+  // useWatch, never form.watch() — the React Compiler rejects the latter.
+  const link = useWatch({ control: form.control, name: "link" }) ?? "";
+  const typedName = useWatch({ control: form.control, name: "name" }) ?? "";
+  const repoId = useWatch({ control: form.control, name: "repoId" }) ?? "";
+  const publisherId = useWatch({ control: form.control, name: "publisherId" }) ?? "";
 
   const { data: repos = [] } = useQuery<ContextRepo[]>({
     queryKey: ["project-context", "repos"],
@@ -172,21 +263,50 @@ function AddExtension({ onDone }: { onDone: () => void }) {
     },
   });
 
+  const trimmed = link.trim();
+  const itemId =
+    /[/=]([a-p]{32})(?:[/?#]|$)/.exec(trimmed)?.[1] ??
+    (/^[a-p]{32}$/.test(trimmed) ? trimmed : null);
+
+  // Fill the name in from the public listing the moment a valid id appears.
+  const lookup = useQuery<{
+    itemId: string;
+    name: string | null;
+    reason: "ok" | "no-listing" | "unreachable";
+    detail: string | null;
+  }>({
+    queryKey: ["store-lookup", itemId],
+    enabled: Boolean(itemId),
+    queryFn: async () => {
+      const { data } = await axios.get(
+        `/api/v1/extensions/lookup?q=${encodeURIComponent(trimmed || (itemId ?? ""))}`
+      );
+      return data.data;
+    },
+    retry: false,
+  });
+
+  // Three outcomes, not two. "It has no public page" means draft; "the store
+  // would not answer" and "we could not reach our own API" say nothing about
+  // the extension at all. Collapsing them told people their live extension was
+  // a draft.
+  const lookupFailed = lookup.isError || lookup.data?.reason === "unreachable";
+  const noListing = !lookup.isFetching && lookup.data?.reason === "no-listing";
+  const resolvedName = typedName.trim() || lookup.data?.name || "";
+
   const mutation = useMutation({
     mutationFn: async () => {
       const { data } = await axios.post("/api/v1/extensions", {
-        name: name.trim(),
-        itemId: itemId.trim(),
-        publisherId: publisherId.trim(),
+        name: resolvedName,
+        itemId: trimmed,
         repoId: repoId || null,
+        publisherId: publisherId.trim() || undefined,
       });
       return data.data;
     },
     onSuccess: () => {
-      toast.success("Watching it — first reading within 30 minutes");
-      setName("");
-      setItemId("");
-      setPublisherId("");
+      toast.success("Watching it — the store was read just now");
+      form.reset();
       setOpen(false);
       onDone();
     },
@@ -199,7 +319,8 @@ function AddExtension({ onDone }: { onDone: () => void }) {
     },
   });
 
-  const ready = name.trim() && /^[a-p]{32}$/.test(itemId.trim()) && publisherId.trim();
+  const needsPublisher = !connection.publisherId;
+  const ready = Boolean(itemId) && resolvedName && (!needsPublisher || publisherId.trim());
 
   if (!open) {
     return (
@@ -215,76 +336,144 @@ function AddExtension({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <div className="border border-border rounded p-3 space-y-3">
-      <div className="flex items-center gap-2">
-        <Blocks className="w-3.5 h-3.5 text-muted-foreground" />
-        <span className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground">
-          Watch an extension
-        </span>
-      </div>
+    <FormProvider {...form}>
+      <form
+        onSubmit={form.handleSubmit(() => mutation.mutate())}
+        className="border border-border rounded p-3 space-y-3"
+      >
+        <div className="flex items-center gap-2">
+          <Blocks className="w-3.5 h-3.5 text-muted-foreground" />
+          <span className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground">
+            Watch an extension
+          </span>
+        </div>
 
-      <div className="grid gap-2 sm:grid-cols-2">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Name — e.g. Glitchgrab Capture"
-          className="font-mono text-xs px-2 py-2 rounded border border-border bg-background"
-        />
-        <select
-          value={repoId}
-          onChange={(e) => setRepoId(e.target.value)}
-          className="font-mono text-xs px-2 py-2 rounded border border-border bg-background"
-        >
-          <option value="">No project</option>
-          {repos.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.fullName}
-            </option>
-          ))}
-        </select>
-        <input
-          value={itemId}
-          onChange={(e) => setItemId(e.target.value)}
-          placeholder="Extension id (32 letters)"
-          className="font-mono text-xs px-2 py-2 rounded border border-border bg-background"
-        />
-        <input
-          value={publisherId}
-          onChange={(e) => setPublisherId(e.target.value)}
-          placeholder="Publisher id"
-          className="font-mono text-xs px-2 py-2 rounded border border-border bg-background"
-        />
-      </div>
+        {/* Raw controls, deliberately: `InputField` is the house convention
+            (agent_docs/app-input-fields.md) but the copy vendored into this app
+            does not compile — its barrel pulls in tiptap, react-select, dnd-kit
+            and several PracticeStack-only modules that were never brought
+            across. The form is already react-hook-form shaped, so swapping the
+            three controls over is a small diff once that is fixed. */}
+        <label className="block space-y-1">
+          <span className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground">
+            Chrome Web Store link <span className="text-red-400">*</span>
+          </span>
+          <input
+            {...form.register("link")}
+            placeholder="https://chromewebstore.google.com/detail/…  — or just the 32-letter id"
+            className="w-full font-mono text-xs px-2 py-2 rounded border border-border bg-background"
+          />
+        </label>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          disabled={!ready || mutation.isPending}
-          onClick={() => mutation.mutate()}
-          className="inline-flex items-center gap-2 font-mono text-[11px] px-3 py-2 rounded border border-primary/50 text-primary hover:bg-primary/10 disabled:opacity-50"
-        >
-          {mutation.isPending ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          ) : (
-            <Plus className="w-3.5 h-3.5" />
-          )}
-          {mutation.isPending ? "Saving…" : "Start watching"}
-        </button>
-        <button
-          type="button"
-          onClick={() => setOpen(false)}
-          className="font-mono text-[11px] px-3 py-2 rounded border border-border text-muted-foreground hover:border-primary/30"
-        >
-          Cancel
-        </button>
-      </div>
+        {itemId && (
+          <div className="font-mono text-[10px] text-muted-foreground/70">
+            {lookup.isFetching ? (
+              <span className="inline-flex items-center gap-1">
+                <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                reading the store listing…
+              </span>
+            ) : lookup.data?.name ? (
+              <span className="text-emerald-400/90">found “{lookup.data.name}”</span>
+            ) : lookupFailed ? (
+              <span className="text-red-400/90">
+                Could not read the store listing
+                {lookup.data?.detail ? ` (${lookup.data.detail})` : ""} — type the name
+                below, it changes nothing else.
+              </span>
+            ) : noListing ? (
+              <span className="text-amber-400/80">
+                No public listing — never published, or still a draft. Name it yourself.
+              </span>
+            ) : null}
+          </div>
+        )}
 
-      <p className="font-mono text-[10px] text-muted-foreground/60">
-        Extension id is the 32 letters in the store URL. Publisher id is in the
-        developer dashboard under Account. The store API cannot list them —
-        there is no endpoint for it, so they have to be typed once.
-      </p>
-    </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block space-y-1">
+            <span className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground">
+              Name
+            </span>
+            <input
+              {...form.register("name")}
+              placeholder={lookup.data?.name ?? "What you call it"}
+              className="w-full font-mono text-xs px-2 py-2 rounded border border-border bg-background"
+            />
+            {lookup.data?.name && (
+              <span className="font-mono text-[10px] text-muted-foreground/60">
+                Filled in from the store listing
+              </span>
+            )}
+          </label>
+
+          <label className="block space-y-1">
+            <span className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground">
+              Project
+            </span>
+            <select
+              {...form.register("repoId")}
+              className="w-full font-mono text-xs px-2 py-2 rounded border border-border bg-background"
+            >
+              <option value="">No project</option>
+              {repos.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.fullName}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        {/* Asked once per connected account, never again: every item on one
+            publisher shares it. */}
+        {needsPublisher && (
+          <label className="block space-y-1">
+            <span className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground">
+              Publisher id <span className="text-red-400">*</span>
+            </span>
+            <input
+              {...form.register("publisherId")}
+              placeholder="From the dashboard's Account page — not the extension id"
+              className="w-full font-mono text-xs px-2 py-2 rounded border border-border bg-background"
+            />
+            <span className="font-mono text-[10px] text-muted-foreground/60">
+              Developer dashboard → Account. Identifies your whole account, not
+              one extension — asked once, then never again.
+            </span>
+            {/* The two ids sit next to each other in this form and look
+                interchangeable. Saying so before submit beats a 404 from
+                Google that reads as "your extension is missing". */}
+            {/^[a-p]{32}$/.test(publisherId.trim()) && (
+              <span className="font-mono text-[10px] text-amber-400/90">
+                That is the extension id — the publisher id is a different value
+                on the dashboard&apos;s Account page.
+              </span>
+            )}
+          </label>
+        )}
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="submit"
+            disabled={!ready || mutation.isPending}
+            className="inline-flex items-center gap-2 font-mono text-[11px] px-3 py-2 rounded border border-primary/50 text-primary hover:bg-primary/10 disabled:opacity-50"
+          >
+            {mutation.isPending ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Plus className="w-3.5 h-3.5" />
+            )}
+            {mutation.isPending ? "Saving…" : "Start watching"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="font-mono text-[11px] px-3 py-2 rounded border border-border text-muted-foreground hover:border-primary/30"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    </FormProvider>
   );
 }
 
@@ -364,7 +553,7 @@ export function ExtensionsList() {
 
       {/* Adding an extension before there is an account to read it with would
           only ever end in a refusal, so the form waits. */}
-      {connections.length > 0 && <AddExtension onDone={refresh} />}
+      {connections[0] && <AddExtension connection={connections[0]} onDone={refresh} />}
 
       {extensions.length === 0 ? (
         <div className="border border-border rounded p-8 text-center space-y-3">
