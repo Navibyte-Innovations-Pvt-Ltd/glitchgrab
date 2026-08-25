@@ -1,3 +1,9 @@
+## [1.60.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.59.2...v1.60.0) (2026-08-25)
+
+### Features
+
+* **chrome-store:** add revision status parsing ([14d965f](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/14d965f40d256688ea1696de65848484a179eab5))
+
 ## [1.59.2](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.59.1...v1.59.2) (2026-08-25)
 
 ### Bug Fixes
