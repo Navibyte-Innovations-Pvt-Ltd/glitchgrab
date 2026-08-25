@@ -2,7 +2,8 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
-import { AlertTriangle, FileText, GitFork, Key, Loader2, RefreshCw, Search } from "lucide-react";
+import { AlertTriangle, FileText, GitFork, Key, Loader2, RefreshCw, Search, Sparkles } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -17,6 +18,7 @@ interface MergedRepo {
   tracked: boolean;
   inThisOrg: boolean;
   installed: boolean;
+  aiAssistEnabled: boolean;
 }
 
 export function OrgRepoList({
@@ -122,7 +124,7 @@ export function OrgRepoList({
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {tracked.map((repo) => (
-                  <RepoCard key={repo.fullName} repo={repo} />
+                  <RepoCard key={repo.fullName} repo={repo} orgSlug={orgSlug} />
                 ))}
               </div>
             </section>
@@ -135,7 +137,7 @@ export function OrgRepoList({
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {untracked.map((repo) => (
-                  <RepoCard key={repo.fullName} repo={repo} />
+                  <RepoCard key={repo.fullName} repo={repo} orgSlug={orgSlug} />
                 ))}
               </div>
             </section>
@@ -152,10 +154,46 @@ export function OrgRepoList({
   );
 }
 
-function RepoCard({ repo }: { repo: MergedRepo }) {
+function RepoCard({ repo, orgSlug }: { repo: MergedRepo; orgSlug: string }) {
   const [owner, name] = repo.fullName.includes("/")
     ? repo.fullName.split("/")
     : ["—", repo.fullName];
+
+  const qc = useQueryClient();
+  const router = useRouter();
+
+  /**
+   * The AI report assistant switch (#330).
+   *
+   * It used to exist only on the old /dashboard/repos card, which org owners
+   * never saw — the org repo list is the page they actually work in, so the
+   * toggle was effectively invisible. It lives here now.
+   *
+   * Owner-only and off by default: an SDK embedded in someone's app can be
+   * opened by any of their end users, and nobody should discover they enabled
+   * that by reading a bill.
+   */
+  const { mutate: toggleAiAssist, isPending: isTogglingAi } = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const { data } = await axios.patch(`/api/v1/repos/${repo.dbId}/ai-assist`, {
+        enabled,
+      });
+      return data.data as { aiAssistEnabled: boolean };
+    },
+    onSuccess: (result) => {
+      toast.success(
+        result.aiAssistEnabled
+          ? "AI assist on — reporters can have the AI write their report"
+          : "AI assist off — reporters see the plain form"
+      );
+      qc.invalidateQueries({ queryKey: ["org", orgSlug] });
+      // The card is server-rendered from a Prisma read, so the toggle state
+      // does not live in any query cache — refresh the route or the chip snaps
+      // back to its old label on the next render.
+      router.refresh();
+    },
+    onError: () => toast.error("Could not change AI assist"),
+  });
 
   return (
     <div
@@ -220,6 +258,41 @@ function RepoCard({ repo }: { repo: MergedRepo }) {
             <FileText className="h-3 w-3 shrink-0" />
             <span>{repo.reports} {repo.reports === 1 ? "report" : "reports"}</span>
           </div>
+        </div>
+      )}
+
+      {repo.tracked && repo.dbId && (
+        <div className="flex items-center justify-between pt-1 border-t border-border/50">
+          <span className="font-mono text-[10px] text-muted-foreground">
+            ai report assist
+          </span>
+          <button
+            type="button"
+            onClick={() => toggleAiAssist(!repo.aiAssistEnabled)}
+            disabled={isTogglingAi}
+            title={
+              repo.aiAssistEnabled
+                ? "AI assist is on — reporters can have the AI write their report. Click to turn off."
+                : "AI assist is off. Click to let reporters have the AI write their report for them."
+            }
+            aria-pressed={repo.aiAssistEnabled}
+            className={cn(
+              // min-h-8: this is a real button, not a status chip like the
+              // PRIVATE/ORG/LIVE labels above it. At py-1 it measured 25px,
+              // under the ~32px comfortable tap target.
+              "inline-flex items-center gap-1.5 min-h-8 px-2.5 rounded border font-mono text-[10px] uppercase tracking-wider transition-colors disabled:opacity-50",
+              repo.aiAssistEnabled
+                ? "border-primary/40 bg-primary/10 text-primary"
+                : "border-border bg-background text-muted-foreground hover:text-foreground hover:border-primary/40"
+            )}
+          >
+            {isTogglingAi ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Sparkles className="h-3 w-3" />
+            )}
+            {repo.aiAssistEnabled ? "on" : "off"}
+          </button>
         </div>
       )}
     </div>
