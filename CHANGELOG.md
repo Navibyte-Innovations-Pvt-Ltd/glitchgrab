@@ -1,3 +1,9 @@
+## [1.59.1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.59.0...v1.59.1) (2026-08-25)
+
+### Bug Fixes
+
+* **release-extension:** add build steps for @glitchgrab/report-ui in extension ([6f422ee](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/6f422ee73fe9ffe0ab2469e2819c38cba4ca0e38))
+
 ## [1.59.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.58.0...v1.59.0) (2026-08-25)
 
 ### Features
