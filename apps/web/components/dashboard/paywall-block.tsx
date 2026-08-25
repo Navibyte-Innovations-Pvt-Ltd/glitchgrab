@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle, ShieldAlert } from "lucide-react";
-import { UpgradeButton } from "@/app/dashboard/billing/upgrade-button";
+import { UpgradeButton } from "@/components/billing/upgrade-button";
 
 const FEATURES = [
   "Unlimited repos",
