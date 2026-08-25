@@ -107,6 +107,14 @@ jobs:
           BODY=$(echo "$RESPONSE" | sed '$d')
           CODE=$(echo "$RESPONSE" | tail -1)
 
+          if [ "$CODE" = "405" ]; then
+            # Next.js matched /extensions/[id] instead, because the release
+            # route is not in the deployed build. A 404 would have said this;
+            # 405 does not, so say it here.
+            echo "::error::$GG_API has no release endpoint yet — deploy Glitchgrab, then re-run this job."
+            exit 1
+          fi
+
           if [ "$CODE" != "200" ]; then
             echo "::error::Glitchgrab said $CODE: $(echo "$BODY" | jq -r '.error // .')"
             exit 1
@@ -165,6 +173,11 @@ jobs:
 
           BODY=$(echo "$RESPONSE" | sed '$d')
           CODE=$(echo "$RESPONSE" | tail -1)
+
+          if [ "$CODE" = "405" ]; then
+            echo "::error::$GG_API has no release endpoint yet — deploy Glitchgrab, then re-run this job."
+            exit 1
+          fi
 
           if [ "$CODE" != "200" ]; then
             # A real failure, unlike the bare 400 the old bpp action returned on
