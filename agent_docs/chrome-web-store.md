@@ -175,6 +175,19 @@ Values that arrive over the network (the version, the bump) are passed through
 `env:`, never interpolated into a `run:` line — a string spliced into `node -e`
 is an injection waiting for the day the response is not ours.
 
+### Two endpoint traps
+
+- **Uploads go to a different host path.** `POST /v2/publishers/…/items/…:upload`
+  makes Google parse the zip as JSON and answer *"Invalid JSON payload received.
+  Unexpected token. PK\u0003\u0004"* — the zip's own magic bytes. The real path
+  is `/upload/v2/…:upload?uploadType=media`, from the discovery document's
+  `mediaUpload.protocols.simple.path`. The resource URL and the upload URL are
+  not interchangeable.
+- **The zip's root must be the manifest.** Zipping the folder produces
+  `dist/manifest.json` inside the archive and the upload is refused with a
+  message that never mentions nesting. `packages/extension/zip.ts` does
+  `cd dist && zip …` for exactly this reason.
+
 ### Scope
 
 Releasing needs the **write** scope (`chromewebstore`), not the read-only one
