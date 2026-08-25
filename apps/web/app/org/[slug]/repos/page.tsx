@@ -65,6 +65,7 @@ export default async function OrgReposPage({ params }: { params: Promise<{ slug:
         tracked: !!db,
         inThisOrg: db?.orgId === ctx.orgId,
         installed: db?.installation !== null && db?.installation !== undefined,
+        aiAssistEnabled: db?.aiAssistEnabled ?? false,
       };
     });
 
