@@ -132,15 +132,59 @@ values before, and the failure has to be safe: an unrecognised value becomes
 `UNKNOWN`, never `PUBLISHED`, or the watcher goes quiet in exactly the case it
 exists for.
 
+## Releasing from CI
+
+`.github/workflows/release-extension.yml`. Fires on a push to `main` touching
+`packages/extension/**`, and by hand from the Actions tab (with a bump choice
+and a `dry_run` that builds and zips without submitting).
+
+**No repo holds Chrome Web Store credentials.** The workflow carries one `gg_`
+token and Glitchgrab does the talking, using the Google account connected in the
+dashboard. That is what removes the four per-repo secrets, the 7-day
+refresh-token expiry and the rotation cron.
+
+```
+push → infer bump from conventional commits
+     → GET  /api/v1/extensions/release?bump=…   (next version, from the STORE)
+     → stamp package.json + manifest.json
+     → bun run zip
+     → POST /api/v1/extensions/release          (zip; uploads + submits)
+     → tag extension-vX.Y.Z
+                        …hours later: cron/extension-watch → WhatsApp
+```
+
+Repo setup is one secret (`GLITCHGRAB_TOKEN`) and, optionally, a
+`GLITCHGRAB_API_URL` variable to point at a preview deployment.
+
+Three decisions worth keeping:
+
+- **The store is the version source of truth**, not a git tag. practice-stack
+  derives the version from its last tag and patches the JSON files at build time
+  without committing them, so repo and store drift until a release is refused
+  for a duplicate version. `GET /release` returns `max(published, submitted) + bump`,
+  which cannot drift.
+- **Upload and publish are one endpoint**, never two. An upload that is never
+  submitted is the Draft trap this whole feature exists to catch.
+- **A green tick means "submitted", nothing more.** The verdict lands hours or
+  days later and reaches you on WhatsApp. This is the opposite of
+  `PlasmoHQ/bpp@v3`, which returns a bare 400 on submissions that actually
+  succeeded — which is why practice-stack's step is `continue-on-error: true`
+  and its result means nothing at all.
+
+Values that arrive over the network (the version, the bump) are passed through
+`env:`, never interpolated into a `run:` line — a string spliced into `node -e`
+is an injection waiting for the day the response is not ours.
+
+### Scope
+
+Releasing needs the **write** scope (`chromewebstore`), not the read-only one
+the watcher started with. A write-scoped connection can push a new version to
+every existing user of every extension on that publisher account — which is the
+argument for it living in one place you control rather than as copies of a key
+file in every repo. An account connected before this change must be reconnected
+to pick up the wider scope.
+
 ## Not built yet
 
-The **publish side** — a reusable org-level workflow that reads the live store
-version, bumps `package.json` + `manifest.json`, tags, zips, uploads and
-submits, so no repo carries its own release logic. The pieces it must not
-repeat, taken from practice-stack's `release-extension.yml`:
-
-- `PlasmoHQ/bpp@v3` returns a bare **400** on a submission that actually
-  succeeded, so the step is `continue-on-error: true` and its result means
-  nothing. Call the v2 API directly instead.
-- Version lives in the git tag and is patched into the JSON files at build time
-  only, so the committed version numbers drift from what is on the store.
+Promoting the workflow to a **reusable** one in the org `.github` repo, so other
+repos call it in three lines instead of copying it.
