@@ -1,3 +1,15 @@
+## [1.59.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.58.0...v1.59.0) (2026-08-25)
+
+### Features
+
+* **release-extension:** fix: add error message for Glitchgrab's missing release endpoint ([5c64d75](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/5c64d754e7640f5daa24406ad99b3b707db3b3da))
+
+### Bug Fixes
+
+* **chrome-store:** add helper function to find highest version ([d3bf44e](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/d3bf44eb05128e61dc2f257bc0d8f2d531f47e63))
+* **release-extension:** update for Glitchgrab's new behavior ([44fb4e6](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/44fb4e66fa25e13d2d71945dac4a00a3806c360f))
+* **release:** update to read from Google's last known version ([86d4dc1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/86d4dc1bde2b6fc68c30e671421aa9a5c795dd09))
+
 ## [1.58.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.57.0...v1.58.0) (2026-08-25)
 
 ### Features
