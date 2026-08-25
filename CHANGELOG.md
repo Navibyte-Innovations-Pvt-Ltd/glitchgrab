@@ -1,3 +1,9 @@
+## [1.59.2](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.59.1...v1.59.2) (2026-08-25)
+
+### Bug Fixes
+
+* **chrome-web-store:** update endpoint traps and fix manifest structure ([8cb107d](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/8cb107d789a72725297d685f4bb4863b42879eda))
+
 ## [1.59.1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.59.0...v1.59.1) (2026-08-25)
 
 ### Bug Fixes
