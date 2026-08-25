@@ -221,30 +221,53 @@ export async function accessTokenForConnection(connectionId: string): Promise<st
   return ((await res.json()) as TokenResponse).access_token;
 }
 
+/**
+ * One revision, exactly as `FetchItemStatusResponse` defines it.
+ *
+ * Written from the discovery document
+ * (`https://chromewebstore.googleapis.com/$discovery/rest?version=v2`), not
+ * guessed. There is **no `version` field on the revision** — the version lives
+ * one level deeper, on each distribution channel, as `crxVersion`. Guessing
+ * that wrong is why the dashboard read "live v—" while a version was plainly
+ * published.
+ */
 interface RevisionStatus {
-  version?: string;
+  /** PENDING_REVIEW | STAGED | PUBLISHED | PUBLISHED_TO_TESTERS | REJECTED | CANCELLED */
   state?: string;
-  reviewState?: string;
-  status?: string;
-  reviewSummary?: string;
-  reviewComment?: string;
+  distributionChannels?: { crxVersion?: string; deployPercentage?: number }[];
+}
+
+/** The version a revision shipped, from whichever channel carries one. */
+function revisionVersion(revision: RevisionStatus | undefined): string | null {
+  return revision?.distributionChannels?.find((c) => c.crxVersion)?.crxVersion ?? null;
 }
 
 /**
- * Fold the store's vocabulary into ours.
+ * Fold the store's revision states into ours.
  *
- * Matched on substrings rather than an exact set: Google has renamed these
- * states before, and an unrecognised value must degrade to UNKNOWN — never to
- * "published", which would silence exactly the alert this feature exists for.
+ * An exact switch over the documented enum, not substring matching: the
+ * previous version guessed at strings like "REVIEW" and "PUBLISH" and therefore
+ * matched nothing real. Anything unrecognised — `ITEM_STATE_UNSPECIFIED`, or
+ * whatever Google adds next — returns null and degrades to UNKNOWN, never to
+ * PUBLISHED. An unrecognised value must not read as good news.
  */
 function foldState(raw: string | undefined): ReviewState | null {
-  if (!raw) return null;
-  const value = raw.toUpperCase();
-  if (/REJECT|TAKEN.?DOWN|VIOLATION|SUSPEND/.test(value)) return "NEEDS_ATTENTION";
-  if (/REVIEW|PENDING|SUBMIT/.test(value)) return "IN_REVIEW";
-  if (/PUBLISH|LIVE/.test(value)) return "PUBLISHED";
-  if (/DRAFT|UNSUBMITTED/.test(value)) return "DRAFT";
-  return null;
+  switch (raw) {
+    case "PUBLISHED":
+    case "PUBLISHED_TO_TESTERS":
+      return "PUBLISHED";
+    case "PENDING_REVIEW":
+      return "IN_REVIEW";
+    case "REJECTED":
+      return "NEEDS_ATTENTION";
+    // Approved-but-held, and a withdrawn submission. Both are a package on the
+    // store that no user has — the Draft trap this feature exists to catch.
+    case "STAGED":
+    case "CANCELLED":
+      return "DRAFT";
+    default:
+      return null;
+  }
 }
 
 /**
@@ -274,40 +297,52 @@ export async function fetchItemStatus(params: {
   }
 
   const data = (await res.json()) as {
+    name?: string;
     publishedItemRevisionStatus?: RevisionStatus;
     submittedItemRevisionStatus?: RevisionStatus;
+    /** Warned for a policy violation; taken down if it is not resolved. */
+    warned?: boolean;
+    takenDown?: boolean;
   };
 
   const published = data.publishedItemRevisionStatus;
   const submitted = data.submittedItemRevisionStatus;
 
-  const detail =
-    submitted?.reviewSummary ??
-    submitted?.reviewComment ??
-    published?.reviewSummary ??
-    null;
+  const publishedVersion = revisionVersion(published);
+  const submittedVersion = revisionVersion(submitted);
 
-  const submittedState =
-    foldState(submitted?.reviewState) ??
-    foldState(submitted?.state) ??
-    foldState(submitted?.status);
-
-  // A submitted revision decides the state — it is the one with news. Only when
-  // nothing is pending does the published revision get to speak.
-  if (submitted) {
+  // These two outrank every revision state. A taken-down item can still carry a
+  // PUBLISHED revision, and reporting that as "live" is the one mistake this
+  // feature must never make.
+  if (data.takenDown) {
     return {
-      state: submittedState ?? "DRAFT",
-      publishedVersion: published?.version ?? null,
-      submittedVersion: submitted.version ?? null,
-      detail,
+      state: "NEEDS_ATTENTION",
+      publishedVersion,
+      submittedVersion,
+      detail: "Taken down for a policy violation — the reason is on the developer dashboard",
+    };
+  }
+  if (data.warned) {
+    return {
+      state: "NEEDS_ATTENTION",
+      publishedVersion,
+      submittedVersion,
+      detail: "Warned for a policy violation — it will be taken down if this is not resolved",
     };
   }
 
+  // A submitted revision is the one with news; the published one only speaks
+  // when nothing is pending.
+  const revision = submitted ?? published;
+  const state = foldState(revision?.state) ?? (published ? "PUBLISHED" : "UNKNOWN");
+
   return {
-    state: published ? "PUBLISHED" : "UNKNOWN",
-    publishedVersion: published?.version ?? null,
-    submittedVersion: null,
-    detail,
+    state,
+    publishedVersion,
+    submittedVersion,
+    // The API carries no reviewer prose — a rejection reason exists only in the
+    // dashboard — so point at it rather than inventing a summary.
+    detail: state === "NEEDS_ATTENTION" ? "Rejected — the reason is on the developer dashboard" : null,
   };
 }
 
