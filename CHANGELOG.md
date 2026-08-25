@@ -1,3 +1,30 @@
+## [1.57.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.56.0...v1.57.0) (2026-08-25)
+
+### Features
+
+* **chrome-store:** improve id parsing and extension name fetching ([c1d841c](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/c1d841cd86b1489efdc83cbfd00a2946fe0123a1))
+* **extension-watch.test:** add test for parsing Glitchgrab listing URLs ([88905d4](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/88905d45e713f0b8e597ea5f3b1dc8caf652102c))
+* **extensions:** implement fetching extension status before saving to database ([4997fbb](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/4997fbb378a7fe3b456bd7fc2bdc8cb27286e571))
+* **extensions:** prevent extension id typo ([e2d1c03](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/e2d1c03423be743f94cf5e60c7e76485d8513779))
+
+### Bug Fixes
+
+* **chrome-store:** add host and redirect checks ([f556cca](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/f556cca3ce46e2a3af156c32cb0cd5da60c7cc2f))
+* **chrome-store:** repair location headers ([0c24606](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/0c24606f98327d8c46d8d01a9e52c1548ac1e12c))
+* **chrome-store:** update publisher id for existing extensions ([b2011ef](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/b2011ef389bb009ba1266eda41ed1da4b910128e))
+* **chrome-web-store:** document removal of deprecated route from v1.1 discovery doc ([64dc678](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/64dc6782fd9a147cc309088cfaf32b66b931cf5d))
+* **extension-watch.test:** guard for signed-in users to forward requests to the server ([190c388](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/190c38811f28c36ea2efe6170e536134d1ee38df))
+* **extension-watch.test:** parseItemId now works as expected ([ae60a31](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/ae60a318d195c16f255e75d392f5e842b9ae7b8b))
+* **extension-watch:** use publisherId from storeConnection ([afc4a4f](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/afc4a4f05ecfa288753d0596ed69e2182814edae))
+* **extensions-list:** add functionality to copy consent URL ([82aa9ad](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/82aa9add377302c0f67b64e8457cab6ab4f03d9b))
+* **extensions-list:** update error handling for missing extension details ([5ec7416](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/5ec7416061f1029a9f2f6e0f5346b9bc167df790))
+* **extentions-list:** remove redundant message about draft status ([d0df356](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/d0df356ba1cd88c8ee6116668ee3a27d84fda79e))
+* **lookup:** add dynamic route to look up store listing names ([2278028](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/227802840cdb6b4a063e62b03ed5a8363aeaddc3))
+* **lookup:** add handling for public page and reason in fetchStoreListingName ([31f1ca2](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/31f1ca280bf97dabb0b27683c98fa989fe1e52a1))
+* **migration:** update publisher id in store connection ([53bc07d](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/53bc07dbacb7d655f4bdaf8d1de1fe7ec904ba60))
+* **prisma:** add missing publisherId field to StoreConnection model ([33c5d60](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/33c5d606325cea01f46d0273407dcb49712bad93))
+* use react-hook-form's controlled components and add validation ([b046c37](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/b046c3712aed68ed97b848130067812ca9b49189))
+
 ## [1.56.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.55.0...v1.56.0) (2026-08-24)
 
 ### Features
