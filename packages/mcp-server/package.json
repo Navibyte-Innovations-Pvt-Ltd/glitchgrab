@@ -1,0 +1,25 @@
+{
+  "name": "@glitchgrab/mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "glitchgrab-mcp": "./dist/index.js"
+  },
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --target node20 --clean",
+    "dev": "bun run src/index.ts",
+    "test": "bun test src/"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.23.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "tsup": "^8",
+    "typescript": "^5"
+  },
+  "files": ["dist", "README.md"]
+}
