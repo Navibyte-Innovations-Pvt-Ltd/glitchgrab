@@ -10,6 +10,11 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { createGitHubIssue } from "@/lib/github";
+import {
+  attachToExistingIssue,
+  buildDuplicateComment,
+  readDuplicateNumber,
+} from "@/lib/duplicate-issue";
 import { getInstallationAccessToken } from "@/lib/github-app";
 import { uploadScreenshotToS3 } from "@/lib/s3";
 import { getExtensionSessionIdentity, getExtensionSessionRepos } from "@/lib/extension-session";
@@ -42,6 +47,8 @@ interface ExtensionReportBody {
     platform?: string;
     viewport?: string;
     consoleErrors?: string;
+    /** Issue the assistant matched this to — validated server-side before use. */
+    duplicateIssueNumber?: string | number;
   };
 }
 
@@ -151,6 +158,30 @@ export async function POST(request: Request) {
       OTHER: "feedback",
     };
     const labels = [typeToLabel[body.type ?? "BUG"] ?? "bug", ...(severityValue ? [`severity:${severityValue}`] : [])];
+
+    // Already-open match (#330 follow-up): comment, don't open a second issue.
+    // Re-validated server-side against this repo — see `attachToExistingIssue`.
+    const duplicateNumber = readDuplicateNumber(body.metadata?.duplicateIssueNumber);
+    if (duplicateNumber) {
+      const attached = await attachToExistingIssue({
+        repoId: repo.id,
+        issueNumber: duplicateNumber,
+        body: buildDuplicateComment(issueBody),
+      });
+      if (attached) {
+        await prisma.report.update({ where: { id: report.id }, data: { status: "DUPLICATE" } });
+        return NextResponse.json({
+          success: true,
+          data: {
+            reportId: report.id,
+            status: "DUPLICATE",
+            issueUrl: attached.url,
+            issueNumber: attached.number,
+            message: `Added to issue #${attached.number} — already open`,
+          },
+        });
+      }
+    }
 
     try {
       const createdIssue = await createGitHubIssue(installationToken, {
