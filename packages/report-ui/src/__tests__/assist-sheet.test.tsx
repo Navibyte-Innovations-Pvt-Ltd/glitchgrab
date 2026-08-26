@@ -411,6 +411,35 @@ describe("AI assist sheet", () => {
     expect(mockReport.mock.calls[0][2]?.duplicateIssueNumber).toBeUndefined();
   });
 
+  // The assistant is an extra mode, and someone it is failing must always be
+  // one tap from the form — including on a phone, where this used to be a bare
+  // × that reads as "give up" rather than "switch".
+  it("offers the plain form from the sheet at every point in the conversation", async () => {
+    const assist = vi.fn().mockResolvedValue({
+      conversationId: "c1",
+      question: "Which page?",
+      report: null,
+    });
+    render(<ReportDialog report={mockReport} assist={assist} />);
+    await openDialog({ type: "BUG", description: "broken" });
+
+    // Header, from the first frame.
+    expect(sheet().getByRole("button", { name: /write it myself/i })).toBeInTheDocument();
+
+    await screen.findByText("Which page?");
+    // And again under the composer, where people actually give up.
+    const escapes = sheet().getAllByText(/write it myself|fill the form yourself/i);
+    expect(escapes.length).toBeGreaterThan(1);
+
+    await act(async () => {
+      fireEvent.click(sheet().getByText(/fill the form yourself/i));
+    });
+    // Back on the dialog, with what they typed intact and nothing filed.
+    expect(screen.getByText("Tell us more")).toBeVisible();
+    expect(screen.getByDisplayValue("broken")).toBeInTheDocument();
+    expect(mockReport).not.toHaveBeenCalled();
+  });
+
   // A host that opens straight on RATING gets the stars, not a chat about them.
   it("skips the conversation entirely when opened on RATING", async () => {
     const assist: AssistFn = vi.fn();
