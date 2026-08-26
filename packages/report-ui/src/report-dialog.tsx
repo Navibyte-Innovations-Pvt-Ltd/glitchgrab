@@ -11,6 +11,7 @@ import { createPortal } from "react-dom";
 import { AnnotationCanvas } from "./annotation-canvas";
 import { AssistSheet } from "./assist-sheet";
 import { getShortcutLabel } from "./shortcut";
+import { getTypeLabel } from "./labels";
 import { ATTACHMENT_ACCEPT } from "./attachments";
 import { encodeScreenshot } from "./image-encode";
 import type {
@@ -490,6 +491,22 @@ export function ReportDialog({
   const [assistOpen, setAssistOpen] = useState(false);
   const [assistNotice, setAssistNotice] = useState<string | null>(null);
   const [assistUsed, setAssistUsed] = useState(false);
+  /**
+   * Has anyone actually said what this report is?
+   *
+   * `reportType` has always defaulted to "BUG", which was fine while the tile
+   * grid was the first thing anyone saw. Now that ⌘⇧G opens the assistant
+   * first, that default would silently file a rating request as a bug — so the
+   * sheet asks, and this is how it knows whether it still has to.
+   */
+  const [typeChosen, setTypeChosen] = useState(false);
+  /**
+   * The already-open issue the assistant matched this report to (#330
+   * follow-up). Held here rather than in the sheet because `handleSubmit` is
+   * the one submit path — the number rides in report metadata and the server
+   * re-validates it, so a comment replaces the second identical issue.
+   */
+  const [duplicateIssueNumber, setDuplicateIssueNumber] = useState<number | null>(null);
   const [isEnhanced, setIsEnhanced] = useState(false);
   const [originalDescription, setOriginalDescription] = useState<string | null>(
     null,
@@ -665,6 +682,7 @@ export function ReportDialog({
         e.preventDefault();
         setRating(Number(e.key));
         setReportType("RATING");
+        setTypeChosen(true);
         setStep(2);
         return;
       }
@@ -677,6 +695,7 @@ export function ReportDialog({
       if (match) {
         e.preventDefault();
         setReportType(match);
+        setTypeChosen(true);
         setStep(2);
       }
     };
@@ -754,10 +773,17 @@ export function ReportDialog({
     setAnnotatingIndex(null);
     if (availableTypes.length === 1) {
       setReportType(availableTypes[0]);
+      setTypeChosen(true);
       setStep(2);
     }
     const shot = await captureScreenshot();
     if (shot) setScreenshots([shot]);
+    // The assistant is the front door now, not a button inside the form: ⌘⇧G
+    // opens the sheet, which asks what this is before anything else. The tile
+    // grid is still exactly one tap away ("Write it myself"), and a project
+    // without the assistant — or one whose assistant degraded earlier in this
+    // page's life — opens on the grid the way it always did.
+    if (assist && !assistUsed) setAssistOpen(true);
     setIsOpen(true);
   };
 
@@ -769,6 +795,7 @@ export function ReportDialog({
       if (detail?.description) setDescription(detail.description);
       if (detail?.type) {
         setReportType(detail.type);
+        setTypeChosen(true);
         setStep(2);
       }
       handleOpen();
@@ -948,8 +975,13 @@ export function ReportDialog({
    * a translucent overlay — one report wearing two faces. Nothing is lost by
    * hiding it: the state is shared, so "Write it myself" brings it straight
    * back with everything intact.
+   *
+   * RATING used to be excluded here. It no longer is: the sheet asks what this
+   * is, so "Rate us" is one of the answers it has to be able to handle, and
+   * bouncing someone back to the dialog for the one non-report tile would be a
+   * surface switch mid-sentence.
    */
-  const sheetUp = !!assist && assistOpen && !isRating;
+  const sheetUp = !!assist && assistOpen;
 
   /**
    * `display:none` already takes the dialog out of the tab order, but it is set
@@ -983,6 +1015,8 @@ export function ReportDialog({
     setRating(0);
     setHoveredStar(0);
     setReportType("BUG");
+    setTypeChosen(false);
+    setDuplicateIssueNumber(null);
     setSeverity("medium");
     setValidationError(null);
     setVoiceError(null);
@@ -1199,6 +1233,9 @@ export function ReportDialog({
       if (attachments.length > 0) metadata.attachments = JSON.stringify(attachments);
       if (showSeverity && reportType === "BUG") {
         metadata.severity = severity;
+      }
+      if (duplicateIssueNumber) {
+        metadata.duplicateIssueNumber = String(duplicateIssueNumber);
       }
 
       const result = await report(
@@ -1543,6 +1580,7 @@ export function ReportDialog({
                                 onClick={() => {
                                   setRating(star);
                                   setReportType("RATING");
+                                  setTypeChosen(true);
                                   setStep(2);
                                 }}
                                 style={{
@@ -1653,6 +1691,7 @@ export function ReportDialog({
                             data-gg-type={type}
                             onClick={() => {
                               setReportType(type);
+                              setTypeChosen(true);
                               setStep(2);
                             }}
                             style={{
@@ -1780,6 +1819,7 @@ export function ReportDialog({
                             type="button"
                             onClick={() => {
                               setAssistNotice(null);
+                              setTypeChosen(true);
                               setAssistOpen(true);
                             }}
                             style={{
@@ -2889,6 +2929,26 @@ export function ReportDialog({
           attachmentCount={screenshots.length + attachments.length}
           context={{ ...(assistContext ?? {}), reportType }}
           reportTypeLabel={getTypeLabel(reportType)}
+          typePicked={typeChosen}
+          currentTile={reportType}
+          tiles={sendFeedback ? [...availableTypes, "RATING"] : availableTypes}
+          onPickType={(tile) => {
+            setReportType(tile);
+            setTypeChosen(true);
+            // Keep the dialog underneath in step with the sheet, so "Write it
+            // myself" lands on the form for the tile that was just picked
+            // rather than back on the grid.
+            setStep(2);
+          }}
+          onDuplicateChange={setDuplicateIssueNumber}
+          // The brief answered it: close everything rather than dropping them
+          // back onto an empty form, which reads as "file it anyway".
+          onFinish={handleClose}
+          rating={rating}
+          onRatingChange={(value) => {
+            setRating(value);
+            if (validationError) setValidationError(null);
+          }}
           projectSlot={headerSlot}
           reporterName={reporter?.name ?? null}
           description={description}
@@ -2921,27 +2981,6 @@ export function ReportDialog({
 }
 
 /* ─── Helpers ─── */
-
-function getTypeLabel(type: DialogTile): string {
-  switch (type) {
-    case "RATING":
-      return "Rating";
-    case "BUG":
-      return "Bug Report";
-    case "FEATURE_REQUEST":
-      return "Feature Request";
-    case "UI_IMPROVEMENT":
-      return "UI Improvement";
-    case "PERFORMANCE":
-      return "Performance";
-    case "SECURITY":
-      return "Security";
-    case "QUESTION":
-      return "Question";
-    case "OTHER":
-      return "Other";
-  }
-}
 
 function getPlaceholder(type: DialogTile, idx = 0, hasVoice = false): string {
   if (type === "RATING") return "What made it good — or what let you down? (optional)";
