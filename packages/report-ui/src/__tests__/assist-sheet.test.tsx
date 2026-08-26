@@ -47,14 +47,109 @@ describe("AI assist sheet", () => {
     expect(screen.queryByText("Describe it with AI")).not.toBeInTheDocument();
   });
 
-  it("offers the assistant when the host wires one", async () => {
+  // ⌘⇧G lands on the assistant, not on the form behind it. The form is still
+  // one tap away — "Write it myself" — which is what keeps this an extra mode.
+  it("opens straight into the sheet when the host wires an assistant", async () => {
     const assist: AssistFn = vi.fn();
     render(<ReportDialog report={mockReport} assist={assist} />);
     await openDialog({ type: "BUG" });
-    expect(screen.getByText("Describe it with AI")).toBeInTheDocument();
-    // The plain textarea is still right there — this is a second option, not a
-    // replacement for the form.
-    expect(screen.getByRole("textbox")).toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: /Describe your report with AI/i })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Write it myself")).toBeInTheDocument();
+  });
+
+  // Opened cold — no type — the sheet asks before anything else, as chips.
+  // No model turn is spent on a question a tap can answer.
+  it("asks what the report is before spending a model turn", async () => {
+    const assist = vi.fn().mockResolvedValue({
+      conversationId: "c1",
+      question: "Which page?",
+      report: null,
+    });
+    render(<ReportDialog report={mockReport} assist={assist} />);
+    await openDialog();
+
+    expect(sheet().getByText(/What do you want to do\?/i)).toBeInTheDocument();
+    expect(assist).not.toHaveBeenCalled();
+    // No composer yet — a chip is the answer, so a text box would only invite
+    // someone to type a type name we would then have to parse.
+    expect(screen.queryByPlaceholderText("Type your answer…")).not.toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(sheet().getByText("Feature Request"));
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    // Picked, and now it is a conversation.
+    expect(screen.getByPlaceholderText("Type your answer…")).toBeInTheDocument();
+    expect(sheet().getByText("Feature Request")).toBeInTheDocument();
+  });
+
+  // The picked tile has to reach the dialog's own state, or the report files
+  // as the default BUG no matter what the reporter chose.
+  it("files under the tile picked in the sheet", async () => {
+    const assist = vi.fn().mockResolvedValue({
+      conversationId: "c1",
+      question: null,
+      report: "The export button should also do CSV.",
+    });
+    render(<ReportDialog report={mockReport} assist={assist} />);
+    await openDialog();
+
+    await act(async () => {
+      fireEvent.click(sheet().getByText("Feature Request"));
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByText("It did the wrong thing"));
+      await new Promise((r) => setTimeout(r, 30));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Send Report" }));
+      await new Promise((r) => setTimeout(r, 30));
+    });
+
+    expect(mockReport.mock.calls[0][0]).toBe("FEATURE_REQUEST");
+  });
+
+  // A star needs no assistant. "Rate us" is a chip like any other, but it goes
+  // to the host's FeedbackFn and never near a model.
+  it("rates without a model turn, through the host's feedback fn", async () => {
+    const assist: AssistFn = vi.fn();
+    const sendFeedback = vi.fn().mockResolvedValue({ success: true });
+    render(
+      <ReportDialog report={mockReport} assist={assist} sendFeedback={sendFeedback} />
+    );
+    await openDialog();
+
+    await act(async () => {
+      fireEvent.click(sheet().getByText("★ Rate us"));
+    });
+    // Nothing to send yet — the stars are the payload.
+    expect(screen.getByRole("button", { name: /Pick a star first/i })).toBeDisabled();
+
+    await act(async () => {
+      fireEvent.click(sheet().getByLabelText("5 stars"));
+    });
+    fireEvent.change(sheet().getByPlaceholderText(/optional/i), {
+      target: { value: "works great" },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Send Rating" }));
+      await new Promise((r) => setTimeout(r, 30));
+    });
+
+    expect(sendFeedback).toHaveBeenCalledWith(5, "works great");
+    expect(assist).not.toHaveBeenCalled();
+    expect(mockReport).not.toHaveBeenCalled();
+  });
+
+  // A host with no feedback wiring must not be offered a chip that fails.
+  it("hides the rating chip when the host wired no feedback fn", async () => {
+    const assist: AssistFn = vi.fn();
+    render(<ReportDialog report={mockReport} assist={assist} />);
+    await openDialog();
+    expect(sheet().queryByText("★ Rate us")).not.toBeInTheDocument();
   });
 
   it("sends what the reporter already typed as the first message instead of making them retype it", async () => {
@@ -65,11 +160,6 @@ describe("AI assist sheet", () => {
     });
     render(<ReportDialog report={mockReport} assist={assist} />);
     await openDialog({ type: "BUG", description: "save button broken" });
-
-    await act(async () => {
-      fireEvent.click(screen.getByText("Describe it with AI"));
-      await new Promise((r) => setTimeout(r, 20));
-    });
 
     await waitFor(() => expect(assist).toHaveBeenCalled());
     const call = assist.mock.calls[0][0];
@@ -86,11 +176,6 @@ describe("AI assist sheet", () => {
     });
     render(<ReportDialog report={mockReport} assist={assist} />);
     await openDialog({ type: "BUG", description: "save broken" });
-
-    await act(async () => {
-      fireEvent.click(screen.getByText("Describe it with AI"));
-      await new Promise((r) => setTimeout(r, 30));
-    });
 
     await screen.findByText(/edit anything/i);
     expect(
@@ -114,10 +199,6 @@ describe("AI assist sheet", () => {
     await openDialog({ type: "BUG", description: "save broken" });
 
     await act(async () => {
-      fireEvent.click(screen.getByText("Describe it with AI"));
-      await new Promise((r) => setTimeout(r, 30));
-    });
-    await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Send Report" }));
       await new Promise((r) => setTimeout(r, 30));
     });
@@ -139,13 +220,9 @@ describe("AI assist sheet", () => {
     });
     render(<ReportDialog report={mockReport} assist={assist} />);
     await openDialog({ type: "BUG", description: "save broken" });
-    expect(screen.getByText("Tell us more")).toBeVisible();
 
-    await act(async () => {
-      fireEvent.click(screen.getByText("Describe it with AI"));
-      await new Promise((r) => setTimeout(r, 30));
-    });
-    // Still mounted — the screenshots and attachments live there — but gone.
+    // Still mounted — the screenshots and attachments live there — but gone
+    // from the screen for as long as the sheet is the surface in charge.
     expect(screen.getByText("Tell us more")).not.toBeVisible();
 
     await act(async () => {
@@ -166,10 +243,6 @@ describe("AI assist sheet", () => {
     await openDialog({ type: "BUG", description: "save broken" });
 
     await act(async () => {
-      fireEvent.click(screen.getByText("Describe it with AI"));
-      await new Promise((r) => setTimeout(r, 30));
-    });
-    await act(async () => {
       fireEvent.click(screen.getByText(/keep chatting/i));
     });
     expect(screen.getByPlaceholderText("Type your answer…")).toBeInTheDocument();
@@ -184,10 +257,6 @@ describe("AI assist sheet", () => {
     render(<ReportDialog report={mockReport} assist={assist} />);
     await openDialog({ type: "BUG" });
 
-    await act(async () => {
-      fireEvent.click(screen.getByText("Describe it with AI"));
-      await new Promise((r) => setTimeout(r, 20));
-    });
     // Nothing was typed, so nothing was sent — it waits for them.
     expect(assist).not.toHaveBeenCalled();
     const starter = screen.getByText("Something on this page is broken");
@@ -211,11 +280,6 @@ describe("AI assist sheet", () => {
     render(<ReportDialog report={mockReport} assist={assist} />);
     await openDialog({ type: "BUG", description: "it broke" });
 
-    await act(async () => {
-      fireEvent.click(screen.getByText("Describe it with AI"));
-      await new Promise((r) => setTimeout(r, 30));
-    });
-
     expect(
       screen.getByText("The AI assistant has hit this project's monthly limit.")
     ).toBeInTheDocument();
@@ -233,11 +297,6 @@ describe("AI assist sheet", () => {
     render(<ReportDialog report={mockReport} assist={assist} />);
     await openDialog({ type: "BUG", description: "broken" });
 
-    await act(async () => {
-      fireEvent.click(screen.getByText("Describe it with AI"));
-      await new Promise((r) => setTimeout(r, 30));
-    });
-
     expect(screen.getByText(/assistant is unavailable/i)).toBeInTheDocument();
     expect(screen.getByDisplayValue("broken")).toBeInTheDocument();
   });
@@ -252,10 +311,6 @@ describe("AI assist sheet", () => {
     render(<ReportDialog report={mockReport} assist={assist} />);
     await openDialog({ type: "BUG", description: "broken" });
 
-    await act(async () => {
-      fireEvent.click(screen.getByText("Describe it with AI"));
-      await new Promise((r) => setTimeout(r, 30));
-    });
     await screen.findByText("Which page?");
 
     await act(async () => {
@@ -263,7 +318,8 @@ describe("AI assist sheet", () => {
     });
     expect(screen.queryByText("Which page?")).not.toBeInTheDocument();
     expect(screen.getByDisplayValue("broken")).toBeInTheDocument();
-    expect(screen.getByText("Describe it with AI")).toBeInTheDocument();
+    // Backing out is not "used up": the in-form button is where they left it.
+    expect(screen.getByRole("button", { name: /Describe it with AI/i })).toBeInTheDocument();
   });
 
   it("passes the attached screenshot to the assistant so it can read it", async () => {
@@ -275,17 +331,88 @@ describe("AI assist sheet", () => {
     render(<ReportDialog report={mockReport} assist={assist} />);
     await openDialog({ type: "BUG", description: "look at this" });
 
-    await act(async () => {
-      fireEvent.click(screen.getByText("Describe it with AI"));
-      await new Promise((r) => setTimeout(r, 30));
-    });
-
     await waitFor(() => expect(assist).toHaveBeenCalled());
     expect(assist.mock.calls[0][0].screenshot).toContain("data:image");
   });
 
-  // A star rating is not something anyone needs help writing.
-  it("is hidden on the rating tile", async () => {
+  // Vague input used to produce another question ("what specifically?"), which
+  // is the one thing a person who cannot phrase it does not need.
+  it("renders the assistant's options as chips and sends the tapped one", async () => {
+    const assist = vi
+      .fn()
+      .mockResolvedValueOnce({
+        conversationId: "c1",
+        question: "I can see a list of repo cards.",
+        options: ["The cards feel cramped", "The toggle is hard to find", "Something else"],
+        report: null,
+      })
+      .mockResolvedValueOnce({
+        conversationId: "c1",
+        question: null,
+        options: [],
+        report: "The repo cards feel cramped.",
+      });
+    render(<ReportDialog report={mockReport} assist={assist} />);
+    await openDialog({ type: "UI_IMPROVEMENT", description: "i think it can be better" });
+
+    const chip = await screen.findByText("The cards feel cramped");
+    await act(async () => {
+      fireEvent.click(chip);
+      await new Promise((r) => setTimeout(r, 30));
+    });
+
+    expect(assist.mock.calls[1][0].messages.at(-1)).toEqual({
+      role: "user",
+      content: "The cards feel cramped",
+    });
+    // The row is gone once answered — a stale chip answers a question that has
+    // already moved on.
+    expect(screen.queryByText("The toggle is hard to find")).not.toBeInTheDocument();
+  });
+
+  // The whole point of the duplicate check: the reporter is told the team knows,
+  // and their words land on that issue instead of becoming a fifth copy of it.
+  it("says which issue this already is, and files onto it", async () => {
+    const assist = vi.fn().mockResolvedValue({
+      conversationId: "c1",
+      question: null,
+      report: "Save does nothing on the settings page.",
+      duplicate: { number: 123, title: "Save button does nothing", url: "https://x/123" },
+    });
+    render(<ReportDialog report={mockReport} assist={assist} />);
+    await openDialog({ type: "BUG", description: "save is broken" });
+
+    await screen.findByText(/already on this/i);
+    expect(sheet().getByText(/#123 Save button does nothing/)).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Add to #123" }));
+      await new Promise((r) => setTimeout(r, 30));
+    });
+    // Same submit path as every other report — the issue number rides in
+    // metadata, and the server decides whether to honour it.
+    expect(mockReport.mock.calls[0][2]).toMatchObject({ duplicateIssueNumber: "123" });
+  });
+
+  it("files normally when the assistant matched nothing", async () => {
+    const assist = vi.fn().mockResolvedValue({
+      conversationId: "c1",
+      question: null,
+      report: "Save does nothing.",
+      duplicate: null,
+    });
+    render(<ReportDialog report={mockReport} assist={assist} />);
+    await openDialog({ type: "BUG", description: "save is broken" });
+
+    await act(async () => {
+      fireEvent.click(await screen.findByRole("button", { name: "Send Report" }));
+      await new Promise((r) => setTimeout(r, 30));
+    });
+    expect(mockReport.mock.calls[0][2]?.duplicateIssueNumber).toBeUndefined();
+  });
+
+  // A host that opens straight on RATING gets the stars, not a chat about them.
+  it("skips the conversation entirely when opened on RATING", async () => {
     const assist: AssistFn = vi.fn();
     render(
       <ReportDialog
@@ -295,6 +422,8 @@ describe("AI assist sheet", () => {
       />
     );
     await openDialog({ type: "RATING" });
-    expect(screen.queryByText("Describe it with AI")).not.toBeInTheDocument();
+    expect(sheet().getByLabelText("5 stars")).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Type your answer…")).not.toBeInTheDocument();
+    expect(assist).not.toHaveBeenCalled();
   });
 });
