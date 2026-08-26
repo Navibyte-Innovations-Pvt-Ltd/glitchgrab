@@ -321,7 +321,10 @@ export async function assistTurn(
 ): Promise<{
   conversationId: string | null;
   question: string | null;
+  options?: string[];
   report: string | null;
+  duplicate?: { number: number; title: string; url: string } | null;
+  solved?: string | null;
   degraded?: string | null;
 }> {
   const offline = {
@@ -346,7 +349,14 @@ export async function assistTurn(
       error?: string;
       degrade?: boolean;
       disabled?: boolean;
-      data?: { conversationId?: string; question?: string | null; report?: string | null };
+      data?: {
+        conversationId?: string;
+        question?: string | null;
+        options?: string[];
+        report?: string | null;
+        duplicate?: { number: number; title: string; url: string } | null;
+        solved?: string | null;
+      };
     } | null;
 
     if (!response.ok || !envelope?.success) {
@@ -364,7 +374,10 @@ export async function assistTurn(
     return {
       conversationId: envelope.data?.conversationId ?? null,
       question: envelope.data?.question ?? null,
+      options: envelope.data?.options ?? [],
       report: envelope.data?.report ?? null,
+      duplicate: envelope.data?.duplicate ?? null,
+      solved: envelope.data?.solved ?? null,
       degraded: null,
     };
   } catch {
