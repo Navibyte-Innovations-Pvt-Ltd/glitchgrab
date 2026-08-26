@@ -4,6 +4,11 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { createGitHubIssue } from "@/lib/github";
+import {
+  attachToExistingIssue,
+  buildDuplicateComment,
+  readDuplicateNumber,
+} from "@/lib/duplicate-issue";
 import { getInstallationAccessToken } from "@/lib/github-app";
 import { uploadScreenshotToS3 } from "@/lib/s3";
 import {
@@ -286,6 +291,31 @@ export async function POST(request: Request) {
       issueBody += `\n\n---\n> **Reported by:** ${reporterParts.join(" ")} • **Created:** ${report.createdAt.toISOString()}\n\n*Reported via [Glitchgrab](https://glitchgrab.dev)*`;
     } else {
       issueBody += `\n\n---\n> **Created:** ${report.createdAt.toISOString()}\n\n*Reported via [Glitchgrab](https://glitchgrab.dev)*`;
+    }
+
+    // Already-open match (#330 follow-up): comment, don't open a second issue.
+    const duplicateNumber = readDuplicateNumber(
+      formData.getAll("duplicateIssueNumber").at(0)
+    );
+    if (duplicateNumber) {
+      const attached = await attachToExistingIssue({
+        repoId: repo.id,
+        issueNumber: duplicateNumber,
+        body: buildDuplicateComment(issueBody),
+      });
+      if (attached) {
+        await prisma.report.update({ where: { id: report.id }, data: { status: "DUPLICATE" } });
+        return NextResponse.json({
+          success: true,
+          data: {
+            reportId: report.id,
+            status: "DUPLICATE",
+            issueUrl: attached.url,
+            issueNumber: attached.number,
+            message: `Added to issue #${attached.number} — already open`,
+          },
+        });
+      }
     }
 
     try {
