@@ -257,6 +257,20 @@ billing decision, not a bug fix — and `getUserPlan()` returns `dev-bypass` whe
 `NODE_ENV=development`, so the block is invisible locally and lands first in
 production. See the note in `app/org/[slug]/layout.tsx`.
 
+## GLITCH.md and the MCP server
+
+Each repo can commit a `GLITCH.md` — what the product is, roles, entities,
+**guides and fixes**, areas, glossary, known limitations, do-not-report. The
+assistant answers from it FIRST and only files a report when the brief and the
+open issues have no answer; a confirmed answer closes with nothing filed and
+`AiAssistConversation.outcome = "SOLVED"`. This repo has one at the root.
+Glitchgrab never writes that file.
+
+`packages/mcp-server` (`@glitchgrab/mcp-server`) makes the project addressable
+by a coding agent: open issues, the brief, past reports, and filing one. The
+repo comes from the token, and `report_bug` uses the same pipeline as the SDK —
+see that package's README.
+
 ## Forms
 
 `apps/web` forms go through `InputField` — never raw shadcn inputs. Not usable in
