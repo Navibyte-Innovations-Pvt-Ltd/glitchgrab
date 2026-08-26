@@ -3,9 +3,17 @@
 
 const DEEPSEEK_URL = "https://api.deepseek.com/chat/completions";
 
+/**
+ * A content part. Images are only accepted by the vision model below; every
+ * other DeepSeek model answers "This model does not support image".
+ */
+export type ChatPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
 interface ChatMessage {
   role: "system" | "user" | "assistant";
-  content: string;
+  content: string | ChatPart[];
 }
 
 interface ChatParams {
@@ -18,7 +26,16 @@ interface ChatParams {
   //  - "deepseek-v4-pro": strongest; best at following the script/cluster rules.
   // Non-thinking modes follow literal format rules better than the thinking
   // (reasoner) mode, which tends to "think" and then drop instructions.
-  model?: "deepseek-v4-pro" | "deepseek-v4-flash" | "deepseek-chat" | "deepseek-reasoner";
+  //  - "deepseek-v4-flash-vision-exp": the ONLY DeepSeek model that accepts
+  //    images. It is a thinking model, so the answer lands in `content` only
+  //    after `reasoning_content` — starve it of tokens and `content` comes back
+  //    empty. Experimental, hence the -exp: treat availability as unreliable.
+  model?:
+    | "deepseek-v4-pro"
+    | "deepseek-v4-flash"
+    | "deepseek-v4-flash-vision-exp"
+    | "deepseek-chat"
+    | "deepseek-reasoner";
 }
 
 /**
@@ -34,7 +51,11 @@ export async function deepseekChat(params: ChatParams): Promise<string> {
   // Thinking-capable models (reasoner, v4-pro) spend tokens reasoning BEFORE the
   // final answer — give big headroom so the answer lands in `content` instead of
   // being truncated mid-thought (which left content empty → garbage fallbacks).
-  const defaultMaxTokens = model === "deepseek-reasoner" || model === "deepseek-v4-pro" ? 8192 : 2048;
+  const thinking =
+    model === "deepseek-reasoner" ||
+    model === "deepseek-v4-pro" ||
+    model === "deepseek-v4-flash-vision-exp";
+  const defaultMaxTokens = thinking ? 8192 : 2048;
   const body = JSON.stringify({
     model,
     messages: params.messages,
