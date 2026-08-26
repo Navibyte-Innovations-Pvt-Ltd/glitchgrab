@@ -108,3 +108,28 @@ export async function claimAssistTurn(params: ClaimParams): Promise<QuotaResult>
     remaining: Math.max(0, MONTHLY_CONVERSATION_CAP - used - 1),
   };
 }
+
+/**
+ * Record how a conversation ended.
+ *
+ * Only "SOLVED" is written today: the project's own brief answered the question
+ * and nothing was filed. That number is the argument for keeping GLITCH.md
+ * up to date — a team can see how many people it unstuck, and which question
+ * keeps coming back and should have been a fix instead of a paragraph.
+ *
+ * Never throws: an analytics write must not fail a reply the reporter is
+ * waiting on.
+ */
+export async function markConversationOutcome(
+  conversationId: string,
+  outcome: "SOLVED"
+): Promise<void> {
+  try {
+    await prisma.aiAssistConversation.update({
+      where: { id: conversationId },
+      data: { outcome },
+    });
+  } catch {
+    // Nothing to do — the conversation may have been pruned.
+  }
+}
