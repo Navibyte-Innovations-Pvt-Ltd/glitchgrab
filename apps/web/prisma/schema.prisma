@@ -560,6 +560,12 @@ model AiAssistConversation {
   tokenId   String?
   userId    String?
   testerId  String?
+  /// How the conversation ended. "SOLVED" means the project's own GLITCH.md
+  /// brief (or an open issue) answered it and the reporter said so — nothing
+  /// was filed. Counting those is how a team learns which guides are earning
+  /// their keep, and which question keeps coming back and should become a fix.
+  /// Null while a conversation is still open, or when it simply went quiet.
+  outcome   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
