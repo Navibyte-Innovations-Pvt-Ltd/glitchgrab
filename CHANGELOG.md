@@ -1,3 +1,41 @@
+## [1.62.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.61.0...v1.62.0) (2026-08-26)
+
+### Features
+
+* **api:** add issues route ([a83b2be](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/a83b2be4359425ed4db651e963d47e017208d4dc))
+* **client:** add GlitchgrabClient for communication with the Glitchgrab API ([8efb100](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/8efb100a4ef74f7597ef757d979dabff99618aa3))
+* **glitch-md:** add GLITCH.md parsing support ([28094cf](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/28094cf023db220629bf07c1f73bb31e4a636f67))
+* **issues:** fetch and rank open issues ([56f1ced](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/56f1ced3146725ce144ea60631ffe7b5430ba15c))
+* **readme:** add instructions for setting up the project and tools ([5f1b64d](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/5f1b64dc36b8b90fe694cbca95e2f15bc8cd4b02))
+* **report-chat:** update response handling for GLITCH.md and open issues ([7cb2fd6](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/7cb2fd6faa6fb873653e2a6ec2fafab7fc5304e2))
+* **report-ui.test:** refactor assist sheet tests ([459aaf9](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/459aaf9294b1bb99f200c6e092f2eec67325e712))
+* **report:** implement duplicate issue handling in SDK report route ([c8ffd50](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/c8ffd5011653b009fa0affae07eee53b44777721))
+* **reports:** add duplicate comment handling for issues ([9db17db](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/9db17db9e6feb3dce94768d6a78e03fe6f02ce29))
+* **src:** add Glitchgrab MCP server ([d31ea2b](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/d31ea2b8b3ff0d52b99670f5e41b03c02567aa84))
+* **tsconfig:** add new config file for mcp-server ([ed7a003](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/ed7a0034cbce6f2c5a10ecbd5340d382b75b74fd))
+
+### Bug Fixes
+
+* **chat:** improve deepseek model selection ([c49e7bd](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/c49e7bd0d16b78b6b786c2edaafe745730b9c9e8))
+* **claude:** update CLAUDE.md for new features and fixes ([4941669](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/4941669bbd55f3a91ca557eff75c4c643f02f712))
+* **client:** add image support to DeepSeek chat model ([ff99ddc](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/ff99ddc468a037cbca082a456ba5cecda0d3b91c))
+* **context:** add SDK context route endpoint ([62418e1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/62418e15a878563014a79460d84f1ab3091fc731))
+* **duplicate-issue:** add new method to attach to an existing issue ([67bdc3e](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/67bdc3e8f3c34691ee6ab1cc73667a8ab1831d10))
+* **glitch-md.test:** handle large glossary lines in parseGlitchMd ([c7d925f](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/c7d925f29cd3859510570bf081d650bde031aed6))
+* **GLITCH.md:** add missing feature description ([263d45c](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/263d45cff9ae66f31b3af5a42913cf4310d9b310))
+* **issues.test:** add new tests for issue ranking and resolving ([7b47563](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/7b475636a88d5e7e3a566d4438010bfafbc5a944))
+* **labels:** add labels type function ([a3eb82f](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/a3eb82f669bb4978bce9220aff7d95b15a67821b))
+* **package:** add build scripts ([d4eddf3](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/d4eddf33799af0cce0d5b3201ea92c7626ee329f))
+* **prisma:** update model AiAssistConversation to include outcome field ([39d8d3c](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/39d8d3cc4a9323abcb409f76c9a0f26762441217))
+* **quota:** add markConversationOutcome function ([89ef317](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/89ef317ffc520b5c41e48d90d1902ffc464f2229))
+* **report-dialog:** set initial state of report type and duplicate issue number ([d2dcc7b](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/d2dcc7b68a5d975d48898e47fa26468c981070c2))
+* **report-ui:** add "Write it myself" button for chat assistant ([9d9d914](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/9d9d9146dff7f245591e8b88b39c157db4938f93))
+* **report-ui:** update test for handling form completion in assistant sheet ([3551851](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/3551851fd55909d9abbd27065cb23d551b6be469))
+* **report:** add options to report payload ([b719c12](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/b719c128614b0427fdba02d5f42c3239ea6b3d90))
+* **report:** handle duplicate reporting request ([62b9820](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/62b9820335554461b3927b081d7ff46c32aa69c0))
+* **src:** add support for tapable answers to assist turn results ([e58f493](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/e58f493a5be0f2196a4824f89e6600d084e8b005))
+* **utils:** add options and solved fields to assistTurn function ([6dc95a9](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/6dc95a9db51c7174843a9cf47637857d182633dc))
+
 ## [1.61.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.60.0...v1.61.0) (2026-08-25)
 
 ### Features
