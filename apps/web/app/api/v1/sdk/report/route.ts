@@ -4,6 +4,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { hashToken } from "@/lib/tokens";
 import { createGitHubIssue } from "@/lib/github";
+import {
+  attachToExistingIssue,
+  buildDuplicateComment,
+  readDuplicateNumber,
+} from "@/lib/duplicate-issue";
 import { getInstallationAccessToken } from "@/lib/github-app";
 import { uploadScreenshotToS3 } from "@/lib/s3";
 import {
@@ -42,7 +47,7 @@ export async function OPTIONS() {
 }
 
 interface SdkReportBody {
-  source: "SDK_AUTO" | "SDK_USER_REPORT" | "EXTENSION_TESTER";
+  source: "SDK_AUTO" | "SDK_USER_REPORT" | "EXTENSION_TESTER" | "MCP";
   type?:
     | "BUG"
     | "FEATURE_REQUEST"
@@ -230,7 +235,12 @@ export async function POST(request: Request) {
             ? "SDK_USER_REPORT"
             : body.source === "EXTENSION_TESTER"
               ? "EXTENSION_TESTER"
-              : "SDK_AUTO",
+              // A coding agent filing through the MCP server. Same pipeline,
+              // same dedup, same GitHub path — only the attribution differs, so
+              // a maintainer can tell a machine's report from a person's.
+              : body.source === "MCP"
+                ? "MCP"
+                : "SDK_AUTO",
         status: "PENDING",
         rawInput: description || null,
         errorStack: body.errorStack || null,
@@ -428,6 +438,39 @@ export async function POST(request: Request) {
       issueBody += "\n\n*Reported via [Glitchgrab](https://glitchgrab.dev) SDK*";
     } else {
       issueBody += `\n\n---\n> **Created:** ${report.createdAt.toISOString()}\n\n*Reported via [Glitchgrab](https://glitchgrab.dev) SDK*`;
+    }
+
+    // The assistant matched this to an issue that is already open: the words go
+    // onto that thread instead of opening a near-identical second one. The
+    // number came through client metadata, so `attachToExistingIssue` re-checks
+    // it against this repo's own open issues before writing anything, and a
+    // failed check falls through to the normal create below.
+    const duplicateNumber = readDuplicateNumber(body.metadata?.duplicateIssueNumber);
+    if (duplicateNumber) {
+      const attached = await attachToExistingIssue({
+        repoId: apiToken.repoId,
+        issueNumber: duplicateNumber,
+        body: buildDuplicateComment(issueBody),
+      });
+      if (attached) {
+        await prisma.report.update({
+          where: { id: report.id },
+          data: { status: "DUPLICATE" },
+        });
+        return NextResponse.json(
+          {
+            success: true,
+            data: {
+              reportId: report.id,
+              status: "DUPLICATE",
+              issueUrl: attached.url,
+              issueNumber: attached.number,
+              message: `Added to issue #${attached.number} — already open`,
+            },
+          },
+          { headers: rateLimitHeaders }
+        );
+      }
     }
 
     try {
