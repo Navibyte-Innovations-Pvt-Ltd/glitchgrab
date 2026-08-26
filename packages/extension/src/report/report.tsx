@@ -269,7 +269,14 @@ function App() {
       const data = (await res.json().catch(() => null)) as {
         success?: boolean;
         error?: string;
-        data?: { conversationId?: string; question?: string | null; report?: string | null };
+        data?: {
+          conversationId?: string;
+          question?: string | null;
+          options?: string[];
+          report?: string | null;
+          duplicate?: { number: number; title: string; url: string } | null;
+          solved?: string | null;
+        };
       } | null;
       if (!res.ok || !data?.success) {
         return { ...offline, degraded: data?.error ?? offline.degraded };
@@ -277,7 +284,10 @@ function App() {
       return {
         conversationId: data.data?.conversationId ?? null,
         question: data.data?.question ?? null,
+        options: data.data?.options ?? [],
         report: data.data?.report ?? null,
+        duplicate: data.data?.duplicate ?? null,
+        solved: data.data?.solved ?? null,
         degraded: null,
       };
     } catch {
