@@ -485,24 +485,32 @@ export function AssistSheet({
                 {projectSlot ? <span style={{ marginLeft: "6px" }}>{projectSlot}</span> : null}
               </div>
             </div>
+            {/* The way out of the assistant, on every width.
+                This used to be a bare × on a phone, which reads as "close the
+                whole thing" — so someone the assistant was not helping had no
+                visible way to reach the form, only a way to give up. It is a
+                switch, so it says what it switches to. */}
             <button
               type="button"
+              data-gg-write-myself=""
               onClick={onClose}
-              aria-label="Close and write it myself"
+              aria-label="Write it myself instead"
               style={{
                 flexShrink: 0,
-                border: "none",
+                border: `1px solid ${t.inputBorder}`,
+                borderRadius: "999px",
                 background: "transparent",
                 color: t.textMuted,
                 cursor: "pointer",
-                fontSize: narrow ? "18px" : "12px",
+                fontSize: "11.5px",
                 lineHeight: 1,
                 fontFamily: "inherit",
-                padding: narrow ? "4px 6px" : "6px 4px",
+                whiteSpace: "nowrap",
+                // ~32px tall either way — this is the escape hatch, not a hint.
+                padding: "9px 11px",
               }}
             >
-              {/* A phone header has no room for a sentence. */}
-              {narrow ? "×" : "Write it myself"}
+              Write it myself
             </button>
           </div>
 
@@ -1168,6 +1176,7 @@ export function AssistSheet({
                     onClick={() => send(input)}
                     disabled={busy || !input.trim()}
                     aria-label="Send message"
+                    data-gg-send-message=""
                     style={{
                       flexShrink: 0,
                       width: "42px",
@@ -1193,6 +1202,30 @@ export function AssistSheet({
                     </svg>
                   </button>
                 </div>
+              )}
+
+              {/* The moment people actually give up is two replies into a
+                  conversation that is not landing — not while looking at the
+                  header. Offer the form there, in as many words. */}
+              {phase === "chat" && messages.length > 0 && (
+                <button
+                  type="button"
+                  data-gg-write-myself=""
+                  onClick={onClose}
+                  style={{
+                    display: "block",
+                    margin: "8px auto 0",
+                    border: "none",
+                    background: "transparent",
+                    color: t.textMuted,
+                    fontSize: "11.5px",
+                    fontFamily: "inherit",
+                    padding: "6px 8px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Not getting it? Fill the form yourself →
+                </button>
               )}
             </div>
           )}
