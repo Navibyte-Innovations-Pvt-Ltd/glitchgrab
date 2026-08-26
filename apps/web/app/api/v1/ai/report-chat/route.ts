@@ -32,7 +32,9 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getExtensionSessionIdentity, getExtensionSessionRepos } from "@/lib/extension-session";
 import { getAccessibleRepos } from "@/lib/repo-access";
 import { assistTurn, type AssistMessage } from "@/lib/ai-assist/chat";
-import { claimAssistTurn } from "@/lib/ai-assist/quota";
+import { claimAssistTurn, markConversationOutcome } from "@/lib/ai-assist/quota";
+import { getOpenIssues, rankIssues, resolveIssue } from "@/lib/ai-assist/issues";
+import { briefToLines, getGlitchBrief } from "@/lib/ai-assist/glitch-md";
 import {
   MAX_HISTORY_MESSAGES,
   MAX_MESSAGE_CHARS,
@@ -246,6 +248,18 @@ export async function POST(request: Request) {
         ? body.screenshot
         : null;
 
+    // What is already open on this repo, so the reporter is told "we know" and
+    // their words land on the existing thread instead of a fifth copy of it.
+    // Titles only, ranked against what they have actually said — a repo with
+    // 500 open issues must not send 500 lines into a turn someone is waiting on.
+    // The team's own brief, if they wrote one. Read alongside the issue list so
+    // one slow GitHub call does not sit behind the other.
+    const [openIssues, brief] = await Promise.all([
+      getOpenIssues(caller.repoId),
+      getGlitchBrief(caller.repoId),
+    ]);
+    const ranked = rankIssues(openIssues, messages.map((m) => m.content).join(" "));
+
     const result = await assistTurn({
       messages,
       screenshot,
@@ -253,8 +267,19 @@ export async function POST(request: Request) {
         ...(body.context ?? {}),
         projectName: repo.name,
         projectNotes: notes.map((n) => n.text),
+        openIssues: ranked.map((i) => ({ number: i.number, title: i.title })),
+        brief: brief ? briefToLines(brief) : undefined,
       },
     });
+
+    // The model's duplicate pick is a claim about untrusted text. It becomes an
+    // action only if the number is really one of this repo's open issues —
+    // otherwise the report is filed the ordinary way.
+    const duplicate = resolveIssue(openIssues, result.duplicate);
+
+    // The brief answered it and nobody had to file anything. Worth counting:
+    // it is the only signal a team gets that their GLITCH.md is working.
+    if (result.solved) await markConversationOutcome(claim.conversationId, "SOLVED");
 
     return NextResponse.json(
       {
@@ -262,7 +287,12 @@ export async function POST(request: Request) {
         data: {
           conversationId: claim.conversationId,
           question: result.question,
+          options: result.options,
+          solved: result.solved,
           report: result.report,
+          duplicate: duplicate
+            ? { number: duplicate.number, title: duplicate.title, url: duplicate.url }
+            : null,
         },
       },
       { headers: CORS_HEADERS }
