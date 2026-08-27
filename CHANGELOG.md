@@ -1,3 +1,9 @@
+## [1.62.1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.62.0...v1.62.1) (2026-08-27)
+
+### Bug Fixes
+
+* **repo:** add .vercel to .gitignore ([e28e524](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/e28e524db843f5cd5a9230dd25e6f89f6de10a73))
+
 ## [1.62.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.61.0...v1.62.0) (2026-08-26)
 
 ### Features
