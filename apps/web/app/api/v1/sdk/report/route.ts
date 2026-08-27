@@ -24,6 +24,7 @@ import {
 } from "@/lib/attachments-constants";
 import { dispatchWebhook } from "@/lib/webhooks";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { linkConversationToReport } from "@/lib/ai-assist/quota";
 import { computeReportSignature, DEDUP_WINDOW_MS, OPEN_ISSUE_WINDOW_MS } from "@/lib/signature";
 
 const CORS_HEADERS = {
@@ -253,6 +254,14 @@ export async function POST(request: Request) {
         reporterEmail: body.metadata?.sessionUserEmail || null,
         reporterPhone: body.metadata?.sessionUserPhone || null,
       },
+    });
+
+    // Join the filed report back to the assistant chat that wrote it (#330).
+    // Best-effort and repo-scoped inside the helper — a forged id links nothing.
+    await linkConversationToReport({
+      conversationId: body.metadata?.aiConversationId,
+      repoId: apiToken.repoId,
+      reportId: report.id,
     });
 
     if (!apiToken.repo.installation) {
