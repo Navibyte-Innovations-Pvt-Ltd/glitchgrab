@@ -315,6 +315,13 @@ export async function assistTurn(
     conversationId: string | null;
     screenshot?: string | null;
     context?: Record<string, unknown> | null;
+    /**
+     * Who the host app says is logged in, from the provider's `session` prop.
+     * Stored against the conversation so a chat and the report it produced
+     * agree on who filed — one SDK token covers every end user of the host app,
+     * so without this every stranger's chat looks like the same person.
+     */
+    reporter?: { key?: string | null; name?: string | null; email?: string | null };
   },
   token: string,
   baseUrl?: string
