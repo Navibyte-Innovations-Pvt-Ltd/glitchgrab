@@ -98,6 +98,14 @@ interface AssistSheetProps {
    */
   onDuplicateChange?: (issueNumber: number | null) => void;
 
+  /**
+   * Tells the dialog which chat this is, so its ONE submit path carries the id
+   * into report metadata. That link is the only way to answer "how many prompts
+   * does a filed issue cost" — a conversation with no report against it is one
+   * that went nowhere, and that is a finding too.
+   */
+  onConversationChange?: (conversationId: string | null) => void;
+
   isSubmitting: boolean;
   submitted: boolean;
   onSend: () => void;
@@ -224,6 +232,7 @@ export function AssistSheet({
   onSeverityChange,
   showSeverity,
   onDuplicateChange,
+  onConversationChange,
   isSubmitting,
   submitted,
   onSend,
@@ -299,7 +308,10 @@ export function AssistSheet({
       onDegrade(result.degraded);
       return;
     }
-    if (result.conversationId) setConversationId(result.conversationId);
+    if (result.conversationId) {
+      setConversationId(result.conversationId);
+      onConversationChange?.(result.conversationId);
+    }
 
     setDuplicate(result.duplicate ?? null);
     onDuplicateChange?.(result.duplicate?.number ?? null);
