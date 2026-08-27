@@ -496,6 +496,14 @@ function GlitchgrabProviderInner({
       return assistTurn(
         {
           ...params,
+          // Same identity the report itself carries, from the same prop.
+          reporter: session
+            ? {
+                key: session.userId,
+                name: session.name ? String(session.name) : null,
+                email: session.email ? String(session.email) : null,
+              }
+            : undefined,
           context: {
             ...(params.context ?? {}),
             url: ctx.url,
@@ -509,7 +517,7 @@ function GlitchgrabProviderInner({
         baseUrl
       );
     },
-    [token, baseUrl]
+    [token, baseUrl, session]
   );
 
   const transcribe = useCallback(
