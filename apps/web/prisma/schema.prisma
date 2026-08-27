@@ -298,6 +298,9 @@ enum ReportSource {
   /// Filed via the GlitchRecord/Chrome-extension capture pipeline by a
   /// tester logged into the extension with a gg_ token (see #297)
   EXTENSION_TESTER
+  /// Extracted from a recorded client call by the meeting issue assistant.
+  /// The "reporter" is whoever recorded the call, not the person who spoke.
+  MEETING
 }
 
 enum ReportStatus {
@@ -309,39 +312,46 @@ enum ReportStatus {
 }
 
 model Report {
-  id                 String       @id @default(cuid())
-  repoId             String
-  tokenId            String?
-  source             ReportSource
-  status             ReportStatus @default(PENDING)
-  rawInput           String?
-  screenshot         String?
-  errorStack         String?
-  userAgent          String?
-  pageUrl            String?
+  id                     String       @id @default(cuid())
+  repoId                 String
+  tokenId                String?
+  source                 ReportSource
+  status                 ReportStatus @default(PENDING)
+  rawInput               String?
+  screenshot             String?
+  errorStack             String?
+  userAgent              String?
+  pageUrl                String?
   /// Hash of errorMessage + pageUrl + top stack frame for dedup
-  signature          String?
-  metadata           Json?
-  aiResponse         Json?
-  failReason         String?
+  signature              String?
+  metadata               Json?
+  aiResponse             Json?
+  failReason             String?
   /// Primary key of the reporter in the host app's database
-  reporterPrimaryKey String
-  reporterName       String
-  reporterEmail      String?
-  reporterPhone      String?
+  reporterPrimaryKey     String
+  reporterName           String
+  reporterEmail          String?
+  reporterPhone          String?
   /// When this report was run through project-context distillation (#311).
   /// Stamped even when the run produced nothing, so a report is never re-sent
   /// to the model — "no items" is an answer, not a retry.
-  contextDistilledAt DateTime?
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
+  contextDistilledAt     DateTime?
+  /// The assistant chat this report came out of, when it came out of one.
+  /// Null for every report typed by hand — which is how "did the assistant
+  /// help?" is answerable at all: the linked rows carry the turn count that
+  /// produced a filed issue, the unlinked ones are the baseline.
+  aiAssistConversationId String?
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
 
-  repo  Repo      @relation(fields: [repoId], references: [id], onDelete: Cascade)
-  token ApiToken? @relation(fields: [tokenId], references: [id], onDelete: SetNull)
-  issue Issue?
+  repo                 Repo                  @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  token                ApiToken?             @relation(fields: [tokenId], references: [id], onDelete: SetNull)
+  issue                Issue?
+  aiAssistConversation AiAssistConversation? @relation(fields: [aiAssistConversationId], references: [id], onDelete: SetNull)
 
   @@index([repoId, signature, createdAt])
   @@index([repoId, contextDistilledAt])
+  @@index([aiAssistConversationId])
 }
 
 model Issue {
@@ -549,29 +559,70 @@ model AiEnhanceLog {
 /// purpose and with consent, the moment they press Send. Keeping a second copy
 /// of every abandoned draft buys nothing and is a liability.
 model AiAssistConversation {
-  id        String   @id @default(cuid())
-  repoId    String
+  id            String   @id @default(cuid())
+  repoId        String
   /// Model round-trips spent. Hard-capped server-side (see lib/ai-assist/quota).
-  turns     Int      @default(0)
+  turns         Int      @default(0)
   /// Who was composing, for abuse tracing. All three are nullable and only one
   /// is ever set: SDK end users have a token, QA testers a testerId, dashboard
   /// and GlitchRecord owners a userId. Plain scalars, no FKs — a revoked token
   /// or a deleted tester must not erase the audit trail.
-  tokenId   String?
-  userId    String?
-  testerId  String?
+  tokenId       String?
+  userId        String?
+  testerId      String?
   /// How the conversation ended. "SOLVED" means the project's own GLITCH.md
   /// brief (or an open issue) answered it and the reporter said so — nothing
   /// was filed. Counting those is how a team learns which guides are earning
   /// their keep, and which question keeps coming back and should become a fix.
   /// Null while a conversation is still open, or when it simply went quiet.
-  outcome   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  outcome       String?
+  /// Who was typing, as the host app knows them. `tokenId`/`userId`/`testerId`
+  /// above identify the CREDENTIAL; these identify the PERSON — an SDK end user
+  /// is a stranger to us and one token covers all of them, so without this a
+  /// thousand conversations look like one caller. Same three fields the report
+  /// itself carries (`reporterPrimaryKey`/`reporterName`/`reporterEmail`), from
+  /// the same source, so a chat and the report it produced agree on who filed.
+  reporterKey   String?
+  reporterName  String?
+  reporterEmail String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  repo Repo @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  repo     Repo              @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  messages AiAssistMessage[]
+  reports  Report[]
 
   @@index([repoId, createdAt])
+}
+
+/// Every message of an assistant chat, both sides, in order.
+///
+/// This is a training corpus, not a feature: the question it exists to answer
+/// is "how many turns does a filed issue actually cost, and what did the model
+/// have to ask to get there". Joined to `Report.aiAssistConversationId` it says
+/// which transcripts ended in an issue and which went nowhere.
+///
+/// Written best-effort AFTER the reply is computed — a failed insert here must
+/// never fail a turn the reporter is waiting on.
+model AiAssistMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  /// "user" | "assistant"
+  role           String
+  content        String
+  /// 1-based model round-trip this message belongs to. The user message and
+  /// the reply it produced share a turn, which is what makes "prompts per
+  /// issue" countable without re-deriving it from timestamps.
+  turn           Int
+  /// Whether the model could see the screenshot on this turn. The image itself
+  /// is never stored — it is up to MAX_SCREENSHOT_CHARS of base64 per turn and
+  /// the only training signal in it is that it was there.
+  hadScreenshot  Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  conversation AiAssistConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
 }
 
 // Temporary click-capture sessions for Recordly script generation
@@ -1291,8 +1342,80 @@ model Meeting {
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
-  repo Repo? @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  /// When the issue assistant last read this call. Null = never extracted,
+  /// which is what the button on the call page keys off.
+  issuesExtractedAt DateTime?
+
+  repo   Repo?               @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  frames MeetingFrame[]
+  drafts MeetingIssueDraft[]
 
   @@index([repoId, startsAt])
   @@index([transcriptStatus])
+}
+
+/// A still frame the bot grabbed WHILE the call was running.
+///
+/// Frames are captured up front, on a cadence, because the alternative does not
+/// exist: by the time a transcript has been read and a model has an opinion
+/// about which moment mattered, the call is over and the pixels are gone. The
+/// only way to have a screenshot of the thing someone was demoing is to have
+/// already taken it.
+///
+/// They live in the PRIVATE recordings prefix (`lib/recordings.ts`), never the
+/// screenshot CDN — a frame of a client's shared screen is a client
+/// conversation, and the CDN is public-read.
+model MeetingFrame {
+  id        String   @id @default(cuid())
+  meetingId String
+  /// Milliseconds from the moment recording started, matching transcript time.
+  tMs       Int
+  /// S3 key, private prefix. Presigned GET only.
+  key       String
+  /// Bytes on disk. Used to spot a run of identical frames (a static screen)
+  /// without re-downloading them.
+  bytes     Int?
+  createdAt DateTime @default(now())
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@index([meetingId, tMs])
+}
+
+/// A GitHub issue the assistant thinks the call asked for, BEFORE anyone agreed.
+///
+/// Nothing here exists on GitHub. The whole point is the gap between "the model
+/// heard attendance and assumed a biometric device" and "we meant WhatsApp" —
+/// the draft is where that gets corrected, by chatting at it, until a human
+/// presses the button that files it.
+model MeetingIssueDraft {
+  id        String  @id @default(cuid())
+  meetingId String
+  title     String
+  body      String
+  labels    String[]
+  /// Lines from the transcript the draft is built on, as
+  /// `[{ speaker, text, tMs }]`. Shown in the panel so a wrong draft can be
+  /// traced to the sentence that caused it instead of argued with blindly.
+  quotes    Json?
+  /// Ids of the `MeetingFrame`s the model was looking at, as `string[]`.
+  frameIds  Json?
+  /// DRAFT → CREATED (filed on GitHub) or DISCARDED (rejected by a human).
+  status    String  @default("DRAFT")
+  /// The correction conversation for THIS draft, as `[{ role, content }]`.
+  /// Kept per-draft rather than per-meeting: a correction is almost always
+  /// about one misunderstood feature, and replaying every other draft's
+  /// arguments at the model is how a good draft gets rewritten into a bad one.
+  corrections Json?
+  /// Position in the panel. Stable across regenerations so a draft does not
+  /// jump while someone is typing at it.
+  position    Int      @default(0)
+  githubNumber Int?
+  githubUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@index([meetingId, position])
 }
