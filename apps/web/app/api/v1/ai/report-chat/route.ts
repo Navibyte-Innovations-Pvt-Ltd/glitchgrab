@@ -33,6 +33,7 @@ import { getExtensionSessionIdentity, getExtensionSessionRepos } from "@/lib/ext
 import { getAccessibleRepos } from "@/lib/repo-access";
 import { assistTurn, type AssistMessage } from "@/lib/ai-assist/chat";
 import { claimAssistTurn, markConversationOutcome } from "@/lib/ai-assist/quota";
+import { recordTurn } from "@/lib/ai-assist/transcript";
 import { getOpenIssues, rankIssues, resolveIssue } from "@/lib/ai-assist/issues";
 import { briefToLines, getGlitchBrief } from "@/lib/ai-assist/glitch-md";
 import {
@@ -72,6 +73,14 @@ interface ChatBody {
   repoId?: string;
   /** Extension/GlitchRecord only. */
   sessionId?: string;
+  /**
+   * Who is typing, as the HOST app knows them — the SDK's `session` prop.
+   * Used only on the token path, where the credential covers every end user of
+   * the host app at once and is therefore not an identity. The extension and
+   * dashboard paths ignore this and read the person off their own session,
+   * which the server already resolved.
+   */
+  reporter?: { key?: string | null; name?: string | null; email?: string | null };
 }
 
 interface Caller {
@@ -80,6 +89,10 @@ interface Caller {
   tokenId?: string | null;
   userId?: string | null;
   testerId?: string | null;
+  /** The person, not the credential. Stored on the conversation. */
+  reporterKey?: string | null;
+  reporterName?: string | null;
+  reporterEmail?: string | null;
 }
 
 /**
@@ -108,7 +121,17 @@ async function resolveCaller(
     prisma.apiToken
       .update({ where: { id: apiToken.id }, data: { lastUsed: new Date() } })
       .catch(() => {});
-    return { repoId: apiToken.repoId, rateKey: `aiassist:token:${tokenHash}`, tokenId: apiToken.id };
+    return {
+      repoId: apiToken.repoId,
+      rateKey: `aiassist:token:${tokenHash}`,
+      tokenId: apiToken.id,
+      // Client-supplied and unverifiable — the host app's own user record is
+      // not something we can check. Same trust level as the reporter fields on
+      // the report itself, which come from the same `session` prop.
+      reporterKey: body.reporter?.key ?? null,
+      reporterName: body.reporter?.name ?? null,
+      reporterEmail: body.reporter?.email ?? null,
+    };
   }
 
   if (body.sessionId) {
@@ -132,6 +155,11 @@ async function resolveCaller(
       rateKey: `aiassist:session:${body.sessionId}`,
       userId: identity.userId,
       testerId: identity.testerId,
+      // Server-resolved off the ExtensionSession — a tester cannot rename
+      // themselves into somebody else by editing a request body.
+      reporterKey: identity.testerEmail ?? identity.testerName,
+      reporterName: identity.testerName,
+      reporterEmail: identity.testerEmail,
     };
   }
 
@@ -150,7 +178,14 @@ async function resolveCaller(
       { status: 403, headers: CORS_HEADERS }
     );
   }
-  return { repoId: repo.id, rateKey: `aiassist:user:${session.user.id}`, userId: session.user.id };
+  return {
+    repoId: repo.id,
+    rateKey: `aiassist:user:${session.user.id}`,
+    userId: session.user.id,
+    reporterKey: session.user.id,
+    reporterName: session.user.name ?? null,
+    reporterEmail: session.user.email ?? null,
+  };
 }
 
 /** Trim the client's transcript to something bounded before it reaches a model. */
@@ -219,6 +254,9 @@ export async function POST(request: Request) {
       tokenId: caller.tokenId,
       userId: caller.userId,
       testerId: caller.testerId,
+      reporterKey: caller.reporterKey,
+      reporterName: caller.reporterName,
+      reporterEmail: caller.reporterEmail,
     });
     if (!claim.ok) {
       const error =
@@ -276,6 +314,20 @@ export async function POST(request: Request) {
     // action only if the number is really one of this repo's open issues —
     // otherwise the report is filed the ordinary way.
     const duplicate = resolveIssue(openIssues, result.duplicate);
+
+    // Keep both sides of the turn. Written after the reply is computed and
+    // deliberately not awaited-into-the-response-path's failure modes: it is a
+    // training write, and the reporter is waiting.
+    await recordTurn({
+      conversationId: claim.conversationId,
+      turn: claim.turn,
+      userMessage:
+        messages[messages.length - 1]?.role === "user"
+          ? messages[messages.length - 1].content
+          : null,
+      assistantMessage: result.report ?? result.question ?? result.solved ?? null,
+      hadScreenshot: !!screenshot,
+    });
 
     // The brief answered it and nobody had to file anything. Worth counting:
     // it is the only signal a team gets that their GLITCH.md is working.
