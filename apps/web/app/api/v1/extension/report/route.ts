@@ -18,6 +18,7 @@ import {
 import { getInstallationAccessToken } from "@/lib/github-app";
 import { uploadScreenshotToS3 } from "@/lib/s3";
 import { getExtensionSessionIdentity, getExtensionSessionRepos } from "@/lib/extension-session";
+import { linkConversationToReport } from "@/lib/ai-assist/quota";
 
 function deriveTitle(text: string): string {
   const trimmed = text.trim().replace(/\s+/g, " ");
@@ -49,6 +50,11 @@ interface ExtensionReportBody {
     consoleErrors?: string;
     /** Issue the assistant matched this to — validated server-side before use. */
     duplicateIssueNumber?: string | number;
+    /**
+     * The assistant chat this description came out of. Untrusted — resolved
+     * against this repo's own conversations before anything is written.
+     */
+    aiConversationId?: string;
   };
 }
 
@@ -104,6 +110,14 @@ export async function POST(request: Request) {
         reporterEmail: identity.testerEmail,
         metadata: body.metadata?.severity ? { severity: body.metadata.severity } : undefined,
       },
+    });
+
+    // Join the filed report back to the chat that wrote it (#330). Best-effort
+    // and repo-scoped inside the helper — a forged id links nothing.
+    await linkConversationToReport({
+      conversationId: body.metadata?.aiConversationId,
+      repoId: repo.id,
+      reportId: report.id,
     });
 
     const title = deriveTitle(body.description || "Bug report");
