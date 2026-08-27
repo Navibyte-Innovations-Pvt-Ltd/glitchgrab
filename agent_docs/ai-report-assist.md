@@ -65,10 +65,64 @@ guard is a hard cap with a graceful landing.
 - **40 requests/hour per credential** (`checkRateLimit`) so nobody burns a
   month's cap in a minute.
 
-`AiAssistConversation` is the row the cap counts. It stores **no message
-bodies** — the transcript is a draft bug report typed by an end user of somebody
-else's app, and it is already persisted, with consent, the moment they press
-Send. A second copy of every abandoned draft buys nothing and is a liability.
+`AiAssistConversation` is the row the cap counts.
+
+## The transcript store
+
+Every message of every chat is kept — both sides, in order — in
+`AiAssistMessage`, and the report a chat produced points back at it through
+`Report.aiAssistConversationId`.
+
+This reverses the feature's original refusal to store transcripts. The reason is
+one question that was unanswerable without them: **how many prompts does a filed
+issue actually cost.** `AiAssistConversation.turns` already counted round-trips,
+but with nothing joining a conversation to a report there was no way to separate
+the chats that ended in an issue from the ones that went nowhere. Both halves
+together are the training set for the next version of the prompt.
+
+Be honest about what this is: the text is a draft bug report typed by an end user
+of somebody else's app, and it is now retained whether or not they press Send. It
+is stored for **every repo with `aiAssistEnabled`** — there is no separate opt-in
+— and it is Glitchgrab-internal: no dashboard surface reads it, no endpoint
+returns it, owners cannot browse or delete it. If that changes, this paragraph is
+the one to update first.
+
+What is deliberately NOT stored: the screenshot. Up to `MAX_SCREENSHOT_CHARS` of
+base64 per turn, and the only training signal in it is that the model could see
+one — so `hadScreenshot` carries it.
+
+Mechanics worth knowing before touching `lib/ai-assist/transcript.ts`:
+
+- **Only the tail is written.** The client resends its whole history every turn,
+  so persisting `messages` wholesale would store turn one N times. The newest
+  user message plus the reply is exactly the new information.
+- **It swallows its own errors**, like `markConversationOutcome`. A reporter is
+  waiting on the reply; a training insert must never be what fails it.
+- **The link is untrusted.** `aiConversationId` rides in report metadata across
+  a submit boundary, so `linkConversationToReport` resolves it scoped to the
+  report's own repo — same pattern as `claimAssistTurn` — and links nothing when
+  it belongs elsewhere.
+- **`outcome` now has two values.** `"SOLVED"` (the brief answered it, nothing
+  filed) and `"FILED"` (a report came out). `"SOLVED"` outranks: a report filed
+  after a solved conversation is a separate decision.
+
+## Who was typing
+
+The conversation records the **person**, not just the credential:
+`reporterKey` / `reporterName` / `reporterEmail`, the same three fields the
+report itself carries. One SDK token covers every end user of the host app, so
+without these a thousand strangers' chats attribute to a single row.
+
+Where each host gets them:
+
+| Host | Source | Trust |
+|---|---|---|
+| SDK end user | `session` prop → `reporter` in the chat body | client-supplied, same as the report's own reporter fields |
+| extension / GlitchRecord | `ExtensionSession` identity | server-resolved — a tester cannot rename themselves in a body |
+| dashboard | NextAuth session | server-resolved |
+
+Identity that arrives late (a host that starts passing `session` mid-chat) fills
+a blank but never overwrites — the first attribution is the honest one.
 
 ## The model
 
