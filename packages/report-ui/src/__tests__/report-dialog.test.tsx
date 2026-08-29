@@ -736,4 +736,222 @@ describe("ReportDialog", () => {
       document.querySelectorAll('[role="dialog"]').forEach((el) => el.remove());
     });
   });
+
+  // ─── Voice never mangles typed text ─────────────────────
+
+  describe("voice input vs typing", () => {
+    const transcribeAudio = vi.fn().mockResolvedValue("");
+
+    /** Hold-to-talk and the mic only exist when the host can transcribe. */
+    const renderWithVoice = () =>
+      render(<ReportDialog report={mockReport} transcribeAudio={transcribeAudio} />);
+
+    const bugTextarea = () =>
+      screen.getByPlaceholderText(
+        /What went wrong|Hold space/i
+      ) as HTMLTextAreaElement;
+
+    const typeInto = (ta: HTMLTextAreaElement, value: string) => {
+      fireEvent.change(ta, { target: { value } });
+      ta.selectionStart = ta.selectionEnd = value.length;
+    };
+
+    it("leaves the caret alone when typing continues through a space hold", async () => {
+      renderWithVoice();
+      await openDialog({ type: "BUG" });
+      const ta = bugTextarea();
+
+      typeInto(ta, "the ");
+      // Space keydown arms push-to-talk. No keyup — the user just keeps typing,
+      // which is what a slow phone keyboard looks like from here.
+      fireEvent.keyDown(ta, { code: "Space", key: " " });
+      typeInto(ta, "the students");
+
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 500));
+      });
+
+      expect(ta.value).toBe("the students");
+      // The old code yanked the caret back to where the space was typed, so
+      // every following keystroke landed inside "students".
+      expect(ta.selectionStart).toBe(12);
+    });
+
+    it("still strips the space on a real hold from an empty field", async () => {
+      renderWithVoice();
+      await openDialog({ type: "BUG" });
+      const ta = bugTextarea();
+
+      // The hint that advertises this ("Hold Space to speak") is a placeholder,
+      // so this is the only state where a user is told the gesture exists.
+      fireEvent.keyDown(ta, { code: "Space", key: " " });
+      typeInto(ta, " ");
+
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 500));
+      });
+
+      expect(ta.value).toBe("");
+    });
+
+    it("never arms mid-sentence, however long the space is held", async () => {
+      renderWithVoice();
+      await openDialog({ type: "BUG" });
+      const ta = bugTextarea();
+
+      typeInto(ta, "the students");
+      fireEvent.keyDown(ta, { code: "Space", key: " " });
+      typeInto(ta, "the students ");
+
+      await act(async () => {
+        // Well past the hold threshold — a pause to think, not a gesture.
+        await new Promise((r) => setTimeout(r, 800));
+      });
+
+      // The space survives and the mic stays shut.
+      expect(ta.value).toBe("the students ");
+      expect(screen.getByTitle("Speak your report")).toBeInTheDocument();
+    });
+
+    it("types a whole sentence, one key at a time, unchanged", async () => {
+      renderWithVoice();
+      await openDialog({ type: "BUG" });
+      const ta = bugTextarea();
+
+      const sentence = "the students full name is not visible";
+      let wordsDone = 0;
+      for (const ch of sentence) {
+        const code = ch === " " ? "Space" : `Key${ch.toUpperCase()}`;
+        await act(async () => {
+          fireEvent.keyDown(ta, { key: ch, code });
+          const caret = ta.selectionStart ?? ta.value.length;
+          fireEvent.change(ta, {
+            target: { value: ta.value.slice(0, caret) + ch + ta.value.slice(caret) },
+          });
+          ta.selectionStart = ta.selectionEnd = caret + 1;
+          await new Promise((r) => setTimeout(r, 15));
+        });
+        // Pause on the space after "the" and after "name", finger still down —
+        // this is what stopping to think looks like from the keyboard's side.
+        const thinking = ch === " " && [0, 3].includes(wordsDone++);
+        await act(async () => {
+          await new Promise((r) => setTimeout(r, thinking ? 600 : 10));
+          fireEvent.keyUp(ta, { key: ch, code });
+        });
+      }
+
+      // Before the gate this came out "thestudents full nameis not visible" —
+      // each pause ate its space and opened the mic behind the user's back.
+      expect(ta.value).toBe(sentence);
+    }, 30000);
+
+    it("keeps words typed while the mic is open", async () => {
+      // Web Speech present, mic stream unavailable — the live-preview path only.
+      const instances: any[] = [];
+      class FakeRecognition {
+        lang = "";
+        interimResults = false;
+        continuous = false;
+        onstart: (() => void) | null = null;
+        onresult: ((e: any) => void) | null = null;
+        onend: (() => void) | null = null;
+        onerror: ((e: any) => void) | null = null;
+        start() {
+          instances.push(this);
+          this.onstart?.();
+        }
+        stop() {}
+      }
+      (window as any).webkitSpeechRecognition = FakeRecognition;
+      Object.defineProperty(navigator, "mediaDevices", {
+        configurable: true,
+        value: { getUserMedia: vi.fn().mockRejectedValue(new Error("no mic")) },
+      });
+
+      try {
+        renderWithVoice();
+        await openDialog({ type: "BUG" });
+        const ta = bugTextarea();
+
+        await act(async () => {
+          fireEvent.click(screen.getByTitle("Speak your report"));
+          await new Promise((r) => setTimeout(r, 0));
+        });
+        const rec = instances[0];
+        expect(rec).toBeTruthy();
+
+        const speak = (transcript: string) =>
+          act(() => {
+            rec.onresult({
+              resultIndex: 0,
+              results: [{ 0: { transcript }, isFinal: true, length: 1 }],
+            });
+          });
+
+        await speak("the page is blank");
+        // User types while the mic is still listening.
+        typeInto(ta, "the page is blank and slow");
+        await speak("on mobile");
+
+        // The old code rebuilt the field from the snapshot taken when
+        // listening started, so "and slow" disappeared on the next word heard.
+        expect(ta.value).toContain("and slow");
+        expect(ta.value).toContain("on mobile");
+      } finally {
+        delete (window as any).webkitSpeechRecognition;
+      }
+    });
+
+    it("keeps typed words when the transcript comes back (no Web Speech)", async () => {
+      // Firefox shape: a mic stream and a transcriber, no live preview. The
+      // result used to overwrite the field from the snapshot taken when
+      // recording started, deleting anything typed since.
+      const recorders: any[] = [];
+      class FakeMediaRecorder {
+        mimeType = "audio/webm";
+        ondataavailable: ((e: any) => void) | null = null;
+        onstop: (() => void) | null = null;
+        start() {
+          recorders.push(this);
+        }
+        stop() {
+          this.ondataavailable?.({ data: new Blob(["x"]) });
+          this.onstop?.();
+        }
+      }
+      (window as any).MediaRecorder = FakeMediaRecorder;
+      Object.defineProperty(navigator, "mediaDevices", {
+        configurable: true,
+        value: {
+          getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [] }),
+        },
+      });
+      transcribeAudio.mockResolvedValueOnce("on mobile");
+
+      try {
+        renderWithVoice();
+        await openDialog({ type: "BUG" });
+        const ta = bugTextarea();
+        typeInto(ta, "the page is blank");
+
+        await act(async () => {
+          fireEvent.click(screen.getByTitle("Speak your report"));
+          await new Promise((r) => setTimeout(r, 0));
+        });
+        expect(recorders[0]).toBeTruthy();
+
+        // User keeps typing while the mic runs, then stops it.
+        typeInto(ta, "the page is blank and slow");
+        await act(async () => {
+          recorders[0].stop();
+          await new Promise((r) => setTimeout(r, 10));
+        });
+
+        expect(ta.value).toContain("and slow");
+        expect(ta.value).toContain("on mobile");
+      } finally {
+        delete (window as any).MediaRecorder;
+      }
+    });
+  });
 });
