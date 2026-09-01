@@ -1,3 +1,27 @@
+## [1.37.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.36.0...sdk-v1.37.0) (2026-09-01)
+
+### Features
+
+* **migration:** add ai_assist_transcript model and tables ([15d0690](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/15d06908deb3d1578e1a209bf072bdcb59cdd2a6))
+* **provider:** set reporter on report object ([7e27741](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/7e27741814fae5fce5348b7da7244d47bd1b8f5e))
+* **quota:** add support for reporting and linking conversations to reports, refactoring `claimAssistTurn` ([83a9b0c](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/83a9b0c7d61c2a58fd3d8ff2919dd5e3e860cf62))
+* **report-chat:** add reporter key and name fields in resolveCaller ([d3bf1c9](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/d3bf1c9fee8b87bd68d66f02ba24fd64c09d65e5))
+* **report-ui:** update dialog conversation tracking with `onConversationChange` ([e20b82a](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/e20b82af81abf8e6bc3729ef75aef20feab42cdd))
+
+### Bug Fixes
+
+* **ai-report-assist:** store transcripts in `AiAssistMessage` ([9bd25ab](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/9bd25ab9453dbbcbb3b6e140378520b546da7a24))
+* **prisma:** add MeetingIssueDraft model ([35d8b44](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/35d8b4423700672819ac4e555ec86584b7d3d1d1))
+* **repo:** add .vercel to .gitignore ([e28e524](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/e28e524db843f5cd5a9230dd25e6f89f6de10a73))
+* **report-dialog.test:** improve voice input and typing handling ([33d048d](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/33d048d4ffafb58f89c712b6a5efb6a3caf8cffc))
+* **report-dialog:** add support for voice input in report dialog ([3922c60](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/3922c609cb4ade03c1fd2fea0cdcb6d39f1c35c5))
+* **report-ui:** add "Write it myself" button for chat assistant ([9d9d914](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/9d9d9146dff7f245591e8b88b39c157db4938f93))
+* **report-ui:** update test for handling form completion in assistant sheet ([3551851](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/3551851fd55909d9abbd27065cb23d551b6be469))
+* **report:** join filed report back to the assistant chat that wrote it ([7454f79](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/7454f792fa6fc49382659c7a58bc5a7902ce8f0a))
+* **report:** update AI-assist quota linking to conversations ([76ae326](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/76ae326a32d2ce988bdbcc82fa2c8f1ece7a7999))
+* **transcript:** add recordTurn function for storing assistant's transcript ([4ccacca](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/4ccaccacb85c88467a79740da64b19f64b8013e9))
+* **utils:** add reporter field to assistTurn function ([fe7fbfb](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/fe7fbfbf14dbc1fc731df1248072f5c313779b78))
+
 ## [1.36.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.35.0...sdk-v1.36.0) (2026-08-26)
 
 ### Features
