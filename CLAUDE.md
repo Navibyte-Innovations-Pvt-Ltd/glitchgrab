@@ -169,6 +169,11 @@ Records client calls, transcribes them, and files them against a project. Replac
 - **Speaker names** — the tab track is every remote participant mixed together, so diarization separates voices but can't name them. Names come from Meet's participant list (1-on-1 → that name replaces "Client") and Meet's captions (`lib/sarvam/speakers.ts`). Captions supply names only; words always come from Sarvam.
 - **Google Calendar** (`lib/calendar.ts`) — replaces cal.com. Reads upcoming events with a Meet link into `ScheduledRecording`, and `cron/meeting-dispatch` sends the bot ~6 min before start. The cron **claims a row before dispatching**, or two overlapping runs send two bots to the same call.
 - **Recording from a dev server** — the bot calls back to `apiBase` to report progress and upload, so `localhost` resolves to its own container and every recording is silently discarded. Dispatch refuses that combination outright. To test against a laptop: `bun run tunnel` (ngrok), put the https URL in `MEET_BOT_CALLBACK_URL`, restart the dev server — dotenvx reads env at start, so a running server never sees a new value.
+- **Issues from a call** — the "get issues from this call" button on a call page:
+  gemini-2.5-pro vision reads the transcript plus still frames the bot grabbed
+  *during* the call (there is no way to screenshot a moment after the fact), and
+  drafts issues you correct by chatting at them before anything reaches GitHub.
+  See `agent_docs/meeting-issues.md`.
 - **Access** — `lib/repo-access.ts`: repo owner OR explicit `RepoMember`. Org membership grants nothing; recordings are the most sensitive thing in the product.
 
 ## GlitchRecord ↔ extension capture pipeline
