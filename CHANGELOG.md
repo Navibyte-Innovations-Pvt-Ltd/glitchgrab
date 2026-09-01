@@ -1,3 +1,9 @@
+## [1.64.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.63.0...v1.64.0) (2026-09-01)
+
+### Features
+
+* **whatsapp-platform:** implement prepaid wallet functionality ([a725b94](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/a725b943f0182508b80b1222d80971bbf44f0e0d))
+
 ## [1.63.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.62.1...v1.63.0) (2026-09-01)
 
 ### Features
