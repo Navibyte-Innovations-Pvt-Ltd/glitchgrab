@@ -1,5 +1,6 @@
 import { readFile, stat } from "node:fs/promises";
 import type { BotCaption } from "./meet";
+import type { Frame } from "./frames";
 
 /**
  * Hand the finished recording to Glitchgrab (#311).
@@ -33,20 +34,80 @@ function headers(secret: string): Record<string, string> {
   };
 }
 
-async function put(url: string, body: Buffer, azure: boolean): Promise<boolean> {
+async function put(
+  url: string,
+  body: Buffer,
+  azure: boolean,
+  contentType = "audio/webm"
+): Promise<boolean> {
   try {
     const res = await fetch(url, {
       method: "PUT",
       headers: azure
         ? // Azure block blobs reject a PUT without this header.
-          { "x-ms-blob-type": "BlockBlob", "Content-Type": "audio/webm" }
-        : { "Content-Type": "audio/webm" },
+          { "x-ms-blob-type": "BlockBlob", "Content-Type": contentType }
+        : { "Content-Type": contentType },
       body: new Uint8Array(body),
     });
     return res.ok;
   } catch (err) {
     console.error("[bot] upload failed:", err);
     return false;
+  }
+}
+
+/**
+ * Ship the call's still frames.
+ *
+ * Entirely best effort, and last in the sequence on purpose: the audio is what
+ * we promised to keep, and a frame upload that fails must not turn a recorded
+ * call into a failed one. The server hands back one presigned PUT per frame —
+ * the images never pass through it, same as the audio.
+ */
+async function uploadFrames(params: {
+  apiBase: string;
+  secret: string;
+  meetingId: string;
+  frames: Frame[];
+}): Promise<number> {
+  if (params.frames.length === 0) return 0;
+
+  try {
+    const res = await fetch(`${params.apiBase}/api/v1/meetings/${params.meetingId}/frames`, {
+      method: "POST",
+      headers: headers(params.secret),
+      body: JSON.stringify({
+        frames: params.frames.map((f) => ({ tMs: f.tMs, bytes: f.bytes })),
+      }),
+    });
+    if (!res.ok) {
+      console.error("[bot] could not get frame upload urls:", res.status);
+      return 0;
+    }
+
+    const { data } = (await res.json()) as { data: { frames: { tMs: number; url: string }[] } };
+    const byTime = new Map(data.frames.map((f) => [f.tMs, f.url]));
+
+    let stored = 0;
+    // Four at a time: enough to get a few hundred small files up quickly,
+    // few enough not to starve the container at the end of a call.
+    for (let i = 0; i < params.frames.length; i += 4) {
+      const batch = params.frames.slice(i, i + 4);
+      const results = await Promise.all(
+        batch.map(async (f) => {
+          const url = byTime.get(f.tMs);
+          if (!url) return false;
+          const bytes = await readFile(f.path).catch(() => null);
+          if (!bytes) return false;
+          return put(url, bytes, false, "image/jpeg");
+        })
+      );
+      stored += results.filter(Boolean).length;
+    }
+    return stored;
+  } catch (err) {
+    console.error("[bot] frame upload failed:", err);
+    return 0;
   }
 }
 
@@ -58,6 +119,7 @@ export async function uploadRecording(params: {
   durationSec: number;
   participants: string[];
   captions: BotCaption[];
+  frames?: Frame[];
 }): Promise<{ ok: boolean; error?: string }> {
   const info = await stat(params.audioPath).catch(() => null);
   if (!info || info.size === 0) {
@@ -121,6 +183,16 @@ export async function uploadRecording(params: {
       offsetsMs: { tab: 0 },
     }),
   });
+
+  if (params.frames?.length) {
+    const uploaded = await uploadFrames({
+      apiBase: params.apiBase,
+      secret: params.secret,
+      meetingId: params.meetingId,
+      frames: params.frames,
+    });
+    console.log(`[bot] stored ${uploaded}/${params.frames.length} frames`);
+  }
 
   return stored.length > 0
     ? { ok: true }
