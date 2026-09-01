@@ -67,20 +67,59 @@ Therefore:
    from memory. Meta changes them, and the July 2025 shift from per-conversation
    to per-message pricing already invalidated one generation of assumptions.
 
-### Prepaid wallet, not invoicing
+### Prepaid wallets — two levels, one ledger
 
-Because Meta bills us, we carry the float and the non-payment risk. Kill both
-with a prepaid wallet:
+Recharge first, then send. Nothing is ever invoiced in arrears, at either level.
 
-- Platform tops up `WaWallet`. Balance held in paise, integer, never a float type.
-- Every send decrements the balance by the category-weighted price, written as a
-  `WaWalletTxn` in the same transaction as the `WaMessage` row.
-- Balance at or below zero blocks new sends and returns a typed error the SDK
-  surfaces. Inbound messages and autoreplies inside the free window still work.
-- Low-balance threshold fires a webhook to the platform's callback URL.
+```
+library admin --recharge--> [WaWallet ownerType=TENANT]
+                                      |  debit per message
+                                      v
+Abhyasika     --recharge--> [WaWallet ownerType=PLATFORM]
+                                      |  debit per message
+                                      v
+                                  Meta bill (our credit line)
+```
 
-No credit terms, no dunning, no collections. The float we carry is capped at
-Meta's billing lag, not at a customer's willingness to pay.
+A single send decrements both: the tenant's balance at the platform's sell price,
+the platform's balance at ours. Either one hitting zero blocks the send.
+
+**We run the ledger. We do not hold the tenant's money.**
+
+This distinction is the whole design. If library admins' rupees flowed through
+our account on the way to Abhyasika, we would be acting as a payment aggregator —
+RBI-regulated, licence required, not a fight worth picking. So:
+
+- The library admin pays Abhyasika through whatever rails Abhyasika already has.
+- Abhyasika then calls `wa.credit({ ownerId, amountPaise })` against our API.
+- We hold the *balance*, meter it, and block at zero.
+
+Abhyasika still writes no billing code and carries no float. We never custody a
+rupee belonging to someone we have no contract with. Only the platform-level
+wallet involves real money moving to us, and that party we do have a contract
+with.
+
+### Getting the debit right
+
+Three ways a prepaid wallet leaks money, all of them avoidable:
+
+1. **Race on concurrent sends.** Read-then-write lets two simultaneous sends both
+   pass a balance check and both debit, driving the balance negative. The debit
+   must be one conditional statement — `UPDATE WaWallet SET balancePaise =
+   balancePaise - :amt WHERE id = :id AND balancePaise >= :amt` — with zero rows
+   affected meaning insufficient funds, and the `WaMessage` + `WaWalletTxn` rows
+   written inside the same transaction.
+2. **Broadcasts running dry mid-flight.** A 10,000-recipient send must *reserve*
+   its estimated cost up front as a `HOLD` txn, settle against actual as
+   recipients complete, then release the remainder. Per-message checking gives
+   you a half-sent campaign with no clean way to report or resume it.
+3. **Debits for messages Meta never delivered.** A send can fail after the debit —
+   bad number, template paused, tenant quality block. Every such failure needs a
+   `REFUND` txn. This is why the ledger is an append-only transaction table and
+   not a single mutable balance column; the balance is a cached rollup of the
+   txns, and the txns are the truth.
+
+Money is `Int` paise everywhere. Never a float, never rupees.
 
 ## Tenancy
 
@@ -171,12 +210,17 @@ New models, all `Wa`-prefixed:
 - `WaAutoreplyRule` — tenantId, priority, matchType, pattern, replyKind, payload, enabled
 - `WaAgent` — tenantId, name, email, role (inbox seat, not a Glitchgrab `User`)
 - `WaWebhookEvent` — raw payload plus Meta's event id, unique, for dedupe
-- `WaPriceRule` — platformId, category, `sellPricePaise`, `metaCostPaise`, effectiveFrom
-- `WaWallet` — platformId, `balancePaise` (Int), lowBalanceThresholdPaise
-- `WaWalletTxn` — walletId, `amountPaise` (signed), kind (TOPUP | DEBIT | REFUND | ADJUSTMENT), messageId, balanceAfterPaise
+- `WaPriceRule` — platformId, category, `metaCostPaise` (our cost), `platformPricePaise`
+  (what we charge the platform), `tenantPricePaise` (what the platform charges its
+  tenant, set by the platform), effectiveFrom
+- `WaWallet` — `ownerType` (PLATFORM | TENANT), `ownerId`, `balancePaise` (Int),
+  `heldPaise` (Int), lowBalanceThresholdPaise; `@@unique([ownerType, ownerId])`
+- `WaWalletTxn` — walletId, `amountPaise` (signed), kind, messageId, broadcastId,
+  balanceAfterPaise, createdAt. Append-only; the wallet balance is its rollup.
 
 Enums: `WaTemplateStatus`, `WaTemplateCategory`, `WaMessageDirection`,
-`WaMessageStatus`, `WaBroadcastStatus`, `WaMatchType`, `WaWalletTxnKind`.
+`WaMessageStatus`, `WaBroadcastStatus`, `WaMatchType`, `WaWalletOwnerType`,
+`WaWalletTxnKind` (TOPUP | DEBIT | REFUND | HOLD | RELEASE | ADJUSTMENT).
 
 ## API surface
 
@@ -192,6 +236,9 @@ subscriber signup — do not build one until a real third party asks.
 - `POST /messages/send` — template or free-form; free-form rejected outside the window
 - `GET|POST /contacts`, `POST /contacts/import`, `POST /lists`
 - `POST /broadcasts`, `GET /broadcasts/:id`
+- `POST /wallet/credit` — platform credits a tenant's balance after collecting
+  payment on its own rails; `GET /wallet/balance`; `GET /wallet/transactions`
+- `POST /pricing` — platform sets its own per-category tenant sell price
 - `GET|POST /autoreply/rules`
 - `GET /conversations`, `GET /conversations/:id/messages`, `POST /conversations/:id/assign`
 - `POST /webhook` — single endpoint for every tenant
@@ -268,7 +315,8 @@ real rather than a promise.
 All four v1 features are in scope. Order matters because each depends on the last.
 
 1. **Foundation** — schema, migration, platform key auth, tenant scoping,
-   encrypted token storage, wallet + ledger, `WaPriceRule`.
+   encrypted token storage, both wallet levels, append-only ledger with atomic
+   conditional debit, `WaPriceRule`.
 2. **Connect** — Embedded Signup, token exchange, webhook subscription, number status.
 3. **Templates** — composer, Meta submit, approval polling (a cron, same shape
    as `cron/extension-watch`), send. Every send debits the wallet in the same
@@ -282,8 +330,9 @@ All four v1 features are in scope. Order matters because each depends on the las
    inbox tab.** A long-lived websocket does not survive Vercel's serverless
    functions, so the real choice is SSE on a streaming route or plain polling.
    Decide that before writing the UI — it dictates the deployment target.
-6. **Broadcast** — contacts, lists, import, throttled send, per-recipient status.
-   Honours the `optedOut` flag set back in phase 4.
+6. **Broadcast** — contacts, lists, import, throttled send, per-recipient status,
+   up-front wallet hold with settle-and-release. Honours the `optedOut` flag set
+   back in phase 4.
 
 Phases 1–3 are the first shippable product: connect a number, get a template
 approved, send it. Phase 5 is the largest single chunk and can ship after
@@ -302,6 +351,10 @@ customers are already sending.
    number. Do not overload them.
 8. Category-blind pricing loses money on marketing. Price per category or not at all.
 9. Money in paise as `Int`, never a float. Never bill off message count alone.
-10. The credit line, not the code, is the real dependency. If Meta refuses it,
+10. Read-then-write on a wallet balance goes negative under concurrency. One
+    conditional UPDATE, or nothing.
+11. Holding a tenant's money makes us a payment aggregator under RBI. We hold the
+    ledger; the platform holds the rupees.
+12. The credit line, not the code, is the real dependency. If Meta refuses it,
     the margin model dies and the product becomes a flat-fee tool — worth
     knowing before phase 1, not after phase 5.
