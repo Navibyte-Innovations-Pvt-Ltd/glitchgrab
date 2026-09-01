@@ -5,6 +5,7 @@ import axios from "axios";
 import Link from "next/link";
 import { ArrowLeft, Copy, Loader2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { MeetingIssues } from "./meeting-issues";
 
 interface MeetingDetail {
   id: string;
@@ -108,6 +109,11 @@ export function MeetingDetail({ meetingId, orgSlug }: { meetingId: string; orgSl
           <AudioTrack label="You (microphone)" url={data.micAudioUrl} />
         </div>
       )}
+
+      {/* Above the transcript on purpose: the reason anyone opens a finished
+          call is to act on it, and the transcript is the evidence behind that,
+          not the thing itself. */}
+      <MeetingIssues meetingId={meetingId} />
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
