@@ -2,6 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createSink, destroySink, startRecording } from "./audio";
+import { startFrameCapture } from "./frames";
 import {
   type EndReason,
   enableCaptions,
@@ -86,6 +87,12 @@ export async function runBotJob(params: JobParams): Promise<void> {
   const startedAt = Date.now();
   const recording = startRecording(audioPath, sink);
 
+  // Stills of what was on screen, on a cadence. The issue assistant reads them
+  // alongside the transcript — half of what a client "reports" on a call is
+  // pointed at rather than described. See src/frames.ts for why they cannot be
+  // taken after the fact.
+  const frameCapture = startFrameCapture(session.page, workDir, startedAt);
+
   // Captions are the only way to attach real names to voices on a group call —
   // the bot hears one mixed stream exactly like a human participant does.
   // A silent false here is indistinguishable from "nobody spoke", so say so.
@@ -119,6 +126,10 @@ export async function runBotJob(params: JobParams): Promise<void> {
 
   clearInterval(participantTimer);
   const captions = captionWatcher.stop();
+  // Stop before leaving: a screenshot of the "you left the call" screen is
+  // noise, and one taken mid-teardown throws.
+  const frames = frameCapture.stop();
+  console.log(`[bot] captured ${frames.length} frames`);
   const durationSec = (Date.now() - startedAt) / 1000;
 
   await recording.stop();
@@ -147,6 +158,7 @@ export async function runBotJob(params: JobParams): Promise<void> {
     durationSec,
     participants: [...participants],
     captions,
+    frames,
   });
 
   await status(result.ok ? "DONE" : "FAILED", result.error);
