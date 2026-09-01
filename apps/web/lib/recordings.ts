@@ -100,3 +100,57 @@ export async function presignRecordingPlayback(key: string): Promise<string> {
     { expiresIn: PLAYBACK_URL_TTL_SEC }
   );
 }
+
+// ─── Call frames (#issue-from-meeting) ───────────────────────────────────────
+// Still frames the bot grabs while the call runs. Same private prefix and the
+// same rules as the audio: a frame of a client's shared screen is a client
+// conversation, so it never touches the public screenshot CDN in `lib/s3.ts`.
+
+/** JPEG, so a long call's frames stay in megabytes rather than hundreds of them. */
+const FRAME_CONTENT_TYPE = "image/jpeg";
+
+/**
+ * Deterministic per-frame key. `tMs` is in the name so a re-uploaded frame
+ * overwrites itself instead of orphaning, and so a key alone says when it was.
+ */
+export async function frameKey(meetingId: string, tMs: number): Promise<string> {
+  return `${RECORDINGS_PREFIX}/${meetingId}/frames/${String(tMs).padStart(9, "0")}.jpg`;
+}
+
+/** A presigned PUT for one frame. Same direct-to-S3 reasoning as the audio. */
+export async function presignFrameUpload(
+  meetingId: string,
+  tMs: number
+): Promise<{ key: string; url: string }> {
+  const key = await frameKey(meetingId, tMs);
+
+  const command = new PutObjectCommand({
+    Bucket: bucket(),
+    Key: key,
+    ContentType: FRAME_CONTENT_TYPE,
+  });
+
+  const url = await getSignedUrl(
+    client() as unknown as PresignerClient,
+    command as unknown as PresignerCommand,
+    { expiresIn: UPLOAD_URL_TTL_SEC }
+  );
+
+  return { key, url };
+}
+
+/**
+ * Read one frame back as base64, for handing to a vision model.
+ *
+ * The bytes have to pass through the server here — a presigned URL would let
+ * the model fetch it, but Gemini takes inline data, and a public URL for a
+ * client's screen is exactly what this prefix exists to prevent.
+ */
+export async function getFrameBase64(key: string): Promise<string> {
+  const res = await client().send(
+    new GetObjectCommand({ Bucket: bucket(), Key: key })
+  );
+  const bytes = await res.Body?.transformToByteArray();
+  if (!bytes) throw new Error("FRAME_EMPTY");
+  return Buffer.from(bytes).toString("base64");
+}
