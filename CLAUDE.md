@@ -307,6 +307,15 @@ midnight IST, "show details" replies with the full repo list as free text (free
 credential, atomic claim, same-site redirects only. Changing where the button
 points needs NO template edit. See `agent_docs/whatsapp-magic-login.md`.
 
+## WhatsApp platform (Glitchgrab as Meta Tech Provider)
+
+Resells WhatsApp messaging as infra to other SaaS products (SevaStack,
+PracticeStack, Abhyasika) via a separate `@glitchgrab/whatsapp` SDK. Their
+business owner owns the number (messages carry HIS name); our credit line pays
+Meta, so we bill per message on a prepaid wallet. Price per template category —
+flat rates lose money on marketing. Separate Meta app, `Wa*` models, tenant is
+NOT `Organization`. See `agent_docs/whatsapp-platform.md`.
+
 ## Code conventions
 
 - TypeScript strict mode everywhere
