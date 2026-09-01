@@ -1,3 +1,41 @@
+## [1.63.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.62.1...v1.63.0) (2026-09-01)
+
+### Features
+
+* **api:** add API endpoints for meetings' still frame uploads and playback ([964281d](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/964281d4766b20f7b5755b99438ce80936571aab))
+* **chat:** add route to update meeting issue drafts ([d3876d9](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/d3876d932e1d812514ab8478beec2f25cb946e27))
+* **create:** add new route for creating issue drafts ([385aa3c](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/385aa3c8eab40ed83b5860432509b5a24b7dbdf8))
+* **frames:** add frame capture functionality ([a910171](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/a910171696b2ecba744696b27e54daacaad961bb))
+* **issue-drafts:** add route for listing issue drafts ([ed29654](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/ed296547d0529ba56e40c83ae290cd1cf5fe994b))
+* **meeting-issues:** add meeting issue generator ([16a4a07](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/16a4a07e2205d1eb67b9493111dcedfc1647aaee))
+* **meeting-issues:** add prompt tests ([b681750](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/b681750adaca2b79ce1714213506df37accc3e32))
+* **meeting-issues:** add quota logic ([3b96713](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/3b967137ac65f23f977fe552fc361b49fa4c77ec))
+* **migration:** add ai_assist_transcript model and tables ([15d0690](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/15d06908deb3d1578e1a209bf072bdcb59cdd2a6))
+* **provider:** set reporter on report object ([7e27741](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/7e27741814fae5fce5348b7da7244d47bd1b8f5e))
+* **quota:** add support for reporting and linking conversations to reports, refactoring `claimAssistTurn` ([83a9b0c](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/83a9b0c7d61c2a58fd3d8ff2919dd5e3e860cf62))
+* **recordings:** add frame-related logic and presigning for playback recordings ([87f347e](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/87f347e28b28d2e4e09dde3147919893c02a94f6))
+* **report-chat:** add reporter key and name fields in resolveCaller ([d3bf1c9](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/d3bf1c9fee8b87bd68d66f02ba24fd64c09d65e5))
+* **report-ui:** update dialog conversation tracking with `onConversationChange` ([e20b82a](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/e20b82af81abf8e6bc3729ef75aef20feab42cdd))
+* **upload:** improve frame upload efficiency ([dcf4aa2](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/dcf4aa2b3a75bf22ac50b35756332537914200b4))
+
+### Bug Fixes
+
+* **ai-report-assist:** store transcripts in `AiAssistMessage` ([9bd25ab](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/9bd25ab9453dbbcbb3b6e140378520b546da7a24))
+* **claude:** add issues from a call button ([c0683b5](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/c0683b54faab618c23beae7e8dd77a9160b6c8a2))
+* **claude:** add platform info about WhatsApp in CLAUDE.md ([838d146](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/838d14677cb7a6c53f97a20835cfc3bc8cf81e3a))
+* **extract:** extract issues using gemini-2.5-pro instead of deepseek ([cd03036](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/cd0303679b34e8a0b173f1687bc0948493ea4cc4))
+* **job:** add frame capturing support in bot job ([e75acfb](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/e75acfb8a8483d73ac4d4eeb6d367ae6cc84a541))
+* **meeting-detail:** add meeting issues component ([43ef2cc](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/43ef2cc868a7705983c4903551c2014805c3143d))
+* **prisma:** add MeetingIssueDraft model ([35d8b44](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/35d8b4423700672819ac4e555ec86584b7d3d1d1))
+* **prompt:** add prompt functions for turning recorded client calls into draft GitHub issues ([8ffe46a](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/8ffe46a3265c5436bdd16b1f26524ec26daf5479))
+* **repo:** add /meetings/[id]/issue-drafts/[draftId] route for dynamic handling of meeting issue drafts ([b5ffa4d](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/b5ffa4d83084fa940f1e2a08d8ff27d307775ba0))
+* **report-dialog.test:** improve voice input and typing handling ([33d048d](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/33d048d4ffafb58f89c712b6a5efb6a3caf8cffc))
+* **report-dialog:** add support for voice input in report dialog ([3922c60](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/3922c609cb4ade03c1fd2fea0cdcb6d39f1c35c5))
+* **report:** join filed report back to the assistant chat that wrote it ([7454f79](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/7454f792fa6fc49382659c7a58bc5a7902ce8f0a))
+* **report:** update AI-assist quota linking to conversations ([76ae326](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/76ae326a32d2ce988bdbcc82fa2c8f1ece7a7999))
+* **transcript:** add recordTurn function for storing assistant's transcript ([4ccacca](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/4ccaccacb85c88467a79740da64b19f64b8013e9))
+* **utils:** add reporter field to assistTurn function ([fe7fbfb](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/fe7fbfbf14dbc1fc731df1248072f5c313779b78))
+
 ## [1.62.1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.62.0...v1.62.1) (2026-08-27)
 
 ### Bug Fixes
