@@ -21,7 +21,7 @@ import { prisma } from "@/lib/db";
  * attaching to a closed thread hides the report from everyone.
  */
 
-export interface AttachResult {
+interface AttachResult {
   number: number;
   url: string;
 }
