@@ -516,35 +516,45 @@ against it — no credentials are configured yet.
 
 ### Env vars phase 2 needs
 
-None of these are set yet, and every one belongs to the **Tech Provider app**
-(Glitchgrab, `996021116131151`).
+Most of these already exist. Verified against Meta on 2026-09-02 by asking
+`oauth/access_token` which app each credential authenticates.
 
-**The existing `META_WA_*` values cannot be reused, and not for the reason you
-would guess.** Verified 2026-09-02 by calling `debug_token` on
-`META_WA_ACCESS_TOKEN`: that token belongs to app **`1390644442532883`
-("PracticeStacks")**, not to Glitchgrab. So `META_WA_APP_SECRET` is
-PracticeStacks' app secret and would fail every webhook signature check on a
-Glitchgrab-app webhook.
-
-Two consequences worth writing down:
-
-1. **Glitchgrab's own production WhatsApp — OTP, booking, digest, all of
-   `lib/whatsapp.ts` — runs on the PracticeStacks Meta app.** Whatever the
-   history there, it is a live coupling: a restriction on the PracticeStacks app
-   takes Glitchgrab's OTP down with it. Not this project's problem to fix, but
-   nobody should discover it during an incident.
-2. The token is a **system user token with `expires_at: 0`** — it never expires.
-   That is the right shape for a tenant token too, and what Embedded Signup
-   should be yielding in phase 2.
-
-| Var | What it is |
+| Var | State |
 |---|---|
-| `META_WA_PLATFORM_APP_ID` | Tech Provider app id (`996021116131151`) |
-| `META_WA_PLATFORM_APP_SECRET` | Its app secret — signs and verifies webhooks |
-| `META_WA_PLATFORM_VERIFY_TOKEN` | Any random string; must match the value typed into Meta's webhook config |
-| `META_WA_SIGNUP_CONFIG_ID` | Embedded Signup configuration id, from Embedded Signup Builder |
-| `META_WA_EXTENDED_CREDIT_ID` | Our credit line id. **Leave unset until one exists** — onboarding degrades gracefully without it |
+| `META_WA_PLATFORM_APP_ID` | Falls back to `META_WA_APP_ID`; the app is `996021116131151` |
+| `META_WA_PLATFORM_APP_SECRET` | **Already on disk** as `META_WA_APP_SECRET` — the code falls back to it |
+| `META_WA_PLATFORM_VERIFY_TOKEN` | Falls back to `META_WA_VERIFY_TOKEN`; a distinct one is cleaner |
+| `META_WA_SIGNUP_CONFIG_ID` | **Does not exist.** Created in Embedded Signup Builder, not looked up |
+| `META_WA_EXTENDED_CREDIT_ID` | Leave unset — no credit line; onboarding degrades gracefully |
 | `META_WA_CREDIT_CURRENCY` | Defaults to `INR` |
+
+### The env pair is mismatched, and it matters
+
+`META_WA_APP_SECRET` and `META_WA_ACCESS_TOKEN` belong to **different Meta apps**:
+
+- `META_WA_APP_SECRET` authenticates app **`996021116131151` (Glitchgrab)**.
+  Meta accepts it there and rejects it for PracticeStacks, so it is genuinely the
+  Tech Provider app's secret and the platform code reuses it directly.
+- `META_WA_ACCESS_TOKEN` is a system user token on app **`1390644442532883`
+  (PracticeStacks)** — `debug_token` names the app outright. It is what
+  `lib/whatsapp.ts` sends Glitchgrab's own OTP, booking and digest messages with.
+
+That combination is worth verifying rather than assuming benign. The existing
+`/api/v1/whatsapp/webhook` verifies signatures with the **Glitchgrab** secret,
+while sends go out on a **PracticeStacks** token. It works only if the Glitchgrab
+app is the one subscribed to that WABA's webhooks — plausible, since both apps
+sit under the same business and a system user token can reach a WABA either app
+is attached to. If it is *not*, every inbound WhatsApp message fails its
+signature check and returns 403 silently, which would take reschedule, cancel,
+"leave" and "show details" down with no error anywhere.
+
+**How to check:** send a WhatsApp reply to the production number and look for a
+`[whatsapp-webhook] signature verification failed` line. Nothing in this project
+depends on the answer — the platform app has its own webhook, its own verify
+token and its own subscription — but it is a live path nobody has tested.
+
+Never copy `META_WA_ACCESS_TOKEN` into a platform variable. Tenant tokens come
+from Embedded Signup, one per WABA, and never from env.
 
 ### What is deliberately not built yet
 
