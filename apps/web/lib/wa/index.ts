@@ -50,3 +50,12 @@ export {
   type RoutedEvent,
   type WebhookPayload,
 } from "./webhook";
+export {
+  saveTemplate,
+  submitTemplate,
+  syncTemplates,
+  removeTemplate,
+  type TemplateDraft,
+  type SyncResult,
+} from "./templates";
+export { sendTemplate, sendText, type SendResult } from "./send";
