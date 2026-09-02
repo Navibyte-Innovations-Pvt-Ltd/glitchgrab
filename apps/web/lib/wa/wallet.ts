@@ -76,22 +76,25 @@ export async function credit(params: {
   }
 
   return prisma.$transaction(async (tx) => {
+    // Resolve the wallet FIRST. The idempotency lookup must be scoped to it:
+    // platforms choose their own refKeys, so an unscoped lookup would let one
+    // platform's "topup-1" match another's and read back a foreign balance.
+    const wallet = await getOrCreateWallet(ownerType, ownerId, tx);
+
     if (refKey) {
-      const seen = await tx.waWalletTxn.findUnique({
-        where: { refKey },
-        select: { balanceAfterPaise: true, walletId: true },
+      const seen = await tx.waWalletTxn.findFirst({
+        where: { walletId: wallet.id, refKey },
+        select: { id: true },
       });
       // Replaying a top-up must not add the money twice.
       if (seen) {
         const w = await tx.waWallet.findUniqueOrThrow({
-          where: { id: seen.walletId },
+          where: { id: wallet.id },
           select: { balancePaise: true, heldPaise: true },
         });
         return { ...w, spendablePaise: w.balancePaise - w.heldPaise };
       }
     }
-
-    const wallet = await getOrCreateWallet(ownerType, ownerId, tx);
 
     const updated = await tx.waWallet.update({
       where: { id: wallet.id },
@@ -159,13 +162,18 @@ export async function chargeMessage(params: {
   const { platformId, tenantId, tenantPricePaise, platformPricePaise, refKey, messageId } = params;
 
   return prisma.$transaction(async (tx) => {
-    const already = await tx.waWalletTxn.findUnique({
-      where: { refKey: `${refKey}:tenant` },
+    const tenantWallet = await getOrCreateWallet("TENANT", tenantId, tx);
+    const platformWallet = await getOrCreateWallet("PLATFORM", platformId, tx);
+
+    // Scoped to the wallet, for the same reason as credit(): a refKey is the
+    // caller's string, not a global identifier, and two platforms will collide.
+    const already = await tx.waWalletTxn.findFirst({
+      where: { walletId: tenantWallet.id, refKey: `${refKey}:tenant` },
       select: { balanceAfterPaise: true },
     });
     if (already) {
-      const platformTxn = await tx.waWalletTxn.findUnique({
-        where: { refKey: `${refKey}:platform` },
+      const platformTxn = await tx.waWalletTxn.findFirst({
+        where: { walletId: platformWallet.id, refKey: `${refKey}:platform` },
         select: { balanceAfterPaise: true },
       });
       return {
@@ -175,9 +183,6 @@ export async function chargeMessage(params: {
         platformPricePaise,
       };
     }
-
-    const tenantWallet = await getOrCreateWallet("TENANT", tenantId, tx);
-    const platformWallet = await getOrCreateWallet("PLATFORM", platformId, tx);
 
     const tenantBalance = await debitIfFunded(tx, tenantWallet.id, tenantPricePaise);
     if (tenantBalance === null) {
