@@ -41,6 +41,25 @@ export async function GET(request: Request) {
   return new Response("Forbidden", { status: 403 });
 }
 
+/**
+ * Processes a payload that has ALREADY had its signature verified.
+ *
+ * Exported because Meta allows exactly one callback URL per app, and this app
+ * already serves Glitchgrab's own number at /api/v1/whatsapp/webhook. That route
+ * verifies the same signature with the same app secret, then delegates here for
+ * any event belonging to a tenant number. See `processPlatformWebhook` there.
+ *
+ * Returns how many events it claimed, so the caller can tell whether the payload
+ * was a platform event or its own.
+ */
+export async function processVerifiedPayload(payload: WebhookPayload): Promise<number> {
+  const events = await ingestWebhook(payload);
+  for (const event of events) {
+    await handleEvent(event);
+  }
+  return events.length;
+}
+
 export async function POST(request: Request) {
   // Read raw: the HMAC is over the exact bytes Meta sent, so re-serialising
   // parsed JSON would change the body and fail every signature.
@@ -61,10 +80,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const events = await ingestWebhook(payload);
-    for (const event of events) {
-      await handleEvent(event);
-    }
+    await processVerifiedPayload(payload);
   } catch (err) {
     // Swallow: a 500 makes Meta back off the whole app, every tenant at once.
     // The event rows are already persisted, so nothing is lost.
