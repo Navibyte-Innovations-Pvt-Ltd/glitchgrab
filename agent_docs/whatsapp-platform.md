@@ -490,8 +490,8 @@ real rather than a promise.
 
 ## Status
 
-**Phases 1 and 2 are built** (2026-09-02). Phase 2 talks to Meta but has never
-been run against it — no credentials are configured yet.
+**Phases 1–3 are built** (2026-09-02). They talk to Meta but have never been run
+against it — no credentials are configured yet.
 
 | Piece | Where |
 |---|---|
@@ -508,6 +508,11 @@ been run against it — no credentials are configured yet.
 | Webhook fan-out + dedupe | `apps/web/lib/wa/webhook.ts` |
 | Numbers, webhook events | `migrations/20260902120000_wa_onboarding/` |
 | Phase 2 routes | `app/api/v1/wa/{signup/launch,signup/exchange,numbers,webhook}` |
+| Templates (save, submit, sync, delete) | `apps/web/lib/wa/templates.ts` |
+| Sending + billing + refunds | `apps/web/lib/wa/send.ts` |
+| Templates, messages | `migrations/20260902160000_wa_templates_messages/` |
+| Phase 3 routes | `app/api/v1/wa/{templates,templates/[id],templates/[id]/submit,templates/sync,messages,messages/send}` |
+| Template poll | `app/api/v1/cron/wa-template-sync` (hourly, in `vercel.json`) |
 
 ### Env vars phase 2 needs
 
@@ -525,13 +530,43 @@ messages at a customer's WABA.
 | `META_WA_EXTENDED_CREDIT_ID` | Our credit line id. **Leave unset until one exists** — onboarding degrades gracefully without it |
 | `META_WA_CREDIT_CURRENCY` | Defaults to `INR` |
 
-### What phase 2 deliberately does not do
+### What is deliberately not built yet
 
-- **Inbound messages, conversation windows, autoreplies** — phase 4. The webhook
-  records and dedupes them; nothing consumes them yet.
-- **Template status events** — phase 3.
+- **Conversations as a model, autoreply rules, agent seats** — phases 4 and 5.
+  Inbound messages *are* recorded (they open the 24-hour window `sendText()`
+  checks), but nothing reacts to them.
+- **Broadcast, contact lists, opt-out** — phase 6, on top of `holdFunds` /
+  `settleHold`, which already exist unused.
 - **Number registration** (`registerPhoneNumber`) is written but unused: it needs
-  the tenant's two-step PIN, which is a UI decision phase 3 will make.
+  the tenant's two-step PIN, which is a UI decision.
+- **Refunds on `failed` delivery status.** The webhook records the failure; the
+  money is not yet given back for a message Meta accepted and then failed to
+  deliver. Refund-on-send-error *is* wired. Closing this gap needs a sweep over
+  `WaMessage` rows that went FAILED after SENT.
+
+### Phase 3 design notes
+
+- **Send order is charge → call Meta → refund on failure.** Charging first is
+  what makes a prepaid wallet mean anything; sending first would let a tenant at
+  zero keep sending. The cost is that a Meta failure leaves money debited, hence
+  `failAndRefund()` on every error path, and hence an append-only ledger.
+- **`failAndRefund()` never throws.** A refund failure must not replace the Meta
+  error the caller needs to see; a refund that did not land is recoverable from
+  the ledger, a swallowed send error is not.
+- **The category comes from the stored template, never the caller.** Marketing
+  costs a multiple of utility, so a caller-declared category would let a platform
+  bill marketing at utility rates.
+- **`WaMessage` stores the price it was charged at.** A rate card changes; a
+  disputed invoice still has to be answerable.
+- **The 24-hour window is checked before sending free text.** Meta answers 200
+  outside the window and delivers nothing, so a silent failure looks exactly like
+  a success.
+- **Templates sync by name+language, not Meta id.** A template created in Meta's
+  own UI has no id on our side, and a send referencing it would otherwise fail
+  as "no such template" while being live and approved.
+- **Both a webhook and a cron watch template status.** The webhook is not
+  guaranteed delivered, and a pause or recategorisation weeks later may produce
+  no event at all.
 
 ### Design notes worth not re-deriving
 
