@@ -16,7 +16,7 @@ import { WaError } from "./errors";
  * is inspectable per message rather than reconstructed later from an invoice.
  */
 
-export interface ResolvedPrice {
+interface ResolvedPrice {
   category: WaTemplateCategory;
   metaCostPaise: number;
   /** What we charge the platform. */
