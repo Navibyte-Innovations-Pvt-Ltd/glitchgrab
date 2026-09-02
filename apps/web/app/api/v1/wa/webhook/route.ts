@@ -2,6 +2,9 @@ export const dynamic = "force-dynamic";
 
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { recordInbound } from "@/lib/wa/conversations";
+import { matchRule } from "@/lib/wa/autoreply";
+import { sendText } from "@/lib/wa/send";
 import {
   ingestWebhook,
   markEventProcessed,
@@ -130,7 +133,15 @@ async function handleEvent(event: RoutedEvent): Promise<void> {
 async function handleMessagesEvent(event: RoutedEvent): Promise<void> {
   const value = event.value as {
     statuses?: { id?: string; status?: string; timestamp?: string; errors?: { title?: string }[] }[];
-    messages?: { id?: string; from?: string; type?: string; timestamp?: string }[];
+    messages?: {
+      id?: string;
+      from?: string;
+      type?: string;
+      timestamp?: string;
+      text?: { body?: string };
+      button?: { text?: string };
+      interactive?: { list_reply?: { title?: string } };
+    }[];
   };
 
   for (const s of value.statuses ?? []) {
@@ -161,23 +172,79 @@ async function handleMessagesEvent(event: RoutedEvent): Promise<void> {
 
   if (!event.tenantId) return;
 
+  const contactName = (event.value as { contacts?: { profile?: { name?: string } }[] }).contacts?.[0]
+    ?.profile?.name;
+
   for (const m of value.messages ?? []) {
     if (!m.id || !m.from) continue;
 
-    await prisma.waMessage
+    const at = m.timestamp ? new Date(Number(m.timestamp) * 1000) : new Date();
+    const text = m.text?.body ?? m.button?.text ?? m.interactive?.list_reply?.title ?? "";
+
+    // Refreshes the 24-hour window and evaluates opt-out. Must happen even if
+    // the message row below is a duplicate — a redelivery still describes a real
+    // inbound message, and the window is derived from when it arrived.
+    const inbound = await recordInbound({
+      tenantId: event.tenantId,
+      contactPhone: m.from,
+      contactName,
+      text,
+      at,
+    });
+
+    const created = await prisma.waMessage
       .create({
         data: {
           tenantId: event.tenantId,
+          conversationId: inbound.conversationId,
           direction: "INBOUND",
           status: "DELIVERED",
           contactPhone: m.from.replace(/\D/g, ""),
           phoneNumberId: event.phoneNumberId,
           metaMessageId: m.id,
           payload: event.value as unknown as Prisma.InputJsonValue,
-          createdAt: m.timestamp ? new Date(Number(m.timestamp) * 1000) : undefined,
+          createdAt: at,
         },
       })
-      .catch(() => undefined); // already ingested
+      .catch(() => null); // already ingested
+
+    // Only reply to a message we have not seen before, and never to someone who
+    // just asked to be left alone — an autoreply to "stop" is the single most
+    // damaging thing a bot can do to a quality rating.
+    if (created && text && !inbound.optedOut) {
+      await runAutoreply(event.tenantId, m.from, text);
+    }
+  }
+}
+
+/**
+ * Sends the first matching canned reply, if any.
+ *
+ * Free text is legal here by construction: an inbound message has just opened
+ * the 24-hour window. Failures are logged and swallowed — an autoreply that does
+ * not send must never make the webhook look broken to Meta.
+ */
+async function runAutoreply(tenantId: string, from: string, text: string): Promise<void> {
+  try {
+    const rule = await matchRule(tenantId, text);
+    if (!rule) return;
+
+    const tenant = await prisma.waTenant.findUnique({
+      where: { id: tenantId },
+      select: { platformId: true },
+    });
+    if (!tenant) return;
+
+    await sendText({
+      platformId: tenant.platformId,
+      tenantId,
+      to: from,
+      body: rule.replyText,
+      // One reply per inbound message, even if Meta redelivers the event.
+      refKey: `autoreply:${rule.id}:${from}:${Date.now() - (Date.now() % 60000)}`,
+    });
+  } catch (err) {
+    console.error("[wa-webhook] autoreply failed", tenantId, err);
   }
 }
 
