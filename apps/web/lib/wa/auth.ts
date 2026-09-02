@@ -15,7 +15,7 @@ export function hashWaPlatformKey(key: string): string {
   return createHash("sha256").update(key).digest("hex");
 }
 
-export interface AuthedPlatform {
+interface AuthedPlatform {
   id: string;
   name: string;
   slug: string;
