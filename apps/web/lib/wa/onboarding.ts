@@ -23,12 +23,12 @@ import {
  */
 
 /** Exactly the two permissions on Meta's Tech Provider checklist. Nothing more. */
-export const EMBEDDED_SIGNUP_SCOPES = [
+const EMBEDDED_SIGNUP_SCOPES = [
   "whatsapp_business_management",
   "whatsapp_business_messaging",
 ] as const;
 
-export interface SignupLaunchConfig {
+interface SignupLaunchConfig {
   appId: string;
   configId: string;
   scopes: string[];
@@ -56,7 +56,7 @@ export function buildSignupLaunch(state: string): SignupLaunchConfig {
   };
 }
 
-export interface CompleteSignupResult {
+interface CompleteSignupResult {
   tenantId: string;
   wabaId: string;
   numbers: { phoneNumberId: string; displayNumber: string; verifiedName: string }[];
@@ -97,8 +97,12 @@ export async function completeSignup(params: {
 
   // With several, honour the caller's preference only if the token really
   // covers it — otherwise fall back to the first Meta listed.
+  const fallbackWabaId = wabaIds[0];
+  if (!fallbackWabaId) {
+    throw new WaError("UNAUTHORIZED", "That sign-up granted no WhatsApp Business Account.", 400);
+  }
   const wabaId =
-    preferredWabaId && wabaIds.includes(preferredWabaId) ? preferredWabaId : wabaIds[0]!;
+    preferredWabaId && wabaIds.includes(preferredWabaId) ? preferredWabaId : fallbackWabaId;
 
   if (preferredWabaId && preferredWabaId !== wabaId) {
     warnings.push(`Requested WABA ${preferredWabaId} is not covered by this token; used ${wabaId}.`);
