@@ -25,7 +25,7 @@ export function verifyWebhookSignature(rawBody: string, signature: string | null
   try {
     secret = waAppSecret();
   } catch {
-    console.error("[wa-webhook] META_WA_PLATFORM_APP_SECRET not set, rejecting");
+    console.error("[wa-webhook] no platform app secret configured, rejecting");
     return false;
   }
 
