@@ -1454,6 +1454,28 @@ enum WaTenantStatus {
   DISCONNECTED
 }
 
+enum WaTemplateStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  PAUSED
+  DISABLED
+}
+
+enum WaMessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum WaMessageStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
 enum WaNumberStatus {
   PENDING
   VERIFIED
@@ -1507,8 +1529,10 @@ model WaTenant {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  platform WaPlatform @relation(fields: [platformId], references: [id], onDelete: Cascade)
-  numbers  WaNumber[]
+  platform  WaPlatform   @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  numbers   WaNumber[]
+  templates WaTemplate[]
+  messages  WaMessage[]
 
   @@unique([platformId, externalOwnerId])
   @@index([wabaId])
@@ -1535,6 +1559,78 @@ model WaNumber {
   tenant WaTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
+}
+
+/// A message template. Mirrors one on Meta, which owns approval — we hold the
+/// draft, the submission, and whatever Meta last told us about it.
+model WaTemplate {
+  id       String @id @default(cuid())
+  tenantId String
+
+  name     String
+  language String
+  category WaTemplateCategory
+
+  /// Meta's component array verbatim (HEADER/BODY/FOOTER/BUTTONS).
+  components Json
+
+  metaTemplateId  String?
+  status          WaTemplateStatus @default(DRAFT)
+  rejectionReason String?
+
+  /// Meta never announces a verdict on a schedule we control, so a cron asks.
+  lastSyncedAt DateTime?
+  submittedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   WaTenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  messages WaMessage[]
+
+  /// Meta's own uniqueness rule: one name per language per WABA.
+  @@unique([tenantId, name, language])
+  @@index([tenantId, status])
+  @@index([metaTemplateId])
+}
+
+/// One sent or received message. Also the billing meter — every outbound row has
+/// a wallet debit written in the same transaction.
+model WaMessage {
+  id       String @id @default(cuid())
+  tenantId String
+
+  direction WaMessageDirection
+  status    WaMessageStatus    @default(QUEUED)
+
+  /// E.164 digits, no plus. The tenant's counterparty either way.
+  contactPhone String
+  phoneNumberId String?
+
+  templateId String?
+  /// Copied from the template at send time: a template can be recategorised by
+  /// Meta later, and this row must still say what it was billed as.
+  category WaTemplateCategory?
+
+  metaMessageId String?
+  payload       Json
+  error         String?
+
+  tenantPricePaise   Int?
+  platformPricePaise Int?
+
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant   WaTenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  template WaTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([metaMessageId])
+  @@index([tenantId, contactPhone, createdAt])
 }
 
 /// Raw inbound webhook events, kept for dedupe. Meta retries delivery, and
