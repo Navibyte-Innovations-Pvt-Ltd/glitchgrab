@@ -55,7 +55,7 @@ async function resolveSendingNumber(tenantId: string, phoneNumberId?: string) {
   return number.phoneNumberId;
 }
 
-export interface SendTemplateInput {
+interface SendTemplateInput {
   platformId: string;
   tenantId: string;
   to: string;
@@ -68,7 +68,7 @@ export interface SendTemplateInput {
   refKey?: string;
 }
 
-export interface SendResult {
+interface SendResult {
   messageId: string;
   metaMessageId: string;
   status: "SENT";
@@ -206,7 +206,7 @@ export async function sendTemplate(input: SendTemplateInput): Promise<SendResult
   }
 }
 
-export interface SendTextInput {
+interface SendTextInput {
   platformId: string;
   tenantId: string;
   to: string;
