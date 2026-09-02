@@ -490,7 +490,7 @@ real rather than a promise.
 
 ## Status
 
-**Phases 1–5 are built** (2026-09-02), bar the inbox UI itself. They talk to Meta but have never been run
+**Phases 1–5 are built** (2026-09-02), SDK and inbox UI included. They talk to Meta but have never been run
 against it — `META_WA_SIGNUP_CONFIG_ID` does not exist yet.
 
 | Piece | Where |
@@ -520,6 +520,7 @@ against it — `META_WA_SIGNUP_CONFIG_ID` does not exist yet.
 | Inbox seats | `apps/web/lib/wa/agents.ts`, `migrations/20260902200000_wa_agents/` |
 | SSE tickets | `apps/web/lib/wa/stream-ticket.ts` |
 | Phase 5 routes | `app/api/v1/wa/{inbox/ticket,inbox/stream,agents,agents/[id]}` |
+| SDK | `packages/sdk-whatsapp` → `@glitchgrab/whatsapp` |
 
 ### Env vars phase 2 needs
 
@@ -569,9 +570,8 @@ from Embedded Signup, one per WABA, and never from env.
 
 ### What is deliberately not built yet
 
-- **The inbox UI itself**, and the `@glitchgrab/whatsapp` SDK that would ship it
-  as a drop-in React component. Every API it needs now exists: list, thread,
-  send, assign, seats, and a live stream. What is missing is the interface.
+- **A template composer UI.** The API is complete; there is no visual builder,
+  so a platform writes Meta's component JSON itself for now.
 - **Broadcast and contact lists** — phase 6, on top of `holdFunds` /
   `settleHold`, which already exist unused. Opt-out is done and enforced.
 - **Number registration** (`registerPhoneNumber`) is written but unused: it needs
@@ -580,6 +580,31 @@ from Embedded Signup, one per WABA, and never from env.
   money is not yet given back for a message Meta accepted and then failed to
   deliver. Refund-on-send-error *is* wired. Closing this gap needs a sweep over
   `WaMessage` rows that went FAILED after SENT.
+
+### The SDK
+
+`packages/sdk-whatsapp` publishes as `@glitchgrab/whatsapp`, separate from the
+`glitchgrab` package — different product, different key, and a library-management
+product installing WhatsApp should not pull in a bug reporter.
+
+Two entry points, deliberately: `.` is the server client and drags in no React,
+`./react` is the UI and must never reach a server bundle.
+
+**The browser never holds the API key.** That key reaches every customer's
+number, so `<WhatsappInbox>` talks to a proxy on the consumer's own server, and
+`createInboxHandler` ships that proxy as a one-liner. The only direct connection
+to us is the SSE stream, which needs a long-lived socket and uses the 60-second
+ticket the proxy mints. The client also logs an error if constructed in a
+browser: a leaked key is otherwise a completely silent failure.
+
+`resolveOwnerId` in the handler takes the owner from the consumer's *session*,
+never the request body — the one place where a careless integration would let any
+signed-in user read another owner's WhatsApp, so the doc comment says so
+outright.
+
+The component is styled with inline styles over CSS custom properties. A
+stylesheet that must be imported, or Tailwind classes that only work if the host
+uses Tailwind, is the fastest way to make a "drop-in" component not drop in.
 
 ### Phase 5 design notes — the inbox stream
 
