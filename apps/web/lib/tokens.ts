@@ -5,10 +5,6 @@ export function generateToken(): string {
   return `gg_${raw}`;
 }
 
-export function generateShareSlug(): string {
-  return randomBytes(9).toString("base64url");
-}
-
 export function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }

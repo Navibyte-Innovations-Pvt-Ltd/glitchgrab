@@ -113,7 +113,14 @@ Three ways a prepaid wallet leaks money, all of them avoidable:
    its estimated cost up front as a `HOLD` txn, settle against actual as
    recipients complete, then release the remainder. Per-message checking gives
    you a half-sent campaign with no clean way to report or resume it.
-3. **Debits for messages Meta never delivered.** A send can fail after the debit —
+3. **Idempotency keys that are not scoped.** `refKey` is a string the *caller*
+   chooses, not a global identifier, so two platforms will eventually both send
+   `topup-1`. When the unique index was global, the second platform's call
+   matched the first's row, returned a balance belonging to someone else, and
+   silently skipped their credit — cross-tenant disclosure and lost money in one
+   bug. The index is `(walletId, refKey)`, and every lookup resolves the wallet
+   *before* checking the key.
+4. **Debits for messages Meta never delivered.** A send can fail after the debit —
    bad number, template paused, tenant quality block. Every such failure needs a
    `REFUND` txn. This is why the ledger is an append-only transaction table and
    not a single mutable balance column; the balance is a cached rollup of the
@@ -151,7 +158,176 @@ DIDs fail WhatsApp verification often enough to become a permanent support load.
 If an owner's number is stuck on the consumer app, the fix is theirs: delete the
 account in the app, wait, retry. Document it; don't automate it.
 
-## Meta setup — human steps, done once
+## Meta setup — verified status (2026-09-02)
+
+Checked against the live Meta account, not assumed.
+
+| Item | State | Evidence |
+|---|---|---|
+| Meta app | **Exists, live** | `Glitchgrab`, app id `996021116131151`, base domain `glitchgrab.dev` |
+| Business portfolio | `2882312428642904` | "Navibyte Innovations" — NAVIBYTE INNOVATIONS PRIVATE LIMITED, CIN U62013PN2025PTC243132, Pune. Owns the app and every WABA. |
+| Business verification | **Verified** 8 Jul 2025 | Business portfolio info |
+| **Tech Provider access verification** | **Verified** | Business portfolio info → "Your business was verified as a Tech Provider" |
+| WhatsApp product | **Added** | "Connect on WhatsApp" use case active |
+| Facebook Login for Business | **Configured** | Required for Embedded Signup |
+| 1. Business verification | **Approved** | Tech Provider onboarding page, step 1 |
+| 2. App Review | **NOT submitted** | App Review → Submissions reads "Not submitted"; three permissions queued as New requests |
+| App compliance | Clean | No violations, no required actions |
+| Extended credit line (ours) | **Does not exist** | Billing hub → Credit lines: only lines *allocated from* Haptik and AiSensy |
+| Finance editor role | **Granted** (2026-09-02) | Banner cleared; did **not** unlock credit-line requests |
+| Meta India rate card | **Not yet pulled** | Needed before quoting a platform a price |
+
+### Billing, as it actually stands
+
+Navibyte's business (`2882312428642904`) holds these WhatsApp Business accounts:
+
+| WABA | Pays via |
+|---|---|
+| Glitchgrab (`3155474051329602`) | own Visa ···7006, ₹11.06 due |
+| My Abhyasika (`1893698398081017`) | own Visa ···7006, ₹94.92 due |
+| PracticeStacks (`861240823192636`) | own Visa ···7006, ₹36.00 due |
+| Kaydyach Aani Faydyach, Navibyte Innovations | own Visa ···7006 |
+| Sevastack (×2) | **no payment method** |
+| Startbusiness, Navibyte Innovations Pvt Ltd | **AiSensy** |
+| AS Consultancy, Navibyte Innovations Pvt Ltd | **Haptik** |
+| Test WhatsApp Business Account (`1482815023074117`) | own Visa — usable for phase 2/3 dev |
+
+Two things follow from this, and they matter more than anything else in this
+document:
+
+1. **The model is proven, from the receiving end.** AiSensy and Haptik each
+   allocate a credit line onto WABAs that Navibyte owns, and Meta invoices
+   *them*. That is precisely the mechanism Glitchgrab would use on a library
+   admin's WABA. It is not theoretical — it is already on this account, twice.
+2. **We have no line of our own.** Every Navibyte-paid WABA runs on a personal
+   Visa. Applying is gated on a Meta role change first: the current role lacks
+   *finance editor*, so "Add line of credit" cannot be actioned.
+
+Abhyasika already sends from its own WABA billed to that Visa — which is exactly
+the arrangement the backlash comes from: one number for every library.
+
+Tech Provider onboarding reports **1 of 2 steps complete**: business
+verification done, App Review outstanding.
+
+`business_management` is **not** required. Meta's Tech Provider checklist lists
+exactly two permissions, both `whatsapp_*`. Do not submit for a third.
+
+### App Review has not been submitted
+
+The Tech Provider onboarding page renders step 2 as "In review", and that is
+misleading — it reflects the step being open, not a submission being with Meta.
+Both the App Review → Submissions page ("Not submitted") and the Graph API
+(`submission_status: UNSUBMITTED`, `has_been_previously_reviewed: false`) agree
+that nothing has been sent. **Believe those two, not the onboarding page.**
+
+Three permissions sit queued as New requests: `whatsapp_business_messaging`,
+`whatsapp_business_management`, and `public_profile`. Every step on the two
+WhatsApp permissions is incomplete — `use_case`, `screencast`, `api_precheck`
+and `data_use_checkup` all report `is_completed: false`. `public_profile` needs
+only `data_use_checkup`, and is worth questioning at all: it is not on Meta's
+Tech Provider checklist, and carrying it drags a compliance form into the
+submission. Confirm whether Facebook Login for Business needs it before removing.
+
+### Why this inverts the build order
+
+`api_precheck` requires **real calls to the WhatsApp endpoints from this app**,
+and `screencast` requires video of a working integration — a message leaving the
+app and arriving in WhatsApp, and a template being created over the API. Neither
+can be faked and neither can be produced before the integration exists.
+
+App Review is therefore **not** a gate in front of phases 2 and 3. It is a gate
+behind them:
+
+```
+phase 2 (Embedded Signup, token exchange)
+  → phase 3 (templates, send) against Test WhatsApp Business Account (1482815023074117)
+  → those calls satisfy api_precheck
+  → record the two screencasts from the working app
+  → data_use_checkup
+  → submit App Review
+```
+
+Nothing is waiting on Meta. The blocker is our own code.
+
+## One Meta identity, two Google addresses
+
+Settled empirically on 2026-09-02, after an invite attempt failed twice:
+
+`bhosalenaresh73@gmail.com` and `navibyteinnovations@gmail.com` are **the same
+Facebook profile**, and that profile already has Full access plus Finance on the
+Navibyte Innovations portfolio (`2882312428642904`).
+
+The confusion is a Meta UI artefact. The People row reads "Navibyte Innovations
+(you) — navibyteinnovations@gmail.com" because that is the person's **business
+email** field, a label attached to the portfolio membership. It is not the
+Facebook login. The login is `bhosalenaresh73@gmail.com`, which is also why the
+Graph API reports that address as the Glitchgrab app's contact.
+
+How it was proven: inviting `bhosalenaresh73@gmail.com` and opening the invite in
+an incognito window, signed in as that address, returned *"Looks like you're
+already in the business portfolio."* A genuinely separate account would have been
+able to accept.
+
+**Do not try to add a second person.** There is one human, one Facebook profile,
+one portfolio, and it already holds every permission needed. Any pending invite
+to `bhosalenaresh73@gmail.com` should be cancelled under Settings → Users →
+People; it can never be accepted.
+
+The portfolio members are therefore: this profile (Full access + Finance) and
+Vivek Bhos, `bhosvivek123@gmail.com` (Full access + Finance).
+
+## Credit lines — what the dashboard actually allows## Credit lines — what the dashboard actually allows
+
+Credit lines **do** cover WhatsApp, not just ads: the "Supported products" column
+on both allocated lines shows the WhatsApp icon, and AiSensy/Haptik appear as the
+payer on WhatsApp Business accounts in the billing table. That question is
+settled empirically on this account.
+
+**But there is no self-serve way to open one.** Billing → Credit lines → *Add
+line of credit* opens a menu with exactly one entry, disabled:
+
+> Request Access to a Partner's Credit — *This option is no longer available.
+> Ask your partner to grant access to you.*
+
+So a line of credit is not something the dashboard will sell us. It is granted by
+Meta on eligibility — through a Meta rep, or the Tech Provider onboarding support
+channel linked from the onboarding page.
+
+**The finance-editor role was granted on 2026-09-02 and changed nothing here.**
+The "Missing edit permissions" banner disappeared, confirming the role applied,
+and the menu item stayed disabled with the same text. This was worth testing and
+is now settled: the block is not a permissions problem at any level, it is Meta
+having withdrawn self-serve credit requests. Do not spend more time in the
+billing UI looking for another route — the only remaining path is a conversation
+with Meta, gated on App Review.
+
+### Constraints on sharing, once we have one
+
+From Meta's own sharing documentation, and each one has a design consequence:
+
+| Constraint | Consequence for us |
+|---|---|
+| "The receiving business can't reshare your credit line with others." | We must share **directly onto each tenant's business**, never Glitchgrab → Abhyasika → library. The platform is a billing and UI relationship only; the credit relationship is provider-to-tenant. Our schema already models it this way. |
+| Businesses in India can only share with businesses in India. | Domestic tenants only. An overseas customer of a platform cannot be onboarded onto our line. |
+| Outside US/BR/FR/MX the **sharing** business stays bill-to. India is outside that list. | **We remain liable for every rupee a tenant spends.** This is the whole justification for the prepaid wallet. |
+| Partial sharing sets a hard spend cap on the receiving business. | Set it to the tenant's wallet balance. Our wallet is the soft guard; Meta's cap is the hard one that holds even if our code fails open. |
+
+### If the credit line never arrives
+
+The wallet architecture survives intact. Only the Meta-cost line moves:
+
+- **With a line:** Meta bills us, we bill the platform, the platform bills the
+  tenant. Margin is resale.
+- **Without:** the tenant's own card stays on their WABA and Meta bills them
+  directly. We still meter every message and still charge a software fee per
+  message through the same wallet.
+
+Nothing in phases 1–6 changes. `WaPriceRule.metaCostPaise` becomes informational
+rather than a real payable, and the per-message revenue is a platform fee instead
+of a markup. Worth knowing before the credit-line conversation, so it is not
+negotiated from a position of it being existential.
+
+## Meta setup — the full sequence, for reference
 
 These cannot be scripted. Each one gates the next.
 
@@ -160,8 +336,10 @@ These cannot be scripted. Each one gates the next.
 2. **Create the Meta app**, add the WhatsApp product. This is a *new* app —
    Glitchgrab's existing `META_WA_*` credentials are a single-tenant sender for
    our own number and stay untouched.
-3. **App Review for Advanced Access** on `whatsapp_business_management`,
-   `whatsapp_business_messaging`, `business_management`.
+3. **App Review for Advanced Access** on `whatsapp_business_messaging` and
+   `whatsapp_business_management`. Both need a screencast: one showing a message
+   sent from the app and arriving in WhatsApp, one showing a template being
+   created over the API.
 4. **Data Protection Assessment**, annually, because of Advanced Access. A CASA
    Tier-2 assessment may also apply depending on final scope. Both cost real
    money and take weeks. Verify current requirements and fees on Meta's Tech
@@ -177,6 +355,29 @@ These cannot be scripted. Each one gates the next.
 
 Note on the security audit: it is Meta auditing *us*, not us auditing the
 subscribing platforms. Our own API scoping is the easy half.
+
+## The domain allowlist is per consumer, not per us
+
+Embedded Signup runs through Meta's JS SDK, and Meta only returns a code to a
+**domain allowlisted on our app** (HTTPS only — `localhost` is rejected, so local
+testing needs a tunnel domain added).
+
+The popup opens on the *consumer's* site — Abhyasika's dashboard, SevaStack's
+settings page. So every platform we sign needs its domain added to our app's
+allowlist before any of its owners can connect. That is a manual step per
+platform, and it belongs in the provisioning checklist next to creating the
+`WaPlatform` row.
+
+Meta also offers a **hosted landing page** for Embedded Signup
+(`business.facebook.com/messaging/whatsapp/onboard/?app_id=…&config_id=…`), which
+appears to avoid the JS SDK and therefore the allowlist entirely. If it does, it
+removes a recurring manual step from onboarding every new platform. **Unverified
+— confirm during a test launch before designing around it.**
+
+Confirmed on the Embedded Signup Setup page (2026-09-02): business verification
+and integrity both pass, and App Review is only required *for production* —
+testing works today with users manually added to the app. That is the
+build-then-submit order the App Review section describes, stated by Meta itself.
 
 ## Onboarding flow
 
@@ -247,6 +448,36 @@ subscriber signup — do not build one until a real third party asks.
 plus `externalOwnerId`, exactly as `getExtensionSessionRepos()` derives repo
 scope from the session. Same rule, same reason.
 
+## One Meta callback URL, two products
+
+Meta permits **exactly one callback URL per app**, and this app already served
+Glitchgrab's own number at `/api/v1/whatsapp/webhook`. Both products therefore
+share that endpoint — `/api/v1/wa/webhook` exists and works, but Meta is not
+pointed at it and never will be while the two share an app.
+
+The split is by `phone_number_id`: every tenant number is a `WaNumber` row,
+Glitchgrab's own number is not. `lib/wa/dispatch.ts` makes that call, and the
+legacy route delegates to `processVerifiedPayload()` when it matches.
+
+Three properties of that arrangement, all deliberate:
+
+- **Signature is verified once**, in the legacy route, with `META_WA_APP_SECRET`.
+  Both products share the app, so they share the secret; the platform path does
+  not re-check what has already been proven.
+- **Unattributable payloads fall through** to the original handling. That is the
+  behaviour that existed before this feature, and it is what keeps OTP, booking
+  and digest working. Failing towards "not ours" is the safe direction.
+- **A platform failure cannot take down Glitchgrab's own replies.** The dispatch
+  is wrapped so an error logs and falls through rather than propagating.
+
+Configured on the app: callback `https://glitchgrab.dev/api/v1/whatsapp/webhook`,
+subscribed to `messages`, `message_template_status_update`,
+`phone_number_quality_update`, `account_update`.
+
+If the two products are ever split onto separate Meta apps, point the new app at
+`/api/v1/wa/webhook`, give it its own secret and verify token, and delete the
+dispatch hop.
+
 ## Webhook fan-out
 
 Meta posts every tenant's events to one URL. Route on `phone_number_id` inside
@@ -310,6 +541,234 @@ Ship a drop-in React inbox component alongside it, so a platform gets the shared
 inbox without rebuilding it. That is the piece that makes "we help for easiness"
 real rather than a promise.
 
+## Status
+
+**Phases 1–5 are built** (2026-09-02), SDK and inbox UI included. They talk to Meta but have never been run
+against it — `META_WA_SIGNUP_CONFIG_ID` does not exist yet.
+
+| Piece | Where |
+|---|---|
+| Models + enums | `apps/web/prisma/schema.prisma` (tail) |
+| Migration | `apps/web/prisma/migrations/20260902060000_wa_platform_foundation/` |
+| Platform key auth, tenant mapping | `apps/web/lib/wa/auth.ts` |
+| Wallets, atomic debit, holds, refunds | `apps/web/lib/wa/wallet.ts` |
+| Per-category pricing | `apps/web/lib/wa/pricing.ts` |
+| Typed failures | `apps/web/lib/wa/errors.ts` |
+| Routes | `apps/web/app/api/v1/wa/{wallet/credit,wallet/balance,wallet/transactions,pricing}` |
+| Manual platform provisioning | `apps/web/scripts/wa-provision-platform.ts` |
+| Graph API client (pinned v23.0) | `apps/web/lib/wa/graph.ts` |
+| Embedded Signup + token exchange | `apps/web/lib/wa/onboarding.ts` |
+| Webhook fan-out + dedupe | `apps/web/lib/wa/webhook.ts` |
+| Numbers, webhook events | `migrations/20260902120000_wa_onboarding/` |
+| Phase 2 routes | `app/api/v1/wa/{signup/launch,signup/exchange,numbers,webhook}` |
+| Templates (save, submit, sync, delete) | `apps/web/lib/wa/templates.ts` |
+| Sending + billing + refunds | `apps/web/lib/wa/send.ts` |
+| Templates, messages | `migrations/20260902160000_wa_templates_messages/` |
+| Phase 3 routes | `app/api/v1/wa/{templates,templates/[id],templates/[id]/submit,templates/sync,messages,messages/send}` |
+| Template poll | `app/api/v1/cron/wa-template-sync` (hourly, in `vercel.json`) |
+| Conversations, 24h window, opt-out | `apps/web/lib/wa/conversations.ts` |
+| Autoreply rules | `apps/web/lib/wa/autoreply.ts` |
+| Conversations, autoreply rules | `migrations/20260902180000_wa_conversations/` |
+| Phase 4 routes | `app/api/v1/wa/{conversations,conversations/[id],autoreply/rules,autoreply/rules/[id]}` |
+| Inbox seats | `apps/web/lib/wa/agents.ts`, `migrations/20260902200000_wa_agents/` |
+| SSE tickets | `apps/web/lib/wa/stream-ticket.ts` |
+| Phase 5 routes | `app/api/v1/wa/{inbox/ticket,inbox/stream,agents,agents/[id]}` |
+| SDK | `packages/sdk-whatsapp` → `@glitchgrab/whatsapp` |
+
+### Env vars phase 2 needs
+
+The platform reuses the repo's existing `META_WA_*` variables rather than
+introducing parallel `META_WA_PLATFORM_*` names. One Meta app, one set of
+credentials — a second name for the same secret is only a way to get them out of
+sync. Verified on 2026-09-02 against `oauth/access_token`, which accepts
+`META_WA_APP_SECRET` for app `996021116131151` and rejects it for every other app
+of ours.
+
+| Var | State |
+|---|---|
+| `META_WA_APP_ID` | **Needs adding**: `996021116131151` |
+| `META_WA_APP_SECRET` | Already set — the Tech Provider app's secret |
+| `META_WA_VERIFY_TOKEN` | Already set — shared with `/api/v1/whatsapp/webhook` |
+| `META_WA_SIGNUP_CONFIG_ID` | **Does not exist.** Created in Embedded Signup Builder, not looked up |
+| `META_WA_EXTENDED_CREDIT_ID` | Leave unset — no credit line; onboarding degrades gracefully |
+| `META_WA_CREDIT_CURRENCY` | Defaults to `INR` |
+
+### The env pair is mismatched, and it matters
+
+`META_WA_APP_SECRET` and `META_WA_ACCESS_TOKEN` belong to **different Meta apps**:
+
+- `META_WA_APP_SECRET` authenticates app **`996021116131151` (Glitchgrab)**.
+  Meta accepts it there and rejects it for PracticeStacks, so it is genuinely the
+  Tech Provider app's secret and the platform code reuses it directly.
+- `META_WA_ACCESS_TOKEN` is a system user token on app **`1390644442532883`
+  (PracticeStacks)** — `debug_token` names the app outright. It is what
+  `lib/whatsapp.ts` sends Glitchgrab's own OTP, booking and digest messages with.
+
+That combination is worth verifying rather than assuming benign. The existing
+`/api/v1/whatsapp/webhook` verifies signatures with the **Glitchgrab** secret,
+while sends go out on a **PracticeStacks** token. It works only if the Glitchgrab
+app is the one subscribed to that WABA's webhooks — plausible, since both apps
+sit under the same business and a system user token can reach a WABA either app
+is attached to. If it is *not*, every inbound WhatsApp message fails its
+signature check and returns 403 silently, which would take reschedule, cancel,
+"leave" and "show details" down with no error anywhere.
+
+**How to check:** send a WhatsApp reply to the production number and look for a
+`[whatsapp-webhook] signature verification failed` line. Nothing in this project
+depends on the answer — the platform app has its own webhook, its own verify
+token and its own subscription — but it is a live path nobody has tested.
+
+Never copy `META_WA_ACCESS_TOKEN` into a platform variable. Tenant tokens come
+from Embedded Signup, one per WABA, and never from env.
+
+### What is deliberately not built yet
+
+- **A template composer UI.** The API is complete; there is no visual builder,
+  so a platform writes Meta's component JSON itself for now.
+- **Broadcast and contact lists** — phase 6, on top of `holdFunds` /
+  `settleHold`, which already exist unused. Opt-out is done and enforced.
+- **Number registration** (`registerPhoneNumber`) is written but unused: it needs
+  the tenant's two-step PIN, which is a UI decision.
+- **Refunds on `failed` delivery status.** The webhook records the failure; the
+  money is not yet given back for a message Meta accepted and then failed to
+  deliver. Refund-on-send-error *is* wired. Closing this gap needs a sweep over
+  `WaMessage` rows that went FAILED after SENT.
+
+### The SDK
+
+`packages/sdk-whatsapp` publishes as `@glitchgrab/whatsapp`, separate from the
+`glitchgrab` package — different product, different key, and a library-management
+product installing WhatsApp should not pull in a bug reporter.
+
+Two entry points, deliberately: `.` is the server client and drags in no React,
+`./react` is the UI and must never reach a server bundle.
+
+**The browser never holds the API key.** That key reaches every customer's
+number, so `<WhatsappInbox>` talks to a proxy on the consumer's own server, and
+`createInboxHandler` ships that proxy as a one-liner. The only direct connection
+to us is the SSE stream, which needs a long-lived socket and uses the 60-second
+ticket the proxy mints. The client also logs an error if constructed in a
+browser: a leaked key is otherwise a completely silent failure.
+
+`resolveOwnerId` in the handler takes the owner from the consumer's *session*,
+never the request body — the one place where a careless integration would let any
+signed-in user read another owner's WhatsApp, so the doc comment says so
+outright.
+
+The component is styled with inline styles over CSS custom properties. A
+stylesheet that must be imported, or Tailwind classes that only work if the host
+uses Tailwind, is the fastest way to make a "drop-in" component not drop in.
+
+### Phase 5 design notes — the inbox stream
+
+**Live updates are SSE, and the stream polls Postgres.** Both halves of that are
+deliberate:
+
+- A websocket does not survive Vercel's serverless functions, so SSE on a
+  streaming route is the transport.
+- Inside that stream, an in-process `EventEmitter` would be worse than useless.
+  Each request is its own instance, so the process holding an inbox connection is
+  almost never the one running the webhook that received the message: the code
+  compiles, passes review, and delivers nothing in production. Redis pub/sub
+  would work and is infrastructure this stack does not have. So the server polls
+  on a two-second interval and pushes deltas — the client still gets push
+  semantics, and it is correct across any number of instances.
+
+Everything else about the stream follows from constraints rather than taste:
+
+| Detail | Why |
+|---|---|
+| `maxDuration = 300`, loop stops at 270s | Vercel kills the function regardless; closing early lets the browser reconnect cleanly instead of seeing a truncated frame |
+| Event id is the conversation's `updatedAt` | The browser replays it as `Last-Event-ID` on reconnect, so a dropped connection resumes exactly where it stopped instead of losing or replaying messages |
+| `: keepalive` comment every 15s | Proxies reap a connection that goes quiet |
+| `X-Accel-Buffering: no` | Nginx buffers streamed responses by default, turning SSE into one long silence followed by everything at once |
+| `retry: 3000` | Sets the browser's own reconnect delay rather than leaving it to the default |
+
+**Authentication is a 60-second signed ticket, not the API key.** `EventSource`
+cannot set an `Authorization` header — a browser limitation, not an oversight —
+so the stream URL has to carry its own credential, and putting the platform's
+long-lived key in a query string would leak it into history, referrers and every
+proxy log in between. `POST /inbox/ticket` swaps the key for an HMAC-signed,
+tenant-scoped ticket. Stateless, domain-separated from every other HMAC over
+`ENCRYPTION_KEY`, and short-lived enough that revocation is moot.
+
+**Agents are deactivated, never deleted.** Conversations record who handled them;
+a hard delete would leave assignments pointing at nothing. Deactivating also
+unassigns their open threads so none are stranded with someone who has left.
+
+**Assignment validates the agent belongs to the tenant.** The id comes from the
+request, so without that check a platform could assign one tenant's conversation
+to another tenant's agent.
+
+### Phase 4 design notes
+
+- **The window is stored, not inferred.** `WaConversation.windowExpiresAt` is
+  written in the same operation that records the inbound message. Deriving it at
+  send time from a scan of the message log worked, but put the single most
+  consequential rule in the API behind an index lookup that could silently start
+  missing rows.
+- **Opt-out is evaluated on inbound, not at broadcast time.** Meta requires it to
+  be honoured across every marketing send, so a tenant running only phases 1–4
+  must still stop messaging someone who asked. Enforced in `sendTemplate()` for
+  `MARKETING` only — a fee reminder is utility, and blocking it would break the
+  product for no compliance gain.
+- **Stop-intent matching is narrow on purpose.** The flag suppresses all future
+  marketing, so a false positive costs the tenant a customer they were allowed
+  to contact. A bare "no" is left alone. Same reasoning as the digest mute intent
+  in `lib/whatsapp.ts`.
+- **Autoreply never replies to a stop message.** An autoreply to "stop" is the
+  single most damaging thing a bot can do to a quality rating.
+- **First match wins, and a catch-all is forced to priority 900+.** Two rules
+  matching one message would send two replies, which reads as a broken bot.
+- **A tenant-supplied regex is a DoS vector.** `(a+)+$` backtracks exponentially
+  and would pin the webhook handler — which Meta then throttles for *every*
+  tenant. Guarded by compile-check on write, a length cap, and truncating the
+  inbound text before matching.
+- **Autoreply failures are swallowed.** A reply that does not send must never
+  make the webhook look broken to Meta.
+
+### Phase 3 design notes
+
+- **Send order is charge → call Meta → refund on failure.** Charging first is
+  what makes a prepaid wallet mean anything; sending first would let a tenant at
+  zero keep sending. The cost is that a Meta failure leaves money debited, hence
+  `failAndRefund()` on every error path, and hence an append-only ledger.
+- **`failAndRefund()` never throws.** A refund failure must not replace the Meta
+  error the caller needs to see; a refund that did not land is recoverable from
+  the ledger, a swallowed send error is not.
+- **The category comes from the stored template, never the caller.** Marketing
+  costs a multiple of utility, so a caller-declared category would let a platform
+  bill marketing at utility rates.
+- **`WaMessage` stores the price it was charged at.** A rate card changes; a
+  disputed invoice still has to be answerable.
+- **The 24-hour window is checked before sending free text.** Meta answers 200
+  outside the window and delivers nothing, so a silent failure looks exactly like
+  a success.
+- **Templates sync by name+language, not Meta id.** A template created in Meta's
+  own UI has no id on our side, and a send referencing it would otherwise fail
+  as "no such template" while being live and approved.
+- **Both a webhook and a cron watch template status.** The webhook is not
+  guaranteed delivered, and a pause or recategorisation weeks later may produce
+  no event at all.
+
+### Design notes worth not re-deriving
+
+- **The WABA id comes from `debug_token`, never the request.** Embedded Signup
+  reports it to the browser, and a browser can claim any id. Trusting the body
+  would let one platform bind another business's WABA to its own tenant.
+- **Credit-line sharing is best-effort.** No line configured, or Meta refusing,
+  produces a warning and a connected tenant — not a failed onboarding. Without a
+  line, the tenant's own card pays Meta and our per-message charge is a software
+  fee rather than a resale margin.
+- **The webhook always answers 200.** A 500 makes Meta back off the whole app —
+  every tenant's traffic, not just the one that failed. Events are persisted
+  before handling, so swallowing an error loses nothing.
+- **The Graph version is pinned.** Meta ships breaking changes between versions;
+  an unpinned client follows them silently.
+
+Neither migration has been applied — run `bun run db:push` (localhost only)
+when ready.
+
 ## Build sequence
 
 All four v1 features are in scope. Order matters because each depends on the last.
@@ -351,6 +810,7 @@ customers are already sending.
    number. Do not overload them.
 8. Category-blind pricing loses money on marketing. Price per category or not at all.
 9. Money in paise as `Int`, never a float. Never bill off message count alone.
+9b. Idempotency keys are per-wallet, never global — a caller-chosen key collides across platforms.
 10. Read-then-write on a wallet balance goes negative under concurrency. One
     conditional UPDATE, or nothing.
 11. Holding a tenant's money makes us a payment aggregator under RBI. We hold the

@@ -14,6 +14,8 @@ import {
   unmuteDigestByPhone,
 } from "@/lib/digest";
 import { handleBookingAction, handleBookingMessage } from "@/lib/whatsapp-booking";
+import { isPlatformPayload } from "@/lib/wa/dispatch";
+import { processVerifiedPayload } from "@/app/api/v1/wa/webhook/route";
 
 /**
  * Does this button tap mean "move my demo" or "call it off"?
@@ -153,6 +155,26 @@ export async function POST(request: Request) {
 
     if (!verifySignature(body, signature)) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    }
+
+    // Meta permits one callback URL per app, and this app now serves two
+    // products: Glitchgrab's own number (below) and every WhatsApp-platform
+    // tenant's number. Attribution is by phone_number_id — a tenant number is a
+    // WaNumber row, Glitchgrab's is not — and anything unattributable falls
+    // through to the original handling, which is what kept working before.
+    //
+    // Signature is already verified above, with the same app secret both
+    // products share, so the platform side does not re-check it.
+    try {
+      const parsed = JSON.parse(body) as unknown;
+      if (await isPlatformPayload(parsed)) {
+        await processVerifiedPayload(parsed as Parameters<typeof processVerifiedPayload>[0]);
+        return NextResponse.json({ received: true });
+      }
+    } catch (err) {
+      // A platform failure must never take down Glitchgrab's own booking and
+      // OTP replies, so fall through rather than propagate.
+      console.error("[whatsapp-webhook] platform dispatch failed:", err);
     }
 
     const payload = JSON.parse(body) as {

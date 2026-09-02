@@ -19,7 +19,7 @@
 export const MAX_FRAMES = 16;
 
 /** A very long call still has to fit one turn. ~120k chars ≈ a 3-hour call. */
-export const MAX_TRANSCRIPT_CHARS = 120_000;
+const MAX_TRANSCRIPT_CHARS = 120_000;
 
 /** Drafts per extraction. More than this out of one call means the model is
  *  splitting hairs, not finding work. */

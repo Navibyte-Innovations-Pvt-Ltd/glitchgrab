@@ -1419,3 +1419,434 @@ model MeetingIssueDraft {
 
   @@index([meetingId, position])
 }
+
+// ─── WhatsApp platform (Glitchgrab as Meta Tech Provider) ──────────
+// See agent_docs/whatsapp-platform.md. Distinct from WhatsappOtp /
+// WhatsappThread above, which are Glitchgrab's own booking flow.
+
+enum WaWalletOwnerType {
+  PLATFORM
+  TENANT
+}
+
+enum WaWalletTxnKind {
+  TOPUP
+  DEBIT
+  REFUND
+  HOLD
+  RELEASE
+  ADJUSTMENT
+}
+
+/// Meta prices per message per category, and the categories differ by
+/// multiples. Never collapse these into one rate.
+enum WaTemplateCategory {
+  MARKETING
+  UTILITY
+  AUTHENTICATION
+  SERVICE
+}
+
+enum WaTenantStatus {
+  PENDING
+  CONNECTED
+  SUSPENDED
+  DISCONNECTED
+}
+
+enum WaAgentRole {
+  AGENT
+  ADMIN
+}
+
+enum WaMatchType {
+  EXACT
+  CONTAINS
+  STARTS_WITH
+  REGEX
+  ANY
+}
+
+enum WaConversationStatus {
+  OPEN
+  SNOOZED
+  CLOSED
+}
+
+enum WaTemplateStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  PAUSED
+  DISABLED
+}
+
+enum WaMessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum WaMessageStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum WaNumberStatus {
+  PENDING
+  VERIFIED
+  REGISTERED
+  DISCONNECTED
+}
+
+/// A SaaS product that resells our WhatsApp infra (Abhyasika, SevaStack).
+/// Rows are provisioned by hand — there is no self-serve subscriber signup.
+model WaPlatform {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  apiKeyHash  String   @unique
+  /// Where we POST template approvals, low balance, delivery status.
+  callbackUrl String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenants    WaTenant[]
+  priceRules WaPriceRule[]
+}
+
+/// One business owner inside a platform — a library admin, a clinic.
+/// Owns the WABA and the phone number; our credit line pays its Meta bill.
+model WaTenant {
+  id String @id @default(cuid())
+
+  platformId String
+  /// The platform's OWN user id. We map it to this row server-side; the
+  /// platform never sends us a tenantId we would have to trust.
+  externalOwnerId String
+
+  name   String
+  wabaId String?
+  status WaTenantStatus @default(PENDING)
+
+  /// System user token for this tenant's WABA, AES-256-GCM via lib/encrypt.ts.
+  /// Never stored or logged in plaintext.
+  accessTokenEnc String?
+  tokenExpiresAt DateTime?
+
+  /// Whether our credit line is attached to this WABA. False means the tenant's
+  /// own card pays Meta and our per-message charge is a software fee, not a
+  /// resale margin. Onboarding succeeds either way.
+  creditLineShared Boolean @default(false)
+  creditLineNote   String?
+
+  connectedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  platform  WaPlatform   @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  numbers   WaNumber[]
+  templates     WaTemplate[]
+  messages      WaMessage[]
+  conversations  WaConversation[]
+  autoreplyRules WaAutoreplyRule[]
+  agents         WaAgent[]
+
+  @@unique([platformId, externalOwnerId])
+  @@index([wabaId])
+}
+
+/// A phone number registered under a tenant's WABA. Usually one, occasionally
+/// several. `phoneNumberId` is globally unique and is how inbound webhooks are
+/// routed back to a tenant.
+model WaNumber {
+  id       String @id @default(cuid())
+  tenantId String
+
+  phoneNumberId String @unique
+  displayNumber String
+  verifiedName  String
+
+  status             WaNumberStatus @default(PENDING)
+  qualityRating      String?
+  messagingLimitTier String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant WaTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+/// A message template. Mirrors one on Meta, which owns approval — we hold the
+/// draft, the submission, and whatever Meta last told us about it.
+model WaTemplate {
+  id       String @id @default(cuid())
+  tenantId String
+
+  name     String
+  language String
+  category WaTemplateCategory
+
+  /// Meta's component array verbatim (HEADER/BODY/FOOTER/BUTTONS).
+  components Json
+
+  metaTemplateId  String?
+  status          WaTemplateStatus @default(DRAFT)
+  rejectionReason String?
+
+  /// Meta never announces a verdict on a schedule we control, so a cron asks.
+  lastSyncedAt DateTime?
+  submittedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   WaTenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  messages WaMessage[]
+
+  /// Meta's own uniqueness rule: one name per language per WABA.
+  @@unique([tenantId, name, language])
+  @@index([tenantId, status])
+  @@index([metaTemplateId])
+}
+
+/// One sent or received message. Also the billing meter — every outbound row has
+/// a wallet debit written in the same transaction.
+model WaMessage {
+  id       String @id @default(cuid())
+  tenantId String
+
+  direction WaMessageDirection
+  status    WaMessageStatus    @default(QUEUED)
+
+  /// E.164 digits, no plus. The tenant's counterparty either way.
+  contactPhone String
+  phoneNumberId String?
+
+  templateId String?
+  /// Copied from the template at send time: a template can be recategorised by
+  /// Meta later, and this row must still say what it was billed as.
+  category WaTemplateCategory?
+
+  metaMessageId String?
+  payload       Json
+  error         String?
+
+  tenantPricePaise   Int?
+  platformPricePaise Int?
+
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  conversationId String?
+
+  tenant       WaTenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  template     WaTemplate?     @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  conversation WaConversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  @@index([conversationId, createdAt])
+  @@index([tenantId, createdAt])
+  @@index([metaMessageId])
+  @@index([tenantId, contactPhone, createdAt])
+}
+
+/// One thread with one contact.
+///
+/// `windowExpiresAt` is the 24-hour service window, refreshed by every INBOUND
+/// message. It is the gate on free-form text: Meta answers 200 outside the
+/// window and delivers nothing, so a silent failure looks exactly like success.
+model WaConversation {
+  id       String @id @default(cuid())
+  tenantId String
+
+  contactPhone String
+  contactName  String?
+
+  /// Refreshed on every inbound message. Null = never messaged us.
+  windowExpiresAt DateTime?
+  lastInboundAt   DateTime?
+  lastOutboundAt  DateTime?
+
+  /// Set the moment a stop-intent message arrives, and honoured on every
+  /// marketing send. Compliance, not a broadcast feature.
+  optedOut   Boolean   @default(false)
+  optedOutAt DateTime?
+
+  status          WaConversationStatus @default(OPEN)
+  assignedAgentId String?
+  unreadCount     Int                  @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   WaTenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  messages WaMessage[]
+
+  @@unique([tenantId, contactPhone])
+  @@index([tenantId, status, updatedAt])
+  @@index([tenantId, windowExpiresAt])
+}
+
+/// An inbox seat.
+///
+/// Deliberately NOT a Glitchgrab `User`: the people answering a library's
+/// WhatsApp work for the library, have no Glitchgrab account, and must never be
+/// resolvable to one. `externalAgentId` is the platform's own user id, the same
+/// indirection `WaTenant.externalOwnerId` uses.
+model WaAgent {
+  id       String @id @default(cuid())
+  tenantId String
+
+  externalAgentId String
+  name            String
+  email           String?
+  role            WaAgentRole @default(AGENT)
+  active          Boolean     @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant WaTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, externalAgentId])
+  @@index([tenantId, active])
+}
+
+/// Keyword → canned reply, evaluated on every inbound message.
+///
+/// Replies are free text, so they are legal only inside the service window —
+/// which an inbound message has just opened by definition.
+model WaAutoreplyRule {
+  id       String @id @default(cuid())
+  tenantId String
+
+  name      String
+  matchType WaMatchType @default(CONTAINS)
+  /// Ignored when matchType is ANY.
+  pattern   String?
+
+  replyText String
+  /// Lower runs first. First match wins; nothing cascades.
+  priority  Int     @default(100)
+  enabled   Boolean @default(true)
+
+  /// Cheap analytics, and the fastest way to spot a rule matching everything.
+  matchCount  Int       @default(0)
+  lastMatchAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant WaTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, enabled, priority])
+}
+
+/// Raw inbound webhook events, kept for dedupe. Meta retries delivery, and
+/// without this an autoreply fires twice for one inbound message.
+model WaWebhookEvent {
+  id String @id @default(cuid())
+
+  /// Meta's own id for the event. The unique index IS the dedupe.
+  metaEventId String @unique
+
+  phoneNumberId String?
+  tenantId      String?
+  field         String
+  payload       Json
+
+  processedAt DateTime?
+  error       String?
+  createdAt   DateTime  @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([phoneNumberId])
+}
+
+/// Prepaid balance. Recharge first, then send — nothing is invoiced in arrears.
+///
+/// `ownerId` is polymorphic (a WaPlatform id or a WaTenant id) so it carries no
+/// foreign key on purpose. `ownerType` disambiguates.
+///
+/// `balancePaise` is a cached rollup of WaWalletTxn, which is the truth.
+/// Integer paise, never a float, never rupees.
+model WaWallet {
+  id        String            @id @default(cuid())
+  ownerType WaWalletOwnerType
+  ownerId   String
+
+  balancePaise Int @default(0)
+  /// Reserved by in-flight broadcasts. Spendable = balancePaise - heldPaise.
+  heldPaise    Int @default(0)
+
+  lowBalanceThresholdPaise Int       @default(0)
+  lowBalanceNotifiedAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  txns WaWalletTxn[]
+
+  @@unique([ownerType, ownerId])
+}
+
+/// Append-only ledger. Never update a row here; write a compensating one.
+model WaWalletTxn {
+  id       String          @id @default(cuid())
+  walletId String
+  /// Signed: negative debits, positive credits.
+  amountPaise       Int
+  kind              WaWalletTxnKind
+  balanceAfterPaise Int
+
+  /// Not foreign keys — WaMessage and WaBroadcast arrive in later phases.
+  messageId   String?
+  broadcastId String?
+
+  /// Idempotency key, scoped to the wallet. A retried send reuses it and the
+  /// unique index makes the second debit a no-op instead of charging twice.
+  ///
+  /// Scoped, NOT global: platforms choose their own keys, so two of them will
+  /// eventually both send "topup-1". A global unique index would make the second
+  /// platform's call match the first's row and read back a balance that is not
+  /// theirs.
+  refKey String?
+  note   String?
+
+  createdAt DateTime @default(now())
+
+  wallet WaWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@unique([walletId, refKey])
+  @@index([walletId, createdAt])
+}
+
+/// What a message costs us, what we charge the platform, and what the platform
+/// charges its tenant — per category, because a flat rate loses money on
+/// marketing. `tenantPricePaise` is the platform's own decision.
+model WaPriceRule {
+  id         String             @id @default(cuid())
+  platformId String
+  category   WaTemplateCategory
+
+  metaCostPaise      Int
+  platformPricePaise Int
+  tenantPricePaise   Int
+
+  effectiveFrom DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  platform WaPlatform @relation(fields: [platformId], references: [id], onDelete: Cascade)
+
+  @@unique([platformId, category, effectiveFrom])
+  @@index([platformId, category])
+}

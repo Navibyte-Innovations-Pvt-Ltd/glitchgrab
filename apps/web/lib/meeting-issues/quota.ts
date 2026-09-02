@@ -27,7 +27,7 @@ function startOfMonth(now: Date): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 }
 
-export interface ExtractionQuota {
+interface ExtractionQuota {
   ok: boolean;
   /** Extractions left this month, after this one. */
   remaining: number;

@@ -19,7 +19,11 @@
       "/api/v1/meetings/*/complete",
       "/api/v1/meetings/*/upload-urls",
       "/api/v1/extension/report",
-      "/api/v1/extension/repos"
+      "/api/v1/extension/repos",
+      "/api/v1/wa/**",
+      "/api/v1/cron/wa-template-sync",
+      "/api/v1/meetings/*/frames",
+      "/api/v1/meetings/*/issue-drafts/**"
     ],
     "files": [
       "**/db-sync.ts",
@@ -27,7 +31,14 @@
       "**/components/AppInputFields/**",
       "**/public/favicon-48x48.png",
       "apps/glitchrecord/**",
-      "packages/meet-bot/**"
+      "packages/meet-bot/**",
+      "**/components/dashboard/paywall-block.tsx",
+      "**/components/dashboard/paywall-guard.tsx",
+      "**/components/dashboard/welcome-trial-dialog.tsx"
+    ],
+    "links": [
+      "/dashboard/seo",
+      "/dashboard/settings"
     ]
   }
 }

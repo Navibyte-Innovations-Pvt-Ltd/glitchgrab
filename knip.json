@@ -8,13 +8,15 @@
         "app/**/actions.{ts,tsx}",
         "app/**/*.test.ts",
         "components/**/*.{ts,tsx}",
-        "lib/*.ts"
+        "lib/*.ts",
+        "scripts/**/*.ts"
       ],
       "project": [
         "app/**/*.{ts,tsx}",
         "lib/**/*.{ts,tsx}",
         "components/**/*.{ts,tsx}",
-        "app/**/*.test.ts"
+        "app/**/*.test.ts",
+        "scripts/**/*.ts"
       ],
       "next": {
         "entry": [

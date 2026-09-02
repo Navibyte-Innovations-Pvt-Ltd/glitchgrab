@@ -67,7 +67,16 @@ function ok(value: unknown) {
  * TypeScript gives up with "type instantiation is excessively deep". Naming
  * them costs nothing and keeps the tool definitions readable.
  */
-type Shape = Record<string, z.ZodTypeAny>;
+/**
+ * zod v4 renamed `ZodTypeAny` to `ZodType`. The alias is gone, not deprecated,
+ * so this is the only source change the v4 bump needs — the schemas themselves
+ * (`z.number()`, `z.enum()`) are unchanged between versions.
+ *
+ * The bump exists because apps/web needs zod v4 for @hookform/resolvers@5, and
+ * bun hoists a single zod across the workspace: this package pinning ^3 pinned
+ * the whole repo to v3 and broke every form resolver's types.
+ */
+type Shape = Record<string, z.ZodType>;
 
 /** What a tool hands back: JSON as text, or an error the operator can act on. */
 interface ToolResult {

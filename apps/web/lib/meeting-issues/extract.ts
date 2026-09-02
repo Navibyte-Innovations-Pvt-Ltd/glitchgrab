@@ -23,13 +23,13 @@ import {
  * says so rather than silently producing thinner drafts.
  */
 
-export interface FrameRef {
+interface FrameRef {
   id: string;
   tMs: number;
   key: string;
 }
 
-export interface ExtractResult {
+interface ExtractResult {
   drafts: DraftIssue[];
   /** Which model actually answered. Surfaced so a thin result is explainable. */
   model: string;

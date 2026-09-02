@@ -30,7 +30,7 @@ const MAX_SECTION_CHARS = 1_500;
 const MAX_GUIDE_CHARS = 3_000;
 const CACHE_TTL_MS = 10 * 60 * 1000;
 
-export interface GlitchBrief {
+interface GlitchBrief {
   /** What the product is, in two lines. Without it the assistant infers the
    *  domain from a screenshot, which is how "compliance" becomes "a form". */
   product?: string;
