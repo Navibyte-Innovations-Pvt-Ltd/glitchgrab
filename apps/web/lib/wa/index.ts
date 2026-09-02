@@ -59,3 +59,22 @@ export {
   type SyncResult,
 } from "./templates";
 export { sendTemplate, sendText, type SendResult } from "./send";
+export {
+  SERVICE_WINDOW_MS,
+  normalizeContact,
+  detectOptOut,
+  recordInbound,
+  recordOutbound,
+  getWindowState,
+  markConversationRead,
+  type WindowState,
+} from "./conversations";
+export {
+  createRule,
+  updateRule,
+  deleteRule,
+  listRules,
+  matchRule,
+  type RuleInput,
+  type MatchedRule,
+} from "./autoreply";
