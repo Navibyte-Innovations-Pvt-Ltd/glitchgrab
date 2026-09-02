@@ -19,7 +19,9 @@
       "/api/v1/meetings/*/complete",
       "/api/v1/meetings/*/upload-urls",
       "/api/v1/extension/report",
-      "/api/v1/extension/repos"
+      "/api/v1/extension/repos",
+      "/api/v1/wa/**",
+      "/api/v1/cron/wa-template-sync"
     ],
     "files": [
       "**/db-sync.ts",
