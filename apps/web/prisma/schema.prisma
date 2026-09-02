@@ -1598,15 +1598,21 @@ model WaWalletTxn {
   messageId   String?
   broadcastId String?
 
-  /// Idempotency key. A retried send reuses it and the unique index makes the
-  /// second debit fail instead of charging twice.
-  refKey String? @unique
+  /// Idempotency key, scoped to the wallet. A retried send reuses it and the
+  /// unique index makes the second debit a no-op instead of charging twice.
+  ///
+  /// Scoped, NOT global: platforms choose their own keys, so two of them will
+  /// eventually both send "topup-1". A global unique index would make the second
+  /// platform's call match the first's row and read back a balance that is not
+  /// theirs.
+  refKey String?
   note   String?
 
   createdAt DateTime @default(now())
 
   wallet WaWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
 
+  @@unique([walletId, refKey])
   @@index([walletId, createdAt])
 }
 
