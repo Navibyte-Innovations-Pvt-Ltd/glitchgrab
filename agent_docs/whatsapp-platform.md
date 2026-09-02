@@ -151,7 +151,176 @@ DIDs fail WhatsApp verification often enough to become a permanent support load.
 If an owner's number is stuck on the consumer app, the fix is theirs: delete the
 account in the app, wait, retry. Document it; don't automate it.
 
-## Meta setup — human steps, done once
+## Meta setup — verified status (2026-09-02)
+
+Checked against the live Meta account, not assumed.
+
+| Item | State | Evidence |
+|---|---|---|
+| Meta app | **Exists, live** | `Glitchgrab`, app id `996021116131151`, base domain `glitchgrab.dev` |
+| Business portfolio | `2882312428642904` | "Navibyte Innovations" — NAVIBYTE INNOVATIONS PRIVATE LIMITED, CIN U62013PN2025PTC243132, Pune. Owns the app and every WABA. |
+| Business verification | **Verified** 8 Jul 2025 | Business portfolio info |
+| **Tech Provider access verification** | **Verified** | Business portfolio info → "Your business was verified as a Tech Provider" |
+| WhatsApp product | **Added** | "Connect on WhatsApp" use case active |
+| Facebook Login for Business | **Configured** | Required for Embedded Signup |
+| 1. Business verification | **Approved** | Tech Provider onboarding page, step 1 |
+| 2. App Review | **NOT submitted** | App Review → Submissions reads "Not submitted"; three permissions queued as New requests |
+| App compliance | Clean | No violations, no required actions |
+| Extended credit line (ours) | **Does not exist** | Billing hub → Credit lines: only lines *allocated from* Haptik and AiSensy |
+| Finance editor role | **Granted** (2026-09-02) | Banner cleared; did **not** unlock credit-line requests |
+| Meta India rate card | **Not yet pulled** | Needed before quoting a platform a price |
+
+### Billing, as it actually stands
+
+Navibyte's business (`2882312428642904`) holds these WhatsApp Business accounts:
+
+| WABA | Pays via |
+|---|---|
+| Glitchgrab (`3155474051329602`) | own Visa ···7006, ₹11.06 due |
+| My Abhyasika (`1893698398081017`) | own Visa ···7006, ₹94.92 due |
+| PracticeStacks (`861240823192636`) | own Visa ···7006, ₹36.00 due |
+| Kaydyach Aani Faydyach, Navibyte Innovations | own Visa ···7006 |
+| Sevastack (×2) | **no payment method** |
+| Startbusiness, Navibyte Innovations Pvt Ltd | **AiSensy** |
+| AS Consultancy, Navibyte Innovations Pvt Ltd | **Haptik** |
+| Test WhatsApp Business Account (`1482815023074117`) | own Visa — usable for phase 2/3 dev |
+
+Two things follow from this, and they matter more than anything else in this
+document:
+
+1. **The model is proven, from the receiving end.** AiSensy and Haptik each
+   allocate a credit line onto WABAs that Navibyte owns, and Meta invoices
+   *them*. That is precisely the mechanism Glitchgrab would use on a library
+   admin's WABA. It is not theoretical — it is already on this account, twice.
+2. **We have no line of our own.** Every Navibyte-paid WABA runs on a personal
+   Visa. Applying is gated on a Meta role change first: the current role lacks
+   *finance editor*, so "Add line of credit" cannot be actioned.
+
+Abhyasika already sends from its own WABA billed to that Visa — which is exactly
+the arrangement the backlash comes from: one number for every library.
+
+Tech Provider onboarding reports **1 of 2 steps complete**: business
+verification done, App Review outstanding.
+
+`business_management` is **not** required. Meta's Tech Provider checklist lists
+exactly two permissions, both `whatsapp_*`. Do not submit for a third.
+
+### App Review has not been submitted
+
+The Tech Provider onboarding page renders step 2 as "In review", and that is
+misleading — it reflects the step being open, not a submission being with Meta.
+Both the App Review → Submissions page ("Not submitted") and the Graph API
+(`submission_status: UNSUBMITTED`, `has_been_previously_reviewed: false`) agree
+that nothing has been sent. **Believe those two, not the onboarding page.**
+
+Three permissions sit queued as New requests: `whatsapp_business_messaging`,
+`whatsapp_business_management`, and `public_profile`. Every step on the two
+WhatsApp permissions is incomplete — `use_case`, `screencast`, `api_precheck`
+and `data_use_checkup` all report `is_completed: false`. `public_profile` needs
+only `data_use_checkup`, and is worth questioning at all: it is not on Meta's
+Tech Provider checklist, and carrying it drags a compliance form into the
+submission. Confirm whether Facebook Login for Business needs it before removing.
+
+### Why this inverts the build order
+
+`api_precheck` requires **real calls to the WhatsApp endpoints from this app**,
+and `screencast` requires video of a working integration — a message leaving the
+app and arriving in WhatsApp, and a template being created over the API. Neither
+can be faked and neither can be produced before the integration exists.
+
+App Review is therefore **not** a gate in front of phases 2 and 3. It is a gate
+behind them:
+
+```
+phase 2 (Embedded Signup, token exchange)
+  → phase 3 (templates, send) against Test WhatsApp Business Account (1482815023074117)
+  → those calls satisfy api_precheck
+  → record the two screencasts from the working app
+  → data_use_checkup
+  → submit App Review
+```
+
+Nothing is waiting on Meta. The blocker is our own code.
+
+## One Meta identity, two Google addresses
+
+Settled empirically on 2026-09-02, after an invite attempt failed twice:
+
+`bhosalenaresh73@gmail.com` and `navibyteinnovations@gmail.com` are **the same
+Facebook profile**, and that profile already has Full access plus Finance on the
+Navibyte Innovations portfolio (`2882312428642904`).
+
+The confusion is a Meta UI artefact. The People row reads "Navibyte Innovations
+(you) — navibyteinnovations@gmail.com" because that is the person's **business
+email** field, a label attached to the portfolio membership. It is not the
+Facebook login. The login is `bhosalenaresh73@gmail.com`, which is also why the
+Graph API reports that address as the Glitchgrab app's contact.
+
+How it was proven: inviting `bhosalenaresh73@gmail.com` and opening the invite in
+an incognito window, signed in as that address, returned *"Looks like you're
+already in the business portfolio."* A genuinely separate account would have been
+able to accept.
+
+**Do not try to add a second person.** There is one human, one Facebook profile,
+one portfolio, and it already holds every permission needed. Any pending invite
+to `bhosalenaresh73@gmail.com` should be cancelled under Settings → Users →
+People; it can never be accepted.
+
+The portfolio members are therefore: this profile (Full access + Finance) and
+Vivek Bhos, `bhosvivek123@gmail.com` (Full access + Finance).
+
+## Credit lines — what the dashboard actually allows## Credit lines — what the dashboard actually allows
+
+Credit lines **do** cover WhatsApp, not just ads: the "Supported products" column
+on both allocated lines shows the WhatsApp icon, and AiSensy/Haptik appear as the
+payer on WhatsApp Business accounts in the billing table. That question is
+settled empirically on this account.
+
+**But there is no self-serve way to open one.** Billing → Credit lines → *Add
+line of credit* opens a menu with exactly one entry, disabled:
+
+> Request Access to a Partner's Credit — *This option is no longer available.
+> Ask your partner to grant access to you.*
+
+So a line of credit is not something the dashboard will sell us. It is granted by
+Meta on eligibility — through a Meta rep, or the Tech Provider onboarding support
+channel linked from the onboarding page.
+
+**The finance-editor role was granted on 2026-09-02 and changed nothing here.**
+The "Missing edit permissions" banner disappeared, confirming the role applied,
+and the menu item stayed disabled with the same text. This was worth testing and
+is now settled: the block is not a permissions problem at any level, it is Meta
+having withdrawn self-serve credit requests. Do not spend more time in the
+billing UI looking for another route — the only remaining path is a conversation
+with Meta, gated on App Review.
+
+### Constraints on sharing, once we have one
+
+From Meta's own sharing documentation, and each one has a design consequence:
+
+| Constraint | Consequence for us |
+|---|---|
+| "The receiving business can't reshare your credit line with others." | We must share **directly onto each tenant's business**, never Glitchgrab → Abhyasika → library. The platform is a billing and UI relationship only; the credit relationship is provider-to-tenant. Our schema already models it this way. |
+| Businesses in India can only share with businesses in India. | Domestic tenants only. An overseas customer of a platform cannot be onboarded onto our line. |
+| Outside US/BR/FR/MX the **sharing** business stays bill-to. India is outside that list. | **We remain liable for every rupee a tenant spends.** This is the whole justification for the prepaid wallet. |
+| Partial sharing sets a hard spend cap on the receiving business. | Set it to the tenant's wallet balance. Our wallet is the soft guard; Meta's cap is the hard one that holds even if our code fails open. |
+
+### If the credit line never arrives
+
+The wallet architecture survives intact. Only the Meta-cost line moves:
+
+- **With a line:** Meta bills us, we bill the platform, the platform bills the
+  tenant. Margin is resale.
+- **Without:** the tenant's own card stays on their WABA and Meta bills them
+  directly. We still meter every message and still charge a software fee per
+  message through the same wallet.
+
+Nothing in phases 1–6 changes. `WaPriceRule.metaCostPaise` becomes informational
+rather than a real payable, and the per-message revenue is a platform fee instead
+of a markup. Worth knowing before the credit-line conversation, so it is not
+negotiated from a position of it being existential.
+
+## Meta setup — the full sequence, for reference
 
 These cannot be scripted. Each one gates the next.
 
@@ -160,8 +329,10 @@ These cannot be scripted. Each one gates the next.
 2. **Create the Meta app**, add the WhatsApp product. This is a *new* app —
    Glitchgrab's existing `META_WA_*` credentials are a single-tenant sender for
    our own number and stay untouched.
-3. **App Review for Advanced Access** on `whatsapp_business_management`,
-   `whatsapp_business_messaging`, `business_management`.
+3. **App Review for Advanced Access** on `whatsapp_business_messaging` and
+   `whatsapp_business_management`. Both need a screencast: one showing a message
+   sent from the app and arriving in WhatsApp, one showing a template being
+   created over the API.
 4. **Data Protection Assessment**, annually, because of Advanced Access. A CASA
    Tier-2 assessment may also apply depending on final scope. Both cost real
    money and take weeks. Verify current requirements and fees on Meta's Tech
@@ -309,6 +480,24 @@ sends us a `tenantId` we would have to trust.
 Ship a drop-in React inbox component alongside it, so a platform gets the shared
 inbox without rebuilding it. That is the piece that makes "we help for easiness"
 real rather than a promise.
+
+## Status
+
+**Phase 1 is built** (2026-09-02). Foundation only — nothing talks to Meta yet.
+
+| Piece | Where |
+|---|---|
+| Models + enums | `apps/web/prisma/schema.prisma` (tail) |
+| Migration | `apps/web/prisma/migrations/20260902060000_wa_platform_foundation/` |
+| Platform key auth, tenant mapping | `apps/web/lib/wa/auth.ts` |
+| Wallets, atomic debit, holds, refunds | `apps/web/lib/wa/wallet.ts` |
+| Per-category pricing | `apps/web/lib/wa/pricing.ts` |
+| Typed failures | `apps/web/lib/wa/errors.ts` |
+| Routes | `apps/web/app/api/v1/wa/{wallet/credit,wallet/balance,wallet/transactions,pricing}` |
+| Manual platform provisioning | `apps/web/scripts/wa-provision-platform.ts` |
+
+The migration has not been applied — run `bun run db:push` (localhost only)
+when ready.
 
 ## Build sequence
 
