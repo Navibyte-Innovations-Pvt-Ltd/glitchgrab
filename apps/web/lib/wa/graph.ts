@@ -13,7 +13,7 @@ import { WaError } from "./errors";
  * Pinned. Meta ships breaking changes between versions and an unpinned client
  * silently follows them; bumping this is a deliberate act with a test pass.
  */
-export const WA_GRAPH_VERSION = "v23.0";
+const WA_GRAPH_VERSION = "v23.0";
 const GRAPH_BASE = `https://graph.facebook.com/${WA_GRAPH_VERSION}`;
 
 /**
@@ -40,7 +40,7 @@ export function waAppSecret(): string {
   return secret;
 }
 
-export interface GraphErrorBody {
+interface GraphErrorBody {
   error?: {
     message?: string;
     type?: string;
@@ -134,7 +134,7 @@ async function graphRequest<T>(
   return body as T;
 }
 
-export function graphGet<T>(
+function graphGet<T>(
   path: string,
   accessToken: string,
   query?: Record<string, string | undefined>
@@ -142,7 +142,7 @@ export function graphGet<T>(
   return graphRequest<T>(path, { method: "GET", accessToken, query });
 }
 
-export function graphPost<T>(
+function graphPost<T>(
   path: string,
   accessToken: string,
   body?: unknown,
@@ -156,7 +156,7 @@ export function graphPost<T>(
   });
 }
 
-export function graphDelete<T>(path: string, accessToken: string): Promise<T> {
+function graphDelete<T>(path: string, accessToken: string): Promise<T> {
   return graphRequest<T>(path, { method: "DELETE", accessToken });
 }
 
@@ -182,7 +182,7 @@ export async function exchangeCodeForToken(code: string): Promise<string> {
   return res.access_token;
 }
 
-export interface DebugTokenResult {
+interface DebugTokenResult {
   wabaIds: string[];
   expiresAt: Date | null;
   scopes: string[];
@@ -230,7 +230,7 @@ export async function debugToken(userToken: string): Promise<DebugTokenResult> {
   };
 }
 
-export interface WabaPhoneNumber {
+interface WabaPhoneNumber {
   id: string;
   display_phone_number: string;
   verified_name: string;
@@ -265,25 +265,6 @@ export async function getWaba(
  */
 export async function subscribeAppToWaba(wabaId: string, accessToken: string): Promise<void> {
   await graphPost(`/${wabaId}/subscribed_apps`, accessToken);
-}
-
-/**
- * Registers the tenant's number on Cloud API.
- *
- * `pin` is the number's two-step verification PIN. Meta requires one, and a
- * number carrying a PIN from a previous provider cannot be registered until it
- * is cleared — that is the most common onboarding failure and it needs the
- * tenant to act, not us.
- */
-export async function registerPhoneNumber(
-  phoneNumberId: string,
-  accessToken: string,
-  pin: string
-): Promise<void> {
-  await graphPost(`/${phoneNumberId}/register`, accessToken, {
-    messaging_product: "whatsapp",
-    pin,
-  });
 }
 
 /**
@@ -377,7 +358,7 @@ export async function deleteTemplate(
   await graphDelete(`/${wabaId}/message_templates?name=${encodeURIComponent(name)}`, accessToken);
 }
 
-export interface SendTemplateParams {
+interface SendTemplateParams {
   phoneNumberId: string;
   to: string;
   templateName: string;
