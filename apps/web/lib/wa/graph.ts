@@ -17,27 +17,26 @@ export const WA_GRAPH_VERSION = "v23.0";
 const GRAPH_BASE = `https://graph.facebook.com/${WA_GRAPH_VERSION}`;
 
 /**
- * The Tech Provider app's id and secret.
+ * The Tech Provider app's id and secret — app `996021116131151` (Glitchgrab).
  *
- * Both fall back to the older `META_WA_*` names, because those already hold this
- * app's credentials — verified against Meta's `oauth/access_token`, which
- * accepts `META_WA_APP_SECRET` for app `996021116131151` (Glitchgrab) and
- * rejects it for every other app of ours.
+ * These are the same `META_WA_*` values the rest of the repo already uses, and
+ * deliberately so: verified against Meta's `oauth/access_token`, which accepts
+ * `META_WA_APP_SECRET` for this app and rejects it for every other app of ours.
+ * A second name for one app's secret is just a way to get them out of sync.
  *
- * The `_PLATFORM_` names still win when set, so the two can be separated later
- * without touching code. Do NOT copy `META_WA_ACCESS_TOKEN` into anything here:
- * that one is a system user token belonging to a *different* app, and tenant
- * tokens come from Embedded Signup, never from env.
+ * Do NOT reach for `META_WA_ACCESS_TOKEN` here. That is a system user token on a
+ * *different* app (PracticeStacks); tenant tokens come from Embedded Signup, one
+ * per WABA, and never from env.
  */
 export function waAppId(): string {
-  const id = process.env.META_WA_PLATFORM_APP_ID ?? process.env.META_WA_APP_ID;
-  if (!id) throw new WaError("UNAUTHORIZED", "META_WA_PLATFORM_APP_ID is not set", 500);
+  const id = process.env.META_WA_APP_ID;
+  if (!id) throw new WaError("UNAUTHORIZED", "META_WA_APP_ID is not set", 500);
   return id;
 }
 
 export function waAppSecret(): string {
-  const secret = process.env.META_WA_PLATFORM_APP_SECRET ?? process.env.META_WA_APP_SECRET;
-  if (!secret) throw new WaError("UNAUTHORIZED", "META_WA_PLATFORM_APP_SECRET is not set", 500);
+  const secret = process.env.META_WA_APP_SECRET;
+  if (!secret) throw new WaError("UNAUTHORIZED", "META_WA_APP_SECRET is not set", 500);
   return secret;
 }
 
