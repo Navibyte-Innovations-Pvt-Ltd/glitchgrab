@@ -516,14 +516,18 @@ against it — no credentials are configured yet.
 
 ### Env vars phase 2 needs
 
-Most of these already exist. Verified against Meta on 2026-09-02 by asking
-`oauth/access_token` which app each credential authenticates.
+The platform reuses the repo's existing `META_WA_*` variables rather than
+introducing parallel `META_WA_PLATFORM_*` names. One Meta app, one set of
+credentials — a second name for the same secret is only a way to get them out of
+sync. Verified on 2026-09-02 against `oauth/access_token`, which accepts
+`META_WA_APP_SECRET` for app `996021116131151` and rejects it for every other app
+of ours.
 
 | Var | State |
 |---|---|
-| `META_WA_PLATFORM_APP_ID` | Falls back to `META_WA_APP_ID`; the app is `996021116131151` |
-| `META_WA_PLATFORM_APP_SECRET` | **Already on disk** as `META_WA_APP_SECRET` — the code falls back to it |
-| `META_WA_PLATFORM_VERIFY_TOKEN` | Falls back to `META_WA_VERIFY_TOKEN`; a distinct one is cleaner |
+| `META_WA_APP_ID` | **Needs adding**: `996021116131151` |
+| `META_WA_APP_SECRET` | Already set — the Tech Provider app's secret |
+| `META_WA_VERIFY_TOKEN` | Already set — shared with `/api/v1/whatsapp/webhook` |
 | `META_WA_SIGNUP_CONFIG_ID` | **Does not exist.** Created in Embedded Signup Builder, not looked up |
 | `META_WA_EXTENDED_CREDIT_ID` | Leave unset — no credit line; onboarding degrades gracefully |
 | `META_WA_CREDIT_CURRENCY` | Defaults to `INR` |
