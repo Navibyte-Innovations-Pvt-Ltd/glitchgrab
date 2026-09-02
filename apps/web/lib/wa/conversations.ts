@@ -12,10 +12,10 @@ import { prisma } from "@/lib/db";
  * log, and it is refreshed in the same write that records the inbound message.
  */
 
-export const SERVICE_WINDOW_MS = 24 * 60 * 60 * 1000;
+const SERVICE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 /** E.164 digits, no plus — the shape Meta uses and the shape we key on. */
-export function normalizeContact(phone: string): string {
+function normalizeContact(phone: string): string {
   return phone.replace(/\D/g, "");
 }
 
@@ -36,7 +36,7 @@ const STOP_INTENT =
 
 const START_INTENT = /^(start|resume|subscribe|unstop)\b/i;
 
-export function detectOptOut(text: string): "out" | "in" | null {
+function detectOptOut(text: string): "out" | "in" | null {
   const t = text.trim();
   if (!t) return null;
   if (STOP_INTENT.test(t)) return "out";
@@ -44,7 +44,7 @@ export function detectOptOut(text: string): "out" | "in" | null {
   return null;
 }
 
-export interface InboundResult {
+interface InboundResult {
   conversationId: string;
   optedOut: boolean;
   /** True when this message just re-opened the window (it always does). */
@@ -119,7 +119,7 @@ export async function recordOutbound(params: {
   return conversation.id;
 }
 
-export interface WindowState {
+interface WindowState {
   open: boolean;
   expiresAt: Date | null;
   optedOut: boolean;
