@@ -425,6 +425,36 @@ subscriber signup — do not build one until a real third party asks.
 plus `externalOwnerId`, exactly as `getExtensionSessionRepos()` derives repo
 scope from the session. Same rule, same reason.
 
+## One Meta callback URL, two products
+
+Meta permits **exactly one callback URL per app**, and this app already served
+Glitchgrab's own number at `/api/v1/whatsapp/webhook`. Both products therefore
+share that endpoint — `/api/v1/wa/webhook` exists and works, but Meta is not
+pointed at it and never will be while the two share an app.
+
+The split is by `phone_number_id`: every tenant number is a `WaNumber` row,
+Glitchgrab's own number is not. `lib/wa/dispatch.ts` makes that call, and the
+legacy route delegates to `processVerifiedPayload()` when it matches.
+
+Three properties of that arrangement, all deliberate:
+
+- **Signature is verified once**, in the legacy route, with `META_WA_APP_SECRET`.
+  Both products share the app, so they share the secret; the platform path does
+  not re-check what has already been proven.
+- **Unattributable payloads fall through** to the original handling. That is the
+  behaviour that existed before this feature, and it is what keeps OTP, booking
+  and digest working. Failing towards "not ours" is the safe direction.
+- **A platform failure cannot take down Glitchgrab's own replies.** The dispatch
+  is wrapped so an error logs and falls through rather than propagating.
+
+Configured on the app: callback `https://glitchgrab.dev/api/v1/whatsapp/webhook`,
+subscribed to `messages`, `message_template_status_update`,
+`phone_number_quality_update`, `account_update`.
+
+If the two products are ever split onto separate Meta apps, point the new app at
+`/api/v1/wa/webhook`, give it its own secret and verify token, and delete the
+dispatch hop.
+
 ## Webhook fan-out
 
 Meta posts every tenant's events to one URL. Route on `phone_number_id` inside
