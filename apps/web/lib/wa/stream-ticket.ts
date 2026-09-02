@@ -33,7 +33,7 @@ function sign(payload: string): string {
   return createHmac("sha256", signingKey()).update(`${DOMAIN}:${payload}`).digest("base64url");
 }
 
-export interface TicketClaims {
+interface TicketClaims {
   platformId: string;
   tenantId: string;
 }
