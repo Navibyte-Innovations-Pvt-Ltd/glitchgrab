@@ -5,6 +5,7 @@ import { getTenantToken } from "./onboarding";
 import { resolvePrice } from "./pricing";
 import { chargeMessage, refund } from "./wallet";
 import { sendTemplateMessage, sendTextMessage, WaGraphError } from "./graph";
+import { getWindowState, recordOutbound } from "./conversations";
 
 /**
  * Sending.
@@ -111,6 +112,22 @@ export async function sendTemplate(input: SendTemplateInput): Promise<SendResult
     );
   }
 
+  // Meta requires opt-out to be honoured on every marketing send, and a
+  // violation is charged to the WABA's quality rating, not ours. Utility and
+  // authentication are transactional and deliberately still allowed — a fee
+  // reminder is not marketing.
+  if (template.category === "MARKETING") {
+    const window = await getWindowState(tenantId, to);
+    if (window.optedOut) {
+      throw new WaError(
+        "INVALID_AMOUNT",
+        "This contact has opted out of marketing messages",
+        409,
+        { contactPhone: to }
+      );
+    }
+  }
+
   const price = await resolvePrice(platformId, template.category);
   const phoneNumberId = await resolveSendingNumber(tenantId, input.phoneNumberId);
   const { token } = await getTenantToken(tenantId);
@@ -122,6 +139,7 @@ export async function sendTemplate(input: SendTemplateInput): Promise<SendResult
       status: "QUEUED",
       contactPhone: to,
       phoneNumberId,
+      conversationId: await recordOutbound({ tenantId, contactPhone: to }),
       templateId: template.id,
       category: template.category,
       tenantPricePaise: price.tenantPricePaise,
@@ -214,21 +232,14 @@ export async function sendText(input: SendTextInput): Promise<SendResult> {
 
   if (!body?.trim()) throw new WaError("INVALID_AMOUNT", "body is required", 400);
 
-  const lastInbound = await prisma.waMessage.findFirst({
-    where: { tenantId, contactPhone: to, direction: "INBOUND" },
-    orderBy: { createdAt: "desc" },
-    select: { createdAt: true },
-  });
+  const window = await getWindowState(tenantId, to);
 
-  const windowOpen =
-    !!lastInbound && Date.now() - lastInbound.createdAt.getTime() < 24 * 60 * 60 * 1000;
-
-  if (!windowOpen) {
+  if (!window.open) {
     throw new WaError(
       "INVALID_AMOUNT",
       "The 24-hour window for this contact is closed. Send an approved template instead.",
       409,
-      { lastInboundAt: lastInbound?.createdAt ?? null }
+      { windowExpiresAt: window.expiresAt }
     );
   }
 
@@ -243,6 +254,7 @@ export async function sendText(input: SendTextInput): Promise<SendResult> {
       status: "QUEUED",
       contactPhone: to,
       phoneNumberId,
+      conversationId: window.conversationId,
       category: "SERVICE",
       tenantPricePaise: price.tenantPricePaise,
       platformPricePaise: price.platformPricePaise,
