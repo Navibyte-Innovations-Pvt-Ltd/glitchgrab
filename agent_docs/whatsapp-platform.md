@@ -490,8 +490,8 @@ real rather than a promise.
 
 ## Status
 
-**Phases 1–3 are built** (2026-09-02). They talk to Meta but have never been run
-against it — no credentials are configured yet.
+**Phases 1–4 are built** (2026-09-02). They talk to Meta but have never been run
+against it — `META_WA_SIGNUP_CONFIG_ID` does not exist yet.
 
 | Piece | Where |
 |---|---|
@@ -513,6 +513,10 @@ against it — no credentials are configured yet.
 | Templates, messages | `migrations/20260902160000_wa_templates_messages/` |
 | Phase 3 routes | `app/api/v1/wa/{templates,templates/[id],templates/[id]/submit,templates/sync,messages,messages/send}` |
 | Template poll | `app/api/v1/cron/wa-template-sync` (hourly, in `vercel.json`) |
+| Conversations, 24h window, opt-out | `apps/web/lib/wa/conversations.ts` |
+| Autoreply rules | `apps/web/lib/wa/autoreply.ts` |
+| Conversations, autoreply rules | `migrations/20260902180000_wa_conversations/` |
+| Phase 4 routes | `app/api/v1/wa/{conversations,conversations/[id],autoreply/rules,autoreply/rules/[id]}` |
 
 ### Env vars phase 2 needs
 
@@ -562,17 +566,48 @@ from Embedded Signup, one per WABA, and never from env.
 
 ### What is deliberately not built yet
 
-- **Conversations as a model, autoreply rules, agent seats** — phases 4 and 5.
-  Inbound messages *are* recorded (they open the 24-hour window `sendText()`
-  checks), but nothing reacts to them.
-- **Broadcast, contact lists, opt-out** — phase 6, on top of `holdFunds` /
-  `settleHold`, which already exist unused.
+- **The shared inbox UI and agent seats** — phase 5. The data behind it exists
+  (`WaConversation`, assignment, unread counts) and is served by
+  `GET /conversations`; what is missing is the interface and `WaAgent`.
+  The open question there is **how a new message reaches an open inbox tab**: a
+  long-lived websocket does not survive Vercel's serverless functions, so the
+  real choice is SSE on a streaming route or polling. Decide that before writing
+  the UI — it dictates the deployment target.
+- **Broadcast and contact lists** — phase 6, on top of `holdFunds` /
+  `settleHold`, which already exist unused. Opt-out is done and enforced.
 - **Number registration** (`registerPhoneNumber`) is written but unused: it needs
   the tenant's two-step PIN, which is a UI decision.
 - **Refunds on `failed` delivery status.** The webhook records the failure; the
   money is not yet given back for a message Meta accepted and then failed to
   deliver. Refund-on-send-error *is* wired. Closing this gap needs a sweep over
   `WaMessage` rows that went FAILED after SENT.
+
+### Phase 4 design notes
+
+- **The window is stored, not inferred.** `WaConversation.windowExpiresAt` is
+  written in the same operation that records the inbound message. Deriving it at
+  send time from a scan of the message log worked, but put the single most
+  consequential rule in the API behind an index lookup that could silently start
+  missing rows.
+- **Opt-out is evaluated on inbound, not at broadcast time.** Meta requires it to
+  be honoured across every marketing send, so a tenant running only phases 1–4
+  must still stop messaging someone who asked. Enforced in `sendTemplate()` for
+  `MARKETING` only — a fee reminder is utility, and blocking it would break the
+  product for no compliance gain.
+- **Stop-intent matching is narrow on purpose.** The flag suppresses all future
+  marketing, so a false positive costs the tenant a customer they were allowed
+  to contact. A bare "no" is left alone. Same reasoning as the digest mute intent
+  in `lib/whatsapp.ts`.
+- **Autoreply never replies to a stop message.** An autoreply to "stop" is the
+  single most damaging thing a bot can do to a quality rating.
+- **First match wins, and a catch-all is forced to priority 900+.** Two rules
+  matching one message would send two replies, which reads as a broken bot.
+- **A tenant-supplied regex is a DoS vector.** `(a+)+$` backtracks exponentially
+  and would pin the webhook handler — which Meta then throttles for *every*
+  tenant. Guarded by compile-check on write, a length cap, and truncating the
+  inbound text before matching.
+- **Autoreply failures are swallowed.** A reply that does not send must never
+  make the webhook look broken to Meta.
 
 ### Phase 3 design notes
 
