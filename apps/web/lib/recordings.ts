@@ -113,7 +113,7 @@ const FRAME_CONTENT_TYPE = "image/jpeg";
  * Deterministic per-frame key. `tMs` is in the name so a re-uploaded frame
  * overwrites itself instead of orphaning, and so a key alone says when it was.
  */
-export async function frameKey(meetingId: string, tMs: number): Promise<string> {
+async function frameKey(meetingId: string, tMs: number): Promise<string> {
   return `${RECORDINGS_PREFIX}/${meetingId}/frames/${String(tMs).padStart(9, "0")}.jpg`;
 }
 
