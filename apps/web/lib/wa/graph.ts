@@ -305,3 +305,124 @@ export async function shareCreditLine(
     return { shared: false, reason: message };
   }
 }
+
+export interface MetaTemplateComponent {
+  type: string;
+  format?: string;
+  text?: string;
+  buttons?: unknown[];
+  example?: unknown;
+}
+
+export interface MetaTemplate {
+  id: string;
+  name: string;
+  language: string;
+  status: string;
+  category?: string;
+  rejected_reason?: string;
+  components?: MetaTemplateComponent[];
+}
+
+/** Submits a template for approval. Meta answers with an id and PENDING. */
+export async function createTemplate(
+  wabaId: string,
+  accessToken: string,
+  template: {
+    name: string;
+    language: string;
+    category: string;
+    components: MetaTemplateComponent[];
+  }
+): Promise<{ id: string; status?: string; category?: string }> {
+  return graphPost(`/${wabaId}/message_templates`, accessToken, template);
+}
+
+/**
+ * Reads templates back.
+ *
+ * Meta never tells us a verdict landed — a webhook exists but is not guaranteed
+ * delivered, and a template can also be paused or recategorised weeks later.
+ * The poll is the backstop, exactly as `cron/transcript-poll` is for Sarvam.
+ */
+export async function listTemplates(
+  wabaId: string,
+  accessToken: string,
+  limit = 200
+): Promise<MetaTemplate[]> {
+  const res = await graphGet<{ data?: MetaTemplate[] }>(`/${wabaId}/message_templates`, accessToken, {
+    fields: "id,name,language,status,category,rejected_reason,components",
+    limit: String(limit),
+  });
+  return res.data ?? [];
+}
+
+export async function deleteTemplate(
+  wabaId: string,
+  accessToken: string,
+  name: string
+): Promise<void> {
+  await graphDelete(`/${wabaId}/message_templates?name=${encodeURIComponent(name)}`, accessToken);
+}
+
+export interface SendTemplateParams {
+  phoneNumberId: string;
+  to: string;
+  templateName: string;
+  language: string;
+  components?: unknown[];
+}
+
+/** Sends an approved template. Returns Meta's message id (`wamid.…`). */
+export async function sendTemplateMessage(
+  accessToken: string,
+  params: SendTemplateParams
+): Promise<{ messageId: string }> {
+  const res = await graphPost<{ messages?: { id?: string }[] }>(
+    `/${params.phoneNumberId}/messages`,
+    accessToken,
+    {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: params.to,
+      type: "template",
+      template: {
+        name: params.templateName,
+        language: { code: params.language },
+        ...(params.components?.length ? { components: params.components } : {}),
+      },
+    }
+  );
+
+  const messageId = res.messages?.[0]?.id;
+  if (!messageId) throw new WaGraphError("Meta accepted the send but returned no message id", 502);
+  return { messageId };
+}
+
+/**
+ * Sends free-form text. Legal ONLY inside the 24-hour window opened by the
+ * contact's last inbound message.
+ *
+ * Meta answers 200 whether or not the window is open, so a silent failure looks
+ * exactly like a success. The window check belongs to the caller, before this.
+ */
+export async function sendTextMessage(
+  accessToken: string,
+  params: { phoneNumberId: string; to: string; body: string; previewUrl?: boolean }
+): Promise<{ messageId: string }> {
+  const res = await graphPost<{ messages?: { id?: string }[] }>(
+    `/${params.phoneNumberId}/messages`,
+    accessToken,
+    {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: params.to,
+      type: "text",
+      text: { body: params.body, preview_url: params.previewUrl ?? false },
+    }
+  );
+
+  const messageId = res.messages?.[0]?.id;
+  if (!messageId) throw new WaGraphError("Meta accepted the send but returned no message id", 502);
+  return { messageId };
+}
