@@ -201,7 +201,7 @@ const MAX_PROJECT_NOTES = 15;
  * with five hundred open issues sends the thirty worth comparing rather than
  * the thirty most recently touched.
  */
-export const MAX_OPEN_ISSUES = 30;
+const MAX_OPEN_ISSUES = 30;
 /** The brief is a page, not a manual — a long one is not being maintained. */
 const MAX_BRIEF_LINES = 80;
 
