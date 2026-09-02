@@ -356,6 +356,29 @@ These cannot be scripted. Each one gates the next.
 Note on the security audit: it is Meta auditing *us*, not us auditing the
 subscribing platforms. Our own API scoping is the easy half.
 
+## The domain allowlist is per consumer, not per us
+
+Embedded Signup runs through Meta's JS SDK, and Meta only returns a code to a
+**domain allowlisted on our app** (HTTPS only — `localhost` is rejected, so local
+testing needs a tunnel domain added).
+
+The popup opens on the *consumer's* site — Abhyasika's dashboard, SevaStack's
+settings page. So every platform we sign needs its domain added to our app's
+allowlist before any of its owners can connect. That is a manual step per
+platform, and it belongs in the provisioning checklist next to creating the
+`WaPlatform` row.
+
+Meta also offers a **hosted landing page** for Embedded Signup
+(`business.facebook.com/messaging/whatsapp/onboard/?app_id=…&config_id=…`), which
+appears to avoid the JS SDK and therefore the allowlist entirely. If it does, it
+removes a recurring manual step from onboarding every new platform. **Unverified
+— confirm during a test launch before designing around it.**
+
+Confirmed on the Embedded Signup Setup page (2026-09-02): business verification
+and integrity both pass, and App Review is only required *for production* —
+testing works today with users manually added to the app. That is the
+build-then-submit order the App Review section describes, stated by Meta itself.
+
 ## Onboarding flow
 
 1. Owner clicks "Connect WhatsApp" inside SevaStack.
