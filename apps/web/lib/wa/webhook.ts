@@ -52,7 +52,7 @@ interface WebhookChange {
   value?: WebhookValue;
 }
 
-export interface WebhookEntry {
+interface WebhookEntry {
   id?: string;
   time?: number;
   changes?: WebhookChange[];
