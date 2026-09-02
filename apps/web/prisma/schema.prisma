@@ -1454,6 +1454,13 @@ enum WaTenantStatus {
   DISCONNECTED
 }
 
+enum WaNumberStatus {
+  PENDING
+  VERIFIED
+  REGISTERED
+  DISCONNECTED
+}
+
 /// A SaaS product that resells our WhatsApp infra (Abhyasika, SevaStack).
 /// Rows are provisioned by hand — there is no self-serve subscriber signup.
 model WaPlatform {
@@ -1485,13 +1492,70 @@ model WaTenant {
   wabaId String?
   status WaTenantStatus @default(PENDING)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  /// System user token for this tenant's WABA, AES-256-GCM via lib/encrypt.ts.
+  /// Never stored or logged in plaintext.
+  accessTokenEnc String?
+  tokenExpiresAt DateTime?
+
+  /// Whether our credit line is attached to this WABA. False means the tenant's
+  /// own card pays Meta and our per-message charge is a software fee, not a
+  /// resale margin. Onboarding succeeds either way.
+  creditLineShared Boolean @default(false)
+  creditLineNote   String?
+
+  connectedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   platform WaPlatform @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  numbers  WaNumber[]
 
   @@unique([platformId, externalOwnerId])
   @@index([wabaId])
+}
+
+/// A phone number registered under a tenant's WABA. Usually one, occasionally
+/// several. `phoneNumberId` is globally unique and is how inbound webhooks are
+/// routed back to a tenant.
+model WaNumber {
+  id       String @id @default(cuid())
+  tenantId String
+
+  phoneNumberId String @unique
+  displayNumber String
+  verifiedName  String
+
+  status             WaNumberStatus @default(PENDING)
+  qualityRating      String?
+  messagingLimitTier String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant WaTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+/// Raw inbound webhook events, kept for dedupe. Meta retries delivery, and
+/// without this an autoreply fires twice for one inbound message.
+model WaWebhookEvent {
+  id String @id @default(cuid())
+
+  /// Meta's own id for the event. The unique index IS the dedupe.
+  metaEventId String @unique
+
+  phoneNumberId String?
+  tenantId      String?
+  field         String
+  payload       Json
+
+  processedAt DateTime?
+  error       String?
+  createdAt   DateTime  @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([phoneNumberId])
 }
 
 /// Prepaid balance. Recharge first, then send — nothing is invoiced in arrears.
