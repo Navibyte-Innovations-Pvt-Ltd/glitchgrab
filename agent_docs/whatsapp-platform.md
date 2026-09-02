@@ -483,7 +483,8 @@ real rather than a promise.
 
 ## Status
 
-**Phase 1 is built** (2026-09-02). Foundation only — nothing talks to Meta yet.
+**Phases 1 and 2 are built** (2026-09-02). Phase 2 talks to Meta but has never
+been run against it — no credentials are configured yet.
 
 | Piece | Where |
 |---|---|
@@ -495,8 +496,52 @@ real rather than a promise.
 | Typed failures | `apps/web/lib/wa/errors.ts` |
 | Routes | `apps/web/app/api/v1/wa/{wallet/credit,wallet/balance,wallet/transactions,pricing}` |
 | Manual platform provisioning | `apps/web/scripts/wa-provision-platform.ts` |
+| Graph API client (pinned v23.0) | `apps/web/lib/wa/graph.ts` |
+| Embedded Signup + token exchange | `apps/web/lib/wa/onboarding.ts` |
+| Webhook fan-out + dedupe | `apps/web/lib/wa/webhook.ts` |
+| Numbers, webhook events | `migrations/20260902120000_wa_onboarding/` |
+| Phase 2 routes | `app/api/v1/wa/{signup/launch,signup/exchange,numbers,webhook}` |
 
-The migration has not been applied — run `bun run db:push` (localhost only)
+### Env vars phase 2 needs
+
+None of these are set yet, and every one belongs to the **Tech Provider app**,
+not to Glitchgrab's own number. Do not reuse the existing `META_WA_*` values —
+those drive `lib/whatsapp.ts` and a collision would point our own booking
+messages at a customer's WABA.
+
+| Var | What it is |
+|---|---|
+| `META_WA_PLATFORM_APP_ID` | Tech Provider app id (`996021116131151`) |
+| `META_WA_PLATFORM_APP_SECRET` | Its app secret — signs and verifies webhooks |
+| `META_WA_PLATFORM_VERIFY_TOKEN` | Any random string; must match the value typed into Meta's webhook config |
+| `META_WA_SIGNUP_CONFIG_ID` | Embedded Signup configuration id, from Embedded Signup Builder |
+| `META_WA_EXTENDED_CREDIT_ID` | Our credit line id. **Leave unset until one exists** — onboarding degrades gracefully without it |
+| `META_WA_CREDIT_CURRENCY` | Defaults to `INR` |
+
+### What phase 2 deliberately does not do
+
+- **Inbound messages, conversation windows, autoreplies** — phase 4. The webhook
+  records and dedupes them; nothing consumes them yet.
+- **Template status events** — phase 3.
+- **Number registration** (`registerPhoneNumber`) is written but unused: it needs
+  the tenant's two-step PIN, which is a UI decision phase 3 will make.
+
+### Design notes worth not re-deriving
+
+- **The WABA id comes from `debug_token`, never the request.** Embedded Signup
+  reports it to the browser, and a browser can claim any id. Trusting the body
+  would let one platform bind another business's WABA to its own tenant.
+- **Credit-line sharing is best-effort.** No line configured, or Meta refusing,
+  produces a warning and a connected tenant — not a failed onboarding. Without a
+  line, the tenant's own card pays Meta and our per-message charge is a software
+  fee rather than a resale margin.
+- **The webhook always answers 200.** A 500 makes Meta back off the whole app —
+  every tenant's traffic, not just the one that failed. Events are persisted
+  before handling, so swallowing an error loses nothing.
+- **The Graph version is pinned.** Meta ships breaking changes between versions;
+  an unpinned client follows them silently.
+
+Neither migration has been applied — run `bun run db:push` (localhost only)
 when ready.
 
 ## Build sequence
