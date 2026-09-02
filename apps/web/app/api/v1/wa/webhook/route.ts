@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import {
   ingestWebhook,
@@ -68,15 +69,22 @@ export async function POST(request: Request) {
 }
 
 /**
- * Phase 2 scope: keep the numbers and their status current.
+ * Handles one event.
  *
- * Inbound messages, conversation windows and autoreplies land in phase 4;
- * template status in phase 3. Until then every other event is recorded by
- * ingestWebhook() and marked processed, so nothing is lost and nothing is
- * retried forever.
+ * Inbound message *content*, conversation windows and autoreplies land in phase
+ * 4. Everything not handled here is still recorded by ingestWebhook() and marked
+ * processed, so nothing is lost and nothing is retried forever.
  */
 async function handleEvent(event: RoutedEvent): Promise<void> {
   try {
+    if (event.field === "messages") {
+      await handleMessagesEvent(event);
+    }
+
+    if (event.field === "message_template_status_update" && event.tenantId) {
+      await handleTemplateStatusEvent(event);
+    }
+
     if (event.field === "phone_number_quality_update" && event.phoneNumberId) {
       const rating = (event.value as { current_limit?: string; event?: string }).current_limit;
       await prisma.waNumber.updateMany({
@@ -102,4 +110,114 @@ async function handleEvent(event: RoutedEvent): Promise<void> {
   } catch (err) {
     await markEventProcessed(event.metaEventId, err instanceof Error ? err.message : "handler failed");
   }
+}
+
+/**
+ * Delivery receipts and inbound messages.
+ *
+ * Statuses matter for two reasons: a message that never leaves SENT is
+ * indistinguishable from one that failed, and a `failed` status is the only
+ * signal that a charged message was never delivered — Meta accepts the send with
+ * a 200 and reports the failure minutes later, here.
+ *
+ * Inbound messages are recorded rather than acted on. That row is what opens the
+ * 24-hour service window `sendText()` checks, so it has to exist now even though
+ * conversations and autoreplies are phase 4.
+ */
+async function handleMessagesEvent(event: RoutedEvent): Promise<void> {
+  const value = event.value as {
+    statuses?: { id?: string; status?: string; timestamp?: string; errors?: { title?: string }[] }[];
+    messages?: { id?: string; from?: string; type?: string; timestamp?: string }[];
+  };
+
+  for (const s of value.statuses ?? []) {
+    if (!s.id) continue;
+
+    const when = s.timestamp ? new Date(Number(s.timestamp) * 1000) : new Date();
+
+    if (s.status === "delivered") {
+      await prisma.waMessage.updateMany({
+        where: { metaMessageId: s.id },
+        data: { status: "DELIVERED", deliveredAt: when },
+      });
+    } else if (s.status === "read") {
+      // Read implies delivered; a read receipt can arrive without one.
+      await prisma.waMessage.updateMany({
+        where: { metaMessageId: s.id },
+        data: { status: "READ", readAt: when },
+      });
+    } else if (s.status === "failed") {
+      // Charged, never delivered. Phase 6 refunds off this; recorded now so the
+      // ledger can be reconciled against it later.
+      await prisma.waMessage.updateMany({
+        where: { metaMessageId: s.id },
+        data: { status: "FAILED", error: s.errors?.[0]?.title ?? "Delivery failed" },
+      });
+    }
+  }
+
+  if (!event.tenantId) return;
+
+  for (const m of value.messages ?? []) {
+    if (!m.id || !m.from) continue;
+
+    await prisma.waMessage
+      .create({
+        data: {
+          tenantId: event.tenantId,
+          direction: "INBOUND",
+          status: "DELIVERED",
+          contactPhone: m.from.replace(/\D/g, ""),
+          phoneNumberId: event.phoneNumberId,
+          metaMessageId: m.id,
+          payload: event.value as unknown as Prisma.InputJsonValue,
+          createdAt: m.timestamp ? new Date(Number(m.timestamp) * 1000) : undefined,
+        },
+      })
+      .catch(() => undefined); // already ingested
+  }
+}
+
+/**
+ * Meta's verdict on a template, pushed rather than polled.
+ *
+ * The cron still exists: this webhook is not guaranteed delivered, and a
+ * template can be paused long after approval. Matching is by name+language
+ * because the event does not always carry the template id.
+ */
+async function handleTemplateStatusEvent(event: RoutedEvent): Promise<void> {
+  const value = event.value as {
+    event?: string;
+    message_template_name?: string;
+    message_template_language?: string;
+    reason?: string;
+  };
+
+  if (!value.message_template_name) return;
+
+  const status =
+    value.event === "APPROVED"
+      ? "APPROVED"
+      : value.event === "REJECTED"
+        ? "REJECTED"
+        : value.event === "PAUSED"
+          ? "PAUSED"
+          : value.event === "DISABLED"
+            ? "DISABLED"
+            : null;
+
+  if (!status) return;
+
+  await prisma.waTemplate.updateMany({
+    where: {
+      tenantId: event.tenantId!,
+      name: value.message_template_name,
+      ...(value.message_template_language ? { language: value.message_template_language } : {}),
+    },
+    data: {
+      status,
+      rejectionReason: value.reason ?? null,
+      lastSyncedAt: new Date(),
+    },
+  });
 }
