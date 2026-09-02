@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { prisma } from "@/lib/db";
 import { authenticatePlatform, requireTenant } from "@/lib/wa/auth";
 import { markConversationRead } from "@/lib/wa/conversations";
+import { requireAgent } from "@/lib/wa/agents";
 import { WaError } from "@/lib/wa/errors";
 import { waOk, waFail } from "@/lib/wa/response";
 
@@ -79,6 +80,13 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
 
     if (!body.ownerId) throw new WaError("TENANT_NOT_FOUND", "ownerId is required", 400);
     const tenant = await requireTenant(platform.id, body.ownerId);
+
+    // Without this a platform could assign one tenant's conversation to another
+    // tenant's agent by passing a foreign id — the agent id comes from the
+    // request, so it has to be proven to belong here.
+    if (body.assignedAgentId) {
+      await requireAgent(tenant.id, body.assignedAgentId);
+    }
 
     const { count } = await prisma.waConversation.updateMany({
       where: { id, tenantId: tenant.id },
