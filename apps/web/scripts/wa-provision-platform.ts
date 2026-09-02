@@ -47,11 +47,11 @@ async function main() {
     select: { id: true, slug: true, name: true },
   });
 
-  console.log(`\nPlatform created: ${platform.name} (${platform.slug})`);
-  console.log(`  id:  ${platform.id}`);
-  console.log(`  key: ${key}`);
-  console.log(`\nStored hashed. This is the only time the key is shown.\n`);
-  console.log("Next: set our per-category rates for this platform before it can send.");
+  console.info(`\nPlatform created: ${platform.name} (${platform.slug})`);
+  console.info(`  id:  ${platform.id}`);
+  console.info(`  key: ${key}`);
+  console.info(`\nStored hashed. This is the only time the key is shown.\n`);
+  console.info("Next: set our per-category rates for this platform before it can send.");
 }
 
 main()
