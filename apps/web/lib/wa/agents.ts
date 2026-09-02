@@ -11,7 +11,7 @@ import { WaError } from "./errors";
  * never resolve their staff to accounts on our side.
  */
 
-export interface AgentInput {
+interface AgentInput {
   externalAgentId: string;
   name: string;
   email?: string;
