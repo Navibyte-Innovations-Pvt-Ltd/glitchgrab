@@ -1419,3 +1419,150 @@ model MeetingIssueDraft {
 
   @@index([meetingId, position])
 }
+
+// ─── WhatsApp platform (Glitchgrab as Meta Tech Provider) ──────────
+// See agent_docs/whatsapp-platform.md. Distinct from WhatsappOtp /
+// WhatsappThread above, which are Glitchgrab's own booking flow.
+
+enum WaWalletOwnerType {
+  PLATFORM
+  TENANT
+}
+
+enum WaWalletTxnKind {
+  TOPUP
+  DEBIT
+  REFUND
+  HOLD
+  RELEASE
+  ADJUSTMENT
+}
+
+/// Meta prices per message per category, and the categories differ by
+/// multiples. Never collapse these into one rate.
+enum WaTemplateCategory {
+  MARKETING
+  UTILITY
+  AUTHENTICATION
+  SERVICE
+}
+
+enum WaTenantStatus {
+  PENDING
+  CONNECTED
+  SUSPENDED
+  DISCONNECTED
+}
+
+/// A SaaS product that resells our WhatsApp infra (Abhyasika, SevaStack).
+/// Rows are provisioned by hand — there is no self-serve subscriber signup.
+model WaPlatform {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  apiKeyHash  String   @unique
+  /// Where we POST template approvals, low balance, delivery status.
+  callbackUrl String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenants    WaTenant[]
+  priceRules WaPriceRule[]
+}
+
+/// One business owner inside a platform — a library admin, a clinic.
+/// Owns the WABA and the phone number; our credit line pays its Meta bill.
+model WaTenant {
+  id String @id @default(cuid())
+
+  platformId String
+  /// The platform's OWN user id. We map it to this row server-side; the
+  /// platform never sends us a tenantId we would have to trust.
+  externalOwnerId String
+
+  name   String
+  wabaId String?
+  status WaTenantStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  platform WaPlatform @relation(fields: [platformId], references: [id], onDelete: Cascade)
+
+  @@unique([platformId, externalOwnerId])
+  @@index([wabaId])
+}
+
+/// Prepaid balance. Recharge first, then send — nothing is invoiced in arrears.
+///
+/// `ownerId` is polymorphic (a WaPlatform id or a WaTenant id) so it carries no
+/// foreign key on purpose. `ownerType` disambiguates.
+///
+/// `balancePaise` is a cached rollup of WaWalletTxn, which is the truth.
+/// Integer paise, never a float, never rupees.
+model WaWallet {
+  id        String            @id @default(cuid())
+  ownerType WaWalletOwnerType
+  ownerId   String
+
+  balancePaise Int @default(0)
+  /// Reserved by in-flight broadcasts. Spendable = balancePaise - heldPaise.
+  heldPaise    Int @default(0)
+
+  lowBalanceThresholdPaise Int       @default(0)
+  lowBalanceNotifiedAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  txns WaWalletTxn[]
+
+  @@unique([ownerType, ownerId])
+}
+
+/// Append-only ledger. Never update a row here; write a compensating one.
+model WaWalletTxn {
+  id       String          @id @default(cuid())
+  walletId String
+  /// Signed: negative debits, positive credits.
+  amountPaise       Int
+  kind              WaWalletTxnKind
+  balanceAfterPaise Int
+
+  /// Not foreign keys — WaMessage and WaBroadcast arrive in later phases.
+  messageId   String?
+  broadcastId String?
+
+  /// Idempotency key. A retried send reuses it and the unique index makes the
+  /// second debit fail instead of charging twice.
+  refKey String? @unique
+  note   String?
+
+  createdAt DateTime @default(now())
+
+  wallet WaWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId, createdAt])
+}
+
+/// What a message costs us, what we charge the platform, and what the platform
+/// charges its tenant — per category, because a flat rate loses money on
+/// marketing. `tenantPricePaise` is the platform's own decision.
+model WaPriceRule {
+  id         String             @id @default(cuid())
+  platformId String
+  category   WaTemplateCategory
+
+  metaCostPaise      Int
+  platformPricePaise Int
+  tenantPricePaise   Int
+
+  effectiveFrom DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  platform WaPlatform @relation(fields: [platformId], references: [id], onDelete: Cascade)
+
+  @@unique([platformId, category, effectiveFrom])
+  @@index([platformId, category])
+}
