@@ -113,7 +113,14 @@ Three ways a prepaid wallet leaks money, all of them avoidable:
    its estimated cost up front as a `HOLD` txn, settle against actual as
    recipients complete, then release the remainder. Per-message checking gives
    you a half-sent campaign with no clean way to report or resume it.
-3. **Debits for messages Meta never delivered.** A send can fail after the debit —
+3. **Idempotency keys that are not scoped.** `refKey` is a string the *caller*
+   chooses, not a global identifier, so two platforms will eventually both send
+   `topup-1`. When the unique index was global, the second platform's call
+   matched the first's row, returned a balance belonging to someone else, and
+   silently skipped their credit — cross-tenant disclosure and lost money in one
+   bug. The index is `(walletId, refKey)`, and every lookup resolves the wallet
+   *before* checking the key.
+4. **Debits for messages Meta never delivered.** A send can fail after the debit —
    bad number, template paused, tenant quality block. Every such failure needs a
    `REFUND` txn. This is why the ledger is an append-only transaction table and
    not a single mutable balance column; the balance is a cached rollup of the
@@ -585,6 +592,7 @@ customers are already sending.
    number. Do not overload them.
 8. Category-blind pricing loses money on marketing. Price per category or not at all.
 9. Money in paise as `Int`, never a float. Never bill off message count alone.
+9b. Idempotency keys are per-wallet, never global — a caller-chosen key collides across platforms.
 10. Read-then-write on a wallet balance goes negative under concurrency. One
     conditional UPDATE, or nothing.
 11. Holding a tenant's money makes us a payment aggregator under RBI. We hold the
