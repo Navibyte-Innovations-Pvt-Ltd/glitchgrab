@@ -490,7 +490,7 @@ real rather than a promise.
 
 ## Status
 
-**Phases 1–4 are built** (2026-09-02). They talk to Meta but have never been run
+**Phases 1–5 are built** (2026-09-02), bar the inbox UI itself. They talk to Meta but have never been run
 against it — `META_WA_SIGNUP_CONFIG_ID` does not exist yet.
 
 | Piece | Where |
@@ -517,6 +517,9 @@ against it — `META_WA_SIGNUP_CONFIG_ID` does not exist yet.
 | Autoreply rules | `apps/web/lib/wa/autoreply.ts` |
 | Conversations, autoreply rules | `migrations/20260902180000_wa_conversations/` |
 | Phase 4 routes | `app/api/v1/wa/{conversations,conversations/[id],autoreply/rules,autoreply/rules/[id]}` |
+| Inbox seats | `apps/web/lib/wa/agents.ts`, `migrations/20260902200000_wa_agents/` |
+| SSE tickets | `apps/web/lib/wa/stream-ticket.ts` |
+| Phase 5 routes | `app/api/v1/wa/{inbox/ticket,inbox/stream,agents,agents/[id]}` |
 
 ### Env vars phase 2 needs
 
@@ -566,13 +569,9 @@ from Embedded Signup, one per WABA, and never from env.
 
 ### What is deliberately not built yet
 
-- **The shared inbox UI and agent seats** — phase 5. The data behind it exists
-  (`WaConversation`, assignment, unread counts) and is served by
-  `GET /conversations`; what is missing is the interface and `WaAgent`.
-  The open question there is **how a new message reaches an open inbox tab**: a
-  long-lived websocket does not survive Vercel's serverless functions, so the
-  real choice is SSE on a streaming route or polling. Decide that before writing
-  the UI — it dictates the deployment target.
+- **The inbox UI itself**, and the `@glitchgrab/whatsapp` SDK that would ship it
+  as a drop-in React component. Every API it needs now exists: list, thread,
+  send, assign, seats, and a live stream. What is missing is the interface.
 - **Broadcast and contact lists** — phase 6, on top of `holdFunds` /
   `settleHold`, which already exist unused. Opt-out is done and enforced.
 - **Number registration** (`registerPhoneNumber`) is written but unused: it needs
@@ -581,6 +580,47 @@ from Embedded Signup, one per WABA, and never from env.
   money is not yet given back for a message Meta accepted and then failed to
   deliver. Refund-on-send-error *is* wired. Closing this gap needs a sweep over
   `WaMessage` rows that went FAILED after SENT.
+
+### Phase 5 design notes — the inbox stream
+
+**Live updates are SSE, and the stream polls Postgres.** Both halves of that are
+deliberate:
+
+- A websocket does not survive Vercel's serverless functions, so SSE on a
+  streaming route is the transport.
+- Inside that stream, an in-process `EventEmitter` would be worse than useless.
+  Each request is its own instance, so the process holding an inbox connection is
+  almost never the one running the webhook that received the message: the code
+  compiles, passes review, and delivers nothing in production. Redis pub/sub
+  would work and is infrastructure this stack does not have. So the server polls
+  on a two-second interval and pushes deltas — the client still gets push
+  semantics, and it is correct across any number of instances.
+
+Everything else about the stream follows from constraints rather than taste:
+
+| Detail | Why |
+|---|---|
+| `maxDuration = 300`, loop stops at 270s | Vercel kills the function regardless; closing early lets the browser reconnect cleanly instead of seeing a truncated frame |
+| Event id is the conversation's `updatedAt` | The browser replays it as `Last-Event-ID` on reconnect, so a dropped connection resumes exactly where it stopped instead of losing or replaying messages |
+| `: keepalive` comment every 15s | Proxies reap a connection that goes quiet |
+| `X-Accel-Buffering: no` | Nginx buffers streamed responses by default, turning SSE into one long silence followed by everything at once |
+| `retry: 3000` | Sets the browser's own reconnect delay rather than leaving it to the default |
+
+**Authentication is a 60-second signed ticket, not the API key.** `EventSource`
+cannot set an `Authorization` header — a browser limitation, not an oversight —
+so the stream URL has to carry its own credential, and putting the platform's
+long-lived key in a query string would leak it into history, referrers and every
+proxy log in between. `POST /inbox/ticket` swaps the key for an HMAC-signed,
+tenant-scoped ticket. Stateless, domain-separated from every other HMAC over
+`ENCRYPTION_KEY`, and short-lived enough that revocation is moot.
+
+**Agents are deactivated, never deleted.** Conversations record who handled them;
+a hard delete would leave assignments pointing at nothing. Deactivating also
+unassigns their open threads so none are stranded with someone who has left.
+
+**Assignment validates the agent belongs to the tenant.** The id comes from the
+request, so without that check a platform could assign one tenant's conversation
+to another tenant's agent.
 
 ### Phase 4 design notes
 
