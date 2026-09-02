@@ -272,6 +272,9 @@ async function runAutoreply(tenantId: string, from: string, text: string): Promi
  * because the event does not always carry the template id.
  */
 async function handleTemplateStatusEvent(event: RoutedEvent): Promise<void> {
+  const { tenantId } = event;
+  if (!tenantId) return;
+
   const value = event.value as {
     event?: string;
     message_template_name?: string;
@@ -296,7 +299,7 @@ async function handleTemplateStatusEvent(event: RoutedEvent): Promise<void> {
 
   await prisma.waTemplate.updateMany({
     where: {
-      tenantId: event.tenantId!,
+      tenantId,
       name: value.message_template_name,
       ...(value.message_template_language ? { language: value.message_template_language } : {}),
     },
