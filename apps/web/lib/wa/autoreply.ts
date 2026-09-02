@@ -14,7 +14,7 @@ import { WaError } from "./errors";
 /** A rule that matches everything is legitimate, but only as a last resort. */
 const CATCH_ALL_MIN_PRIORITY = 900;
 
-export interface RuleInput {
+interface RuleInput {
   name: string;
   matchType: WaMatchType;
   pattern?: string;
@@ -24,12 +24,17 @@ export interface RuleInput {
 }
 
 /**
- * A user-supplied regex is a denial-of-service vector: a pattern like
- * `(a+)+$` backtracks exponentially and pins the webhook handler, which Meta
- * then throttles for *every* tenant, not just this one.
+ * REGEX is intentionally not supported.
  *
- * Two guards: the pattern must compile, and it is capped in length. The
- * evaluator additionally never runs it against an unbounded string.
+ * A tenant-supplied pattern is a denial-of-service vector: `(a+)+$` backtracks
+ * exponentially and pins the webhook handler — which Meta then throttles for
+ * *every* tenant, not just the one who wrote it. Length caps and a compile check
+ * do not prevent that; only a linear-time engine or a pattern analyser would,
+ * and neither is worth a dependency for a feature the other four match types
+ * already cover.
+ *
+ * The enum value survives so existing rows keep deserialising, but nothing can
+ * be written with it and the evaluator never matches it.
  */
 const MAX_PATTERN_LENGTH = 200;
 const MAX_REPLY_LENGTH = 4096;
@@ -39,6 +44,14 @@ function validateRule(rule: RuleInput): void {
   if (!rule.replyText?.trim()) throw new WaError("INVALID_AMOUNT", "replyText is required", 400);
   if (rule.replyText.length > MAX_REPLY_LENGTH) {
     throw new WaError("INVALID_AMOUNT", `replyText exceeds ${MAX_REPLY_LENGTH} characters`, 400);
+  }
+
+  if (rule.matchType === "REGEX") {
+    throw new WaError(
+      "INVALID_AMOUNT",
+      "Regular expressions are not supported. Use EXACT, CONTAINS, STARTS_WITH or ANY.",
+      400
+    );
   }
 
   if (rule.matchType === "ANY") {
@@ -59,17 +72,6 @@ function validateRule(rule: RuleInput): void {
     throw new WaError("INVALID_AMOUNT", `pattern exceeds ${MAX_PATTERN_LENGTH} characters`, 400);
   }
 
-  if (rule.matchType === "REGEX") {
-    try {
-      new RegExp(rule.pattern, "i");
-    } catch (err) {
-      throw new WaError(
-        "INVALID_AMOUNT",
-        `Invalid regular expression: ${err instanceof Error ? err.message : "unparseable"}`,
-        400
-      );
-    }
-  }
 }
 
 export async function createRule(tenantId: string, rule: RuleInput) {
@@ -79,7 +81,7 @@ export async function createRule(tenantId: string, rule: RuleInput) {
       tenantId,
       name: rule.name.trim(),
       matchType: rule.matchType,
-      pattern: rule.matchType === "ANY" ? null : rule.pattern!.trim(),
+      pattern: rule.matchType === "ANY" ? null : (rule.pattern ?? "").trim(),
       replyText: rule.replyText,
       priority: rule.priority ?? 100,
       enabled: rule.enabled ?? true,
@@ -101,7 +103,7 @@ export async function updateRule(tenantId: string, ruleId: string, rule: RuleInp
     data: {
       name: rule.name.trim(),
       matchType: rule.matchType,
-      pattern: rule.matchType === "ANY" ? null : rule.pattern!.trim(),
+      pattern: rule.matchType === "ANY" ? null : (rule.pattern ?? "").trim(),
       replyText: rule.replyText,
       priority: rule.priority ?? 100,
       enabled: rule.enabled ?? true,
@@ -136,7 +138,7 @@ export function listRules(tenantId: string) {
 /** Long inbound text is truncated before matching — see the regex note above. */
 const MAX_MATCH_INPUT = 2000;
 
-export interface MatchedRule {
+interface MatchedRule {
   id: string;
   name: string;
   replyText: string;
@@ -178,13 +180,9 @@ export async function matchRule(tenantId: string, text: string): Promise<Matched
         hit = haystack.includes(needle);
         break;
       case "REGEX":
-        try {
-          hit = new RegExp(rule.pattern!, "i").test(input);
-        } catch {
-          // Validated on write, but a rule can predate a validation change.
-          // A broken pattern must skip, never take down the webhook.
-          hit = false;
-        }
+        // Unsupported, and refused on write. A row predating that rule must
+        // skip silently rather than take the webhook down.
+        hit = false;
         break;
     }
 
