@@ -38,12 +38,16 @@ export async function POST(request: Request) {
 
     const tenant = await requireTenant(platform.id, body.ownerId);
 
-    const result = body.template
+    // Narrowed into locals so the free-text branch is provably non-empty
+    // without an assertion the compiler cannot check.
+    const { template, body: text } = body;
+
+    const result = template
       ? await sendTemplate({
           platformId: platform.id,
           tenantId: tenant.id,
           to: body.to,
-          templateName: body.template,
+          templateName: template,
           language: body.language,
           components: body.components,
           phoneNumberId: body.phoneNumberId,
@@ -53,7 +57,7 @@ export async function POST(request: Request) {
           platformId: platform.id,
           tenantId: tenant.id,
           to: body.to,
-          body: body.body!,
+          body: text ?? "",
           phoneNumberId: body.phoneNumberId,
           refKey: body.refKey,
         });
