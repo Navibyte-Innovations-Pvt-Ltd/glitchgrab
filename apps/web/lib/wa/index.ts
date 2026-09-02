@@ -78,3 +78,11 @@ export {
   type RuleInput,
   type MatchedRule,
 } from "./autoreply";
+export {
+  upsertAgent,
+  listAgents,
+  deactivateAgent,
+  requireAgent,
+  type AgentInput,
+} from "./agents";
+export { issueStreamTicket, verifyStreamTicket, type TicketClaims } from "./stream-ticket";
