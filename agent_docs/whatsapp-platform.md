@@ -516,10 +516,26 @@ against it — no credentials are configured yet.
 
 ### Env vars phase 2 needs
 
-None of these are set yet, and every one belongs to the **Tech Provider app**,
-not to Glitchgrab's own number. Do not reuse the existing `META_WA_*` values —
-those drive `lib/whatsapp.ts` and a collision would point our own booking
-messages at a customer's WABA.
+None of these are set yet, and every one belongs to the **Tech Provider app**
+(Glitchgrab, `996021116131151`).
+
+**The existing `META_WA_*` values cannot be reused, and not for the reason you
+would guess.** Verified 2026-09-02 by calling `debug_token` on
+`META_WA_ACCESS_TOKEN`: that token belongs to app **`1390644442532883`
+("PracticeStacks")**, not to Glitchgrab. So `META_WA_APP_SECRET` is
+PracticeStacks' app secret and would fail every webhook signature check on a
+Glitchgrab-app webhook.
+
+Two consequences worth writing down:
+
+1. **Glitchgrab's own production WhatsApp — OTP, booking, digest, all of
+   `lib/whatsapp.ts` — runs on the PracticeStacks Meta app.** Whatever the
+   history there, it is a live coupling: a restriction on the PracticeStacks app
+   takes Glitchgrab's OTP down with it. Not this project's problem to fix, but
+   nobody should discover it during an incident.
+2. The token is a **system user token with `expires_at: 0`** — it never expires.
+   That is the right shape for a tenant token too, and what Embedded Signup
+   should be yielding in phase 2.
 
 | Var | What it is |
 |---|---|
