@@ -29,7 +29,12 @@ export async function GET(request: Request) {
   const token = searchParams.get("hub.verify_token");
   const challenge = searchParams.get("hub.challenge");
 
-  if (mode === "subscribe" && token && token === process.env.META_WA_PLATFORM_VERIFY_TOKEN) {
+  // Falls back to the existing name so a single webhook token can serve both
+  // this endpoint and /api/v1/whatsapp/webhook while they share an app.
+  const expected =
+    process.env.META_WA_PLATFORM_VERIFY_TOKEN ?? process.env.META_WA_VERIFY_TOKEN;
+
+  if (mode === "subscribe" && token && expected && token === expected) {
     return new Response(challenge ?? "", { status: 200 });
   }
   return new Response("Forbidden", { status: 403 });
