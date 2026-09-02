@@ -53,7 +53,7 @@ function mapCategory(metaCategory?: string): WaTemplateCategory | undefined {
   }
 }
 
-export interface TemplateDraft {
+interface TemplateDraft {
   name: string;
   language: string;
   category: WaTemplateCategory;
@@ -163,7 +163,7 @@ export async function submitTemplate(tenantId: string, templateId: string) {
   }
 }
 
-export interface SyncResult {
+interface SyncResult {
   checked: number;
   updated: number;
   changes: { name: string; from: WaTemplateStatus; to: WaTemplateStatus; reason?: string }[];
