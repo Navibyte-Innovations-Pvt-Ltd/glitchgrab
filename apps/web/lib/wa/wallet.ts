@@ -19,7 +19,16 @@ import { WaError, insufficientFunds } from "./errors";
 
 type Tx = Prisma.TransactionClient;
 
-export interface WalletBalance {
+/**
+ * Broadcast reservations (`heldPaise`, and the HOLD/RELEASE ledger kinds) exist
+ * in the schema but have no functions yet.
+ *
+ * They are deliberately not written ahead of their caller: a 10,000-recipient
+ * send must reserve its estimated cost up front and settle against actual, and
+ * the shape of "estimated" depends on how broadcast batches recipients — which
+ * phase 6 decides. See agent_docs/whatsapp-platform.md.
+ */
+interface WalletBalance {
   balancePaise: number;
   heldPaise: number;
   /** What can actually be spent right now — holds from in-flight broadcasts are excluded. */
@@ -135,7 +144,7 @@ async function debitIfFunded(tx: Tx, walletId: string, amountPaise: number): Pro
   return rows[0]?.balancePaise ?? null;
 }
 
-export interface ChargeResult {
+interface ChargeResult {
   tenantBalancePaise: number;
   platformBalancePaise: number;
   tenantPricePaise: number;
@@ -230,112 +239,6 @@ export async function chargeMessage(params: {
       tenantPricePaise,
       platformPricePaise,
     };
-  });
-}
-
-/**
- * Reserves funds for an in-flight broadcast so a 10,000-recipient send cannot
- * run dry at recipient 6,000. Increases `heldPaise` without moving the balance;
- * spendable drops immediately, so a concurrent single send sees the reservation.
- */
-export async function holdFunds(params: {
-  ownerType: WaWalletOwnerType;
-  ownerId: string;
-  amountPaise: number;
-  broadcastId: string;
-}): Promise<void> {
-  const { ownerType, ownerId, amountPaise, broadcastId } = params;
-
-  await prisma.$transaction(async (tx) => {
-    const wallet = await getOrCreateWallet(ownerType, ownerId, tx);
-
-    const rows = await tx.$queryRaw<{ balancePaise: number }[]>`
-      UPDATE "WaWallet"
-         SET "heldPaise" = "heldPaise" + ${amountPaise},
-             "updatedAt" = NOW()
-       WHERE "id" = ${wallet.id}
-         AND ("balancePaise" - "heldPaise") >= ${amountPaise}
-      RETURNING "balancePaise"
-    `;
-
-    if (!rows[0]) {
-      const w = await tx.waWallet.findUniqueOrThrow({
-        where: { id: wallet.id },
-        select: { balancePaise: true, heldPaise: true },
-      });
-      throw insufficientFunds(
-        ownerType === "TENANT" ? "tenant" : "platform",
-        amountPaise,
-        w.balancePaise - w.heldPaise
-      );
-    }
-
-    await tx.waWalletTxn.create({
-      data: {
-        walletId: wallet.id,
-        amountPaise: -amountPaise,
-        kind: "HOLD",
-        balanceAfterPaise: rows[0].balancePaise,
-        broadcastId,
-        note: "Reserved for broadcast",
-      },
-    });
-  });
-}
-
-/**
- * Settles a hold once a broadcast finishes: `spentPaise` leaves the balance for
- * real, the rest of the reservation is released. A broadcast that sent fewer
- * messages than estimated gives the difference back.
- */
-export async function settleHold(params: {
-  ownerType: WaWalletOwnerType;
-  ownerId: string;
-  heldPaise: number;
-  spentPaise: number;
-  broadcastId: string;
-}): Promise<void> {
-  const { ownerType, ownerId, heldPaise, spentPaise, broadcastId } = params;
-
-  if (spentPaise > heldPaise) {
-    throw new WaError("INVALID_AMOUNT", "Cannot settle more than was held", 400);
-  }
-
-  await prisma.$transaction(async (tx) => {
-    const wallet = await getOrCreateWallet(ownerType, ownerId, tx);
-
-    const rows = await tx.$queryRaw<{ balancePaise: number }[]>`
-      UPDATE "WaWallet"
-         SET "heldPaise"    = "heldPaise" - ${heldPaise},
-             "balancePaise" = "balancePaise" - ${spentPaise},
-             "updatedAt"    = NOW()
-       WHERE "id" = ${wallet.id}
-         AND "heldPaise" >= ${heldPaise}
-      RETURNING "balancePaise"
-    `;
-
-    if (!rows[0]) throw new WaError("INVALID_AMOUNT", "Hold no longer exists", 409);
-
-    await tx.waWalletTxn.createMany({
-      data: [
-        {
-          walletId: wallet.id,
-          amountPaise: heldPaise,
-          kind: "RELEASE",
-          balanceAfterPaise: rows[0].balancePaise,
-          broadcastId,
-          note: "Released broadcast reservation",
-        },
-        {
-          walletId: wallet.id,
-          amountPaise: -spentPaise,
-          kind: "DEBIT",
-          balanceAfterPaise: rows[0].balancePaise,
-          broadcastId,
-          note: "Broadcast actual spend",
-        },
-      ],
-    });
   });
 }
 
