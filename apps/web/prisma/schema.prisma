@@ -1454,6 +1454,20 @@ enum WaTenantStatus {
   DISCONNECTED
 }
 
+enum WaMatchType {
+  EXACT
+  CONTAINS
+  STARTS_WITH
+  REGEX
+  ANY
+}
+
+enum WaConversationStatus {
+  OPEN
+  SNOOZED
+  CLOSED
+}
+
 enum WaTemplateStatus {
   DRAFT
   PENDING
@@ -1531,8 +1545,10 @@ model WaTenant {
 
   platform  WaPlatform   @relation(fields: [platformId], references: [id], onDelete: Cascade)
   numbers   WaNumber[]
-  templates WaTemplate[]
-  messages  WaMessage[]
+  templates     WaTemplate[]
+  messages      WaMessage[]
+  conversations WaConversation[]
+  autoreplyRules WaAutoreplyRule[]
 
   @@unique([platformId, externalOwnerId])
   @@index([wabaId])
@@ -1625,12 +1641,83 @@ model WaMessage {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  tenant   WaTenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  template WaTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  conversationId String?
 
+  tenant       WaTenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  template     WaTemplate?     @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  conversation WaConversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  @@index([conversationId, createdAt])
   @@index([tenantId, createdAt])
   @@index([metaMessageId])
   @@index([tenantId, contactPhone, createdAt])
+}
+
+/// One thread with one contact.
+///
+/// `windowExpiresAt` is the 24-hour service window, refreshed by every INBOUND
+/// message. It is the gate on free-form text: Meta answers 200 outside the
+/// window and delivers nothing, so a silent failure looks exactly like success.
+model WaConversation {
+  id       String @id @default(cuid())
+  tenantId String
+
+  contactPhone String
+  contactName  String?
+
+  /// Refreshed on every inbound message. Null = never messaged us.
+  windowExpiresAt DateTime?
+  lastInboundAt   DateTime?
+  lastOutboundAt  DateTime?
+
+  /// Set the moment a stop-intent message arrives, and honoured on every
+  /// marketing send. Compliance, not a broadcast feature.
+  optedOut   Boolean   @default(false)
+  optedOutAt DateTime?
+
+  status          WaConversationStatus @default(OPEN)
+  assignedAgentId String?
+  unreadCount     Int                  @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   WaTenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  messages WaMessage[]
+
+  @@unique([tenantId, contactPhone])
+  @@index([tenantId, status, updatedAt])
+  @@index([tenantId, windowExpiresAt])
+}
+
+/// Keyword → canned reply, evaluated on every inbound message.
+///
+/// Replies are free text, so they are legal only inside the service window —
+/// which an inbound message has just opened by definition.
+model WaAutoreplyRule {
+  id       String @id @default(cuid())
+  tenantId String
+
+  name      String
+  matchType WaMatchType @default(CONTAINS)
+  /// Ignored when matchType is ANY.
+  pattern   String?
+
+  replyText String
+  /// Lower runs first. First match wins; nothing cascades.
+  priority  Int     @default(100)
+  enabled   Boolean @default(true)
+
+  /// Cheap analytics, and the fastest way to spot a rule matching everything.
+  matchCount  Int       @default(0)
+  lastMatchAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant WaTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, enabled, priority])
 }
 
 /// Raw inbound webhook events, kept for dedupe. Meta retries delivery, and
