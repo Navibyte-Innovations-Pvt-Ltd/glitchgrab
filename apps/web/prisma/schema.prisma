@@ -1454,6 +1454,11 @@ enum WaTenantStatus {
   DISCONNECTED
 }
 
+enum WaAgentRole {
+  AGENT
+  ADMIN
+}
+
 enum WaMatchType {
   EXACT
   CONTAINS
@@ -1547,8 +1552,9 @@ model WaTenant {
   numbers   WaNumber[]
   templates     WaTemplate[]
   messages      WaMessage[]
-  conversations WaConversation[]
+  conversations  WaConversation[]
   autoreplyRules WaAutoreplyRule[]
+  agents         WaAgent[]
 
   @@unique([platformId, externalOwnerId])
   @@index([wabaId])
@@ -1688,6 +1694,31 @@ model WaConversation {
   @@unique([tenantId, contactPhone])
   @@index([tenantId, status, updatedAt])
   @@index([tenantId, windowExpiresAt])
+}
+
+/// An inbox seat.
+///
+/// Deliberately NOT a Glitchgrab `User`: the people answering a library's
+/// WhatsApp work for the library, have no Glitchgrab account, and must never be
+/// resolvable to one. `externalAgentId` is the platform's own user id, the same
+/// indirection `WaTenant.externalOwnerId` uses.
+model WaAgent {
+  id       String @id @default(cuid())
+  tenantId String
+
+  externalAgentId String
+  name            String
+  email           String?
+  role            WaAgentRole @default(AGENT)
+  active          Boolean     @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant WaTenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, externalAgentId])
+  @@index([tenantId, active])
 }
 
 /// Keyword → canned reply, evaluated on every inbound message.
