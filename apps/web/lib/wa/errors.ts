@@ -4,7 +4,7 @@
  * the SDK sees the `code` string on the JSON response, not the class.
  */
 
-export type WaErrorCode =
+type WaErrorCode =
   | "UNAUTHORIZED"
   | "PLATFORM_INACTIVE"
   | "TENANT_NOT_FOUND"
