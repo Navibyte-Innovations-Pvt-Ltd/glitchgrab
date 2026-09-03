@@ -67,6 +67,7 @@ There is NO AI dedup, NO AI label generation, NO AI severity inference, NO AI re
 - Works with Next.js 13, 14, and 15.
 - Sanitize URLs — strip sensitive query params (tokens, keys, etc).
 - Auto-error capture is **disabled in development** (`NODE_ENV=development`).
+- **Two entries.** `src/index.ts` is the browser SDK (`"use client"`). `src/server.ts` is `glitchgrab/server` — Node only, no React, no DOM: `reportServerError` / `captureServerErrors` for cron jobs, route handlers and workers, where no tab is open and the browser SDK can never fire. It posts `source: "SDK_AUTO"` so the 24h/7d server dedup applies, and sends `pageUrl: server://<context>` as the grouping key. Adding a third entry means updating `tsup.config.ts` AND `exports` in `package.json`.
 - `ReportButton` is a headless wrapper — supports render prop for custom trigger UI.
 - `session` prop on `GlitchgrabProvider` accepts `GlitchgrabSession` with `userId` (required), `name` (required), `email`, `phone`.
 - All SDK reports (SDK_USER_REPORT + SDK_AUTO) create GitHub issues directly. The SDK never triggers AI generation; the only AI surface is the optional `enhanceText` helper.
