@@ -55,7 +55,7 @@ async function decide(formData: FormData, approved: boolean) {
     // Logged because an access_denied that the user did not intend is
     // indistinguishable from a real Cancel at the client end — that is exactly
     // how the submitter-name bug above stayed invisible.
-    console.log("[oauth/authorize] denied by user", { clientId });
+    console.info("[oauth/authorize] denied by user", { clientId });
     target.searchParams.set("error", "access_denied");
     target.searchParams.set("error_description", "The user declined the request");
     redirect(target.toString());
@@ -78,7 +78,7 @@ async function decide(formData: FormData, approved: boolean) {
     scope,
   });
 
-  console.log("[oauth/authorize] approved", { clientId, userId: session.user.id });
+  console.info("[oauth/authorize] approved", { clientId, userId: session.user.id });
   target.searchParams.set("code", code);
   redirect(target.toString());
 }
