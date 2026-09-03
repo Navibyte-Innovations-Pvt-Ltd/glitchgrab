@@ -15,7 +15,7 @@ import { prisma } from "@/lib/db";
 const SERVICE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 /** E.164 digits, no plus — the shape Meta uses and the shape we key on. */
-function normalizeContact(phone: string): string {
+export function normalizeContact(phone: string): string {
   return phone.replace(/\D/g, "");
 }
 
@@ -36,7 +36,7 @@ const STOP_INTENT =
 
 const START_INTENT = /^(start|resume|subscribe|unstop)\b/i;
 
-function detectOptOut(text: string): "out" | "in" | null {
+export function detectOptOut(text: string): "out" | "in" | null {
   const t = text.trim();
   if (!t) return null;
   if (STOP_INTENT.test(t)) return "out";
