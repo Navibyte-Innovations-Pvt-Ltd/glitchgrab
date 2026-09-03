@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { visibleRepoWhere } from "@/lib/mcp-oauth";
-import { decideAuthorization } from "./actions";
+import { approveAuthorization, denyAuthorization } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -106,18 +106,14 @@ export default async function AuthorizePage({
 
           <button
             type="submit"
-            name="decision"
-            value="deny"
-            formAction={decideAuthorization}
+            formAction={denyAuthorization}
             className="flex-1 rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent"
           >
             Cancel
           </button>
           <button
             type="submit"
-            name="decision"
-            value="approve"
-            formAction={decideAuthorization}
+            formAction={approveAuthorization}
             className="flex-1 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
           >
             Approve
