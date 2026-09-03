@@ -46,6 +46,7 @@ export default function RootLayout({ children }) {
 ```
 
 - Auto-captures unhandled errors with full context (visited pages, stack, screenshot)
+- `glitchgrab/server` — the same pipeline for cron jobs, API routes and workers, where no browser exists
 - Adds a "Report Error" button for end-users
 - Non-blocking — never crashes the host app
 
