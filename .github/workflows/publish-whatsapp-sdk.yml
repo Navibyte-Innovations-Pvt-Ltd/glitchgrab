@@ -13,6 +13,19 @@ permissions:
   issues: write
   id-token: write
 
+# Every release workflow in this repo pushes a `chore(release)` commit to main
+# through @semantic-release/git, and they all share this one lock. Without it
+# two of them run at once, the slower one's push is rejected with
+# `! [rejected] (fetch first)`, and a release that actually succeeded is
+# reported as a failed job — which is exactly what happened when a manual
+# "Release SDK" dispatch overlapped the Release triggered by a merge.
+#
+# cancel-in-progress is false on purpose: a release half-done is worse than a
+# release that waits its turn.
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: self-hosted
@@ -24,6 +37,17 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GH_TOKEN }}
           persist-credentials: true
+
+      # The lock above stops two releases running at once, but the job that
+      # waited still checked out its code before the job ahead of it pushed.
+      # Without this it would prepare its release on a stale main and be
+      # rejected on push — the queue moves the race, it does not remove it.
+      #
+      # It sits here, straight after checkout, and not next to the release
+      # step: by then the publish prep has deleted the root package.json and
+      # bun.lock, and rebase refuses to run on a dirty tree.
+      - name: Sync with main before releasing
+        run: git pull --rebase origin main
 
       - uses: oven-sh/setup-bun@v2
 
