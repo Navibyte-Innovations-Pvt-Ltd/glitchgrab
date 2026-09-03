@@ -1,7 +1,10 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/index.ts"],
+  // Two entries: the browser SDK, and `glitchgrab/server` — a Node-only
+  // reporter with no "use client" and no React, for cron jobs and route
+  // handlers where the browser SDK can never run.
+  entry: ["src/index.ts", "src/server.ts"],
   format: ["cjs", "esm"],
   dts: true,
   splitting: false,

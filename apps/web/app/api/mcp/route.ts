@@ -7,7 +7,7 @@ import { getValidAccessToken } from "@/lib/gsc-tokens";
 import { getSitemapUrls, inspectUrl, requestIndexing } from "@/lib/gsc";
 import { hashToken } from "@/lib/tokens";
 import { createScreenshotUploadUrl } from "@/lib/s3";
-import { commentOnGitHubIssue } from "@/lib/github";
+import { commentOnGitHubIssue, getGitHubIssueDetail } from "@/lib/github";
 import { getInstallationAccessToken } from "@/lib/github-app";
 import { publicOrigin, verifyAccessToken, visibleRepoWhere } from "@/lib/mcp-oauth";
 
@@ -176,6 +176,26 @@ const TOOLS = [
     },
   },
   {
+    name: "get_issue",
+    description:
+      "Read one GitHub issue from a repo connected to Glitchgrab: title, body, state, labels, author and its comments. Use this before commenting so you know what was already reported and answered. The reporter's screenshot and repro steps live in the body.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        repoFullName: {
+          type: "string",
+          description: "owner/name, e.g. Navibyte-Innovations-Pvt-Ltd/practise_stack. Optional when the API token already pins one repo.",
+        },
+        issueNumber: { type: "number", description: "Issue number to read" },
+        commentLimit: {
+          type: "number",
+          description: "Max comments to return, newest kept (default 30, max 100). Pass 0 to skip comments.",
+        },
+      },
+      required: ["issueNumber"],
+    },
+  },
+  {
     name: "comment_on_issue",
     description:
       "Post a comment on a GitHub issue as the Glitchgrab app, on a repo connected to Glitchgrab. Markdown, including image links from create_image_upload_url. Does not close or reopen the issue.",
@@ -335,33 +355,17 @@ async function handleCreateImageUploadUrl(params: Record<string, unknown>) {
 }
 
 /**
- * Comments as the GitHub App, not as a person. The App is what already files
- * these issues, so a fix note lands in the same thread under the same identity.
+ * Resolves the repo a caller may act on, for both issue tools.
  *
- * Repo resolution is scoped twice over: a Bearer token pins one repo outright,
- * and a session caller can still only reach repos they own. Neither path lets a
- * caller name an arbitrary `owner/name` and have it posted to.
+ * Scoped twice over: a Bearer API token pins one repo outright, and any other
+ * caller can only reach repos `visibleRepoWhere` allows. Neither path lets a
+ * caller name an arbitrary `owner/name` and have it acted on.
  */
-async function handleCommentOnIssue(
+async function resolveIssueRepo(
   userId: string,
   tokenRepoId: string | null,
-  params: Record<string, unknown>
+  repoFullName: string | null
 ) {
-  const issueNumber = Number(params.issueNumber);
-  const body = typeof params.body === "string" ? params.body : null;
-  const repoFullName = typeof params.repoFullName === "string" ? params.repoFullName : null;
-
-  if (!Number.isInteger(issueNumber) || issueNumber <= 0) {
-    throw new Error("issueNumber must be a positive integer");
-  }
-  if (!body || body.trim().length === 0) throw new Error("body is required");
-  // Without this, a session caller who omits repoFullName falls through to
-  // `findFirst({ userId })` and the comment lands on an arbitrary repo they
-  // happen to own. A token pins the repo; a session must name one.
-  if (!tokenRepoId && !repoFullName) {
-    throw new Error("repoFullName is required — this token is not pinned to a single repo");
-  }
-
   const repo = await prisma.repo.findFirst({
     where: tokenRepoId
       ? { id: tokenRepoId, ...(repoFullName ? { fullName: repoFullName } : {}) }
@@ -383,10 +387,69 @@ async function handleCommentOnIssue(
   }
   if (!repo.installation?.installationId) {
     throw new Error(
-      `The Glitchgrab GitHub App is not installed on ${repo.fullName} — install it to let it comment`
+      `The Glitchgrab GitHub App is not installed on ${repo.fullName} — install it to use the issue tools`
     );
   }
+  return repo as typeof repo & { installation: { installationId: number } };
+}
 
+async function handleGetIssue(
+  userId: string,
+  tokenRepoId: string | null,
+  params: Record<string, unknown>
+) {
+  const issueNumber = Number(params.issueNumber);
+  if (!Number.isInteger(issueNumber) || issueNumber <= 0) {
+    throw new Error("issueNumber must be a positive integer");
+  }
+  const repoFullName = typeof params.repoFullName === "string" ? params.repoFullName : null;
+  const commentLimit =
+    params.commentLimit === undefined ? 30 : Math.max(0, Math.min(Number(params.commentLimit), 100));
+
+  if (!tokenRepoId && !repoFullName) {
+    throw new Error("repoFullName is required — this token is not pinned to a single repo");
+  }
+
+  const repo = await resolveIssueRepo(userId, tokenRepoId, repoFullName);
+  const token = await getInstallationAccessToken(repo.installation.installationId);
+  const issue = await getGitHubIssueDetail(token, repo.owner, repo.name, issueNumber, commentLimit);
+
+  if (!issue) {
+    throw new Error(
+      `Issue #${issueNumber} was not found on ${repo.fullName} (it may be a pull request, which this tool does not read)`
+    );
+  }
+  return { repo: repo.fullName, ...issue };
+}
+
+/**
+ * Comments as the GitHub App, not as a person. The App is what already files
+ * these issues, so a fix note lands in the same thread under the same identity.
+ *
+ * Repo resolution is scoped twice over: a Bearer token pins one repo outright,
+ * and a session caller can still only reach repos they own. Neither path lets a
+ * caller name an arbitrary `owner/name` and have it posted to.
+ */
+async function handleCommentOnIssue(
+  userId: string,
+  tokenRepoId: string | null,
+  params: Record<string, unknown>
+) {
+  const issueNumber = Number(params.issueNumber);
+  const body = typeof params.body === "string" ? params.body : null;
+  const repoFullName = typeof params.repoFullName === "string" ? params.repoFullName : null;
+
+  if (!Number.isInteger(issueNumber) || issueNumber <= 0) {
+    throw new Error("issueNumber must be a positive integer");
+  }
+  if (!body || body.trim().length === 0) throw new Error("body is required");
+  // Without this, a session caller who omits repoFullName falls through to a
+  // repo they merely happen to own. A token pins the repo; anyone else names one.
+  if (!tokenRepoId && !repoFullName) {
+    throw new Error("repoFullName is required — this token is not pinned to a single repo");
+  }
+
+  const repo = await resolveIssueRepo(userId, tokenRepoId, repoFullName);
   const installationToken = await getInstallationAccessToken(repo.installation.installationId);
   await commentOnGitHubIssue(installationToken, repo.owner, repo.name, issueNumber, body);
 
@@ -394,7 +457,7 @@ async function handleCommentOnIssue(
     posted: true,
     repo: repo.fullName,
     issueNumber,
-    url: `https://github.com/${repo.fullName}/issues/${issueNumber}#issuecomment-latest`,
+    url: `https://github.com/${repo.fullName}/issues/${issueNumber}`,
   };
 }
 
@@ -470,6 +533,8 @@ export async function POST(request: NextRequest) {
             return rpcToolResult(id, await handleRequestReindex(auth.userId, toolArgs));
           case "create_image_upload_url":
             return rpcToolResult(id, await handleCreateImageUploadUrl(toolArgs));
+          case "get_issue":
+            return rpcToolResult(id, await handleGetIssue(auth.userId, auth.repoId, toolArgs));
           case "comment_on_issue":
             return rpcToolResult(id, await handleCommentOnIssue(auth.userId, auth.repoId, toolArgs));
           default:

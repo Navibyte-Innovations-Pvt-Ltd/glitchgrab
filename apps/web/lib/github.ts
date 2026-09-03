@@ -229,6 +229,93 @@ export async function getGitHubIssue(
   }
 }
 
+/**
+ * The full issue, including body and comment bodies.
+ *
+ * `getGitHubIssue` above returns only a comment *count*, which is enough to
+ * decide whether a thread is busy but useless for reading one. An agent picking
+ * up a bug report needs the body — that is where the reporter's screenshot and
+ * repro steps are — and the existing comments, so it does not repeat an answer
+ * someone already gave.
+ *
+ * Comments are capped and fetched newest-relevant-first by page: a long thread
+ * would otherwise blow out the caller's context for no benefit.
+ */
+export async function getGitHubIssueDetail(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+  commentLimit = 30
+): Promise<{
+  number: number;
+  title: string;
+  body: string;
+  state: string;
+  author: string | null;
+  labels: string[];
+  htmlUrl: string;
+  createdAt: string;
+  commentCount: number;
+  comments: Array<{ author: string | null; body: string; createdAt: string }>;
+} | null> {
+  const res = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/issues/${issueNumber}`, {
+    headers: headers(accessToken),
+  });
+  if (!res.ok) return null;
+
+  const data = (await res.json()) as {
+    number: number;
+    title: string;
+    body: string | null;
+    state: string;
+    html_url: string;
+    created_at: string;
+    comments: number;
+    user?: { login?: string } | null;
+    labels?: Array<{ name?: string } | string>;
+    pull_request?: unknown;
+  };
+  // The issues endpoint returns PRs too; a PR is not an issue.
+  if (data.pull_request) return null;
+
+  let comments: Array<{ author: string | null; body: string; createdAt: string }> = [];
+  if (data.comments > 0 && commentLimit > 0) {
+    const capped = Math.min(commentLimit, 100);
+    const cRes = await fetch(
+      `${GITHUB_API}/repos/${owner}/${repo}/issues/${issueNumber}/comments?per_page=${capped}`,
+      { headers: headers(accessToken) }
+    );
+    if (cRes.ok) {
+      const raw = (await cRes.json()) as Array<{
+        body: string | null;
+        created_at: string;
+        user?: { login?: string } | null;
+      }>;
+      // Keep the most recent when a thread is longer than the cap — the tail is
+      // where the current state of a discussion lives.
+      comments = raw.slice(-capped).map((c) => ({
+        author: c.user?.login ?? null,
+        body: c.body ?? "",
+        createdAt: c.created_at,
+      }));
+    }
+  }
+
+  return {
+    number: data.number,
+    title: data.title,
+    body: data.body ?? "",
+    state: data.state,
+    author: data.user?.login ?? null,
+    labels: (data.labels ?? []).map((l) => (typeof l === "string" ? l : (l.name ?? ""))).filter(Boolean),
+    htmlUrl: data.html_url,
+    createdAt: data.created_at,
+    commentCount: data.comments,
+    comments,
+  };
+}
+
 // ─── Comment on an issue ─────────────────────────────
 
 export async function commentOnGitHubIssue(

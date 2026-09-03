@@ -94,7 +94,8 @@ A `gg_` token pins one repo, so it can never comment on another.
 
 ## Tools
 
-Beyond the repo/report/GSC tools, two exist for putting screenshots on an issue:
+Beyond the repo/report/GSC tools, three cover the issue workflow end to end —
+read the thread, upload the pictures, post the reply:
 
 ### `create_image_upload_url`
 
@@ -127,6 +128,19 @@ Two constraints worth not breaking:
 - **`publicUrl` is the CDN host, never the S3 origin.** The bucket is not
   public-read, so a signed origin URL 403s once the signature expires.
 
+### `get_issue`
+
+Reads one issue: title, body, state, labels, author, and comment bodies.
+`commentLimit` defaults to 30, caps at 100, and `0` skips comments entirely.
+
+The body is the point — that is where a reporter's screenshot and repro steps
+live. `lib/github.ts` already had `getGitHubIssue`, but it returns only a comment
+*count*, which tells you a thread is busy and nothing about what it says;
+`getGitHubIssueDetail` is the one this tool uses.
+
+Pull requests return "not found" on purpose. GitHub serves PRs from the issues
+endpoint too, and a PR is not a bug report.
+
 ### `comment_on_issue`
 
 Posts markdown on an issue **as the Glitchgrab GitHub App** — the same identity
@@ -134,9 +148,11 @@ that files the issues, so a fix note lands in the thread under the same author.
 Needs the App installed on that repo with issue write; the error says so by name
 when it is not.
 
-Repo resolution is scoped twice: a Bearer token pins one repo outright, and a
-session caller can still only reach repos they own. Neither path lets a caller
-name an arbitrary `owner/name` and have it posted to.
+Both issue tools share `resolveIssueRepo`, so they are scoped identically: a
+Bearer token pins one repo outright, and any other caller is limited to
+`visibleRepoWhere`. Neither path lets a caller name an arbitrary `owner/name`
+and have it acted on, and a caller with no pinned repo must name one rather than
+falling through to whichever repo happens to match first.
 
 Does not close or reopen — commenting only.
 

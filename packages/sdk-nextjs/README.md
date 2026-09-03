@@ -641,6 +641,110 @@ captureError(error: unknown, options?: {
 - Pass `digest` whenever you have it. In production Next replaces server-boundary error messages with one generic string — without the digest, every distinct server crash on a page collapses into a single deduped issue.
 - No-ops if no `GlitchgrabProvider` has rendered yet.
 
+## How do I catch errors on the server (cron jobs, API routes, workers)?
+
+Everything above is browser-side — it hooks `window.onerror` and needs a
+rendered provider. A cron job at 3am has neither, so a nightly digest that
+throws, an SMTP timeout, or a payment webhook a provider rejects is invisible
+to it. `glitchgrab/server` is the same pipeline for code with no tab open.
+
+```bash
+GLITCHGRAB_TOKEN=gg_your_token
+```
+
+```ts
+// app/api/cron/daily-digest/route.ts
+import { reportServerError } from "glitchgrab/server";
+
+export async function GET() {
+  try {
+    await sendDigest();
+    return Response.json({ ok: true });
+  } catch (error) {
+    await reportServerError(error, { context: "cron/daily-digest" });
+    throw error;
+  }
+}
+```
+
+That is a GitHub issue with the message, the stack, the Node version and the
+region — no browser, no screenshot, no provider.
+
+**Await it.** On a serverless platform your function can be frozen the instant
+the handler returns; a floating promise dies with it and the report never
+leaves the machine.
+
+### Reporting a failure that isn't a thrown error
+
+The useful failures are often values, not exceptions — a provider that answers
+`{ ok: false }`, a send the API rejects. Report those the same way:
+
+```ts
+const result = await sendWhatsApp(payload);
+if (!result.success) {
+  await reportServerError(result.error, {
+    context: "whatsapp/task-reminder",
+    description: `Template ${payload.template} rejected for ${payload.to}`,
+    severity: "high",
+  });
+}
+```
+
+### Set the token once
+
+```ts
+// instrumentation.ts
+import { configureServerReporter, captureServerErrors } from "glitchgrab/server";
+
+export function register() {
+  configureServerReporter({
+    token: process.env.GLITCHGRAB_TOKEN,
+    metadata: { service: "web" },
+  });
+
+  // Optional: report every uncaught exception and unhandled rejection.
+  captureServerErrors();
+}
+```
+
+`captureServerErrors()` listens on `uncaughtExceptionMonitor`, which observes
+without taking over — your process still crashes exactly as it would have. A
+reporter that keeps a broken process alive is worse than no reporter.
+
+### `context` is the grouping key
+
+It is sent as the report's `pageUrl` (as `server://<context>`), and `pageUrl`
+feeds the dedup signature. Two different jobs throwing the same `"Timeout"`
+therefore stay two issues instead of collapsing into one. Give every call site
+its own context.
+
+### Options
+
+```ts
+reportServerError(error: unknown, options?: {
+  token?: string;               // default: process.env.GLITCHGRAB_TOKEN
+  baseUrl?: string;             // default: process.env.GLITCHGRAB_BASE_URL
+  context?: string;             // "cron/daily-digest" — the grouping key
+  description?: string;         // what the job was doing
+  type?: ReportType;            // default "BUG"
+  severity?: ReportSeverity;    // becomes a severity:<value> label
+  pageUrl?: string;             // a real request URL, when there is one
+  metadata?: Record<string, string>;
+  reporter?: { id?: string; name?: string; email?: string; phone?: string };
+  enableInDevelopment?: boolean;
+})
+```
+
+- **Deduped server-side**: one issue per signature per 24h, and nothing new for
+  7 days while an issue for it is open. A job failing hourly files one issue,
+  not twenty-four.
+- **Silent in development** unless `enableInDevelopment: true`. The browser SDK
+  is stopped by the API's localhost check; a server sends no `Origin` header, so
+  this flag is the only thing standing between a refactor and real issues.
+- **Never throws.** Returns `null` when nothing was filed — no token,
+  development, or the API refused it.
+- No React, no DOM, no `"use client"`. Safe in any Node runtime.
+
 ## What configuration options are available?
 
 | Prop | Type | Default | Description |
