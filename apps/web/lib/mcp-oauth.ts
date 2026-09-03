@@ -32,7 +32,7 @@ export function publicOrigin(): string {
  * Tokens are compared by hash, never stored in plaintext — same posture as
  * `ApiToken`. The DB is not a place a bearer credential belongs.
  */
-export function hashSecret(value: string): string {
+function hashSecret(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
@@ -80,7 +80,7 @@ export function verifyPkce(verifier: string, challenge: string, method: string):
  * Every redirect URI must be HTTPS or loopback. An `http://` redirect to any
  * other host would hand the authorization code to the network.
  */
-export function isAllowedRedirectUri(uri: string): boolean {
+function isAllowedRedirectUri(uri: string): boolean {
   let parsed: URL;
   try {
     parsed = new URL(uri);
@@ -166,7 +166,7 @@ export async function claimAuthorizationCode(code: string) {
 const ACCESS_TTL_MS = 60 * 60 * 1000; // 1h — short, per OAuth 2.1 guidance
 const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30d
 
-export interface IssuedTokens {
+interface IssuedTokens {
   access_token: string;
   refresh_token: string;
   token_type: "Bearer";
