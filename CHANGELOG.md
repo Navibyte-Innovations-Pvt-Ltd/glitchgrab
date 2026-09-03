@@ -1,3 +1,9 @@
+## [1.67.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.66.1...v1.67.0) (2026-09-03)
+
+### Features
+
+* **mcp:** update protocol handling to fix issues with MCP client connections ([8c49da5](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/8c49da50a099fd8efe35452f14dd9f9ecd88ff33))
+
 ## [1.66.1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.66.0...v1.66.1) (2026-09-03)
 
 ### Bug Fixes
