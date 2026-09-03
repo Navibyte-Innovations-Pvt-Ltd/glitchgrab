@@ -92,6 +92,17 @@
       "ignoreDependencies": [
         "@types/react-native"
       ]
+    },
+    "packages/sdk-whatsapp": {
+      "project": [
+        "src/**/*.{ts,tsx}"
+      ],
+      "ignoreDependencies": [
+        "@semantic-release/commit-analyzer",
+        "@semantic-release/github",
+        "@semantic-release/release-notes-generator",
+        "conventional-changelog-conventionalcommits"
+      ]
     }
   },
   "ignoreDependencies": [
