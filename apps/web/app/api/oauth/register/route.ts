@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { registerClient } from "@/lib/mcp-oauth";
+import { isAllowedRedirectUri, registerClient } from "@/lib/mcp-oauth";
 
 /**
  * RFC 7591 Dynamic Client Registration.
@@ -44,6 +44,22 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Validation failures are the client's problem and get a specific OAuth error;
+  // anything else is ours and must not describe itself. This endpoint is
+  // unauthenticated, so an unmasked exception hands a stranger the shape of the
+  // database — the first version of this returned "table does not exist" to the
+  // open internet, mislabelled as invalid_redirect_uri.
+  if (!redirectUris.some(isAllowedRedirectUri)) {
+    return NextResponse.json(
+      {
+        error: "invalid_redirect_uri",
+        error_description:
+          "redirect_uris must be https, a loopback address, or a custom app scheme",
+      },
+      { status: 400, headers: CORS }
+    );
+  }
+
   try {
     const client = await registerClient({
       clientName: typeof body.client_name === "string" ? body.client_name : undefined,
@@ -64,10 +80,13 @@ export async function POST(request: NextRequest) {
       { status: 201, headers: CORS }
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : "registration failed";
+    console.error("[oauth/register] failed:", error);
     return NextResponse.json(
-      { error: "invalid_redirect_uri", error_description: message },
-      { status: 400, headers: CORS }
+      {
+        error: "server_error",
+        error_description: "Client registration is temporarily unavailable",
+      },
+      { status: 500, headers: CORS }
     );
   }
 }
