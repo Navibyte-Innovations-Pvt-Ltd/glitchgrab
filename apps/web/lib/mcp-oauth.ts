@@ -80,7 +80,7 @@ export function verifyPkce(verifier: string, challenge: string, method: string):
  * Every redirect URI must be HTTPS or loopback. An `http://` redirect to any
  * other host would hand the authorization code to the network.
  */
-function isAllowedRedirectUri(uri: string): boolean {
+export function isAllowedRedirectUri(uri: string): boolean {
   let parsed: URL;
   try {
     parsed = new URL(uri);
