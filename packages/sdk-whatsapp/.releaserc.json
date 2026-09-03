@@ -1,0 +1,45 @@
+{
+  "branches": ["main"],
+  "tagFormat": "whatsapp-sdk-v${version}",
+  "plugins": [
+    [
+      "@semantic-release/commit-analyzer",
+      {
+        "preset": "conventionalcommits",
+        "releaseRules": [
+          { "type": "feat", "scope": "whatsapp-sdk", "release": "minor" },
+          { "type": "fix", "scope": "whatsapp-sdk", "release": "patch" },
+          { "type": "perf", "scope": "whatsapp-sdk", "release": "patch" },
+          { "type": "refactor", "scope": "whatsapp-sdk", "release": "patch" },
+          { "type": "feat", "release": "minor" },
+          { "type": "fix", "release": "patch" },
+          { "type": "perf", "release": "patch" },
+          { "type": "refactor", "release": "patch" }
+        ]
+      }
+    ],
+    [
+      "@semantic-release/release-notes-generator",
+      { "preset": "conventionalcommits" }
+    ],
+    [
+      "@semantic-release/npm",
+      { "pkgRoot": "." }
+    ],
+    [
+      "@semantic-release/github",
+      { "successComment": false, "failTitle": false }
+    ],
+    [
+      "@semantic-release/changelog",
+      { "changelogFile": "CHANGELOG.md" }
+    ],
+    [
+      "@semantic-release/git",
+      {
+        "assets": ["package.json", "CHANGELOG.md"],
+        "message": "chore(whatsapp-sdk): release ${nextRelease.version} [skip ci]"
+      }
+    ]
+  ]
+}
