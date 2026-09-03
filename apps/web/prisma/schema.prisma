@@ -54,6 +54,8 @@ model User {
   extensionSessions   ExtensionSession[]
   repoMemberships     RepoMember[]
   calendarConnections CalendarConnection[]
+  oauthAuthCodes      OAuthAuthCode[]
+  oauthTokens         OAuthToken[]
   calendarInvites     CalendarInvite[]
   loginTokens         LoginToken[]
   storeExtensions     StoreExtension[]
@@ -1389,31 +1391,31 @@ model MeetingFrame {
 /// the draft is where that gets corrected, by chatting at it, until a human
 /// presses the button that files it.
 model MeetingIssueDraft {
-  id        String  @id @default(cuid())
-  meetingId String
-  title     String
-  body      String
-  labels    String[]
+  id           String   @id @default(cuid())
+  meetingId    String
+  title        String
+  body         String
+  labels       String[]
   /// Lines from the transcript the draft is built on, as
   /// `[{ speaker, text, tMs }]`. Shown in the panel so a wrong draft can be
   /// traced to the sentence that caused it instead of argued with blindly.
-  quotes    Json?
+  quotes       Json?
   /// Ids of the `MeetingFrame`s the model was looking at, as `string[]`.
-  frameIds  Json?
+  frameIds     Json?
   /// DRAFT → CREATED (filed on GitHub) or DISCARDED (rejected by a human).
-  status    String  @default("DRAFT")
+  status       String   @default("DRAFT")
   /// The correction conversation for THIS draft, as `[{ role, content }]`.
   /// Kept per-draft rather than per-meeting: a correction is almost always
   /// about one misunderstood feature, and replaying every other draft's
   /// arguments at the model is how a good draft gets rewritten into a bad one.
-  corrections Json?
+  corrections  Json?
   /// Position in the panel. Stable across regenerations so a draft does not
   /// jump while someone is typing at it.
-  position    Int      @default(0)
+  position     Int      @default(0)
   githubNumber Int?
   githubUrl    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
 
@@ -1524,7 +1526,7 @@ model WaPlatform {
 model WaTenant {
   id String @id @default(cuid())
 
-  platformId String
+  platformId      String
   /// The platform's OWN user id. We map it to this row server-side; the
   /// platform never sends us a tenantId we would have to trust.
   externalOwnerId String
@@ -1548,10 +1550,10 @@ model WaTenant {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  platform  WaPlatform   @relation(fields: [platformId], references: [id], onDelete: Cascade)
-  numbers   WaNumber[]
-  templates     WaTemplate[]
-  messages      WaMessage[]
+  platform       WaPlatform        @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  numbers        WaNumber[]
+  templates      WaTemplate[]
+  messages       WaMessage[]
   conversations  WaConversation[]
   autoreplyRules WaAutoreplyRule[]
   agents         WaAgent[]
@@ -1626,13 +1628,13 @@ model WaMessage {
   status    WaMessageStatus    @default(QUEUED)
 
   /// E.164 digits, no plus. The tenant's counterparty either way.
-  contactPhone String
+  contactPhone  String
   phoneNumberId String?
 
   templateId String?
   /// Copied from the template at send time: a template can be recategorised by
   /// Meta later, and this row must still say what it was billed as.
-  category WaTemplateCategory?
+  category   WaTemplateCategory?
 
   metaMessageId String?
   payload       Json
@@ -1801,8 +1803,8 @@ model WaWallet {
 
 /// Append-only ledger. Never update a row here; write a compensating one.
 model WaWalletTxn {
-  id       String          @id @default(cuid())
-  walletId String
+  id                String          @id @default(cuid())
+  walletId          String
   /// Signed: negative debits, positive credits.
   amountPaise       Int
   kind              WaWalletTxnKind
@@ -1849,4 +1851,77 @@ model WaPriceRule {
 
   @@unique([platformId, category, effectiveFrom])
   @@index([platformId, category])
+}
+
+// ─── MCP OAuth (custom connector) ────────────────────────
+//
+// Glitchgrab is its own authorization server for `/api/mcp`, so an agent can
+// connect by opening a browser and approving — no token pasted into a config.
+// NextAuth still handles *who the human is*; these models only cover the OAuth
+// 2.1 handshake on top of that session.
+
+/// A client registered through RFC 7591 dynamic registration. Public clients
+/// only — an agent on a laptop cannot keep a secret, so PKCE is the proof
+/// instead, and `redirectUris` is matched exactly (never by prefix).
+model OAuthClient {
+  id           String   @id @default(cuid())
+  clientId     String   @unique
+  clientName   String?
+  redirectUris String[]
+  createdAt    DateTime @default(now())
+
+  codes  OAuthAuthCode[]
+  tokens OAuthToken[]
+
+  @@index([createdAt])
+}
+
+/// One authorization code. Single use, short lived, bound to the PKCE
+/// challenge and to the `resource` the client asked for.
+model OAuthAuthCode {
+  id                  String    @id @default(cuid())
+  /// SHA-256 — the plaintext code exists only in the redirect URL.
+  codeHash            String    @unique
+  clientId            String
+  userId              String
+  redirectUri         String
+  codeChallenge       String
+  codeChallengeMethod String    @default("S256")
+  /// RFC 8707 audience. The token minted from this code is only valid here.
+  resource            String
+  scope               String    @default("mcp")
+  expiresAt           DateTime
+  usedAt              DateTime?
+  createdAt           DateTime  @default(now())
+
+  client OAuthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([userId])
+}
+
+/// An issued access token and its refresh token. Refresh tokens rotate on every
+/// use (OAuth 2.1 requires it for public clients): the old row is revoked and a
+/// new one written, so a replayed refresh token is detectable and dead.
+model OAuthToken {
+  id               String    @id @default(cuid())
+  accessTokenHash  String    @unique
+  refreshTokenHash String?   @unique
+  clientId         String
+  userId           String
+  /// RFC 8707 audience, validated on every MCP call.
+  resource         String
+  scope            String    @default("mcp")
+  expiresAt        DateTime
+  refreshExpiresAt DateTime?
+  revokedAt        DateTime?
+  lastUsedAt       DateTime?
+  createdAt        DateTime  @default(now())
+
+  client OAuthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
