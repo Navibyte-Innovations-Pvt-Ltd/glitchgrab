@@ -1,7 +1,7 @@
 {
   "name": "@glitchgrab/whatsapp",
-  "version": "0.1.0",
-  "description": "WhatsApp Business messaging for SaaS products \u2014 connect a customer's own number, send templates, and run a shared inbox.",
+  "version": "0.2.0",
+  "description": "WhatsApp Business messaging for SaaS products — connect a customer's own number, send templates, and run a shared inbox.",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
