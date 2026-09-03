@@ -1,0 +1,115 @@
+name: Release WhatsApp SDK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/sdk-whatsapp/**"
+
+  workflow_dispatch: # Manual trigger
+
+permissions:
+  contents: write
+  issues: write
+  id-token: write
+
+jobs:
+  release:
+    runs-on: self-hosted
+
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_TOKEN }}
+          persist-credentials: true
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: bun install
+
+      # Unlike packages/sdk-nextjs this package has no workspace dependency to
+      # pre-build — it imports nothing from the monorepo, which is deliberate:
+      # a library-management product installing WhatsApp messaging should not
+      # pull in a bug reporter.
+      - name: Build SDK
+        run: bun run build
+        working-directory: packages/sdk-whatsapp
+
+      # Two entry points, and a consumer importing the wrong half gets a
+      # confusing runtime error rather than a build failure — so both are
+      # checked here rather than trusted.
+      - name: Verify build output
+        run: |
+          ls -la dist/
+          test -f dist/index.js
+          test -f dist/index.mjs
+          test -f dist/index.d.ts
+          test -f dist/react.js
+          test -f dist/react.mjs
+          test -f dist/react.d.ts
+        working-directory: packages/sdk-whatsapp
+
+      - name: Prepare for npm publish
+        run: |
+          rm -f ../../bun.lock
+          rm -f ../../package.json
+        working-directory: packages/sdk-whatsapp
+
+      # tagFormat is whatsapp-sdk-v* in .releaserc.json, distinct from the
+      # sdk-v* the Next.js SDK uses. Sharing a tag namespace would make each
+      # release read the other's history and compute the wrong next version.
+      - name: Release
+        run: npx semantic-release
+        working-directory: packages/sdk-whatsapp
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Self-heal, same failure mode as the Next.js SDK: semantic-release pushes
+      # the git tag BEFORE npm publish, so a failed publish leaves the tag and
+      # package.json bumped while npm stays behind — and every later run then
+      # no-ops with "0 commits since last release". This republishes whenever
+      # the exact local version is missing from npm.
+      - name: Reconcile npm registry
+        working-directory: packages/sdk-whatsapp
+        run: |
+          LOCAL=$(node -p "require('./package.json').version")
+          ON_NPM=false
+          for i in 1 2 3 4 5; do
+            if npm view "@glitchgrab/whatsapp@${LOCAL}" version >/dev/null 2>&1; then
+              ON_NPM=true
+              break
+            fi
+            echo "@glitchgrab/whatsapp@${LOCAL} not visible on npm yet (attempt ${i}/5) — registry may still be propagating, retrying..."
+            sleep 5
+          done
+
+          if [ "$ON_NPM" = true ]; then
+            echo "@glitchgrab/whatsapp@${LOCAL} already on npm — in sync"
+          else
+            echo "@glitchgrab/whatsapp@${LOCAL} still missing from npm — publishing to catch up"
+            # --access public: scoped packages default to restricted, which a
+            # free npm org cannot publish. publishConfig sets this too; the flag
+            # is here so a stripped package.json cannot silently change it.
+            if ! npm publish --tag latest --access public 2>publish.log; then
+              if grep -q "cannot publish over the previously published versions" publish.log; then
+                echo "npm reports ${LOCAL} already published (registry just hadn't caught up on 'npm view') — treating as in sync"
+                cat publish.log
+              else
+                cat publish.log
+                exit 1
+              fi
+            fi
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
