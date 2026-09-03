@@ -1,3 +1,13 @@
+## [1.39.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.38.0...sdk-v1.39.0) (2026-09-03)
+
+### Features
+
+* **publish-whatsapp-sdk:** update npm workflow for finalizing published versions ([8bf8627](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/8bf86275bda8f78a778f278005f1f1e6f0ae1a9b))
+
+### Bug Fixes
+
+* **publish-sdk:** improve check for existing package version on npm ([787ad50](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/787ad5066c0fd4dd8e74be050ae4a53e3170f062))
+
 ## [1.38.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/sdk-v1.37.0...sdk-v1.38.0) (2026-09-03)
 
 ### Features
