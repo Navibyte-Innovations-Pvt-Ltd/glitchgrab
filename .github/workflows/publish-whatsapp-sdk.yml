@@ -83,14 +83,17 @@ jobs:
         working-directory: packages/sdk-whatsapp
         run: |
           LOCAL=$(node -p "require('./package.json').version")
+          # npm STAGES a publish before finalising it, and a staged version is
+          # invisible to `npm view`. 25s was shorter than that window, so a
+          # perfectly good release looked stuck. Two minutes covers it.
           ON_NPM=false
-          for i in 1 2 3 4 5; do
+          for i in $(seq 1 8); do
             if npm view "@glitchgrab/whatsapp@${LOCAL}" version >/dev/null 2>&1; then
               ON_NPM=true
               break
             fi
-            echo "@glitchgrab/whatsapp@${LOCAL} not visible on npm yet (attempt ${i}/5) — registry may still be propagating, retrying..."
-            sleep 5
+            echo "@glitchgrab/whatsapp@${LOCAL} not visible on npm yet (attempt ${i}/8) — registry may still be propagating or the publish may be staged, retrying..."
+            sleep 15
           done
 
           if [ "$ON_NPM" = true ]; then
@@ -101,8 +104,17 @@ jobs:
             # free npm org cannot publish. publishConfig sets this too; the flag
             # is here so a stripped package.json cannot silently change it.
             if ! npm publish --tag latest --access public 2>publish.log; then
-              if grep -q "cannot publish over the previously published versions" publish.log; then
-                echo "npm reports ${LOCAL} already published (registry just hadn't caught up on 'npm view') — treating as in sync"
+              # Any 409 means the version already exists on npm — published, or
+              # staged and not yet finalised. Republishing can never be the
+              # right answer to it, so it is success, not failure.
+              #
+              # Matching on the message text alone is what turned a good release
+              # red: this grepped for "previously published versions" and npm
+              # said `Cannot publish over previously staged version "1.38.0"`.
+              # Different wording, different capitalisation, missed entirely —
+              # and the step exited 1 on a package that had shipped fine.
+              if grep -qiE "E409|cannot publish over (the )?previously (published|staged)" publish.log; then
+                echo "npm already has ${LOCAL} (published or staged) — treating as in sync"
                 cat publish.log
               else
                 cat publish.log
