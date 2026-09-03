@@ -44,5 +44,21 @@
   },
   "files": [
     "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab.git",
+    "directory": "packages/sdk-whatsapp"
+  },
+  "license": "MIT",
+  "keywords": [
+    "whatsapp",
+    "whatsapp-business",
+    "messaging",
+    "saas",
+    "multi-tenant"
   ]
 }
