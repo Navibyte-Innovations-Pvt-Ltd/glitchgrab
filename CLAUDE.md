@@ -276,6 +276,15 @@ by a coding agent: open issues, the brief, past reports, and filing one. The
 repo comes from the token, and `report_bug` uses the same pipeline as the SDK —
 see that package's README.
 
+A second, separate MCP server is served over HTTP at `apps/web/app/api/mcp` —
+repo/report/GSC tools plus `create_image_upload_url` and `comment_on_issue`,
+which are how screenshots get onto an issue in a private repo. Auth is a repo
+`gg_…` Bearer token or a dashboard session. It is also its own OAuth 2.1
+authorization server, so an agent connects by opening a browser and approving —
+`/.well-known/*` discovery, dynamic registration, PKCE, rotating refresh.
+Connecting Claude Code, the security properties not to regress, and the
+CDN-prefix constraint: `agent_docs/mcp-http-server.md`.
+
 ## Forms
 
 `apps/web` forms go through `InputField` — never raw shadcn inputs. Not usable in
