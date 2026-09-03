@@ -1,3 +1,40 @@
+## [1.66.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.65.0...v1.66.0) (2026-09-03)
+
+### Features
+
+* **.releaserc.json:** add configuration for semantic-release ([a91ac65](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/a91ac657c9ec8c3d048ba10ff4911d7c0e1c89c7))
+* **authorize:** add authorize action ([03d9692](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/03d9692e9326a98277879b817a0ee37aa80b85e0))
+* **claude:** update documentation for WhatsApp platform setup ([3d2d02e](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/3d2d02e6fa3c42d0be8f96cbcb8b5fbf92347e69))
+* **conversations.test:** add opt-out and start intent detection tests ([0fe1d43](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/0fe1d43e31f9ed8e97f3815bfbe3d279c1f65dc4))
+* **graph.test:** add tests for auth and rate limit failures ([87cc61b](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/87cc61b73afce1d92b6a5dce5fd331ba330d6476))
+* **knip:** add support for sdk-whatsapp package ([cb9b013](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/cb9b013aa4a21b1d60ac6974484c5b09c3c8f902))
+* **mcp-http-server:** add detailed documentation on how to connect Claude Code with the HTTP MCP server ([de98f95](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/de98f95f527e019560dd6c8bb3d401119b29751f))
+* **mcp-oauth:** add isAllowedRedirectUri function to validate redirect URIs ([6011614](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/6011614c72a61b3b6478a8817f0c48a45b23e3f9))
+* **mcp-oauth:** add OAuth 2.1 authorization server for MCP endpoint at /api/mcp ([5c52e9c](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/5c52e9c74fcb0c2d20bfa0a00fc248350f66ea89))
+* **mcp:** add create_image_upload_url and comment_on_issue tools ([5fb86ef](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/5fb86ef6a8c57358e6b21dbf02b608fa479f149a))
+* **migration:** add OAuth client and token tables ([6ed8810](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/6ed88109727a78305dc8f34dddef1df50c75d9d3))
+* **package:** add publish config for github actions ([d1c266d](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/d1c266d208e106df16d2be6f4b9c44d74d2290af))
+* **prisma:** add OAuth models ([b56364d](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/b56364d7ba54d25d19f6c7f3b75b9ce89e701a75))
+* **publish-whatsapp-sdk:** add GitHub Actions for release workflow ([2cb0423](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/2cb0423630e111f8dd8e09b3f96ebcec192cc19b))
+* **register:** add dynamic client registration API ([265f9cc](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/265f9ccc698755f6b4b0517d975c03a498ed0d49))
+* **wa-provision-platform:** add per-category pricing and seeding ([d5b8329](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/d5b8329ceb41eeb1e5d3fd507b35e0dbf8f63091))
+* **whatsapp-abhyasika-integration:** add Abhyasika integration tutorial ([ea789df](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/ea789dfa7bb52e03ffacc8cc83147e6128ea2787))
+
+### Bug Fixes
+
+* **authorization-server:** add metadata route for authorization server metadata ([b89c305](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/b89c305ef51b62a65d889b2d06988fc2a357eebd))
+* **authorize:** add consent screen ([a684de9](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/a684de90e1c51be8dc8cf7251fff99ee4b190f5a))
+* **claude:** implement MCP server over HTTP ([b28abdc](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/b28abdce6ce3f09a51ec1f13a980daae860c05be))
+* **conversations:** normalizeContact and detectOptOut methods now use `export` to make them public ([50bc542](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/50bc5428765d8ff538e7d622aa0d4d9441102400))
+* **mcp-oauth:** add validation for allowed redirect URIs ([b76f78c](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/b76f78c07d4fde72455e3fa070c81ae859e7ee23))
+* **next.config:** update rewrites and redirects ([0032ae4](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/0032ae4982c55c3f7e1bc1f1bd8be3363e0be5c4))
+* **oauth:** add error page for unauthorized access ([f25a6af](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/f25a6af3fc038cc703510ce1b6cf10e89cab5612))
+* **package:** update to use semantic release ([d00b006](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/d00b0061a9d0805196a3c79bf4964793e2a5084c))
+* **protected-resource:** add route for RFC 9728 Protected Resource Metadata ([df2a314](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/df2a3140628817b5a4db4b76a822b430b3da9d2a))
+* **register:** validate redirect_uri in POST request ([79628d4](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/79628d4f47b0c3c7e47817e5b49c4e50127decca))
+* **stream-ticket.test:** add stream-ticket test suite ([b37f7a1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/b37f7a1486b12649d382991898649e49b074970f))
+* **token:** add token route and middleware ([1170908](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/117090877884b11501a1085e9ab80d2f8b2071c0))
+
 ## [1.65.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.64.0...v1.65.0) (2026-09-02)
 
 ### Features
