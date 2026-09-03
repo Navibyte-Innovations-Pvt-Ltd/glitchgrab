@@ -20,10 +20,26 @@ interface JsonRpcRequest {
   id: string | number | null;
 }
 
+/**
+ * A protocol result, returned as-is.
+ *
+ * `initialize` and `tools/list` have their own result shapes — the client reads
+ * `result.protocolVersion` and `result.tools` directly. Wrapping those in a
+ * `content` block (which is the shape for a *tool call* result, see
+ * `rpcToolResult`) makes the handshake unparseable, and the client reports the
+ * server errored while connecting. Every response used to be wrapped this way;
+ * it went unnoticed because the endpoint was cookie-only and no MCP client
+ * could ever reach it.
+ */
 function rpcResult(id: string | number | null, result: unknown) {
+  return NextResponse.json({ jsonrpc: "2.0", result, id });
+}
+
+/** A `tools/call` result. This is the shape that carries a content block. */
+function rpcToolResult(id: string | number | null, payload: unknown) {
   return NextResponse.json({
     jsonrpc: "2.0",
-    result: { content: [{ type: "text", text: JSON.stringify(result) }] },
+    result: { content: [{ type: "text", text: JSON.stringify(payload) }] },
     id,
   });
 }
@@ -417,12 +433,22 @@ export async function POST(request: NextRequest) {
 
   try {
     switch (method) {
-      case "initialize":
+      case "initialize": {
+        // Echo the client's version when it is one we speak, so a newer client
+        // is not forced down to our default.
+        const asked = (params as { protocolVersion?: string }).protocolVersion;
+        const SUPPORTED = ["2025-06-18", "2025-03-26", "2024-11-05"];
         return rpcResult(id, {
-          protocolVersion: "2024-11-05",
+          protocolVersion: asked && SUPPORTED.includes(asked) ? asked : "2024-11-05",
           capabilities: { tools: {} },
           serverInfo: { name: "glitchgrab", version: "1.0.0" },
         });
+      }
+
+      // Notifications carry no id and MUST NOT get a JSON-RPC result back.
+      case "notifications/initialized":
+      case "notifications/cancelled":
+        return new NextResponse(null, { status: 202 });
 
       case "tools/list":
         return rpcResult(id, { tools: TOOLS });
@@ -433,19 +459,19 @@ export async function POST(request: NextRequest) {
 
         switch (toolName) {
           case "list_repos":
-            return rpcResult(id, await handleListRepos(auth.userId));
+            return rpcToolResult(id, await handleListRepos(auth.userId));
           case "get_reports":
-            return rpcResult(id, await handleGetReports(auth.userId, toolArgs));
+            return rpcToolResult(id, await handleGetReports(auth.userId, toolArgs));
           case "get_indexing_status":
-            return rpcResult(id, await handleGetIndexingStatus(auth.userId, toolArgs));
+            return rpcToolResult(id, await handleGetIndexingStatus(auth.userId, toolArgs));
           case "list_not_indexed_pages":
-            return rpcResult(id, await handleListNotIndexedPages(auth.userId, toolArgs));
+            return rpcToolResult(id, await handleListNotIndexedPages(auth.userId, toolArgs));
           case "request_reindex":
-            return rpcResult(id, await handleRequestReindex(auth.userId, toolArgs));
+            return rpcToolResult(id, await handleRequestReindex(auth.userId, toolArgs));
           case "create_image_upload_url":
-            return rpcResult(id, await handleCreateImageUploadUrl(toolArgs));
+            return rpcToolResult(id, await handleCreateImageUploadUrl(toolArgs));
           case "comment_on_issue":
-            return rpcResult(id, await handleCommentOnIssue(auth.userId, auth.repoId, toolArgs));
+            return rpcToolResult(id, await handleCommentOnIssue(auth.userId, auth.repoId, toolArgs));
           default:
             return rpcError(id, `Unknown tool: ${toolName}`, -32601);
         }
