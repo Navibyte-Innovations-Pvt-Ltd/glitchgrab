@@ -1,3 +1,25 @@
+## [1.68.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.67.0...v1.68.0) (2026-09-03)
+
+### Features
+
+* **publish-whatsapp-sdk:** update npm workflow for finalizing published versions ([8bf8627](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/8bf86275bda8f78a778f278005f1f1e6f0ae1a9b))
+* **server:** add server-side reporting with Glitchgrab's API ([e06ed6a](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/e06ed6afa825c4c35df9de926037ac0b9e1adb65))
+* **tsup.config:** add two entries for sdk-nextjs, one for browser SDK and another for Node-only reporter ([dbb4cdf](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/dbb4cdf73123430fe79abfe4e5f745e80a39c13b))
+
+### Bug Fixes
+
+* **claude:** update CLAUDE.md ([517763a](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/517763a77219706049c1572ad6aec376d7f05eea))
+* **github-actions:** clear cache after release ([22535aa](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/22535aabb065e464b0ee3029df6bcca6d4653a48))
+* **github:** update GitHub issue detail retrieval ([ba32789](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/ba32789385d4d296c72690543d3b25aa3acd6187))
+* **mcp-http-server:** update issue tools for end-to-end workflow ([c90c4a4](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/c90c4a426242718e16527300eb496d971cec6439))
+* **mcp:** add get_issue and comment_on_issue tools ([d73eabf](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/d73eabf740cf5dd24ddfef57f5d1a666c6cccf00))
+* **package:** update server types to include `./server` and `./dist/server.d.ts` ([adda434](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/adda4340596ffdea45ffdee7c69e93852cf8facc))
+* **publish-sdk:** improve check for existing package version on npm ([787ad50](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/787ad5066c0fd4dd8e74be050ae4a53e3170f062))
+* **publish-whatsapp-sdk:** sync before releasing ([3973211](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/3973211366a0daa9d43e40b196b084139b49f7bf))
+* **readme:** add guide on how to catch errors on server ([d5b68ce](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/d5b68ce8dc320598319f0f210cd8d9ccf5db4a34))
+* **readme:** improve documentation on `glitchgrab/server` ([a549f9c](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/a549f9c0d0c7ac0888c9e6c9bae6378fb9117e6e))
+* **server.test:** add tests for server reporter ([06669b6](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/06669b6707c64c87e5445fdf43abecfcd3ad8bbc))
+
 ## [1.67.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.66.1...v1.67.0) (2026-09-03)
 
 ### Features
