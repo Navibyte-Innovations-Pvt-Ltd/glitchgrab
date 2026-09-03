@@ -314,7 +314,8 @@ PracticeStack, Abhyasika) via a separate `@glitchgrab/whatsapp` SDK. Their
 business owner owns the number (messages carry HIS name); our credit line pays
 Meta, so we bill per message on a prepaid wallet. Price per template category —
 flat rates lose money on marketing. Separate Meta app, `Wa*` models, tenant is
-NOT `Organization`. See `agent_docs/whatsapp-platform.md`.
+NOT `Organization`. See `agent_docs/whatsapp-platform.md`; wiring the first
+platform up is `agent_docs/whatsapp-abhyasika-integration.md`.
 
 ## Code conventions
 
