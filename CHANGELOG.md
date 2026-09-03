@@ -1,3 +1,11 @@
+## [1.66.1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.66.0...v1.66.1) (2026-09-03)
+
+### Bug Fixes
+
+* **authorize:** handle approve and deny actions in OAuth authorization page ([2880a24](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/2880a24342eeedc6768ad47f7e392726013372fa))
+* **oauth:** approve/deny buttons use new action names ([8b23bb1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/8b23bb18295dc83a4a4d35ca4471f2b76d807683))
+* **oauth:** improve error handling in authorize actions ([614c0cd](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/614c0cd34f91f2b2904b1a5eef27b607dbc196d4))
+
 ## [1.66.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.65.0...v1.66.0) (2026-09-03)
 
 ### Features
