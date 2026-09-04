@@ -1,3 +1,14 @@
+## [1.69.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.68.0...v1.69.0) (2026-09-04)
+
+### Features
+
+* **whatsapp-platforms:** add key reveal, create form, price editor, tenant list, and top up button for WhatsApp platforms ([14a4579](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/14a45798073a7320c2780656eed854044fc712ab))
+
+### Bug Fixes
+
+* **whatsapp-platforms:** add actions.ts for managing WhatsApp platforms ([8de742c](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/8de742cbdcc21e19e541cb0786db28dc179c75e4))
+* **whatsapp-platforms:** handle missing admin email in platform list ([116edf4](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/116edf4704cf360085285355b235d8088d051b86))
+
 ## [1.68.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.67.0...v1.68.0) (2026-09-03)
 
 ### Features
