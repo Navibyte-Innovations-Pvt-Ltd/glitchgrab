@@ -58,7 +58,12 @@
         "NEXT_OTP_AUTH_KEY",
         "SMS_OTP_TEMPLATE",
         "SMS_DLT_TE_ID",
-        "SMS_SENDER_ID"
+        "SMS_SENDER_ID",
+        "ADMIN_EMAILS",
+        "META_WA_APP_ID",
+        "META_WA_SIGNUP_CONFIG_ID",
+        "META_WA_EXTENDED_CREDIT_ID",
+        "META_WA_CREDIT_CURRENCY"
       ]
     },
     "dev": {
@@ -112,7 +117,12 @@
         "NEXT_OTP_AUTH_KEY",
         "SMS_OTP_TEMPLATE",
         "SMS_DLT_TE_ID",
-        "SMS_SENDER_ID"
+        "SMS_SENDER_ID",
+        "ADMIN_EMAILS",
+        "META_WA_APP_ID",
+        "META_WA_SIGNUP_CONFIG_ID",
+        "META_WA_EXTENDED_CREDIT_ID",
+        "META_WA_CREDIT_CURRENCY"
       ]
     },
     "lint": {
