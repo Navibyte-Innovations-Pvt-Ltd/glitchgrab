@@ -9,6 +9,7 @@ import { getOrgContext } from "../lib/get-org-context";
 import { WebhookForm } from "./webhook-form";
 import { WhatsappSettingsForm } from "./whatsapp-settings-form";
 import { CalendarSettings } from "./calendar-settings";
+import { WaPlatformsLink } from "./wa-platforms-link";
 
 /**
  * Settings used to redirect out to /dashboard/settings, landing you in a shell
@@ -68,6 +69,20 @@ export default async function OrgSettingsPage({
 
         <WebhookForm />
       </section>
+
+      {/* ── NAVIBYTE ─────────────────────────────────────────────────────
+          Admin-only, and deliberately its own section: a WhatsApp platform is a
+          business relationship with another product, not an asset of this org.
+          Filed under ORGANIZATION it would read as something the org owns. */}
+      {ctx.isAdmin && (
+        <section className="space-y-3">
+          <h2 className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+            <Shield className="h-3 w-3" />
+            <span>Navibyte admin</span>
+          </h2>
+          <WaPlatformsLink />
+        </section>
+      )}
 
       {/* ── ACCOUNT ────────────────────────────────────────────────────── */}
       <section className="space-y-3">
