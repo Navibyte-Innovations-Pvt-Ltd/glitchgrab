@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { auth, isAdminEmail } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 type OrgRole = "OWNER" | "MEMBER";
@@ -48,6 +48,13 @@ export interface OrgContext {
   userImage: string | null;
   userEmail: string | null;
   role: OrgRole;
+  /**
+   * On the ADMIN_EMAILS allowlist. Computed here because the check reads an env
+   * var, which a client component cannot see — the sidebar needs the answer,
+   * not the mechanism. This only reveals a nav link; every /admin route
+   * re-checks server-side, so a forged value buys nothing.
+   */
+  isAdmin: boolean;
   repos: OrgRepo[];
 }
 
@@ -90,6 +97,7 @@ export async function getOrgContext(slug: string): Promise<OrgContext> {
     userImage: session.user.image ?? null,
     userEmail: session.user.email ?? null,
     role: member.role,
+    isAdmin: isAdminEmail(session.user.email),
   repos,
   };
 }
