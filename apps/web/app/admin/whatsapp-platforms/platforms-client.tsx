@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   createPlatform,
+  listPlatforms,
   creditPlatformWallet,
   getPlatformPrices,
   listTenants,
@@ -306,9 +307,21 @@ export function PlatformsClient({
   initialPlatforms: PlatformRow[];
   hideHeading?: boolean;
 }) {
-  const [platforms] = useState(initialPlatforms);
+  const [platforms, setPlatforms] = useState(initialPlatforms);
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
   const [, start] = useTransition();
+
+  /**
+   * Re-reads the list after anything that changes it.
+   *
+   * `revalidatePath` in the actions only refreshes the server-rendered page. In
+   * the settings sheet this list was fetched client-side, so nothing re-renders
+   * and a freshly created platform still reads "No platforms yet" — which looks
+   * exactly like the create having failed.
+   */
+  const refresh = () => {
+    void listPlatforms().then(setPlatforms).catch(() => undefined);
+  };
 
   return (
     // Embedded in the settings sheet the parent already supplies width and
@@ -326,7 +339,12 @@ export function PlatformsClient({
 
       {revealedKey && <KeyReveal apiKey={revealedKey} onDone={() => setRevealedKey(null)} />}
 
-      <CreateForm onCreated={setRevealedKey} />
+      <CreateForm
+        onCreated={(key) => {
+          setRevealedKey(key);
+          refresh();
+        }}
+      />
 
       {platforms.length === 0 && (
         <p className="text-sm text-muted-foreground">No platforms yet.</p>
@@ -378,6 +396,7 @@ export function PlatformsClient({
                     )
                       return;
                     await setPlatformActive(platform.id, !platform.active);
+                    refresh();
                   })
                 }
               >
