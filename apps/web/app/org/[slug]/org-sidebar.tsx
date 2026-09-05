@@ -89,7 +89,13 @@ export function OrgSidebar({ ctx }: { ctx: OrgContext }) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-2 py-4 flex flex-col gap-5">
+      {/*
+        min-h-0 is load-bearing: a flex child defaults to min-height:auto, so
+        without it this nav never shrinks below its content and overflow-y-auto
+        never engages — the last item just disappears under the user footer with
+        no scrollbar. It fit by luck at 15 items; the 16th exposed it.
+      */}
+      <nav className="flex-1 min-h-0 overflow-y-auto px-2 py-4 flex flex-col gap-5">
         {/* Workspace group */}
         <div>
           <h3 className="flex items-center gap-2 px-2 mb-2 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground/70 font-semibold select-none">

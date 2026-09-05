@@ -75,16 +75,22 @@ function CreateForm({ onCreated }: { onCreated: (key: string) => void }) {
     <Card>
       <CardContent className="space-y-3 p-4">
         <p className="text-sm font-semibold">Add a platform</p>
+        {/*
+          min-w-0 on each cell is load-bearing: a grid child defaults to
+          min-width:auto, so these inputs refuse to shrink below their intrinsic
+          width and push the last field past the container edge. Same trap as
+          min-h-0 on a flex child.
+        */}
         <div className="grid gap-3 sm:grid-cols-3">
-          <div className="space-y-1">
+          <div className="min-w-0 space-y-1">
             <Label htmlFor="slug" className="text-xs">Slug</Label>
             <Input id="slug" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="abhyasika" />
           </div>
-          <div className="space-y-1">
+          <div className="min-w-0 space-y-1">
             <Label htmlFor="name" className="text-xs">Name</Label>
             <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Abhyasika" />
           </div>
-          <div className="space-y-1">
+          <div className="min-w-0 space-y-1">
             <Label htmlFor="callback" className="text-xs">Callback URL (optional)</Label>
             <Input id="callback" value={callbackUrl} onChange={(e) => setCallbackUrl(e.target.value)} placeholder="https://…" />
           </div>
@@ -289,19 +295,34 @@ function Tenants({ platformId }: { platformId: string }) {
   );
 }
 
-export function PlatformsClient({ initialPlatforms }: { initialPlatforms: PlatformRow[] }) {
+/**
+ * `hideHeading` is set when this renders inside the settings side sheet, which
+ * supplies its own title — two headings stacked reads as a bug.
+ */
+export function PlatformsClient({
+  initialPlatforms,
+  hideHeading = false,
+}: {
+  initialPlatforms: PlatformRow[];
+  hideHeading?: boolean;
+}) {
   const [platforms] = useState(initialPlatforms);
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
   const [, start] = useTransition();
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4 p-4 sm:p-6">
-      <div>
-        <h1 className="text-lg font-semibold">WhatsApp platforms</h1>
-        <p className="text-sm text-muted-foreground">
-          Products reselling our WhatsApp infra. Each gets an API key and its own prices.
-        </p>
-      </div>
+    // Embedded in the settings sheet the parent already supplies width and
+    // padding; keeping max-w-5xl and p-6 here pushes the last form field past
+    // the sheet's right edge.
+    <div className={hideHeading ? "space-y-4 px-6 pb-6" : "mx-auto max-w-5xl space-y-4 p-4 sm:p-6"}>
+      {!hideHeading && (
+        <div>
+          <h1 className="text-lg font-semibold">WhatsApp platforms</h1>
+          <p className="text-sm text-muted-foreground">
+            Products reselling our WhatsApp infra. Each gets an API key and its own prices.
+          </p>
+        </div>
+      )}
 
       {revealedKey && <KeyReveal apiKey={revealedKey} onDone={() => setRevealedKey(null)} />}
 
