@@ -1,3 +1,18 @@
+## [1.70.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.69.0...v1.70.0) (2026-09-05)
+
+### Features
+
+* **org-context:** compute isAdmin from session user email ([8e78f88](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/8e78f882f5e77e9f331193a049a25fe7439e4e6a))
+* **settings:** add WhatsApp platforms link to settings page ([929a2a1](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/929a2a139748b937525fa178fd230ee9c95c5026))
+* **turbo:** add admin emails, wa app id, signup config id, extended credit id, credit currency ([e486416](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/e486416da19b8bfb9a91904dd8f593776915f376))
+* **wa-platforms-link:** add new link to admin dashboard ([7758b87](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/7758b872a1aaed0bea4a393bca0528ff1e062469))
+
+### Bug Fixes
+
+* **org-sidebar:** add min-h-0 to nav to prevent content from disappearing ([4d58288](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/4d582887408b61e273afbfeedab8797d5cb564a2))
+* **platforms-client:** use min-width:0 for space-y-1 and callback URL inputs ([2e764ab](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/2e764abc342ad71abbd3dcce21c8f02b927614a6))
+* **wa-platforms-link:** add standalone route for WhatsApp platforms ([2557b98](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/commit/2557b986b679cf5666db08ccc84475e92810b717))
+
 ## [1.69.0](https://github.com/Navibyte-Innovations-Pvt-Ltd/glitchgrab/compare/v1.68.0...v1.69.0) (2026-09-04)
 
 ### Features
